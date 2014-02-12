@@ -7,14 +7,6 @@ from cx_Freeze import setup, Executable
 
 
 def copying_additional():
-    #lib = os.path.dirname(sys.executable)
-    #lib = os.path.join(lib, 'Lib', 'site-packages')
-    #include_files = [os.path.join(lib, 'zmq', 'libzmq.pyd'),os.path.join(lib,'greenlet.pyd')]
-    #dest = os.path.join('build', 'exe.win32-2.7')
-    
-    #for i in include_files:
-        #if not os.path.exists(os.path.join(dest, os.path.basename(i))):
-            #shutil.copy(i, dest)
     approot = os.path.join('build', 'exe.win32-2.7')
     path = os.path.abspath(os.path.join(approot, 'static'))
     if not os.path.exists(path):
@@ -44,7 +36,7 @@ def build():
             version = "1.0",
             description = "昭通供电局服务器端应用程序",
             options = {"build_exe" : {
-                "packages": ["lxml._elementpath", "greenlet"],
+                "packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
                 "include_files" : ['ogc-config.ini', 'pinyin_word.data'],
                 "include_msvcr": True
             }
