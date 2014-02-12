@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import codecs
 import os, sys
 import random
@@ -6,10 +7,9 @@ import json
 import math
 import decimal
 import datetime
-import geventwebsocket
 from gevent import pywsgi
 import gevent
-from gevent.fileobject import FileObjectThread
+import gevent.fileobject
 from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
 from pysimplesoap.client import SoapClient, SoapFault
 import exceptions
@@ -47,6 +47,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import geventwebsocket
+except ImportError:
+    pass
+
 #try:
     #import arcpy
     #from arcpy import env
@@ -68,6 +73,7 @@ INDEXPAGE = os.path.join(STATICRESOURCE_DIR, 'index.html')
 CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
 UPLOAD_IMG_DIR = os.path.join(module_path(),'static','img','upload')
 UPLOAD_PHOTOS_DIR = os.path.join(module_path(),'static','photos', 'upload')
+UPLOAD_VOICE_DIR = os.path.join(module_path(),'static','voice')
 
 
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
@@ -145,7 +151,7 @@ def handle_static(aUrl):
                 if isBin:
                     mode = 'rb'
                 with open(p, mode) as f:
-                    f1 = FileObjectThread(f, mode)
+                    f1 = gevent.fileobject.FileObjectThread(f, mode)
                     body = f1.read()
             else:
                 statuscode = '404 Not Found'
@@ -157,8 +163,20 @@ def handle_static(aUrl):
             if os.path.exists(p):
                 statuscode = '200 OK'
                 with open(p, 'rb') as f:
-                    f1 = FileObjectThread(f, 'rb')
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     body = f1.read()
+            else:
+                if ext == '.3gp':
+                    id = surl[surl.rindex('/') + 1:]
+                    id = id.replace('.3gp', '')
+                    fn = get_voice_file_latest(id)
+                    if fn:
+                        with open(os.path.join(UPLOAD_VOICE_DIR, fn), 'rb') as f:
+                            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                            body = f1.read()
+                            statuscode = '200 OK'
+                        
+                    
             
     else:
         contenttype = 'text/plain;charset=' + ENCODING
@@ -654,7 +672,7 @@ def download_callback(*args, **kwargs):
     if os.path.exists(p):
         key = '%d-%d-%d' % (zoom, col, row)
         with open(p, 'rb') as f:
-            f1 = FileObjectThread(f, 'rb')
+            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
             gTileCache[key] = f1.read()
     
     
@@ -737,7 +755,7 @@ def handle_wmts_GetTile(params, Start_response):
         if not gTileCache.has_key(key):
             try:
                 with open(picpath, 'rb') as f:
-                    f1 = FileObjectThread(f, 'rb')
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     gTileCache[key] = f1.read()
                 #print(key + ' row=%d,col=%d' % (row, col))
             except:
@@ -752,7 +770,7 @@ def handle_wmts_GetTile(params, Start_response):
                 if not gTileCache.has_key(key):
                     picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
                     with open(picpath, 'rb') as f:
-                        f1 = FileObjectThread(f, 'rb')
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                         gTileCache[key] = f1.read()
                     print(key)
          
@@ -776,7 +794,7 @@ def handle_terrain(Env, Start_response):
         if os.path.exists(tilepath):
             print('reading %s...' % tilepath)
             with open(tilepath, 'rb') as f:
-                f1 = FileObjectThread(f, 'rb')
+                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                 ret = f1.read()
             gTerrainCache[key] = ret
         else:
@@ -785,7 +803,7 @@ def handle_terrain(Env, Start_response):
             else:
                 print('reading blank_terrain...')
                 with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
-                    f1 = FileObjectThread(f, 'rb')
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     ret = f1.read()
                 gTerrainCache['missing'] = ret
         
@@ -811,7 +829,7 @@ def handle_arcgistile(Env, Start_response):
                 picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'],   '%d' % zoom, '%d' % col, '%d%s' % (row, gConfig['wmts']['format']))
                 print('%s, %s' % (key, picpath))
                 with open(picpath, 'rb') as f:
-                    f1 = FileObjectThread(f, 'rb')
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     gTileCache[key] = f1.read()
                 
             except:
@@ -821,7 +839,7 @@ def handle_arcgistile(Env, Start_response):
                 if not gTileCache.has_key(key):
                     picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
                     with open(picpath, 'rb') as f:
-                        f1 = FileObjectThread(f, 'rb')
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                         gTileCache[key] = f1.read()
         
         ret = gTileCache[key]
@@ -936,7 +954,7 @@ def handle_get_method(Env, Start_response):
             p = os.path.join(p, 'geojson', area, '%s.json' % k)
             if os.path.exists(p):
                 with open(p) as f:
-                    f1 = FileObjectThread(f, 'r')
+                    f1 = gevent.fileobject.FileObjectThread(f, 'r')
                     s = f1.read()
         del d['geojson']
         
@@ -968,10 +986,16 @@ def handle_get_method(Env, Start_response):
         del d['dir_name']
         ret["result"] = {}
         ret["result"]["filename"] = fn
-        if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
-            ret["result"]["exist"] = "true"
+        if dir_name == 'voice':
+            if check_voice_file_by_fault(fn):
+                ret["result"]["exist"] = "true"
+            else:
+                ret["result"]["exist"] = "false"
         else:
-            ret["result"]["exist"] = "false"
+            if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
+                ret["result"]["exist"] = "true"
+            else:
+                ret["result"]["exist"] = "false"
         s = json.dumps(ret, ensure_ascii=True)
     if d.has_key('delete_file'):
         fn = d['delete_file'][0]
@@ -980,12 +1004,24 @@ def handle_get_method(Env, Start_response):
         del d['dir_name']
         ret["result"] = {}
         ret["result"]["filename"] = fn
-        p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
-        if os.path.exists(p):
-            os.remove(p)
-            ret["result"]["removed"] = "true"
+        if dir_name == 'voice':
+            pl = get_voice_file_by(fn)
+            if len(pl)>0:
+                for i in pl:
+                    p = os.path.join(UPLOAD_VOICE_DIR, fn)
+                    if os.path.exists(p):
+                        os.remove(p)
+                ret["result"]["removed"] = "true"
+            else:
+                ret["result"]["removed"] = "false"
+                
         else:
-            ret["result"]["removed"] = "false"
+            p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
+            if os.path.exists(p):
+                os.remove(p)
+                ret["result"]["removed"] = "true"
+            else:
+                ret["result"]["removed"] = "false"
         s = json.dumps(ret, ensure_ascii=True)
     if d.has_key('list_file_dir_name'):
         dir_name = d['list_file_dir_name'][0]
@@ -999,7 +1035,11 @@ def handle_get_method(Env, Start_response):
         else:
             ret["result"]["files"] = []
         s = json.dumps(ret, ensure_ascii=True)
-        
+    if d.has_key('get_voice_files'):
+        get_voice_files = d['get_voice_files'][0]
+        ret["result"] = {}
+        ret["result"]["ids"] = get_voice_file_all()
+        s = json.dumps(ret, ensure_ascii=True)
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
     if len(ret.keys())==0:
         ret["result"] = "ok"
@@ -1009,7 +1049,52 @@ def handle_get_method(Env, Start_response):
     #time.sleep(5.5)
     return [s]
 
+def create_voice_dir():
+    if not os.path.exists(UPLOAD_VOICE_DIR):
+        os.mkdir(UPLOAD_VOICE_DIR)
+
+def check_voice_file_by_fault(id):
+    create_voice_dir()
+    ret = False
+    for fn in os.listdir(UPLOAD_VOICE_DIR):
+        if id in fn:
+            ret = True
+            break
+    return ret
+
+def get_voice_file_latest(id):
+    create_voice_dir()
+    l = []
+    for fn in os.listdir(UPLOAD_VOICE_DIR):
+        if id in fn:
+            l.append(fn)
+    ret = None
+    if len(l)>0:
+        l.sort()
+        ret = l[-1]
+    return ret
+
+def get_voice_file_by(id):
+    create_voice_dir()
+    l = []
+    for fn in os.listdir(UPLOAD_VOICE_DIR):
+        if id in fn:
+            l.append(fn)
+    return l
+
+def get_voice_file_all():
+    s = set()
+    for fn in os.listdir(UPLOAD_VOICE_DIR):
+        p = os.path.join(UPLOAD_VOICE_DIR, fn)
+        if os.path.isfile(p):
+            arr = fn.split('@')
+            if len(arr)==3:
+                id = arr[1]
+                s.add(id)
+    return list(s)
     
+
+
 def handle_upload_file(fileobj, qsdict):
     ret = False
     root = os.path.abspath(STATICRESOURCE_DIR)
@@ -1027,6 +1112,13 @@ def handle_upload_file(fileobj, qsdict):
                 os.mkdir(p)
             save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, fileobj)
             ret = True
+        if qsdict.has_key('voice_file_name'):
+            fn = qsdict['voice_file_name'][0]
+            p = os.path.join(root, 'voice')
+            if not os.path.exists(p):
+                os.mkdir(p)
+            save_file_to(UPLOAD_VOICE_DIR, None, fn, fileobj)
+            ret = True
     except:
         print(sys.exc_info()[1])
     return ret
@@ -1035,12 +1127,15 @@ def save_file_to(category, dir_id, filename, fileobj):
     root = os.path.abspath(category)
     if not os.path.exists(root):
         os.mkdir(root)
-    p = os.path.join(root, dir_id)
-    if not os.path.exists(p):
-        os.mkdir(p)
-    p = os.path.join(root, dir_id, filename)
+        
+    p = os.path.join(root, filename)
+    if dir_id:
+        p = os.path.join(root, dir_id)
+        if not os.path.exists(p):
+            os.mkdir(p)
+        p = os.path.join(root, dir_id, filename)
     with open(p, 'wb') as f:
-        f1 = FileObjectThread(f, 'wb')
+        f1 = gevent.fileobject.FileObjectThread(f, 'wb')
         f1.write(fileobj)
     
     
@@ -1483,7 +1578,10 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
 def mainloop_single( port=None, enable_cluster=False):
     if port and not enable_cluster:
         print('listening at host 127.0.0.1, port %d' % port)
-        server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = geventwebsocket.WebSocketHandler)
+        try:
+            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = geventwebsocket.WebSocketHandler)
+        except:
+            server = pywsgi.WSGIServer(('127.0.0.1', port), application)
         server.start()
         server.serve_forever()
     else:
@@ -1519,7 +1617,8 @@ def mainloop_single( port=None, enable_cluster=False):
                 servers[-1].serve_forever()
             elif isinstance(pport, unicode):
                 for i in host_list:
-                    server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = geventwebsocket.WebSocketHandler)
+                    #server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = geventwebsocket.WebSocketHandler)
+                    server = pywsgi.WSGIServer((i, int(pport)), application)
                     servers.append(server)
                     if idx < len(host_list)-1:
                         server.start()
