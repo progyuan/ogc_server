@@ -10,6 +10,8 @@ import datetime
 from gevent import pywsgi
 import gevent
 import gevent.fileobject
+import geventwebsocket
+from geventwebsocket.handler import WebSocketHandler
 from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
 from pysimplesoap.client import SoapClient, SoapFault
 import exceptions
@@ -47,10 +49,6 @@ try:
 except ImportError:
     pass
 
-try:
-    import geventwebsocket
-except ImportError:
-    pass
 
 #try:
     #import arcpy
@@ -1229,7 +1227,7 @@ def handle_thunder_soap(obj):
     return ret    
 
 def dishen_ws_loop(aWebSocket, aHash):
-    while True:
+    while 1:
         #now = time.strftime('%Y-%m-%d %H:%M:%S')[:10]
         #ws.send("%d,%f\n" % ((time.time() - time.timezone)*1000, random.random()*10))
         #t = (time.time() - time.timezone) * 1000
@@ -1575,19 +1573,26 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
     
     
     
-def mainloop_single( port=None, enable_cluster=False):
+def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
     if port and not enable_cluster:
-        print('listening at host 127.0.0.1, port %d' % port)
-        try:
-            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = geventwebsocket.WebSocketHandler)
-        except:
-            server = pywsgi.WSGIServer(('127.0.0.1', port), application)
+        if enable_ssl:
+            print('listening at host 127.0.0.1, port %d with ssl crypted' % port)
+            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+        else:    
+            print('listening at host 127.0.0.1, port %d' % port)
+            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = WebSocketHandler)
         server.start()
         server.serve_forever()
     else:
-        pport = port
-        if not pport:
-            pport = gConfig['listen_port']['port']
+        if enable_ssl:
+            pport = port
+            if not pport:
+                pport = gConfig['listen_port']['ssl_port']
+        else:
+            pport = port
+            if not pport:
+                pport = gConfig['listen_port']['port']
+            
         host_list = get_host_ip()
         admin = ''
         if enable_cluster:
@@ -1607,7 +1612,10 @@ def mainloop_single( port=None, enable_cluster=False):
             idx = 0
             if isinstance(pport, int):
                 for i in host_list:
-                    server = pywsgi.WSGIServer((i, pport), application, handler_class = geventwebsocket.WebSocketHandler)
+                    if enable_ssl:
+                        server = pywsgi.WSGIServer((i, pport), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                    else:
+                        server = pywsgi.WSGIServer((i, pport), application, handler_class = WebSocketHandler)
                     servers.append(server)
                         
                     if idx < len(host_list)-1:
@@ -1617,8 +1625,10 @@ def mainloop_single( port=None, enable_cluster=False):
                 servers[-1].serve_forever()
             elif isinstance(pport, unicode):
                 for i in host_list:
-                    #server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = geventwebsocket.WebSocketHandler)
-                    server = pywsgi.WSGIServer((i, int(pport)), application)
+                    if enable_ssl:
+                        server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                    else:
+                        server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler)
                     servers.append(server)
                     if idx < len(host_list)-1:
                         server.start()
@@ -1628,7 +1638,10 @@ def mainloop_single( port=None, enable_cluster=False):
             elif isinstance(pport, list):
                 for i in host_list:
                     for j in pport:
-                        server = pywsgi.WSGIServer((i, int(j)), application, handler_class = geventwebsocket.WebSocketHandler)
+                        if enable_ssl:
+                            server = pywsgi.WSGIServer((i, int(j)), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                        else:    
+                            server = pywsgi.WSGIServer((i, int(j)), application, handler_class = WebSocketHandler)
                         servers.append(server)
                         if idx < len(host_list) * len(pport)-1:
                             server.start()
@@ -1684,7 +1697,7 @@ def create_cluster():
     idx = 0
     for port in range(int(rg[0]), int(rg[1]), int(rg[2])):
         print('process%d is starting...' % idx)
-        proc = Process(target=mainloop_single, args=(port, False))
+        proc = Process(target=mainloop_single, args=(port, False, False))
         proc.start()
         #gClusterProcess[str(proc.pid)] = proc
         idx += 1
@@ -1742,15 +1755,68 @@ def kill_cluster():
     print('kill done')
     
     
+def create_self_signed_cert(cert_dir, year=10):
+    from OpenSSL import crypto, SSL
+ 
+    CERT_FILE = "ssl_certificate.crt"    
+    KEY_FILE = "ssl_self_signed.key"
+    if not os.path.exists(os.path.join(cert_dir, CERT_FILE))  or not os.path.exists(os.path.join(cert_dir, KEY_FILE)):
+        k = crypto.PKey()
+        k.generate_key(crypto.TYPE_RSA, 4096)
+        cert = crypto.X509()
+        cert.get_subject().C = "AQ"
+        cert.get_subject().ST = "State"
+        cert.get_subject().L = "City"
+        cert.get_subject().O = "Company"
+        cert.get_subject().OU = "Organization"
+        cert.get_subject().CN = socket.gethostname()
+        cert.set_serial_number(1000)
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(year*365*24*60*60)
+        cert.set_issuer(cert.get_subject())
+        cert.set_pubkey(k)
+        cert.sign(k, 'sha1')
+ 
+        with open(os.path.join(cert_dir, CERT_FILE), "wt") as f:
+            f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+        with open(os.path.join(cert_dir, KEY_FILE), "wt") as f:
+            f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, k))
+ 
+        #create_self_signed_cert('.')
+        print('Create SSL key and cert done')
+    else:
+        print('SSL key and cert already exist')
+ 
     
     
 
 if __name__=="__main__":
     freeze_support()
-    if gConfig['cluster']['enable_cluster'] in ['true','True']:
-        mainloop_single(int(gConfig['cluster']['manager_port']), True)
-    else:
-        mainloop_single()
+    if len(sys.argv) == 1:
+        if gConfig['cluster']['enable_cluster'] in ['true','True']:
+            mainloop_single(int(gConfig['cluster']['manager_port']), True, False)
+        else:
+            if gConfig['listen_port']['enable_ssl'].lower() == u'true':
+                port = 443
+                try:
+                    port = int(gConfig['listen_port']['ssl_port'])
+                except:
+                    pass
+                mainloop_single(port, False, True)
+            else:
+                mainloop_single()
+    elif len(sys.argv) == 2:
+        folder = sys.argv[1]
+        year = 10
+        create_self_signed_cert(folder, year)
+    elif len(sys.argv) == 3:
+        folder = sys.argv[1]
+        year = 10
+        try:
+            year = int(sys.argv[2])
+        except:
+            pass
+        create_self_signed_cert(folder, year)
     #print(webservice_GetFlashofDate('',''))
     
     

@@ -36,7 +36,8 @@ def build():
             version = "1.0",
             description = "昭通供电局服务器端应用程序",
             options = {"build_exe" : {
-                "packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
+                #"packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
+                "includes": ["lxml._elementpath", "greenlet", ],
                 "include_files" : ['ogc-config.ini', 'pinyin_word.data'],
                 "include_msvcr": True
             }
