@@ -1092,15 +1092,23 @@ def get_voice_file_all():
     
 
 
+def create_pic_dir():
+    if not os.path.exists(os.path.join(STATICRESOURCE_DIR,'photos')):
+        os.mkdir(os.path.join(STATICRESOURCE_DIR,'photos'))
+    if not os.path.exists(UPLOAD_PHOTOS_DIR):
+        os.mkdir(UPLOAD_PHOTOS_DIR)
+
 def handle_upload_file(fileobj, qsdict):
     ret = False
     root = os.path.abspath(STATICRESOURCE_DIR)
+    create_pic_dir()
+    create_voice_dir()
     try:
         #task item picture
         if qsdict.has_key('pic_file_name'):
             fn = qsdict['pic_file_name'][0]
             dir_name = qsdict['dir_name'][0]
-            pic_type = qsdict['pic_type'][0]
+            #pic_type = qsdict['pic_type'][0]
             p = os.path.join(root, 'photos')
             if not os.path.exists(p):
                 os.mkdir(p)
