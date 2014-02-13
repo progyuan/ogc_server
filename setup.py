@@ -6,20 +6,20 @@ from cx_Freeze import setup, Executable
 
 
 
-def copying_additional():
-    approot = os.path.join('build', 'exe.win32-2.7')
-    path = os.path.abspath(os.path.join(approot, 'static'))
-    if not os.path.exists(path):
-        os.mkdir(path)
-    #for root, dirs, files  in os.walk('static', topdown=False):
-        #for name in dirs:
-    for name in os.listdir('static'):
-        if os.path.isdir(os.path.join('static', name)) and  name in ['img','geojson','photos']:
-            pdest = os.path.join(path, name)
-            psrc =  os.path.abspath(os.path.join('static', name))
-            if os.path.exists(pdest):
-                shutil.rmtree(pdest)
-            shutil.copytree(psrc, pdest)
+#def copying_additional():
+    #approot = os.path.join('build', 'exe.win32-2.7')
+    #path = os.path.abspath(os.path.join(approot, 'static'))
+    #if not os.path.exists(path):
+        #os.mkdir(path)
+    ##for root, dirs, files  in os.walk('static', topdown=False):
+        ##for name in dirs:
+    #for name in os.listdir('static'):
+        #if os.path.isdir(os.path.join('static', name)) and  name in ['img','geojson','photos']:
+            #pdest = os.path.join(path, name)
+            #psrc =  os.path.abspath(os.path.join('static', name))
+            #if os.path.exists(pdest):
+                #shutil.rmtree(pdest)
+            #shutil.copytree(psrc, pdest)
             
         
 
@@ -38,7 +38,21 @@ def build():
             options = {"build_exe" : {
                 #"packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
                 "includes": ["lxml._elementpath", "greenlet", ],
-                "include_files" : ['ogc-config.ini', 'pinyin_word.data'],
+                "include_files" : [
+                    'ogc-config.ini', 
+                    'pinyin_word.data',
+                    'static/img',
+                    'static/geojson',
+                    'static/css',
+                    'static/js',
+                    'static/lib',
+                    'static/lab',
+                    'static/demos',
+                    'static/theme',
+                    'static/indexdata.js',
+                    'static/pre_index_kmgdgis_da.html',
+                    'static/dishen_test.html',
+                    ],
                 "include_msvcr": True
             }
                     },
@@ -59,6 +73,6 @@ def build():
 
 if __name__ == '__main__':
     build()
-    copying_additional()
+    #copying_additional()
     
     
