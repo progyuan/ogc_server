@@ -953,6 +953,13 @@ def handle_get_method(Env, Start_response):
                 with open(p) as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'r')
                     s = f1.read()
+            else:
+                p = os.path.abspath(STATICRESOURCE_DIR)
+                p = os.path.join(p, 'geojson', '%s.json' % k)
+                if os.path.exists(p):
+                    with open(p) as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'r')
+                        s = f1.read()
         del d['geojson']
         
     if d.has_key('table'):
