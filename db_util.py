@@ -4354,6 +4354,227 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
     ret = {}
     sqls = []
     
+    if table=='TABLE_ZERO_INSULATOR_ABNORMAL':
+        for ss in data:
+            sql = ''
+            obj = sqlize_data(ss)
+            if op=='save':
+                l = odbc_get_records(table, "id=%s" % obj['id'], area)
+                if len(l)>0:
+                    sql = '''
+                         UPDATE %s SET 
+                         work_id=%s,
+                         z_insulators=%s,
+                         remark=%s,
+                         record_date=%s,
+                         record_submitted=%s
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['work_id'],
+                            obj['z_insulators'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            obj['id']
+                            )
+                    
+                else:
+                    sql = '''
+                         INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s)
+                    ''' % (
+                            table,
+                            obj['id'],
+                            obj['work_id'],
+                            obj['z_insulators'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            )
+            elif op=='delete':
+                if ss['id'] and len(ss['id'])>0:
+                    sql = '''
+                         DELETE FROM %s 
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['id']
+                            )
+            if len(sql)>0:
+                sqls.append(sql)
+    if table=='TABLE_TEMPERATURE_ABNORMAL':
+        for ss in data:
+            sql = ''
+            obj = sqlize_data(ss)
+            if op=='save':
+                l = odbc_get_records(table, "id=%s" % obj['id'], area)
+                if len(l)>0:
+                    sql = '''
+                         UPDATE %s SET 
+                         work_id=%s,
+                         abnormal_position=%s,
+                         absolute_temperature=%s,
+                         relative_temperature=%s,
+                         remark=%s,
+                         record_date=%s,
+                         record_submitted=%s
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['work_id'],
+                            obj['abnormal_position'],
+                            obj['absolute_temperature'],
+                            obj['relative_temperature'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            obj['id']
+                            )
+                    
+                else:
+                    sql = '''
+                         INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                    ''' % (
+                            table,
+                            obj['id'],
+                            obj['work_id'],
+                            obj['abnormal_position'],
+                            obj['absolute_temperature'],
+                            obj['relative_temperature'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            )
+            elif op=='delete':
+                if ss['id'] and len(ss['id'])>0:
+                    sql = '''
+                         DELETE FROM %s 
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['id']
+                            )
+            if len(sql)>0:
+                sqls.append(sql)
+    if table=='TABLE_RESISTANCE_MEASURE':
+        for ss in data:
+            sql = ''
+            obj = sqlize_data(ss)
+            if op=='save':
+                l = odbc_get_records(table, "id=%s" % obj['id'], area)
+                if len(l)>0:
+                    sql = '''
+                         UPDATE %s SET 
+                         work_id=%s,
+                         design_value=%s,
+                         measure_value_A=%s,
+                         measure_value_B=%s,
+                         measure_value_C=%s,
+                         measure_value_D=%s,
+                         remark=%s,
+                         record_date=%s,
+                         record_submitted=%s
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['work_id'],
+                            obj['design_value'],
+                            obj['measure_value_A'],
+                            obj['measure_value_B'],
+                            obj['measure_value_C'],
+                            obj['measure_value_D'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            obj['id']
+                            )
+                    
+                else:
+                    sql = '''
+                         INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ''' % (
+                            table,
+                            obj['id'],
+                            obj['work_id'],
+                            obj['design_value'],
+                            obj['measure_value_A'],
+                            obj['measure_value_B'],
+                            obj['measure_value_C'],
+                            obj['measure_value_D'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['record_submitted'],
+                            )
+            elif op=='delete':
+                if ss['id'] and len(ss['id'])>0:
+                    sql = '''
+                         DELETE FROM %s 
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['id']
+                            )
+            if len(sql)>0:
+                sqls.append(sql)
+    if table=='TABLE_DENSITY_MEASURE':
+        for ss in data:
+            sql = ''
+            obj = sqlize_data(ss)
+            if op=='save':
+                l = odbc_get_records(table, "id=%s" % obj['id'], area)
+                if len(l)>0:
+                    sql = '''
+                         UPDATE %s SET 
+                         work_id=%s,
+                         salt_density=%s,
+                         dust_density=%s,
+                         dirty_level=%s,
+                         remark=%s,
+                         record_date=%s
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['work_id'],
+                            obj['salt_density'],
+                            obj['dust_density'],
+                            obj['dirty_level'],
+                            obj['remark'],
+                            obj['record_date'],
+                            obj['id']
+                            )
+                    
+                else:
+                    sql = '''
+                         INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s, %s)
+                    ''' % (
+                            table,
+                            obj['id'],
+                            obj['work_id'],
+                            obj['salt_density'],
+                            obj['dust_density'],
+                            obj['dirty_level'],
+                            obj['remark'],
+                            obj['record_date'],
+                            )
+            elif op=='delete':
+                if ss['id'] and len(ss['id'])>0:
+                    sql = '''
+                         DELETE FROM %s 
+                         WHERE 
+                         id=%s 
+                    ''' % (
+                            table,
+                            obj['id']
+                            )
+            if len(sql)>0:
+                sqls.append(sql)
     if table=='TABLE_THUNDER_COUNTER':
         for ss in data:
             sql = ''
