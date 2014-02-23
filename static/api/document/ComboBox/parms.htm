@@ -1,0 +1,596 @@
+﻿<html>
+	<head>
+		<title>ComboBox - jQuery LigerUI API</title>     
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" /> 
+		<link href="../common.css" rel="stylesheet" type="text/css" />
+		<script src="../core.js" type="text/javascript"></script> 
+	</head>
+	<body>
+		<h2>参数列表</h2> 
+
+		<table class="apitable" cellpadding="0" cellspacing="0">
+        <thead>
+            <tr> 
+				<td>参数名</td>
+				<td>类型</td> 
+				<td>描述</td>
+				<td>默认值</td> 
+            </tr>
+        </thead> 
+        <tbody>
+					<tr>
+				<td>  
+                    <a name="property_resize"  key="resize" class="linkname"></a>
+                                                                       resize
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否调整大小
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_isMultiSelect"  key="isMultiSelect" class="linkname"></a>
+                                                                       isMultiSelect
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否多选
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_isShowCheckBox"  key="isShowCheckBox" class="linkname"></a>
+                                                                       isShowCheckBox
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否显示复选框
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_columns"  key="columns" class="linkname"></a>
+                                                                       <a href="#linkpro12" title="点击查看示例">columns</a>
+                                            				</td>
+                <td>  
+                                        Array
+                    				</td>
+                <td class="description">  
+                                        表格参数
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_selectBoxWidth"  key="selectBoxWidth" class="linkname"></a>
+                                                                       selectBoxWidth
+                                            				</td>
+                <td>  
+                                        Int
+                    				</td>
+                <td class="description">  
+                                        下拉框宽度
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_selectBoxHeight"  key="selectBoxHeight" class="linkname"></a>
+                                                                       selectBoxHeight
+                                            				</td>
+                <td>  
+                                        Int
+                    				</td>
+                <td class="description">  
+                                        下拉框高度
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_initValue"  key="initValue" class="linkname"></a>
+                                                                       initValue
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        初始化值
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_initText"  key="initText" class="linkname"></a>
+                                                                       initText
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        初始化文本
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_valueField"  key="valueField" class="linkname"></a>
+                                                                       valueField
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        值字段名
+                    				</td>
+                <td>  
+                                        'id'
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_textField"  key="textField" class="linkname"></a>
+                                                                       textField
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        文本字段名
+                    				</td>
+                <td>  
+                                        'text'
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_valueFieldID"  key="valueFieldID" class="linkname"></a>
+                                                                       valueFieldID
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        隐藏域元素的ID
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_slide"  key="slide" class="linkname"></a>
+                                                                       slide
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否以动画的形式显示
+                    				</td>
+                <td>  
+                                        true
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_split"  key="split" class="linkname"></a>
+                                                                       split
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        分隔符
+                    				</td>
+                <td>  
+                                        ;
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_data"  key="data" class="linkname"></a>
+                                                                       data
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        数据源
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_tree"  key="tree" class="linkname"></a>
+                                                                       <a href="#linkpro23" title="点击查看示例">tree</a>
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        <a href="../Tree/parms.htm">同树参数</a>
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_treeLeafOnly"  key="treeLeafOnly" class="linkname"></a>
+                                                                       treeLeafOnly
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        只对树叶节点有效
+                    				</td>
+                <td>  
+                                        true
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_grid"  key="grid" class="linkname"></a>
+                                                                       <a href="#linkpro25" title="点击查看示例">grid</a>
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        <a href="../Grid/parms.htm">同表格参数</a>
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_hideOnLoseFocus"  key="hideOnLoseFocus" class="linkname"></a>
+                                                                       hideOnLoseFocus
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        失去焦点时隐藏
+                    				</td>
+                <td>  
+                                        true
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_url"  key="url" class="linkname"></a>
+                                                                       url
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        数据源URL(需返回JSON)
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_render"  key="render" class="linkname"></a>
+                                                                       render
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        文本框渲染函数
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_absolute"  key="absolute" class="linkname"></a>
+                                                                       absolute
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        选择框是否在附加到body,并绝对定位
+                    				</td>
+                <td>  
+                                        true
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_condition"  key="condition" class="linkname"></a>
+                                                                       <a href="#linkpro406" title="点击查看示例">condition</a>
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        条件<a href="../Form/parms.htm">同表单参数</a>
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_cancelable"  key="cancelable" class="linkname"></a>
+                                                                       cancelable
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否取消选择
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_css"  key="css" class="linkname"></a>
+                                                                       css
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        附加className
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_parms"  key="parms" class="linkname"></a>
+                                                                       parms
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                        异步数据请求参数
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_renderItem"  key="renderItem" class="linkname"></a>
+                                                                       renderItem
+                                            				</td>
+                <td>  
+                                        Function
+                    				</td>
+                <td class="description">  
+                                        项自定义html函数
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_autocomplete"  key="autocomplete" class="linkname"></a>
+                                                                       autocomplete
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        自动完成
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_readonly"  key="readonly" class="linkname"></a>
+                                                                       readonly
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        是否只读
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_ajaxType"  key="ajaxType" class="linkname"></a>
+                                                                       ajaxType
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        ajax Type
+                    				</td>
+                <td>  
+                                        'post'
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_valueFieldCssClass"  key="valueFieldCssClass" class="linkname"></a>
+                                                                       valueFieldCssClass
+                                            				</td>
+                <td>  
+                                        String
+                    				</td>
+                <td class="description">  
+                                        隐藏域css
+                    				</td>
+                <td>  
+                                        NULL
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_hideGridOnLoseFocus"  key="hideGridOnLoseFocus" class="linkname"></a>
+                                                                       hideGridOnLoseFocus
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        失去焦点(表格)时隐藏
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_alwayShowInTop"  key="alwayShowInTop" class="linkname"></a>
+                                                                       alwayShowInTop
+                                            				</td>
+                <td>  
+                                        Bool
+                    				</td>
+                <td class="description">  
+                                        下拉框总是显示在上方
+                    				</td>
+                <td>  
+                                        false
+                    				</td> 
+			</tr>
+		        </tbody>
+		</table>
+
+        
+                                                                                                 <a name="linkpro12"></a>
+                <h3 class="property">columns参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #0000FF;">var</span><span style="color: #000000;"> dataGrid </span><span style="color: #000000;">=</span><span style="color: #000000;"> [
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">                { id: </span><span style="color: #000000;">1</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">李三</span><span style="color: #000000;">'</span><span style="color: #000000;">, sex: </span><span style="color: #000000;">'</span><span style="color: #000000;">男</span><span style="color: #000000;">'</span><span style="color: #000000;"> },
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">                { id: </span><span style="color: #000000;">2</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">李四</span><span style="color: #000000;">'</span><span style="color: #000000;">, sex: </span><span style="color: #000000;">'</span><span style="color: #000000;">女</span><span style="color: #000000;">'</span><span style="color: #000000;"> },
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                { id: </span><span style="color: #000000;">3</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">赵武</span><span style="color: #000000;">'</span><span style="color: #000000;">, sex: </span><span style="color: #000000;">'</span><span style="color: #000000;">女</span><span style="color: #000000;">'</span><span style="color: #000000;"> },
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                { id: </span><span style="color: #000000;">4</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">陈留</span><span style="color: #000000;">'</span><span style="color: #000000;">, sex: </span><span style="color: #000000;">'</span><span style="color: #000000;">女</span><span style="color: #000000;">'</span><span style="color: #000000;"> }
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                ]; 
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txtGrid</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">                data: dataGrid,
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">                textField: </span><span style="color: #000000;">'</span><span style="color: #000000;">name</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">                columns: [
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">                { header: </span><span style="color: #000000;">'</span><span style="color: #000000;">ID</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">20</span><span style="color: #000000;"> },
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">                { header: </span><span style="color: #000000;">'</span><span style="color: #000000;">名字</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">name</span><span style="color: #000000;">'</span><span style="color: #000000;"> },
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">                { header: </span><span style="color: #000000;">'</span><span style="color: #000000;">性别</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">sex</span><span style="color: #000000;">'</span><span style="color: #000000;"> }
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">                ],
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">                selectBoxWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                                                                                                                                                                                                                                                        <a name="linkpro23"></a>
+                <h3 class="property">tree参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;">1</span> <span style="color: #000000;">$(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txt3</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({
+</span><span style="color: #008080;">2</span> <span style="color: #000000;">                width: </span><span style="color: #000000;">180</span><span style="color: #000000;">,
+</span><span style="color: #008080;">3</span> <span style="color: #000000;">                selectBoxWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">4</span> <span style="color: #000000;">                selectBoxHeight: </span><span style="color: #000000;">200</span><span style="color: #000000;">, valueField: </span><span style="color: #000000;">'</span><span style="color: #000000;">text</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">5</span> <span style="color: #000000;">                tree: { url: </span><span style="color: #000000;">'</span><span style="color: #000000;">../tree/tree.json</span><span style="color: #000000;">'</span><span style="color: #000000;"> }
+</span><span style="color: #008080;">6</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                                                                    <a name="linkpro25"></a>
+                <h3 class="property">grid参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #000000;">$(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txt1</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">                width: </span><span style="color: #000000;">250</span><span style="color: #000000;">, slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">                selectBoxWidth: </span><span style="color: #000000;">500</span><span style="color: #000000;">, selectBoxHeight: </span><span style="color: #000000;">240</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                valueField: </span><span style="color: #000000;">'</span><span style="color: #000000;">CustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">, textField: </span><span style="color: #000000;">'</span><span style="color: #000000;">CustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                grid: {
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                    columns: [
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">                    { display: </span><span style="color: #000000;">'</span><span style="color: #000000;">顾客</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">CustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">, align: </span><span style="color: #000000;">'</span><span style="color: #000000;">left</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">100</span><span style="color: #000000;">, minWidth: </span><span style="color: #000000;">60</span><span style="color: #000000;"> }, 
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">                    { display: </span><span style="color: #000000;">'</span><span style="color: #000000;">电话</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">Phone</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">100</span><span style="color: #000000;"> },
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">                    { display: </span><span style="color: #000000;">'</span><span style="color: #000000;">城市</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">City</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">100</span><span style="color: #000000;"> },
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">                    { display: </span><span style="color: #000000;">'</span><span style="color: #000000;">国家</span><span style="color: #000000;">'</span><span style="color: #000000;">, name: </span><span style="color: #000000;">'</span><span style="color: #000000;">Country</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">100</span><span style="color: #000000;"> }
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">                    ], switchPageSizeApplyComboBox: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">                    data: $.extend({}, CustomersData),
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">                    pageSize: </span><span style="color: #000000;">30</span><span style="color: #000000;">,
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">                    checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">                }
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                                                                                                                                <a name="linkpro406"></a>
+                <h3 class="property">condition参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #000000;">$(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txt1</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">                width: </span><span style="color: #000000;">250</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                selectBoxWidth: </span><span style="color: #000000;">500</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                selectBoxHeight: </span><span style="color: #000000;">240</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                valueField: </span><span style="color: #000000;">'</span><span style="color: #000000;">CustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">                textField: </span><span style="color: #000000;">'</span><span style="color: #000000;">CustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">                grid: getGridOptions(</span><span style="color: #0000FF;">true</span><span style="color: #000000;">),
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">                condition: { fields: [{ name: </span><span style="color: #000000;">'</span><span style="color: #000000;">CompanyName</span><span style="color: #000000;">'</span><span style="color: #000000;">, label: </span><span style="color: #000000;">'</span><span style="color: #000000;">客户</span><span style="color: #000000;">'</span><span style="color: #000000;">, width: </span><span style="color: #000000;">90</span><span style="color: #000000;"> }] }
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                                                                                                                                                                                                                            
+
+         	</body>
+</html>

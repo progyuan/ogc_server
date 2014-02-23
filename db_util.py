@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-
+from gevent import monkey; monkey.patch_all()
 import codecs
 import os, sys, time, datetime
+import traceback
 from lxml import etree
 import pypyodbc
 import uuid
@@ -29,7 +30,7 @@ import base64
 import random
 from PIL import Image
 from module_locator import module_path
-
+from pymongo import MongoClient
 
 #try:
     #import arcpy
@@ -51,52 +52,52 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
     #CONFIGFILE = 'config.ini'
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+gClientMongo = None
+##DATABASE_SERVER = 'XIEJUN-DESKTOP'
+##DATABASE_INSTANCE = 'SQLEXPRESS'
+##DATABASE_USERNAME = 'sa'
+##DATABASE_PASSWORD = 'sa'
+##DATABASE_RDBMS = 'kmgd'
+##DATABASE_GEO = 'sde'
+##DATABASE_GEO_PORT = '5151'
+##DATABASE_GEO_TMP = 'sde_tmp'
+##DATABASE_GEO_TMP_PORT = '5150'
+##SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
+##SDE_FILE_KMGD = 'kmgd.sde'
+##SDE_FILE_KMGDGEO_LOCAL = 'kmgdgeo.sde'
+##SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
+##SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
 
-#DATABASE_SERVER = 'XIEJUN-DESKTOP'
-#DATABASE_INSTANCE = 'SQLEXPRESS'
+
+##SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
+##SDE_FILE_KMGD = 'kmgd.sde'
+###SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
+##SDE_FILE_KMGDGEO = 'kmgdgeo.sde'
+##SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
+
+
+##DATABASE_SERVER = 'ARCGISSERVER'
+#DATABASE_SERVER = 'ZTSERVER'
+##DATABASE_SERVER = 'XIEJUN-NOTEBOOK'
+#DATABASE_INSTANCE = ''
 #DATABASE_USERNAME = 'sa'
-#DATABASE_PASSWORD = 'sa'
+#DATABASE_PASSWORD = 'aA1111'
 #DATABASE_RDBMS = 'kmgd'
 #DATABASE_GEO = 'sde'
 #DATABASE_GEO_PORT = '5151'
 #DATABASE_GEO_TMP = 'sde_tmp'
 #DATABASE_GEO_TMP_PORT = '5150'
 #SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-#SDE_FILE_KMGD = 'kmgd.sde'
+
+#SDE_FILE_KMGD = 'kmgd_ArcGISSERVER.sde'
 #SDE_FILE_KMGDGEO_LOCAL = 'kmgdgeo.sde'
-#SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
-#SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
+#SDE_FILE_KMGDGEO = 'kmgdgeo5151_ArcGISSERVER.sde'
+#SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ArcGISSERVER.sde'
 
-
-#SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-#SDE_FILE_KMGD = 'kmgd.sde'
-##SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
-#SDE_FILE_KMGDGEO = 'kmgdgeo.sde'
-#SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
-
-
-#DATABASE_SERVER = 'ARCGISSERVER'
-DATABASE_SERVER = 'ZTSERVER'
-#DATABASE_SERVER = 'XIEJUN-NOTEBOOK'
-DATABASE_INSTANCE = ''
-DATABASE_USERNAME = 'sa'
-DATABASE_PASSWORD = 'aA1111'
-DATABASE_RDBMS = 'kmgd'
-DATABASE_GEO = 'sde'
-DATABASE_GEO_PORT = '5151'
-DATABASE_GEO_TMP = 'sde_tmp'
-DATABASE_GEO_TMP_PORT = '5150'
-SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-
-SDE_FILE_KMGD = 'kmgd_ArcGISSERVER.sde'
-SDE_FILE_KMGDGEO_LOCAL = 'kmgdgeo.sde'
-SDE_FILE_KMGDGEO = 'kmgdgeo5151_ArcGISSERVER.sde'
-SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ArcGISSERVER.sde'
-
-if DATABASE_SERVER in ['ZTSERVER',  'XIEJUN-NOTEBOOK' ]:
-    SDE_FILE_KMGD = 'kmgd_ZTSERVER.sde'
-    SDE_FILE_KMGDGEO = 'kmgdgeo5151_ZTSERVER.sde'
-    SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ZTERVER.sde'
+#if DATABASE_SERVER in ['ZTSERVER',  'XIEJUN-NOTEBOOK' ]:
+    #SDE_FILE_KMGD = 'kmgd_ZTSERVER.sde'
+    #SDE_FILE_KMGDGEO = 'kmgdgeo5151_ZTSERVER.sde'
+    #SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ZTERVER.sde'
     
     
     
@@ -122,26 +123,22 @@ if DATABASE_SERVER in ['ZTSERVER',  'XIEJUN-NOTEBOOK' ]:
 
 
 
-SERVICE_DEFINITION_DRAFT = r'%s:\arcgisserver\sd\kmgdgis.sddraft' % 'D'
-SERVICE_DEFINITION = r'%s:\arcgisserver\sd\kmgdgis.sd' % 'D'
-TMP_SERVICE_DEFINITION = r'%s:\arcgisserver\sd\tmp_kmgdgis.sd' % 'D'
-SERVER_CONNECTION_FILE = r'%s:\arcgisserver\sd\kmgdgis.ags' % 'D'
-SERVER_NAME = 'ArcGISSERVER'
-SERVER_PORT = 6080
-SERVER_URL='http://%s:%d/arcgis/admin' % (SERVER_NAME, SERVER_PORT)
-SERVER_USERNAME='arcgis'
-SERVER_PASSWORD='aA1111'
+#SERVICE_DEFINITION_DRAFT = r'%s:\arcgisserver\sd\kmgdgis.sddraft' % 'D'
+#SERVICE_DEFINITION = r'%s:\arcgisserver\sd\kmgdgis.sd' % 'D'
+#TMP_SERVICE_DEFINITION = r'%s:\arcgisserver\sd\tmp_kmgdgis.sd' % 'D'
+#SERVER_CONNECTION_FILE = r'%s:\arcgisserver\sd\kmgdgis.ags' % 'D'
+#SERVER_NAME = 'ArcGISSERVER'
+#SERVER_PORT = 6080
+#SERVER_URL='http://%s:%d/arcgis/admin' % (SERVER_NAME, SERVER_PORT)
+#SERVER_USERNAME='arcgis'
+#SERVER_PASSWORD='aA1111'
 
-SERVER_UTIL = r'%s:\work\csharp\server_util\server_util.exe' % 'F'
-CONFIG_PATH = r'%s:\work\csharp\kmgdgis\config.ini' % 'D'
-ARCGIS_PYTHON_SITE_PACKAGES_DIR = [r'%s:\Program Files\ArcGIS\Server\Python27\ArcGISx6410.1\Lib\site-packages' % 'E', r'%s:\Program Files (x86)\ArcGIS\Python27\ArcGIS10.1\Lib\site-packages' % 'E']
-#SDE_DIR = r'E:\arcgisserver\sde'
-#SERVER_UTIL = r'G:\work\csharp\serve_util\serve_util.exe'
-#CONFIG_PATH = r'G:\work\csharp\kmgdgis\config.ini' 
-#ARCGIS_PYTHON_SITE_PACKAGES_DIR = [r'E:\Program Files\ArcGIS\Server\Python27\ArcGISx6410.1\Lib\site-packages' , r'E:\Program Files (x86)\ArcGIS\Python27\ArcGIS10.1\Lib\site-packages' ]
+#SERVER_UTIL = r'%s:\work\csharp\server_util\server_util.exe' % 'F'
+#CONFIG_PATH = r'%s:\work\csharp\kmgdgis\config.ini' % 'D'
+#ARCGIS_PYTHON_SITE_PACKAGES_DIR = [r'%s:\Program Files\ArcGIS\Server\Python27\ArcGISx6410.1\Lib\site-packages' % 'E', r'%s:\Program Files (x86)\ArcGIS\Python27\ArcGIS10.1\Lib\site-packages' % 'E']
 
-KML_FILE = r'G:\work\csharp\kmgdgis\doc\输电线路_500kv.kml'
-XLS_REPORT_DIR = r'G:\work\csharp\kmgdgis\doc'
+#KML_FILE = r'G:\work\csharp\kmgdgis\doc\输电线路_500kv.kml'
+#XLS_REPORT_DIR = r'G:\work\csharp\kmgdgis\doc'
 
 #ODBC_DSN = 'KMGD'
 #ODBC_STRING = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (DATABASE_SERVER,DATABASE_RDBMS, DATABASE_USERNAME, DATABASE_PASSWORD)
@@ -7847,6 +7844,38 @@ def test_tile_directory():
             ll.append(i)
     print(ll)
             
+def mongodb_get_server_tree(host, port):
+    ret = [{"id":u"root","text":u"服务器列表","isexpand":True, "children":[]}]
+    server = {"id":u"%s_%s" % (host, port), "type":"server", "text":u"%s:%s" % (host, port), "isexpand":True, "err":"", "children":[]}
+    try:
+        gClientMongo = MongoClient(host, int(port))
+        for dbname in gClientMongo.database_names():
+            if dbname != 'admin' and dbname != 'local':
+                db = {}
+                db["id"] = u"%s_%s_%s" % (host, port, dbname)
+                db["text"] = u"%s" % dbname
+                db["isexpand"] = True
+                db["type"] = "database"
+                db["children"] = []
+                dbo = gClientMongo[dbname]
+                for collectionname in dbo.collection_names():
+                    if collectionname != "system.indexes":
+                        collection = {}
+                        collection["id"] = u"%s_%s_%s_%s" % (host, port, dbname, collectionname)
+                        collection["text"] = u"%s" % collectionname
+                        collection["isexpand"] = True
+                        collection["type"] = "collection"
+                        collection["children"] = []
+                        db["children"].append(collection)
+                server["children"].append(db)
+    except:
+        traceback.print_exc()
+        server['err'] = sys.exc_info()[1].message
+        print("err=%s" % server['err'])
+        server["children"].append({"id":u"%s_%s_err" % (host, port), "text":u"Error:%s" % server['err']})
+    finally:
+        ret[0]["children"].append(server)
+    return ret
     
     
 if __name__=="__main__":

@@ -44,7 +44,12 @@
         { url: "demos/comboBox/comboBoxGridWitchCondition.htm", text: "下拉框 - 分页表格(带搜索)" },
 		{url:"demos/comboBox/comboBoxPop.htm",text:"下拉框 - 新页面选取数据"}
 	]},
-	{ text: '树',isexpand:false, children: [  
+	{
+	    text: '树', isexpand: false, children: [
+            { url: "demos/tree/bigDataTest.htm", text: "大数据量支持" },
+            { url: "demos/tree/treeIsExpand.htm", text: "展开初始化" },
+            { url: "demos/tree/treeDelay.htm", text: "延迟加载" },
+            { url: "demos/tree/treeDelayUrl.htm", text: "延迟加载(异步加载)" },
 		{url:"demos/tree/icon.htm",text:"节点图标"},  
 		{url:"demos/tree/draggable.htm",text:"可拖拽"}, 
 		{url:"demos/tree/case/twotree.htm",text:"两个树 可拖拽"}, 
@@ -73,12 +78,15 @@
         ]
     },
 
-	{ text: '表单', isexpand: false, children: [
+	{
+	    text: '表单', isexpand: false, children: [
+            { url: "demos/v121/form/data.htm", text: "加载/设置数据" },
         { url: "demos/form/v118/autoform.htm", text: "自动创建表单(新)" },
         { url: "demos/form/v118/autoform2.htm", text: "自动创建表单2" },
          { url: "demos/v120/form/selectLink.htm", text: "联动效果" },
          { url: "demos/v120/form/buttons.htm", text: "按钮" },
          { url: "demos/v120/form/buttons2.htm", text: "按钮2" },
+          { url: "demos/v121/form/getEditor.htm", text: "获取表单元素" },
 		{url:"demos/form/button.htm",text:"按钮"},
 		{url:"demos/form/checkbox.htm",text:"复选框"},
 		{url:"demos/form/checkbox2.htm",text:"复选框2"},
@@ -95,7 +103,8 @@
         { text: "弹出框1", url: "demos/form/popupEdit1.htm" },
        { text: "弹出框2", url: "demos/form/popupEdit2.htm" },
 
-		{url:"demos/form/form1.htm",text:"综合"}, 
+		{ url: "demos/form/form1.htm", text: "综合" },
+         { url: "demos/v121/form/validate.htm", text: "表单验证(内置)" },
 		{url:"demos/form/validator/errorLabelContainer.htm",text:"表单验证1"},
 		{url:"demos/form/validator/form2.htm",text:"表单验证2"},
 		{url:"demos/form/validator/form3.htm",text:"表单验证3"},
@@ -132,9 +141,10 @@
 		    { url: "demos/grid/editgrid/popup.htm", text: "在弹出框选择" },
              { url: "demos/v120/editgrid/popup.htm", text: "弹出框1" },
              { url: "demos/v120/editgrid/popup2.htm", text: "弹出框2" },
-             { url: "demos/grid/editgrid/selectLink.htm", text: "联动效果" },
+             { url: "demos/v120/editgrid/selectLink.htm", text: "联动效果" },
 		    {url:"demos/grid/editgrid/addrowwithdata.htm",text:"增加行"},
-		    {url:"demos/grid/editgrid/addrowwithdata2.htm",text:"增加行2"}, 
+		    { url: "demos/grid/editgrid/addrowwithdata2.htm", text: "引入行" },
+            { url: "demos/grid/editgrid/addrowwithdata3.htm", text: "引入行2(推荐)" },
 		    {url:"demos/grid/editgrid/editgrideven.htm",text:"编辑器事件"},
 		    {url:"demos/grid/editgrid/editgridupdatecell.htm",text:"更新单元格"}, 
 		    {url:"demos/grid/editgrid/updaterow.htm",text:"更新行"}, 
@@ -176,7 +186,8 @@
 		    {url:"demos/grid/groupable/total.htm",text:"汇总"} 
 	    ]}, 
 	    {isexpand:"false",text:"树",children:[ 
-		    {url:"demos/grid/treegrid/treegrid.htm",text:"树 表格"},
+		    { url: "demos/grid/treegrid/treegrid.htm", text: "树 表格" },
+            { url: "demos/grid/treegrid/listdata.htm", text: "线性结构" },
 		    {url:"demos/grid/treegrid/editable.htm",text:"树 可编辑"}, 
 		    {url:"demos/grid/treegrid/draggable.htm",text:"树 可拖拽"} 
 	    ]}, 
@@ -236,7 +247,8 @@ var indexdata2 =
 	    ]
         },
         { isexpand: "true", text: "树表格", children: [
-		    { url: "dotnetdemos/grid/treegrid/tree.aspx", text: "树表格" } 
+		    { url: "dotnetdemos/grid/treegrid/tree.aspx", text: "树表格" }, 
+		    { url: "dotnetdemos/grid/treegrid/tree2.aspx", text: "树表格2" }
 	    ]
         }
     ]

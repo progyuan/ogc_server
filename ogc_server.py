@@ -1044,6 +1044,18 @@ def handle_get_method(Env, Start_response):
         ret["result"] = {}
         ret["result"]["ids"] = get_voice_file_all()
         s = json.dumps(ret, ensure_ascii=True)
+    if d.has_key('op'):
+        op = d['op'][0]
+        del d['op']
+        if op == "get_mongodb_server_tree":
+            host = d['host'][0]
+            del d['host']
+            port = d['port'][0]
+            del d['port']
+            ret["result"] = {}
+            ret["result"]["data"] = db_util.mongodb_get_server_tree(host, port)
+        s = json.dumps(ret, ensure_ascii=True)
+        
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
     if len(ret.keys())==0:
         ret["result"] = "ok"
