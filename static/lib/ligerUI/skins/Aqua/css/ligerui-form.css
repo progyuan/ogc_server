@@ -30,7 +30,7 @@
 .l-textarea{border:1px solid #A8AAAD; margin-left:-1px;outline:none;}
  .l-textarea:hover{border-color:#01AAEE;}
 .l-textarea-invalid,.l-textarea:focus{ border-color:#FF8801;}
-.l-textarea-invalid{border-color:#FF7777; background:#FFEEEE url(../image/common/invalid-line.gif) repeat-x bottom;}
+.l-textarea-invalid{border-color:#FF7777; background:#FFEEEE url(../images/common/invalid-line.gif) repeat-x bottom;}
 .l-textarea-invalid:hover,.l-textarea-invalid:focus{border-color:#FF7777;}
 /* -------------
    * 文本框/下拉框/日期框/调整器 *
@@ -44,7 +44,7 @@
     width:130px; background:white;
 }
 /* 文本框 验证不通过 */
-.l-text-invalid{ border-color:#FF7777; background:#FFEEEE url(../image/common/invalid-line.gif) repeat-x bottom;}
+.l-text-invalid{ border-color:#FF7777; background:#FFEEEE url(../images/common/invalid-line.gif) repeat-x bottom;}
 
 .l-text-invalid .l-text-field{ background:none;}
 /*只读时边框*/
