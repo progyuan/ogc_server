@@ -53,95 +53,6 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
 gClientMongo = None
-##DATABASE_SERVER = 'XIEJUN-DESKTOP'
-##DATABASE_INSTANCE = 'SQLEXPRESS'
-##DATABASE_USERNAME = 'sa'
-##DATABASE_PASSWORD = 'sa'
-##DATABASE_RDBMS = 'kmgd'
-##DATABASE_GEO = 'sde'
-##DATABASE_GEO_PORT = '5151'
-##DATABASE_GEO_TMP = 'sde_tmp'
-##DATABASE_GEO_TMP_PORT = '5150'
-##SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-##SDE_FILE_KMGD = 'kmgd.sde'
-##SDE_FILE_KMGDGEO_LOCAL = 'kmgdgeo.sde'
-##SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
-##SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
-
-
-##SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-##SDE_FILE_KMGD = 'kmgd.sde'
-###SDE_FILE_KMGDGEO = 'kmgdgeo5151.sde'
-##SDE_FILE_KMGDGEO = 'kmgdgeo.sde'
-##SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150.sde'
-
-
-##DATABASE_SERVER = 'ARCGISSERVER'
-#DATABASE_SERVER = 'ZTSERVER'
-##DATABASE_SERVER = 'XIEJUN-NOTEBOOK'
-#DATABASE_INSTANCE = ''
-#DATABASE_USERNAME = 'sa'
-#DATABASE_PASSWORD = 'aA1111'
-#DATABASE_RDBMS = 'kmgd'
-#DATABASE_GEO = 'sde'
-#DATABASE_GEO_PORT = '5151'
-#DATABASE_GEO_TMP = 'sde_tmp'
-#DATABASE_GEO_TMP_PORT = '5150'
-#SDE_DIR = r'%s:\arcgisserver\sde' % 'D'
-
-#SDE_FILE_KMGD = 'kmgd_ArcGISSERVER.sde'
-#SDE_FILE_KMGDGEO_LOCAL = 'kmgdgeo.sde'
-#SDE_FILE_KMGDGEO = 'kmgdgeo5151_ArcGISSERVER.sde'
-#SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ArcGISSERVER.sde'
-
-#if DATABASE_SERVER in ['ZTSERVER',  'XIEJUN-NOTEBOOK' ]:
-    #SDE_FILE_KMGD = 'kmgd_ZTSERVER.sde'
-    #SDE_FILE_KMGDGEO = 'kmgdgeo5151_ZTSERVER.sde'
-    #SDE_FILE_KMGDGEO_TMP = 'kmgdgeotmp5150_ZTERVER.sde'
-    
-    
-    
-#DATABASE_CONFIG = {}
-#DATABASE_CONFIG['zt'] = {}
-#DATABASE_CONFIG['zt']['DATABASE_SERVER'] = 'ZTSERVER'
-#DATABASE_CONFIG['zt']['DATABASE_INSTANCE'] = ''
-#DATABASE_CONFIG['zt']['DATABASE_USERNAME'] = 'sa'
-#DATABASE_CONFIG['zt']['DATABASE_PASSWORD'] = 'aA1111'
-#DATABASE_CONFIG['zt']['DATABASE_RDBMS'] = 'kmgd'
-#DATABASE_CONFIG['zt']['DATABASE_GEO'] = 'sde'
-#DATABASE_CONFIG['zt']['DATABASE_GEO_PORT'] = '5151'
-#DATABASE_CONFIG['zt']['SDE_FILE_KMGDGEO'] = 'zt5151_ZTSERVER.sde'
-#DATABASE_CONFIG['km'] = {}
-#DATABASE_CONFIG['km']['DATABASE_SERVER'] = 'ZTSERVER'
-#DATABASE_CONFIG['km']['DATABASE_INSTANCE'] = 'KMGD'
-#DATABASE_CONFIG['km']['DATABASE_USERNAME'] = 'sa'
-#DATABASE_CONFIG['km']['DATABASE_PASSWORD'] = 'aA1111'
-#DATABASE_CONFIG['km']['DATABASE_RDBMS'] = 'kmgd'
-#DATABASE_CONFIG['km']['DATABASE_GEO'] = 'sde'
-#DATABASE_CONFIG['km']['DATABASE_GEO_PORT'] = '5152'
-#DATABASE_CONFIG['km']['SDE_FILE_KMGDGEO'] = 'km5152_ZTSERVER.sde'
-
-
-
-#SERVICE_DEFINITION_DRAFT = r'%s:\arcgisserver\sd\kmgdgis.sddraft' % 'D'
-#SERVICE_DEFINITION = r'%s:\arcgisserver\sd\kmgdgis.sd' % 'D'
-#TMP_SERVICE_DEFINITION = r'%s:\arcgisserver\sd\tmp_kmgdgis.sd' % 'D'
-#SERVER_CONNECTION_FILE = r'%s:\arcgisserver\sd\kmgdgis.ags' % 'D'
-#SERVER_NAME = 'ArcGISSERVER'
-#SERVER_PORT = 6080
-#SERVER_URL='http://%s:%d/arcgis/admin' % (SERVER_NAME, SERVER_PORT)
-#SERVER_USERNAME='arcgis'
-#SERVER_PASSWORD='aA1111'
-
-#SERVER_UTIL = r'%s:\work\csharp\server_util\server_util.exe' % 'F'
-#CONFIG_PATH = r'%s:\work\csharp\kmgdgis\config.ini' % 'D'
-#ARCGIS_PYTHON_SITE_PACKAGES_DIR = [r'%s:\Program Files\ArcGIS\Server\Python27\ArcGISx6410.1\Lib\site-packages' % 'E', r'%s:\Program Files (x86)\ArcGIS\Python27\ArcGIS10.1\Lib\site-packages' % 'E']
-
-#KML_FILE = r'G:\work\csharp\kmgdgis\doc\输电线路_500kv.kml'
-#XLS_REPORT_DIR = r'G:\work\csharp\kmgdgis\doc'
-
-#ODBC_DSN = 'KMGD'
-#ODBC_STRING = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (DATABASE_SERVER,DATABASE_RDBMS, DATABASE_USERNAME, DATABASE_PASSWORD)
 ODBC_STRING = {}
 #print(gConfig.keys())
 for k in gConfig['odbc'].keys():
@@ -7877,6 +7788,128 @@ def mongodb_get_server_tree(host, port):
         ret[0]["children"].append(server)
     return ret
     
+
+def collation(lng, lat):
+    lng1 = int(lng) + int(100*(lng-int(lng)))/60. + (100*(lng-int(lng))-int(100*(lng-int(lng))))*100/3600.
+    lat1 = int(lat) + int(100*(lat-int(lat)))/60. + (100*(lat-int(lat))-int(100*(lat-int(lat))))*100/3600.
+    return lng1, lat1
+
+def get_key_by_text(text):
+    ret = None
+    if text in [u'碎步点',u'所有碎步及图根点坐标']:
+        ret = 'step'
+    if text in [u'交叉互联箱']:
+        ret = 'crossbox'
+    if text in [u'电子防盗井盖',u'电子井', u'井口']:
+        ret = 'elec_cover'
+    if text in [u'石板井盖', u'井盖',]:
+        ret = 'stone_cover'
+    if text in [u'配电箱', u'照明配电箱']:
+        ret = 'elec_box'
+    if text in [u'摄像机', u'摄像头',u'监控设备']:
+        ret = 'camera'
+    if text in [u'水泵',u'抽水机']:
+        ret = 'pump'
+    if text in [u'电话', u'应急通讯终端']:
+        ret = 'telephone'
+    if text in [u'防火分区',u'防火门']:
+        ret = 'firewall'
+    if text in [u'风机',]:
+        ret = 'fan'
+    return ret
+    
+def collation_lnglat(filepath):
+    ret = {}
+    book = xlrd.open_workbook(filepath)
+    for sheet in book.sheets():
+        key = get_key_by_text(sheet.name)
+        if key:
+            if not ret.has_key(key):
+                ret[key] = []
+            for i in range(sheet.nrows):
+                try:
+                    lng, lat, altitude = float(sheet.cell_value(i,1)), float(sheet.cell_value(i,2)), float(sheet.cell_value(i,3))
+                    lng1, lat1 =collation(lng, lat)
+                    #print('%.10f,%.10f=>%.10f,%.10f' % (lng, lat, lng1, lat1))
+                    o = {}
+                    o['id'] = sheet.cell_value(i,0)
+                    o['lng'] = lng1
+                    o['lat'] = lat1
+                    o['alt'] = altitude
+                    ret[key].append( o )
+                except:
+                    continue
+    return ret
+
+
+def get_envlop_lnglat(pointlist):
+    xlist = [i['lng'] for i in pointlist]
+    ylist = [i['lat'] for i in pointlist]
+    minx = min(xlist)
+    miny = min(ylist)
+    maxx = max(xlist)
+    maxy = max(ylist)
+    return {'minx':minx, 'miny':miny, 'maxx':maxx, 'maxy':maxy}
+    
+def gen_boundry_by_list(datadir, tunnelname, data = {}):
+    path = os.path.abspath(os.path.join(datadir, u'tunnel_boundry_%s.json' % tunnelname))
+    env = get_envlop_lnglat(data['step'])
+    if os.path.exists(path):
+        obj = None
+        with open(path) as f:
+            obj = json.loads(f.read())
+        if obj:
+            obj['lnglat']['minx'] = env['minx']
+            obj['lnglat']['miny'] = env['miny']
+            obj['lnglat']['maxx'] = env['maxx']
+            obj['lnglat']['maxy'] = env['maxy']
+            with open(path, 'w') as f:
+                f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+    
+    
+    
+    
+def gen_geojson_by_list(datadir, tunnelname, data = {}):
+    for key in data.keys():
+        if key == 'step':
+            path = os.path.abspath(os.path.join(datadir, u'geojson_tunnel_%s.json' % tunnelname))
+            obj = {}
+            obj['type'] = 'FeatureCollection'
+            obj['features'] = []
+            o = {}
+            o['type'] = 'Feature'
+            o['properties'] = {'NAME':tunnelname}
+            o['geometry'] = {}
+            o['geometry']['type'] = 'LineString'
+            o['geometry']['coordinates'] = []
+            for point in data[key]:
+                o['geometry']['coordinates'].append([point['lng'], point['lat']])
+            obj['features'].append(o)
+        else:
+            path = os.path.abspath(os.path.join(datadir, u'geojson_%s_%s.json' % (key,tunnelname)))
+            obj = {}
+            obj['type'] = 'FeatureCollection'
+            obj['features'] = []
+            for point in data[key]:
+                o = {}
+                o['type'] = 'Feature'
+                o['properties'] = {'NAME': point['id']}
+                o['geometry'] = {}
+                o['geometry']['type'] = 'Point'
+                o['geometry']['coordinates'] = [point['lng'], point['lat']]
+                obj['features'].append(o)
+            
+        with open(path, 'w') as f:
+            f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+                
+        
+def test_gen_geojson_by_list(data_dir, filelist):
+    for f in filelist:
+        tname = os.path.basename(f).replace('.xls','').replace(u'线性整理','')
+        ret = collation_lnglat(f)
+        gen_geojson_by_list(data_dir, tname, ret)
+        gen_boundry_by_list(data_dir, tname, ret)
+    
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -7903,5 +7936,10 @@ if __name__=="__main__":
     #test_get_area_by_latlng('km')
     #gen_geojson_by_lines('km')
     #gen_geojson_by_shape('km')
-    odbc_update_towers_rotate(False, 'km')
+    #odbc_update_towers_rotate(False, 'km')
+    #filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls']
+    filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道线性整理.xls']
+    data_dir = u'F:\work\cpp\kmgdgis3D\data\www\geojson'
+    test_gen_geojson_by_list(data_dir, filelist)
+    #print(ret)
     

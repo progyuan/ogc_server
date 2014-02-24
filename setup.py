@@ -47,10 +47,12 @@ def build():
                     'static/js',
                     'static/lib',
                     'static/lab',
+                    'static/api',
                     'static/demos',
                     'static/theme',
                     'static/indexdata.js',
-                    'static/pre_index_kmgdgis_da.html',
+                    'static/index_pymongoadmin.html',
+                    'static/welcome_pymongoadmin.html',
                     'static/dishen_test.html',
                     ],
                 "include_msvcr": True
@@ -73,6 +75,5 @@ def build():
 
 if __name__ == '__main__':
     build()
-    #copying_additional()
     
     
