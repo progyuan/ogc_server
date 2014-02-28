@@ -7800,11 +7800,17 @@ def get_key_by_text(text):
         ret = 'step'
     if text in [u'交叉互联箱']:
         ret = 'crossbox'
+    if text in [u'电缆直通头']:
+        ret = 'joint'
+    if text in [u'电源馈线箱']:
+        ret = 'elec_resp'
     if text in [u'电子防盗井盖',u'电子井', u'井口']:
         ret = 'elec_cover'
-    if text in [u'石板井盖', u'井盖',]:
+    if text in [u'通风口']:
+        ret = 'vent'
+    if text in [u'石板井盖', u'井盖', u'石井盖',]:
         ret = 'stone_cover'
-    if text in [u'配电箱', u'照明配电箱']:
+    if text in [u'配电箱', u'照明配电箱', u'总电源箱',u'隧道监控电源箱']:
         ret = 'elec_box'
     if text in [u'摄像机', u'摄像头',u'监控设备']:
         ret = 'camera'
@@ -7816,6 +7822,8 @@ def get_key_by_text(text):
         ret = 'firewall'
     if text in [u'风机',]:
         ret = 'fan'
+    if text in [u'照明灯开关',]:
+        ret = 'switch'
     return ret
     
 def collation_lnglat(filepath):
@@ -7938,7 +7946,12 @@ if __name__=="__main__":
     #gen_geojson_by_shape('km')
     #odbc_update_towers_rotate(False, 'km')
     #filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls']
-    filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道线性整理.xls']
+    filelist = [
+        #ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道线性整理.xls', 
+        ur'F:\work\cpp\kmgdgis3D\data\docs\海埂隧道.xls',
+        ur'F:\work\cpp\kmgdgis3D\data\docs\昆洛隧道.xls',
+        ur'F:\work\cpp\kmgdgis3D\data\docs\羊甫隧道.xls',
+    ]
     data_dir = u'F:\work\cpp\kmgdgis3D\data\www\geojson'
     test_gen_geojson_by_list(data_dir, filelist)
     #print(ret)
