@@ -4,6 +4,12 @@
 
 import os
 import locale
+import configobj
+from module_locator import module_path
+
+CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
+gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+
 
 NAME = "GMapCatcher"
 VERSION = "0.8.0.2"
@@ -152,9 +158,9 @@ SECTION_MAP = 'map'
 SECTION_AGENT = 'agent'
 R_EARTH = 6371.
 
-USER_PATH = unicode(os.path.expanduser("~"), locale.getpreferredencoding())
-USER_PATH = os.path.dirname(os.path.dirname(__file__))
-USER_PATH = r'D:\tilesCache'
+#USER_PATH = unicode(os.path.expanduser("~"), locale.getpreferredencoding())
+#USER_PATH = os.path.dirname(os.path.dirname(__file__))
+USER_PATH = gConfig['wmts']['tiles_sat_root']
 #DEFAULT_PATH = os.path.join(USER_PATH, "tilesCache")
 DEFAULT_PATH = USER_PATH
 if not os.path.exists(DEFAULT_PATH):

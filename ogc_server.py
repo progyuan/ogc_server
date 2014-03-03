@@ -33,77 +33,73 @@ import configobj
 from lxml import etree
 
 #from wfs_server import WFSServer
-#import gmapcatcher.mapConf as mapConf
-#import gmapcatcher.mapConst as mapConst
-#from gmapcatcher.mapServices import MapServ
-#from gmapcatcher.mapDownloader import MapDownloader
+import gmapcatcher.mapUtils as mapUtils
+import gmapcatcher.mapConf as mapConf
+import gmapcatcher.mapConst as mapConst
+from gmapcatcher.mapServices import MapServ
+from gmapcatcher.mapDownloader import MapDownloader
 
 import pypyodbc
 import uuid
 import db_util
-from module_locator import module_path
+from module_locator import module_path, dec, dec1, enc, enc1
 
 try:
     from geventhttpclient import HTTPClient, URL
 except ImportError:
     pass
 
-
-#try:
-    #import arcpy
-    #from arcpy import env
-#except ImportError:
-    #print('import arcpy error:%s' % sys.exc_info()[1])
-#except RuntimeError:
-    #print('import arcpy error:%s' % sys.exc_info()[1])
-
-
-
 ENCODING = 'utf-8'
 ENCODING1 = 'gb18030'
+
 STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
-STATICRESOURCE_TPL_DIR = os.path.join(module_path(), 'template')
-STATICRESOURCE_CSS_DIR = os.path.join(module_path(), 'static', 'css')
-STATICRESOURCE_JS_DIR = os.path.join(module_path(), 'static', 'js')
-STATICRESOURCE_IMG_DIR = os.path.join(module_path(), 'static', 'img')
-INDEXPAGE = os.path.join(STATICRESOURCE_DIR, 'index.html')
+
 CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
-UPLOAD_IMG_DIR = os.path.join(module_path(),'static','img','upload')
-UPLOAD_PHOTOS_DIR = os.path.join(module_path(),'static','photos', 'upload')
-UPLOAD_VOICE_DIR = os.path.join(module_path(),'static','voice')
-
-
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+    if os.path.exists(gConfig['web']['webroot']):
+        STATICRESOURCE_DIR = gConfig['web']['webroot']
+    
+
+STATICRESOURCE_CSS_DIR = os.path.join(STATICRESOURCE_DIR, 'css')
+STATICRESOURCE_JS_DIR = os.path.join(STATICRESOURCE_DIR, 'js')
+STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
+UPLOAD_PHOTOS_DIR = os.path.join(STATICRESOURCE_DIR,'photos', 'upload')
+UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
+
+
+gStaticCache = {}
 gTileCache = {}
 gTerrainCache = {}
 gGreenlets = {}
 gClusterProcess = {}
 
+
 try:
-    gWFSService = WFSServer(CONFIGFILE)
-    gWFSService.load()
+    #gWFSService = WFSServer(CONFIGFILE)
+    #gWFSService.load()
     gMapConf = mapConf.MapConf()
     gCtxMap = MapServ(gMapConf)
     gMapDownloader = MapDownloader(gCtxMap, 1)
 except:
     pass
 
-def dec(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_decode(aStr, 'replace')
-    return text
-def enc(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
-def dec1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_decode(aStr, 'replace')
-    return text
-def enc1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
+#def dec(aStr):
+    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    #text, length = gb18030_decode(aStr, 'replace')
+    #return text
+#def enc(aStr):
+    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    #text, length = gb18030_encode(aStr, 'replace')
+    #return text
+#def dec1(aStr):
+    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    #text, length = gb18030_decode(aStr, 'replace')
+    #return text
+#def enc1(aStr):
+    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    #text, length = gb18030_encode(aStr, 'replace')
+    #return text
 
 
 
@@ -485,14 +481,14 @@ def create_wmts_GetCapabilities():
     DCP= etree.SubElement(Operation, ows + "DCP")
     HTTP= etree.SubElement(DCP, ows + "HTTP")
     href = xlink + 'href'
-    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url']})
+    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
     Constraint= etree.SubElement(Get, ows + "Constraint", name="GetEncoding")
     AllowedValues= etree.SubElement(Constraint, ows + "AllowedValues")
     Value= etree.SubElement(AllowedValues, ows + "Value").text = 'KVP'
     Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetTile")
     DCP= etree.SubElement(Operation, ows + "DCP")
     HTTP= etree.SubElement(DCP, ows + "HTTP")
-    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url']})
+    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
     
     #Contents
     Contents = etree.SubElement(root, "Contents")
@@ -699,7 +695,7 @@ def handle_wmts_GetTile(params, Start_response):
     if params.has_key('TILEMATRIX'):
         #zoomlevel = int(params['TILEMATRIX'])
         #zoomlevel = int(params['TILEMATRIX'][params['TILEMATRIX'].index('_')+1:])
-        if params['TILEMATRIX']=='undefined':
+        if params['TILEMATRIX']=='undefined' or len(params['TILEMATRIX'])==0:
             zoomlevel = 1
         else:
             zoomlevel = int(params['TILEMATRIX'])

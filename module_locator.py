@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import codecs
 
 ENCODING = 'utf-8'
 ENCODING1 = 'gb18030'
