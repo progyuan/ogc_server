@@ -7910,7 +7910,110 @@ def gen_geojson_by_list(datadir, tunnelname, data = {}):
         with open(path, 'w') as f:
             f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
                 
+def gen_tunnel_data_json():
+    gen_tunnel_data_json_from_xls(u'羊甫隧道')
+
+def check_points_distance_enough(p1, p2):
+    ret = False
+    d = math.sqrt(pow(p2[0] - p1[0],2) + pow(p2[1] - p1[1],2))
+    d1 = p2[2] - p1[2]
+    if d > 9 :#and abs(d1):
+        ret = True
+    return ret
+    
+    
+def gen_tunnel_data_json_from_xls(tname):
+    coords_ogre = []
+    coords_geo = []
+    coords = []
+    minlng, minlat, maxlng, maxlat = -1, -1, -1, -1
+    minx, miny, minz, maxx, maxy, maxz = -1, -1, -1, -1, -1, -1
+    if tname == u'羊甫隧道':
+        filepath = ur'F:\work\cpp\kmgdgis3D\data\docs\羊甫隧道线性整理.xls'
+        book = xlrd.open_workbook(filepath)
+        for sheet in book.sheets():
+            key = get_key_by_text(sheet.name)
+            if key == 'step':
+                for i in range(sheet.nrows):
+                    if i==0:
+                        continue
+                    x, y, z = 0, 0, 0
+                    try:
+                        x, y, z = float(sheet.cell_value(i,11)), float(sheet.cell_value(i,12)), float(sheet.cell_value(i,13))
+                    except:
+                        pass
+                    if x and y and z:
+                        #print('x=%f,y=%f,z=%f' % (lng, lat, altitude))
+                        
+                        coords_geo.append([x, y, z])
+                        x, y = ToWebMercator(x, y)
+                        coords.append([x, y, z])
+        if len(coords_geo)>0:
+            minlng = min([i[0] for i in coords_geo])
+            minlat = min([i[1] for i in coords_geo])
+            maxlng = max([i[0] for i in coords_geo])
+            maxlat = max([i[1] for i in coords_geo])
+        if len(coords)>0:
+            minx = min([i[0] for i in coords])
+            miny = min([i[1] for i in coords])
+            minz = min([i[2] for i in coords])
+            maxx = max([i[0] for i in coords])
+            maxy = max([i[1] for i in coords])
+            maxz = max([i[2] for i in coords])
+            prev = None
+            for i in coords:
+                p2 = [i[0]-minx, i[1]-miny, i[2]-minz]
+                if len(coords_ogre)>0:
+                    prev = coords_ogre[-1]
+                if prev is None or (prev and check_points_distance_enough(prev, p2)):
+                    coords_ogre.append(p2)
+    #for i in coords_ogre:
+        #print('x=%f,y=%f,z=%f' % (i[0], i[1], i[2]))
+    obj = {}
+    obj['lnglat'] = {}
+    if len(coords_geo)>0:
+        obj['lnglat']['startx'] = coords_geo[0][0]
+        obj['lnglat']['starty'] = coords_geo[0][1]
+        obj['lnglat']['maxx'] = maxlng
+        obj['lnglat']['minx'] = minlng
+        obj['lnglat']['maxy'] = maxlat
+        obj['lnglat']['miny'] = minlat
+    obj['ogre'] = {}
+    coords_ogre.reverse()
+    if len(coords_geo)>0:
+        obj['ogre']['startx'] = coords_ogre[0][0] + 0
+        obj['ogre']['starty'] = coords_ogre[0][1] + 0
+        obj['ogre']['startz'] = coords_ogre[0][2] - 0
+        obj['ogre']['startx'] = 9.297
+        obj['ogre']['starty'] = 25.4903
+        obj['ogre']['startz'] = -2.582
+        obj['ogre']['maxx'] = maxx - minx
+        obj['ogre']['minx'] = 0
+        obj['ogre']['maxy'] = maxy - miny
+        obj['ogre']['miny'] = 0
+        obj['ogre']['maxz'] = maxz - minz
+        obj['ogre']['minz'] = 0
+        obj['coords'] = coords_ogre
         
+    for i in coords_ogre:
+        idx = coords_ogre.index(i)
+        prev = None
+        if idx > 0:
+            prev = coords_ogre[idx - 1]
+        if prev:
+            d = math.sqrt(pow(i[0] - prev[0],2) + pow(i[1] - prev[1],2))
+            d1 = i[2] - prev[2]
+            print('%d-%d, d=%f, d1=%f' % (idx - 1, idx, d, d1))
+            
+      
+    jsonpath = ur'F:\work\cpp\kmgdgis3D\data\blend\%s.json' % tname
+    with open(jsonpath, 'w+') as f:
+        f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+
+        
+    
+
+    
 def test_gen_geojson_by_list(data_dir, filelist):
     for f in filelist:
         tname = os.path.basename(f).replace('.xls','').replace(u'线性整理','')
@@ -7947,12 +8050,14 @@ if __name__=="__main__":
     #odbc_update_towers_rotate(False, 'km')
     #filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls']
     filelist = [
-        #ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道线性整理.xls', 
-        ur'F:\work\cpp\kmgdgis3D\data\docs\海埂隧道.xls',
-        ur'F:\work\cpp\kmgdgis3D\data\docs\昆洛隧道.xls',
+        #ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls',
+        #ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道线性整理.xls',
+        #ur'F:\work\cpp\kmgdgis3D\data\docs\海埂隧道.xls',
+        #ur'F:\work\cpp\kmgdgis3D\data\docs\昆洛隧道.xls',
         ur'F:\work\cpp\kmgdgis3D\data\docs\羊甫隧道.xls',
     ]
     data_dir = u'F:\work\cpp\kmgdgis3D\data\www\geojson'
-    test_gen_geojson_by_list(data_dir, filelist)
-    #print(ret)
+    #test_gen_geojson_by_list(data_dir, filelist)
+    
+    #gen_tunnel_data_json()
     
