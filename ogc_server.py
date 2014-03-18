@@ -945,6 +945,7 @@ def handle_get_method(Env, Start_response):
             if k == 'potential_risk':
                 k = 'geojson_%s_%s' % (k, area)
             p = os.path.join(p, 'geojson', area, '%s.json' % k)
+            print(p)
             if os.path.exists(p):
                 with open(p) as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'r')

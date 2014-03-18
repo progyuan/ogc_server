@@ -7314,6 +7314,99 @@ def gen_geojson_by_shape(area):
             #if i == u'村.shp':
             convert_shp_to_geojson(area, bounds,  p, piny)
 
+def gen_geojson_by_tunnel_devices(area, piny):
+    ret = {}
+    absroot = SERVERJSONROOT
+    if not os.path.exists(absroot):
+        os.mkdir(absroot)
+    absroot = os.path.join(absroot, area)
+    if not os.path.exists(absroot):
+        os.mkdir(absroot)
+    tuns = odbc_get_records('VIEW_DEVICE_TUNNEL', "1=1"  , area)
+    paths = {}
+    for tun in tuns:
+        if not ret.has_key(tun['tunnel_id']):
+            ret[tun['tunnel_id']] = {}
+            ret[tun['tunnel_id']]['type'] = 'FeatureCollection'
+            ret[tun['tunnel_id']]['features'] = []
+        
+        o = {}
+        o['geometry'] = {}
+        o['geometry']['type'] = 'Point'
+        o['geometry']['coordinates'] = [tun['longitude'],  tun['latitude']]
+        o['type'] = 'Feature'
+        o['properties'] = {}
+        o['properties']['device_name'] = enc(tun['equip_name'])
+        o['properties']['py'] = ''
+        try:
+            o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(tun['equip_name'].replace('#','').replace('I',u'一').replace('II',u'二')))
+        except:
+            pass
+        for k in tun.keys():
+            if isinstance(tun[k], unicode):
+                tun[k] = enc(tun[k])
+            o['properties'][k] = tun[k]
+        ret[tun['tunnel_id']]['features'].append(o)
+        
+    for k in ret.keys():    
+        s = json.dumps(ret[k], indent=4, ensure_ascii=True)
+        path = os.path.join(absroot, 'geojson_tunneldevice_%s_%s.json' % (area, k) )
+        with open(path, 'w') as f:
+            f.write(s + '\n')
+    return ret
+        
+    
+    
+    
+def gen_geojson_by_tunnels(area, piny):
+    ret = {}
+    absroot = SERVERJSONROOT
+    if not os.path.exists(absroot):
+        os.mkdir(absroot)
+    absroot = os.path.join(absroot, area)
+    if not os.path.exists(absroot):
+        os.mkdir(absroot)
+        
+        
+    secs = odbc_get_records('TABLE_TUNNEL_SECTION', "1=1" , area)
+    for sec in secs:
+        tuns = odbc_get_records('TABLE_TUNNEL', "tunnel_id='%s'" % sec['tunnel_id'] , area)
+        if len(tuns)>0:
+            path = os.path.join(absroot, 'geojson_tunnel_%s_%s.json' % (area, sec['ts_id']) )
+            recs = odbc_get_records('VIEW_TUNNEL_SECTION', "ts_id='%s'" %  sec['ts_id'], area)
+            coords = []
+            for rec in recs:
+                coords.append([rec['point_seq'], rec['lng'], rec['lat'], ])
+            coords1  = sorted(coords, key=lambda x: x[0], reverse=True)
+            coords2  = [[i[1], i[2],] for i in coords1]
+            tunnel_obj = {}
+            tunnel_obj['type'] = 'FeatureCollection'
+            tunnel_obj['features'] = []
+            o = {}
+            o['geometry'] = {}
+            o['geometry']['type'] = 'LineString'
+            o['geometry']['coordinates'] = coords2
+            o['type'] = 'Feature'
+            o['properties'] = {}
+            
+            
+            o['properties']['tunnel_name'] = enc(tuns[0]['tunnel_name'] + u' ' + sec['start_point'] + u'至' + sec['end_point'])
+            o['properties']['py'] = ''
+            try:
+                o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(tuns[0]['tunnel_name'].replace('#','').replace('I',u'一').replace('II',u'二')))
+            except:
+                pass
+            for k in sec.keys():
+                if isinstance(sec[k], unicode):
+                    sec[k] = enc(sec[k])
+                o['properties'][k] = sec[k]
+            tunnel_obj['features'].append(o)
+            s = json.dumps(tunnel_obj, indent=4, ensure_ascii=True)
+            with open(path, 'w') as f:
+                f.write(s + '\n')
+            ret[sec['ts_id']] = tunnel_obj
+    return ret
+                
 def gen_geojson_by_potential_risk(area, piny):
     absroot = SERVERJSONROOT
     if not os.path.exists(absroot):
@@ -7469,15 +7562,20 @@ def gen_geojson_by_lines(area):
     ret = {}
     ret['line'] = {}
     ret['towers'] = {}
+    ret['tunnels'] = {}
+    ret['tunnel_devices'] = {}
+    ret['potential_risk'] = {}
     lines = odbc_get_records('TABLE_LINE', '1=1',area)
     for line in lines:
         line_obj, towers_obj = gen_geojson_by_line_id(line['id'], area, piny)
-        potential_risk_obj = gen_geojson_by_potential_risk(area, piny)
         if len(line_obj.keys())==0 or len(line_obj.keys())==0:
             continue
         ret['line'][line['id']] = line_obj
         ret['towers'][line['id']] = towers_obj
-        ret['potential_risk'] = potential_risk_obj
+    ret['potential_risk'] = gen_geojson_by_potential_risk(area, piny)
+    if area == 'km':
+        ret['tunnels'] = gen_geojson_by_tunnels(area, piny)
+        ret['tunnel_devices'] = gen_geojson_by_tunnel_devices(area, piny)
     return ret
         
         
@@ -8059,5 +8157,5 @@ if __name__=="__main__":
     data_dir = u'F:\work\cpp\kmgdgis3D\data\www\geojson'
     #test_gen_geojson_by_list(data_dir, filelist)
     
-    #gen_tunnel_data_json()
+    gen_geojson_by_lines('km')
     

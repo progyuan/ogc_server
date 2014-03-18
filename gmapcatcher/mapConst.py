@@ -163,6 +163,8 @@ R_EARTH = 6371.
 USER_PATH = gConfig['wmts']['tiles_sat_root']
 #DEFAULT_PATH = os.path.join(USER_PATH, "tilesCache")
 DEFAULT_PATH = USER_PATH
+if not os.path.exists(os.path.dirname(DEFAULT_PATH)):
+    os.mkdir(os.path.dirname(DEFAULT_PATH))
 if not os.path.exists(DEFAULT_PATH):
     os.mkdir(DEFAULT_PATH)
 
