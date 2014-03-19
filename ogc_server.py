@@ -107,7 +107,7 @@ except:
 def handle_static(aUrl):
     global gConfig
     statuscode, contenttype, body = '404 Not Found', 'text/plain;charset=' + ENCODING, '404 Not Found'
-    surl = aUrl#.replace('//', '').replace('/', os.path.sep)
+    surl = dec(aUrl)#.replace('//', '').replace('/', os.path.sep)
     if surl[0:2] == '//':
         surl = surl[2:]
     if surl[0] == '/':
@@ -981,8 +981,8 @@ def handle_get_method(Env, Start_response):
         s = json.dumps(data, ensure_ascii=True)
         
     if d.has_key('check_file'):
-        fn = d['check_file'][0]
-        dir_name = d['dir_name'][0]
+        fn = dec(d['check_file'][0])
+        dir_name = dec(d['dir_name'][0])
         del d['check_file']
         del d['dir_name']
         ret["result"] = {}
@@ -999,8 +999,8 @@ def handle_get_method(Env, Start_response):
                 ret["result"]["exist"] = "false"
         s = json.dumps(ret, ensure_ascii=True)
     if d.has_key('delete_file'):
-        fn = d['delete_file'][0]
-        dir_name = d['dir_name'][0]
+        fn = dec(d['delete_file'][0])
+        dir_name = dec(d['dir_name'][0])
         del d['delete_file']
         del d['dir_name']
         ret["result"] = {}
@@ -1025,7 +1025,7 @@ def handle_get_method(Env, Start_response):
                 ret["result"]["removed"] = "false"
         s = json.dumps(ret, ensure_ascii=True)
     if d.has_key('list_file_dir_name'):
-        dir_name = d['list_file_dir_name'][0]
+        dir_name = dec(d['list_file_dir_name'][0])
         del d['list_file_dir_name']
         ret["result"] = {}
         ret["result"]["dirs"] = [dir_name, ]
@@ -1122,8 +1122,8 @@ def handle_upload_file(fileobj, qsdict):
     try:
         #task item picture
         if qsdict.has_key('pic_file_name'):
-            fn = qsdict['pic_file_name'][0]
-            dir_name = qsdict['dir_name'][0]
+            fn = dec(qsdict['pic_file_name'][0])
+            dir_name = dec(qsdict['dir_name'][0])
             #pic_type = qsdict['pic_type'][0]
             p = os.path.join(root, 'photos')
             if not os.path.exists(p):
