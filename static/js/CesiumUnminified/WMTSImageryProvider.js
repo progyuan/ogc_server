@@ -24,7 +24,7 @@ var WMTSImageryProvider = function WMTSImageryProvider(description) {
     this._tileHeight = 256;
 
     this._minimumLevel = Cesium.defaultValue(description.minimumLevel, 0);
-    this._maximumLevel = Cesium.defaultValue(description.maximumLevel, 18);
+    this._maximumLevel = Cesium.defaultValue(description.maximumLevel, 17);
     this._extent = Cesium.defaultValue(description.extent, this._tilingScheme.extent);
 
     // Check the number of tiles at the minimum level.  If it's more than four,
@@ -59,7 +59,7 @@ function buildImageUrl(imageryProvider, x, y, level) {
     url += '&TILEROW=' + y ;
     url += '&TILECOL=' + x ;
     url += '&FORMAT=' + imageryProvider._fileExtension;
-    console.log("url=" + url);
+    //console.log("url=" + url);
     var proxy = imageryProvider._proxy;
     if (Cesium.defined(proxy)) {
         url = proxy.getURL(url);

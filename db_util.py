@@ -6084,21 +6084,27 @@ def test_modify_tower_name():
         break
     
 
-def altitude_by_lgtlat(lgt, lat):
+def altitude_by_lgtlat(demdir, lgt, lat):
     #global gDemExtractor
-    d = r'H:\gis\demdata'
+    #d = r'H:\gis\demdata'
     ret = -1
-    for i in os.listdir(d):
+    l = []
+    for i in os.listdir(demdir):
         if i[-4:] == '.tif' and 'ASTGTM2' in i:
-            p = os.path.join(d, i)
+            p = os.path.join(demdir, i)
             de = DemExtrctor(p)
             try:
-                a = de.lookup(lgt, lat)
-                #print('in %s a=%f' % (p, a))
-                ret = a
-            except IndexError:
-                #print('Not exist in this DEM')
-                continue
+                ret = de.lookup(lgt, lat)
+                l.append(ret)
+                print('ret=%f' % ret)
+            except:
+                pass
+    minv = min(l)
+    maxv = max(l)
+    #l.remove(minv)
+    #l.remove(maxv)
+    if len(l)>0:
+        ret = sum(l)/len(l)
     return ret
             
 def test_compare_arcgis_demextract():
@@ -6107,6 +6113,16 @@ def test_compare_arcgis_demextract():
         a1 = t['geo_z']
         a2 = altitude_by_lgtlat(t['geo_x'], t['geo_y'])
         print('arcgis=%f, demextract=%f' % (a1, a2))
+    
+
+def webgis_get_tower_data(line_id, area):
+    ret = []
+    ts = odbc_get_records('TABLE_TOWER', "line_id='%s'" % line_id, area)
+    for t in ts:
+        ret.append([t['geo_x'], t['geo_y'],  t['geo_z'], t['rotate'], t['model_code']])
+    return ret
+    
+        
     
 
 def test_buff2d():
@@ -8157,5 +8173,11 @@ if __name__=="__main__":
     data_dir = u'F:\work\cpp\kmgdgis3D\data\www\geojson'
     #test_gen_geojson_by_list(data_dir, filelist)
     
-    gen_geojson_by_lines('km')
+    #gen_geojson_by_lines('km')
+    
+    
+    alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
+    print('alt=%f' % alt)
+    
+    
     

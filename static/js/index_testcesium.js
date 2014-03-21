@@ -34,7 +34,10 @@ providerViewModels.push(new Cesium.ImageryProviderViewModel({
 		});
 	}
 }));
-		
+
+
+
+	
 var viewer = new Cesium.Viewer('cesiumContainer',{
 	baseLayerPicker:true,
 	imageryProviderViewModels:providerViewModels,
@@ -42,3 +45,4 @@ var viewer = new Cesium.Viewer('cesiumContainer',{
 		url:"http://localhost:88/terrain"
 	})
 });
+
