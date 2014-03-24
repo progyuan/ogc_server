@@ -16,7 +16,8 @@ def layer_url_template(layer, conf):
         map_server_query = ["m", "k", "p", "h"]
 
         oa = openanything.fetch(
-            'http://maps.google.com/maps?t=' + map_server_query[layer])
+            #'http://maps.google.com/maps?t=' + map_server_query[layer])
+            'https://maps.google.com/maps?t=' + map_server_query[layer])
 
         if oa['status'] != 200:
             print "Trying to fetch http://maps.google.com/maps but failed"
@@ -81,7 +82,8 @@ def set_zoom(intZoom):
 def search_location(location):
     print 'downloading the following location:', location
     try:
-        oa = openanything.fetch('http://maps.google.com/maps?q=' +
+        #oa = openanything.fetch('http://maps.google.com/maps?q=' +
+        oa = openanything.fetch('https://maps.google.com/maps?q=' +
             urllib.quote_plus(location), agent="Mozilla/5.0")
     except Exception:
         return 'error=Can not connect to http://maps.google.com', None

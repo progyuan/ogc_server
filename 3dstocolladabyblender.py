@@ -36,12 +36,20 @@ def reduce_one(src, dst, ratio, angle, exportformat = '3ds'):
     bpy.context.object.modifiers["Decimate"].angle_limit = angle * 3.14159/180.0
     bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Decimate")
     
+    #select_by_name(name = "Model", extend = False)
+    #bpy.ops.object.select_by_type(extend=True, type='MESH')
+    #bpy.ops.object.join()
+    
+    
     if exportformat == '3ds':    
         print('export to 3ds %s...' % dst)
         bpy.ops.export_scene.autodesk_3ds(filepath=dst, check_existing=False,  use_selection=True)
     if exportformat == 'dae':    
         print('export to dae %s...' % dst)
-        bpy.ops.wm.collada_export(filepath=dst, check_existing=False,  selected=False)
+        bpy.context.object.scale[0] = 1e-004
+        bpy.context.object.scale[1] = 1e-004
+        bpy.context.object.scale[2] = 1e-004
+        bpy.ops.wm.collada_export(filepath=dst, check_existing=False,  selected=True, apply_modifiers=True)
     bpy.ops.object.delete()
     #time.sleep(2)
 
@@ -192,7 +200,8 @@ def batch_export_obj(srcdir, dstdir, ratio=1.0, scale=0.001):
                 export_to_obj(src, dst)
             
 if __name__=="__main__":
-    reduce_many(r'F:\work\csharp\kmgdmodel_xly',u'F:\work\csharp\kmgdmodel_dae', 0.1, 90, 1, 'dae')
+    #reduce_many(r'F:\work\csharp\kmgdmodel_xly',u'F:\work\csharp\kmgdmodel_dae', 0.1, 90, 1, 'dae')
+    reduce_many(r'H:\kmmodel\CH_BJ1',r'H:\kmmodel_dae', 0.1, 90, 1, 'dae')
     #reduce_one_recusive(r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18.3ds', r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18_0.1_90.dae', 0.1, 90, 1, 'dae')
     #batch_export_obj(r'F:\work\csharp\kmgdmodel_xly', r'F:\work\csharp\obj')
     #test()

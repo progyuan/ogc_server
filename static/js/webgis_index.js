@@ -54,10 +54,20 @@ $(function() {
 		})
 	});
 	
-	//if(true) return;
-	
 	var scene = viewer.scene;
 	var ellipsoid = scene.primitives.centralBody.ellipsoid;
+	
+	var west = Cesium.Math.toRadians(102.70);
+	var south = Cesium.Math.toRadians(25.04);
+	var east = Cesium.Math.toRadians(103.720);
+	var north = Cesium.Math.toRadians(25.06);
+
+	var extent = new Cesium.Extent(west, south, east, north);
+	scene.camera.controller.viewExtent(extent, ellipsoid);
+	
+	
+	if(true) return;
+	
 	
 	
 	//var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
@@ -90,7 +100,7 @@ $(function() {
 			console.log(t['tower_name'] + "=" + t['rotate']);
 			
 			var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['model_code_height']), t['geo_x'],  t['geo_y'], t['geo_z'],  t['rotate'] );
-			if(idx > 100)
+			if(idx > 3)
 			{
 				var destination = Cesium.Cartographic.fromDegrees(t['geo_x'],  t['geo_y'],  t['geo_z']*1.5);
 				var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
@@ -104,7 +114,7 @@ $(function() {
 				controller.minimumZoomDistance = r ;
 				
 				
-				//break;
+				break;
 			}
 			idx++;
 		}
@@ -133,8 +143,8 @@ function ReadTable(url, success, failed)
 
 function GetModelUrl(model_code_height)
 {
-	//return "http://localhost:88/gltf/%s.json" % model_code_height;
-	return "http://localhost:88/gltf/test.json";//?random=" + $.uuid();
+	return "http://localhost:88/gltf/%s.json" % model_code_height;
+	//return "http://localhost:88/gltf/test.json";//?random=" + $.uuid();
 }
 
 function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotate) 
