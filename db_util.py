@@ -8134,7 +8134,207 @@ def test_gen_geojson_by_list(data_dir, filelist):
         ret = collation_lnglat(f)
         gen_geojson_by_list(data_dir, tname, ret)
         gen_boundry_by_list(data_dir, tname, ret)
+ 
+def gen_mongo_geojson_by_line_id(line_id, area, piny):
+    ret = []
+    towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
+    validlgtlat = None, None
+    prev, tower, nextt = None, None, None
+    for i in range(len(towers_sort)):
+        if i == 0:
+            if len(towers_sort)==1:
+                prev, tower, nextt = None, towers_sort[i], None
+            else:    
+                prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
+        elif i == len(towers_sort) - 1:
+            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
+        else:    
+            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
+            
+            
+            
+        x, y = tower['geo_x'], tower['geo_y']
+        if x and y:
+            validlgtlat = x, y
+        else:
+            if validlgtlat[0] and validlgtlat[1]:
+                x, y = validlgtlat[0] , validlgtlat[1]
+        if x is None or y is None:
+            continue
+        tower_obj = {}
+        tower_obj['geometry'] = {}
+        tower_obj['geometry']['type'] = 'Point'
+        tower_obj['geometry']['coordinates'] = [x, y]
+        tower_obj['type'] = 'Feature'
+        tower_obj['properties'] = {}
+        for k in tower.keys():
+            if isinstance(tower[k], unicode):
+                tower[k] = enc(tower[k])
+            if k=='tower_name':
+                tower_obj['properties'][k] = tower[k]
+                tower_obj['properties']['py'] = ''
+                try:
+                    tower_obj['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(dec(tower[k]).replace('#','').replace('I',u'一').replace('II',u'二')))
+                except:
+                    pass
+            if k=='geo_x' or k=='geo_y':
+                continue
+            tower_obj['properties'][k] = tower[k]
+        if prev:
+            tower_obj['properties']['prev_ids'] = [prev['id'],]
+        else:
+            tower_obj['properties']['prev_ids'] = []
+            
+        if nextt:
+            tower_obj['properties']['next_ids'] = [nextt['id'],]
+        else:
+            tower_obj['properties']['next_ids'] = []
+            
+        ret.append(tower_obj)
+    return ret
     
+def mongo_find(dbname, collection_name, *args, **kwargs):
+    global gClientMongo
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    ret = []
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        if dbname in gClientMongo.database_names():      
+            db = gClientMongo[dbname]
+            if collection_name in db.collection_names():
+                cur = db[collection_name].find(*args, **kwargs)
+                for i in cur:
+                    ret.append(remove_mongo_id(i))
+            else:
+                print('collection [%s] does not exist.' % collection_name)
+        else:
+            print('database [%s] does not exist.' % dbname)
+    except:
+        traceback.print_exc()
+        #err = sys.exc_info()[1].message
+        #print(err)
+        ret = []
+    return ret
+
+def mongo_find_one(dbname, collection_name, *args, **kwargs):
+    global gClientMongo
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    ret = None
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        ret = db[collection_name].find_one(*args, **kwargs)
+        ret = remove_mongo_id(ret)
+    except:
+        traceback.print_exc()
+        #err = sys.exc_info()[1].message
+        #print(err)
+        ret = None
+    return ret
+    
+def remove_mongo_id(obj):
+    if isinstance(obj, dict):
+        if obj.has_key(u'_id'):
+            del obj[u'_id']
+        for k in obj.keys():
+            obj[k] = remove_mongo_id(obj[k])
+    if isinstance(obj, list):
+        for i in obj:
+            obj[obj.index(i)] = remove_mongo_id(i)
+    return obj
+     
+def test_mongo_import_towers():
+    global gClientMongo
+    area = 'km'
+    from pinyin import PinYin
+    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
+    piny =  PinYin(pydatapath)
+    piny.load_word()
+    lines = odbc_get_records('TABLE_LINE', '1=1', area)
+    l = []
+    for line in lines:
+        towers = gen_mongo_geojson_by_line_id(line['id'], area, piny)
+        l.extend(towers)
+
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        if 'towers' in db.collection_names(False):
+            db.drop_collection('towers')
+        collection = db.create_collection('towers')
+        for i in l:
+            collection.save(i)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+    
+    
+    
+    
+    
+    
+def test_mongo_import_line():
+    global gClientMongo
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        collection_lines = db['lines']
+        odbc_lines = odbc_get_records('TABLE_LINE', '1=1', 'km')
+        for line in odbc_lines:
+            del line['box_north']
+            del line['box_south']
+            del line['box_east']
+            del line['box_west']
+            collection_lines.save(line)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+    
+def test_mongo_import_code():
+    global gClientMongo
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        cods = {
+            'equipment_class':'TABLE_COD_EQU_CLASS',
+            'equipment_container':'TABLE_COD_EQU_CONT',
+            'fault_type':'TABLE_COD_FAULT_TYPE',
+            'functional_type':'TABLE_COD_FUNC_TYPE',
+            'object_class':'TABLE_COD_OBJ_CLASS',
+            'voltage_level':'TABLE_COD_VOL_LEVEL',
+        }
+        if 'codes' in db.collection_names(False):
+            db.drop_collection('codes')
+        collection = db.create_collection('codes')
+        obj = {}
+        for k in cods.keys():
+            obj[k] = {}
+            odbc = odbc_get_records(cods[k], '1=1', 'km')
+            for i in odbc:
+                obj[k][i['code']] = i['name']
+        collection.save(obj)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+   
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -8176,8 +8376,17 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     
-    alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
-    print('alt=%f' % alt)
-    
+    #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
+    #print('alt=%f' % alt)
+    #test_mongo_import_line()
+    #test_mongo_import_code()
+    test_mongo_import_towers()
+    #ret = mongo_find('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
+    #print('count=%d' % len(ret))
+    #for i in ret:
+        #print(i)
+    #print('find one')
+    #ret = mongo_find_one('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
+    #print(ret)
     
     

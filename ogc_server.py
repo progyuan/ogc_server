@@ -31,6 +31,7 @@ import cgi
 import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
+import czml
 
 #from wfs_server import WFSServer
 import gmapcatcher.mapUtils as mapUtils
@@ -918,6 +919,13 @@ def get_condition_from_dict(dct):
             cond += " AND %s=%s" % (k, dct[k][0])
     print(cond)
     return cond
+
+def mongo_get_condition_from_dict(dct):
+    ret = {}            
+    for k in dct.keys():
+        ret[k] =  dct[k][0]
+    print(ret)
+    return ret
     
 def handle_get_method(Env, Start_response):
     ret = {}
@@ -958,6 +966,7 @@ def handle_get_method(Env, Start_response):
                         f1 = gevent.fileobject.FileObjectThread(f, 'r')
                         s = f1.read()
         del d['geojson']
+        
         
     if d.has_key('table'):
         table = d['table'][0]
@@ -1184,6 +1193,23 @@ def save_file_to(category, dir_id, filename, fileobj):
         #print(sys.exc_info()[1])
     #return ret
     
+
+def geojson_to_czml(aList):
+    cz = czml.CZML()
+    for i in aList:
+        if i.has_key('properties') and i['properties'].has_key('id'):
+            packet = czml.CZMLPacket(id=i['properties']['id'])
+            #tower
+            if i['properties'].has_key('tower_code'):
+                packet = czml.CZMLPacket(id=i['properties']['id'], name=i['properties']['tower_name'])
+                packet.position = czml.Position(cartographicDegrees = [i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['properties']['geo_z'],])
+                packet.point = czml.Point(show=True, color={'rgba': [255, 255, 0, 255]}, pixelSize=10, outlineColor={'rgba': [0, 0, 0, 255]}, outlineWidth=1)
+                #packet.label = czml.Label(text=i['properties']['tower_name'], show=True, scale=0.5)
+                packet.description = i['properties']['tower_name']
+                #packet.billboard = czml.Billboard(image='http://localhost:88/img/tower.png')
+                cz.append(packet)
+    return cz
+        
     
 def handle_post_method(Env, Start_response):
     buf = Env['wsgi.input'].read()
@@ -1199,46 +1225,71 @@ def handle_post_method(Env, Start_response):
             #d[kv[0]] = kv[1]
     ret = {}
     is_upload = False
+    is_mongo = False
+    use_czml = False
     try:
         ds_plus = urllib.unquote_plus(buf)
         obj = json.loads(ds_plus)
+        if obj.has_key(u'db') and obj.has_key(u'collection'):
+            is_mongo = True
+            dbname = obj[u'db']
+            collection = obj[u'collection']
+            if obj.has_key(u'use_czml') and obj[u'use_czml']:
+                use_czml = True
+                del obj[u'use_czml']
+            del obj[u'db']
+            del obj[u'collection']
+            l = db_util.mongo_find(dbname, collection, obj)
+            if use_czml:
+                l = geojson_to_czml(l)
+            if isinstance(l, list) and len(l) > 0:
+                ret = l
+            elif isinstance(l, czml.CZML):
+                Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
+                return [urllib.quote(l.dumps()),]
+            else:
+                ret["result"] = "%s.%s return 0 record" % (dbname, collection)
+        else:
+            ret["result"] = "unknown query operation"
+        
     except:
         if len(querydict.keys())>0:
             is_upload = handle_upload_file(buf, querydict)
         obj = {}
-    
-    if obj.has_key('thunder_counter'):
-        try:
-            ret = handle_thunder_soap(obj)
-        except:
-            e = sys.exc_info()[1]
-            if hasattr(e, 'message'):
-                ret['err'] = e.message
+    if not is_mongo:
+        if obj.has_key('thunder_counter'):
+            try:
+                ret = handle_thunder_soap(obj)
+            except:
+                e = sys.exc_info()[1]
+                if hasattr(e, 'message'):
+                    ret['err'] = e.message
+                else:
+                    ret['err'] = str(e)
+                
+        #elif obj.has_key('arcpy') \
+           #or obj.has_key('odbc') :
+            #ret = handle_requset_sync(obj)
+        elif obj.has_key('op'):
+            if obj.has_key('area') and obj['area'] and len(obj['area'])>0:
+                if obj['op'] in ['save','delete','update']:
+                    ret = db_util.odbc_save_data_to_table(obj['table'], obj['op'], obj['data'], obj['line_id'], obj['start_tower_id'], obj['end_tower_id'], obj['area'])
+                else:
+                    ret = handle_requset_sync(obj)
             else:
-                ret['err'] = str(e)
-            
-    elif obj.has_key('arcpy') \
-       or obj.has_key('odbc') :
-        ret = handle_requset_sync(obj)
-    elif obj.has_key('op'):
-        if obj.has_key('area') and obj['area'] and len(obj['area'])>0:
-            if obj['op'] in ['save','delete','update']:
-                ret = db_util.odbc_save_data_to_table(obj['table'], obj['op'], obj['data'], obj['line_id'], obj['start_tower_id'], obj['end_tower_id'], obj['area'])
-            else:
-                ret = handle_requset_sync(obj)
+                ret["result"] = "unknown area"
+        elif obj.has_key('tracks') and obj.has_key('area'):
+            ret = db_util.save_tracks(obj['tracks'], obj['area'])
         else:
-            ret["result"] = "unknown area"
-    elif obj.has_key('tracks') and obj.has_key('area'):
-        ret = db_util.save_tracks(obj['tracks'], obj['area'])
-    else:
-        if is_upload:
-            ret["result"] = "ok"
-        else:    
-            ret["result"] = "unknown operation"
+            if is_upload:
+                ret["result"] = "ok"
+            else:    
+                ret["result"] = "unknown operation"
     if (isinstance(ret, list) and len(ret)==0) or (isinstance(ret, dict) and len(ret.keys())==0):
         ret["result"] = "ok"
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
     #time.sleep(6)
+    #print(ret)
     return [urllib.quote(json.dumps(ret))]
 
 def handle_thunder_soap(obj):
