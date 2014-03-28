@@ -8192,7 +8192,24 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny):
             
         ret.append(tower_obj)
     return ret
-    
+
+def find_extent(data):
+    ret = {'west':None, 'south':None, 'east':None, 'north':None}
+    xl = []
+    yl = []
+    geomtype = None
+    for i in data:
+        if isinstance(i, dict) and  i.has_key('geometry') and i['geometry'].has_key('type'):
+            geomtype = i['geometry']['type']
+            if geomtype == 'Point':
+                xl.append(i['geometry']['coordinates'][0])
+                yl.append(i['geometry']['coordinates'][1])
+    if len(xl)>0 and len(yl)>0:
+        ret['west'] = min(xl)
+        ret['south'] = min(yl)
+        ret['east'] = max(xl)
+        ret['north'] = max(yl)
+    return ret   
 def mongo_find(dbname, collection_name, *args, **kwargs):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])

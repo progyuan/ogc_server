@@ -1,5 +1,10 @@
 var g_host = "http://localhost:88/";
-
+var g_selected_obj_id;
+var g_selected_obj_pos;
+var g_view_extent;
+var g_czml_towers = {};
+var g_geojson_towers = {"type": "FeatureCollection","features": []};
+var g_gltf_models = {};
 $(function() {
 
 	var providerViewModels = [];
@@ -84,16 +89,76 @@ $(function() {
 		//Cesium.ScreenSpaceEventType.MOUSE_MOVE
 	//);
 	var line_id = 'AF77864E-B8D5-479F-896B-C5F5DFE3450F';
-	LoadTower(viewer, ellipsoid, line_id);
-	LoadTowerModel(viewer, ellipsoid, line_id);
+	LoadTowerByLineId(viewer, ellipsoid, line_id);
+	//LoadTowerModel(viewer, ellipsoid, line_id);
 	viewer.extend(Cesium.viewerDynamicObjectMixin);
+	
+	viewer.homeButton.viewModel.command.beforeExecute.addEventListener(function(commandInfo){
+		//FlyToExtent(viewer.scene, 102.9554, 24.8844, 102.9842, 24.9037);
+		//viewer.trackedObject = null;
+		if(viewer.selectedObject)
+		{
+			g_selected_obj_id = viewer.selectedObject.id;
+			g_selected_obj_pos = viewer.selectedObject.position._value;
+		}
+		commandInfo.cancel = false;
+		viewer.selectedObject = undefined;
+	});
+	
+	viewer.homeButton.viewModel.command.afterExecute.addEventListener(function(commandInfo){
+		FlyToExtent(scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+		//commandInfo.cancel = false;
+	});
+	
+	
+	var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+	handler.setInputAction(
+		function (movement) {
+		
+			if(viewer.selectedObject)
+			{
+				g_selected_obj_id = viewer.selectedObject.id;
+				g_selected_obj_pos = ellipsoid.cartesianToCartographic(viewer.selectedObject.position._value);
+				console.log(g_selected_obj_id);
+				//console.log(g_selected_obj_pos);
+				LoadTowerModelByTowerId(viewer, g_selected_obj_id);
+			}
+			else
+			{
+				g_selected_obj_id = null;
+				g_selected_obj_pos = null;
+			}
+		}, Cesium.ScreenSpaceEventType.LEFT_CLICK//LEFT_DOUBLE_CLICK,LEFT_CLICK
+	);
+	handler.setInputAction(
+		function (movement) {
+			if(g_selected_obj_id)
+			{
+				LookAtTarget(scene, g_selected_obj_id);
+			}
+		}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK//LEFT_DOUBLE_CLICK,LEFT_CLICK
+	);
+	
 });
 
-function LoadTower(viewer, ellipsoid, line_id)
+
+
+
+function LoadTowerByLineId(viewer, ellipsoid, line_id)
 {
-	var cond = {'db':'kmgd', 'collection':'towers','use_czml':true, 'properties.line_id':line_id};
-	MongoFind( cond, 
+	var geo_cond = {'db':'kmgd', 'collection':'towers', 'properties.line_id':line_id};
+	var czml_cond = {'db':'kmgd', 'collection':'towers','use_czml':true, 'properties.line_id':line_id};
+	var ext_cond = {'db':'kmgd', 'collection':'towers','get_extext':true, 'properties.line_id':line_id};
+	MongoFind( geo_cond, 
 		function(data){
+			for(var i in data)
+			{
+				g_geojson_towers["features"].push(data[i]);
+			}
+	});
+	MongoFind( czml_cond, 
+		function(data){
+			g_czml_towers[line_id] = data;
 			viewer.dataSources.removeAll();
 			//var geojson = {};
 			//geojson['type'] =  'FeatureCollection';
@@ -104,13 +169,114 @@ function LoadTower(viewer, ellipsoid, line_id)
 			var dataSource = new Cesium.CzmlDataSource();
 			dataSource.load(data);
 			viewer.dataSources.add(dataSource);
-			viewer.homeButton.viewModel.command();
-			
 	});
+	MongoFind( ext_cond, 
+		function(data){
+			g_view_extent = data;
+			FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+			console.log('view extent = ' + g_view_extent);
+	});
+}
+
+function LookAtTarget(scene, id)
+{
+	//scene.camera.controller.lookAt(scene.camera.position, target, scene.camera.up);
+	var ellipsoid = scene.primitives.centralBody.ellipsoid;
+	
+	for(var i in g_geojson_towers['features'])
+	{
+		var tower = g_geojson_towers['features'][i];
+		//console.log(tower);
+		if(tower['properties']['id'] == id)
+		{
+			var x = tower['geometry']['coordinates'][0];
+			var y = tower['geometry']['coordinates'][1];
+			var z = tower['properties']['geo_z'];
+			//var west = Cesium.Math.toRadians(x - dx);
+			//var south = Cesium.Math.toRadians(y - dy);
+			//var east = Cesium.Math.toRadians(x + dx);
+			//var north = Cesium.Math.toRadians(y + dy);
+			FlyToPoint(scene, x, y, z, 1.05, 4000);
+			//var extent = new Cesium.Extent(west, south, east, north);
+			//scene.camera.controller.viewExtent(extent, ellipsoid);
+			//FlyToExtent(scene, west, south, east, north);
+			break;
+		}
+	}
+	
+	
 	
 }
 
-function LoadTowerModel(viewer, ellipsoid, line_id)
+
+function FlyToPoint(scene, x, y, z, factor, duration)
+{
+	var destination = Cesium.Cartographic.fromDegrees(x,  y,  z * factor);
+	var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
+		destination : destination,
+		duration	:duration
+	});
+	scene.animations.add(flight);
+}
+
+function FlyToPointCart3(scene, pos, duration)
+{
+	//var destination = scene.primitives.centralBody.ellipsoid.cartesianToCartographic(cart3);
+	var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
+		destination	:	pos,
+		duration	:	duration
+		//up			:	scene.camera.up,
+		//direction	:	scene.camera.direction
+	});
+	scene.animations.add(flight);
+}
+
+function FlyToExtent(scene, west, south, east, north)
+{
+	var west1 = Cesium.Math.toRadians(west);
+	var south1 = Cesium.Math.toRadians(south);
+	var east1 = Cesium.Math.toRadians(east);
+	var north1 = Cesium.Math.toRadians(north);
+
+	var extent = new Cesium.Extent(west1, south1, east1, north1);
+	var flight = Cesium.CameraFlightPath.createAnimationExtent(scene, {
+		destination : extent
+	});
+	scene.animations.add(flight);
+}
+
+function LoadTowerModelByTowerId(viewer, tower_id)
+{
+	var scene = viewer.scene;
+	var ellipsoid = scene.primitives.centralBody.ellipsoid;
+	
+	for(var i in g_geojson_towers['features'])
+	{
+		var tower = g_geojson_towers['features'][i];
+		//console.log(tower);
+		if(tower['properties']['id'] == tower_id)
+		{
+			if(!g_gltf_models[tower_id])
+			{
+				var model = CreateTowerModel(
+					scene, 
+					ellipsoid, 
+					GetModelUrl(tower['properties']['model_code_height']), 
+					tower['geometry']['coordinates'][0],  
+					tower['geometry']['coordinates'][1], 
+					tower['properties']['geo_z'] ,  
+					tower['properties']['rotate'],
+					10
+				);
+				g_gltf_models[tower_id] = model;
+				console.log("load model for [" + tower_id + "]");
+			}
+			break;
+		}
+	}
+}
+
+function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
 {
 	var scene = viewer.scene;
 	scene.primitives.removeAll(); // Remove previous model
@@ -124,24 +290,16 @@ function LoadTowerModel(viewer, ellipsoid, line_id)
 			for(var i in data)
 			{
 				var t = data[i];
-				//console.log(t);
 				var label = labels.add({
 					position : ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'])),
 					text     : t['properties']['tower_name'],
 					fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
 				});
 				
-				//label.setScale(3.0);
-				//console.log(t['tower_name'] + "=" + t['rotate']);
-				
 				var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
 				if(idx > 10)
 				{
-					var destination = Cesium.Cartographic.fromDegrees(t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] * 1.5);
-					var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
-						destination : destination
-					});
-					scene.animations.add(flight);
+					FlyToPoint(scene, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
 					var controller = scene.screenSpaceCameraController;
 					//controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
 					//controller.enableTilt = true;
@@ -153,48 +311,6 @@ function LoadTowerModel(viewer, ellipsoid, line_id)
 			}
 			scene.primitives.add(labels);
 	});
-
-	
-	//var url = g_host + "get?table=TABLE_TOWER&line_id=" + line_id + "&area=" + area;
-	//ReadTable(url, function(data){
-		//var idx = 0;
-        //var labels = new Cesium.LabelCollection();
-		//for(var i in data)
-		//{
-			//var t = data[i];
-			//var label = labels.add({
-				//position : ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(t['geo_x'],  t['geo_y'], t['geo_z'])),
-				//text     : t['tower_name'],
-				//fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
-			//});
-			
-			////label.setScale(3.0);
-			//console.log(t['tower_name'] + "=" + t['rotate']);
-			
-			//var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['model_code_height']), t['geo_x'],  t['geo_y'], t['geo_z'],  t['rotate'] );
-			//if(idx > 10)
-			//{
-				//var destination = Cesium.Cartographic.fromDegrees(t['geo_x'],  t['geo_y'],  t['geo_z']*1.5);
-				//var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
-					//destination : destination
-				//});
-				//scene.animations.add(flight);
-				//var controller = scene.screenSpaceCameraController;
-				////controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
-				////controller.enableTilt = true;
-				//var r = t['geo_z'];
-				//controller.minimumZoomDistance = r ;
-				//break;
-			//}
-			//idx++;
-		//}
-		//scene.primitives.add(labels);
-
-	//},
-	//function(){
-	
-	//});
-
 }
 
 function MongoFind(data, success)
@@ -234,7 +350,7 @@ function GetModelUrl(model_code_height)
 	//return "http://localhost:88/gltf/test.json";//?random=" + $.uuid();
 }
 
-function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotate) 
+function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotate, scale) 
 {
 
 	height = Cesium.defaultValue(height, 0.0);
@@ -247,7 +363,7 @@ function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotat
 	var model = scene.primitives.add(Cesium.Model.fromGltf({
 		url : modelurl,
 		modelMatrix : m,
-		scale:10
+		scale:scale
 	}));
 	
 	model.readyToRender.addEventListener(function(model) {

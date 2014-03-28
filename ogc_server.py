@@ -1227,6 +1227,7 @@ def handle_post_method(Env, Start_response):
     is_upload = False
     is_mongo = False
     use_czml = False
+    get_extext = False
     try:
         ds_plus = urllib.unquote_plus(buf)
         obj = json.loads(ds_plus)
@@ -1237,12 +1238,19 @@ def handle_post_method(Env, Start_response):
             if obj.has_key(u'use_czml') and obj[u'use_czml']:
                 use_czml = True
                 del obj[u'use_czml']
+            if obj.has_key(u'get_extext') and obj[u'get_extext']:
+                get_extext = True
+                del obj[u'get_extext']
             del obj[u'db']
             del obj[u'collection']
             l = db_util.mongo_find(dbname, collection, obj)
+            if get_extext:
+                l = db_util.find_extent(l)
             if use_czml:
                 l = geojson_to_czml(l)
             if isinstance(l, list) and len(l) > 0:
+                ret = l
+            elif isinstance(l, dict) and len(l.keys()) > 0:
                 ret = l
             elif isinstance(l, czml.CZML):
                 Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])

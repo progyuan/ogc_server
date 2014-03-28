@@ -1268,6 +1268,7 @@ class CZMLPacket(_CZMLBaseObject):
     id = None
     name = None
     description = None
+    addition_properties = None
 
     # The availability property indicates when data for an object is available.
     # If data for an object is known to be available at the current animation
@@ -1544,6 +1545,8 @@ class CZMLPacket(_CZMLBaseObject):
             d['name'] = self.name
         if self.description:
             d['description'] = self.description
+        #if self.addition_properties:
+            #d['properties'] = self.addition_properties
         if self.availability is not None:
             d['availability'] = self.availability
         if self.billboard is not None:

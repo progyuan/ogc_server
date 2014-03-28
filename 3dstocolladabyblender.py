@@ -201,7 +201,7 @@ def batch_export_obj(srcdir, dstdir, ratio=1.0, scale=0.001):
             
 if __name__=="__main__":
     #reduce_many(r'F:\work\csharp\kmgdmodel_xly',u'F:\work\csharp\kmgdmodel_dae', 0.1, 90, 1, 'dae')
-    reduce_many(r'H:\kmmodel\CH_BJ1',r'H:\kmmodel_dae', 0.1, 90, 1, 'dae')
+    reduce_many(r'H:\kmmodel',r'f:\work\kmdae1.0', 1.0, 0, 1, 'dae')
     #reduce_one_recusive(r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18.3ds', r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18_0.1_90.dae', 0.1, 90, 1, 'dae')
     #batch_export_obj(r'F:\work\csharp\kmgdmodel_xly', r'F:\work\csharp\obj')
     #test()
