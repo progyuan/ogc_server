@@ -6,33 +6,62 @@ import re
 import urllib
 import gmapcatcher.openanything as openanything
 from gmapcatcher.mapConst import *
+from geventhttpclient import HTTPClient, URL
 
 known_layers = {}
 
 
 ## Returns a template URL for the GoogleMaps
 def layer_url_template(layer, conf):
+    return layer_url_template_openanything(layer, conf)
+    #return layer_url_template_geventclient(layer, conf)
+    #return layer_url_template_requesocks(layer, conf)
+
+
+    
+    
+    
+def layer_url_template_openanything(layer, conf):
+    ret = None
     if layer not in known_layers:
         map_server_query = ["m", "k", "p", "h"]
 
-        oa = openanything.fetch(
-            #'http://maps.google.com/maps?t=' + map_server_query[layer])
-            'https://maps.google.com/maps?t=' + map_server_query[layer])
-
+        oa = openanything.fetch('https://maps.google.com/maps?t=' + map_server_query[layer])
         if oa['status'] != 200:
-            print "Trying to fetch http://maps.google.com/maps but failed"
+            print("Trying to fetch https://maps.google.com/maps but failed")
             return None
         html = oa['data']
-
         known_layers[layer] = parse_start_page(layer, html, conf)
-    return known_layers[layer]
+        ret = known_layers[layer]
+    return ret
+        
+def layer_url_template_geventclient(layer, conf):
+    url = URL('https://maps.google.com/maps?t=' + map_server_query[layer])
+    http = HTTPClient.from_url(url, proxy_host=None, proxy_port=None, connection_timeout=8.0, network_timeout=8.0)
+    try:
+        response = http.get(url.request_uri)
+        if response.status_code == 200: 
+            html = response.read()
+            known_layers[layer] = parse_start_page(layer, html, conf)
+            ret = known_layers[layer]
+    except:
+        ret = None
+    finally:
+        if http:
+            http.close()
+    return ret
 
 
 ## Returns the URL to the GoogleMaps tile
 def get_url(counter, coord, layer, conf):
-    template = layer_url_template(layer, conf)
-    if template:
-        return template % (counter, coord[0], coord[1], 17 - coord[2])
+    ret = ''
+    if layer == LAYER_SAT:
+        template = layer_url_template(layer, conf)
+        if template:
+            ret = template % (counter, coord[0], coord[1], 17 - coord[2])
+    if layer == LAYER_MAP:
+        ret = gConfig['googlemap']['server'] + '/vt?lyrs=m' + '&hl=' + gConfig['googlemap']['language'] + '&x=%i&y=%i&z=%i' % (coord[0], coord[1], 17 - coord[2])
+    return ret
 
 
 ## The json.dumps is desired but not required
@@ -49,7 +78,7 @@ def json_dumps(string):
 #  http://mt%d.google.com/vt/lyrs=t@110&hl=en&x=%i&y=%i&z=%i
 def parse_start_page(layer, html, conf):
     end_str = '&src=' + conf.google_src + '&hl=' + conf.language + '&x=%i&y=%i&z=%i'
-
+    #end_str =  '&hl=' + gConfig['googlemap']['language'] + '&x=%i&y=%i&z=%i'
     hybrid = ''
     if layer == LAYER_HYB:
         hybrid = 'Hybrid'
@@ -57,7 +86,7 @@ def parse_start_page(layer, html, conf):
     # List of patterns add more as needed
     paList = [
         '<div id=inlineTiles' + hybrid + ' dir=ltr>' +
-        '<img src="http://([a-z]{2,3})[0-9].google.com/(.+?)&'
+        '<img src="https://([a-z]{2,3})[0-9].google.com/(.+?)&'
     ]
     for srtPattern in paList:
         p = re.compile(srtPattern)
@@ -67,8 +96,9 @@ def parse_start_page(layer, html, conf):
     if not match:
         print "Cannot parse result"
         return None
+    return 'https://%s%%d.google.com/%s' % tuple(match.groups()) + end_str
 
-    return 'http://%s%%d.google.com/%s' % tuple(match.groups()) + end_str
+    
 
 
 def set_zoom(intZoom):
@@ -86,9 +116,9 @@ def search_location(location):
         oa = openanything.fetch('https://maps.google.com/maps?q=' +
             urllib.quote_plus(location), agent="Mozilla/5.0")
     except Exception:
-        return 'error=Can not connect to http://maps.google.com', None
+        return 'error=Can not connect to https://maps.google.com', None
     if oa['status'] != 200:
-        return 'error=Can not connect to http://maps.google.com', None
+        return 'error=Can not connect to https://maps.google.com', None
 
     match = 0
     html = oa['data']

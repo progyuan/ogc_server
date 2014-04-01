@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os, sys
 
-IMAGE_ROOT = r'tilesCache/sat_tiles'
+IMAGE_ROOT = ur'd:\tilesCache\tiles'
 
 def remove(isremove=False):
     ret = 0
@@ -17,6 +17,6 @@ def remove(isremove=False):
         
 
 if __name__=="__main__":
-    print(remove())
+    print(remove(True))
     
     

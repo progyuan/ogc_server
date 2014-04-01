@@ -160,7 +160,7 @@ class MapServ:
         href = self.get_url_from_coord(coord, layer, conf)
         if href:
             try:
-                #print 'downloading:', href
+                print('downloading url=%s' % href)
                 oa = openanything.fetch(href)
                 if oa['status'] == 200:
                     return oa['data']

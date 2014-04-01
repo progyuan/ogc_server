@@ -38,7 +38,7 @@ import gmapcatcher.mapUtils as mapUtils
 import gmapcatcher.mapConf as mapConf
 import gmapcatcher.mapConst as mapConst
 from gmapcatcher.mapServices import MapServ
-from gmapcatcher.mapDownloader import MapDownloader
+from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent
 
 import pypyodbc
 import uuid
@@ -70,7 +70,8 @@ UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
 
 
 gStaticCache = {}
-gTileCache = {}
+gSatTileCache = {}
+gMapTileCache = {}
 gTerrainCache = {}
 gGreenlets = {}
 gClusterProcess = {}
@@ -81,7 +82,8 @@ try:
     #gWFSService.load()
     gMapConf = mapConf.MapConf()
     gCtxMap = MapServ(gMapConf)
-    gMapDownloader = MapDownloader(gCtxMap, 1)
+    #gMapDownloader = MapDownloader(gCtxMap, 1)
+    gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
 except:
     pass
 
@@ -653,7 +655,13 @@ def download_callback(*args, **kwargs):
     #print(kwargs)
     #print(args)
     zoom, col, row = args[1][2], args[1][0], args[1][1]
-    root = gConfig['wmts']['tiles_sat_root']
+    root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+    if args[2] == mapConst.LAYER_SAT:
+        root = os.path.abspath(gConfig['wmts']['tiles_sat_root'])
+    if args[2] == mapConst.LAYER_MAP:
+        root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+        
+    #print(root)
     p = os.path.join(root,
                     str(zoom),
                     str(col / 1024),
@@ -662,12 +670,15 @@ def download_callback(*args, **kwargs):
                     str(row % 1024) + gConfig['wmts']['format']
                     )
     print('Not exist %s, downloading...' % p)
-    p = os.path.abspath(p)
+    #p = os.path.abspath(p)
     if os.path.exists(p):
         key = '%d-%d-%d' % (zoom, col, row)
         with open(p, 'rb') as f:
             f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-            gTileCache[key] = f1.read()
+            if args[2] == mapConst.LAYER_SAT:
+                gSatTileCache[key] = f1.read()
+            if args[2] == mapConst.LAYER_MAP:
+                gMapTileCache[key] = f1.read()
     
     
     #print(kwargs)
@@ -687,11 +698,23 @@ def handle_terrain_GetTile(params, Start_response):
 def handle_wmts_GetTile(params, Start_response):
     picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
     root = gConfig['wmts']['tiles_sat_root']
+    gMapConf.map_service = 'Google'
+    lyrtype = mapConst.LAYER_SAT
     if params.has_key('TILEMATRIXSET'):
-        if 'sat_tiles' in params['TILEMATRIXSET']:
-            root = gConfig['wmts']['tiles_sat_root']
-        elif 'map_tiles' in params['TILEMATRIXSET']:
-            root = gConfig['wmts']['tiles_map_root']
+        if 'google_sat' in params['TILEMATRIXSET']:
+            root = os.path.abspath(gConfig['wmts']['tiles_sat_root'])
+            lyrtype = mapConst.LAYER_SAT
+        elif 'google_map' in params['TILEMATRIXSET']:
+            root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+            lyrtype = mapConst.LAYER_MAP
+        elif 'osm_map' in params['TILEMATRIXSET']:
+            root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+            gMapConf.map_service = 'OpenStreetMap'
+            lyrtype = mapConst.LAYER_MAP
+        if not os.path.exists(os.path.abspath(gConfig['wmts']['tiles_root'])):
+            os.mkdir(gConfig['wmts']['tiles_root'])
+        if not os.path.exists(root):
+            os.mkdir(root)
     zoomlevel, row, col = None, None, None
     if params.has_key('TILEMATRIX'):
         #zoomlevel = int(params['TILEMATRIX'])
@@ -712,14 +735,14 @@ def handle_wmts_GetTile(params, Start_response):
             col = int(params['TILECOL'])
         
     
-    
     #zoom = int(gConfig['wmts']['max_zoom_level'])-3-zoomlevel
     zoom = int(gConfig['wmts']['max_zoom_level'])-2-zoomlevel
-    
+    #if 'osm_map' in params['TILEMATRIXSET']:
+        #zoom = zoomlevel
+        
         
     p = os.path.join(root,
                     str(zoom),
-                    #str(zoomlevel),
                     str(col / 1024),
                     str(col % 1024),
                     str(row / 1024),
@@ -737,7 +760,7 @@ def handle_wmts_GetTile(params, Start_response):
         #urlobj = URL(url)
         #http = HTTPClient.from_url(urlobj)
         #y = http.get(urlobj.request_uri)
-        lyrtype = mapConst.LAYER_SAT
+        gMapConf.language = 'zh_CN'
         gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback, conf=gMapConf)
         
         
@@ -745,36 +768,52 @@ def handle_wmts_GetTile(params, Start_response):
     Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ('Access-Control-Allow-Origin', '*')])
     
     
-    if True:    
-        if not gTileCache.has_key(key):
+    if lyrtype == mapConst.LAYER_SAT:    
+        if not gSatTileCache.has_key(key):
             try:
                 with open(picpath, 'rb') as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    gTileCache[key] = f1.read()
+                    gSatTileCache[key] = f1.read()
                 #print(key + ' row=%d,col=%d' % (row, col))
             except:
                 foundit = False
-                #for i in range(3):
-                    #if gTileCache.has_key(key):
-                        #foundit = True
-                        #break
-                    #gevent.sleep(0.5)
                 if not foundit:
                     key = 'missing'
-                if not gTileCache.has_key(key):
+                if not gSatTileCache.has_key(key):
                     picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
                     with open(picpath, 'rb') as f:
                         f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        gTileCache[key] = f1.read()
+                        gSatTileCache[key] = f1.read()
+                    print(key)
+    if lyrtype == mapConst.LAYER_MAP:    
+        if not gMapTileCache.has_key(key):
+            try:
+                with open(picpath, 'rb') as f:
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    gMapTileCache[key] = f1.read()
+                #print(key + ' row=%d,col=%d' % (row, col))
+            except:
+                foundit = False
+                if not foundit:
+                    key = 'missing'
+                if not gMapTileCache.has_key(key):
+                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    with open(picpath, 'rb') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        gMapTileCache[key] = f1.read()
                     print(key)
          
         #Start_response('200 OK', [('Content-Type',gConfig['mime_type'][gConfig['wmts']['format']]), ('Content-Length', str(len(ret)))])
-    
-    return [gTileCache[key]]
+    ret = None
+    if lyrtype == mapConst.LAYER_SAT:
+        ret = gSatTileCache[key]
+    if lyrtype == mapConst.LAYER_MAP:
+        ret = gMapTileCache[key]
+    return [ret,]
 
 def handle_terrain(Env, Start_response):
     path_info = Env['PATH_INFO']
-    print(path_info)
+    #print(path_info)
     key = path_info.replace('/terrain/','')
     if gTerrainCache.has_key(key):
         ret = gTerrainCache[key]
@@ -786,7 +825,7 @@ def handle_terrain(Env, Start_response):
         tilepath = os.path.abspath(tilepath)
         ret = '' 
         if os.path.exists(tilepath):
-            print('reading %s...' % tilepath)
+            #print('reading %s...' % tilepath)
             with open(tilepath, 'rb') as f:
                 f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                 ret = f1.read()
@@ -817,28 +856,28 @@ def handle_arcgistile(Env, Start_response):
         col = int(d['col'])
         row = int(d['row'])
         key = '%d-%d-%d' % (zoom, col, row)
-        if not gTileCache.has_key(key):
+        if not gSatTileCache.has_key(key):
             try:
                 #picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['wmts']['format']))
                 picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'],   '%d' % zoom, '%d' % col, '%d%s' % (row, gConfig['wmts']['format']))
                 print('%s, %s' % (key, picpath))
                 with open(picpath, 'rb') as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    gTileCache[key] = f1.read()
+                    gSatTileCache[key] = f1.read()
                 
             except:
                 foundit = False
                 if not foundit:
                     key = 'missing'
-                if not gTileCache.has_key(key):
+                if not gSatTileCache.has_key(key):
                     picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
                     with open(picpath, 'rb') as f:
                         f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        gTileCache[key] = f1.read()
+                        gSatTileCache[key] = f1.read()
         
-        ret = gTileCache[key]
+        ret = gSatTileCache[key]
     else:
-        ret = gTileCache['missing']
+        ret = gSatTileCache['missing']
         
     Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ('Access-Control-Allow-Origin', '*')])
     return [ret]    

@@ -11,6 +11,8 @@ __date__ = '$Date: 2004/04/16 21:16:24 $'
 __copyright__ = 'Copyright (c) 2004 Mark Pilgrim'
 __license__ = 'Python'
 
+#from geventhttpclient import httplib
+#httplib.patch()
 import sys
 from urllib import urlencode
 import urllib2
@@ -19,6 +21,17 @@ import gzip
 import mimetypes
 from StringIO import StringIO
 from mapConf import MapConf
+from mapConst import gConfig
+#if len(gConfig['proxy']['host'])>0:
+    #import socks
+    #import socket
+    #if gConfig['proxy']['type']=='socks5':
+        #socks.set_default_proxy(socks.SOCKS5, gConfig['proxy']['host'], int(gConfig['proxy']['port']))
+        #socket.socket = socks.socksocket
+    #if gConfig['proxy']['type']=='socks4':
+        #socks.set_default_proxy(socks.SOCKS4, gConfig['proxy']['host'], int(gConfig['proxy']['port']))
+        #socket.socket = socks.socksocket
+
 
 conf = MapConf(None)
 USER_AGENT = '%s/%s +%s' % (conf.name, conf.version, conf.web_address)

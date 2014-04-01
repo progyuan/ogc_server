@@ -10,6 +10,7 @@ var WMTSImageryProvider = function WMTSImageryProvider(description) {
     }
 
     this._url = url;
+    this._imageType = Cesium.defaultValue(description.imageType, 'google_sat');
     this._fileExtension = Cesium.defaultValue(description.fileExtension, 'png');
     this._proxy = description.proxy;
     this._tileDiscardPolicy = description.tileDiscardPolicy;
@@ -48,14 +49,19 @@ var WMTSImageryProvider = function WMTSImageryProvider(description) {
     this._credit = credit;
 };
 
-function buildImageUrl(imageryProvider, x, y, level) {
+function buildImageUrl(imageryProvider, imageType, x, y, level) {
     //var url = imageryProvider._url + level + '/' + x + '/' + y + '.' + imageryProvider._fileExtension;
+    var zoom = level + 1;
+    //if(imageType == 'osm_map')
+    //{
+        //zoom = level;
+    //}
     var url = imageryProvider._url ;
     url += '?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile';
     url += '&LAYER=' + '';
     url += '&STYLE=' + '';
-    url += '&TILEMATRIXSET=' + 'sat_tiles';
-    url += '&TILEMATRIX=' + (level + 1) ;
+    url += '&TILEMATRIXSET=' + imageType;
+    url += '&TILEMATRIX=' + zoom ;
     url += '&TILEROW=' + y ;
     url += '&TILECOL=' + x ;
     url += '&FORMAT=' + imageryProvider._fileExtension;
@@ -174,7 +180,7 @@ WMTSImageryProvider.prototype.requestImage = function(x, y, level) {
         throw new Cesium.DeveloperError('requestImage must not be called before the imagery provider is ready.');
     }
 
-    var url = buildImageUrl(this, x, y, level);
+    var url = buildImageUrl(this, this._imageType, x, y, level);
     return Cesium.ImageryProvider.loadImage(this, url);
 };
 

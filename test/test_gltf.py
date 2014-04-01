@@ -6,7 +6,7 @@ import shutil
 
 COLLADA2GLTF = ur'F:\work\cpp\glTF\converter\COLLADA2GLTF\vcbuild\bin\Release\collada2gltf.exe'
 #COLLADA2GLTF = ur'F:\work\cpp\glTF\converter\COLLADA2GLTF\vcbuild\bin\Debug\collada2gltf.exe'
-DAEDIR = ur'F:\work\kmdae0.5'
+DAEDIR = ur'F:\work\kmdae0.4'
 DESTDIR = ur'F:\work\python\ogc_server\static\gltf'
 def collada2gltf(input_path):
     os.chdir(DAEDIR)
@@ -21,6 +21,9 @@ def collada2gltf(input_path):
 
 
 if __name__=="__main__":
+    if os.path.exists(DESTDIR):
+        shutil.rmtree(DESTDIR)
+    os.mkdir(DESTDIR)
     for i in os.listdir(DAEDIR):
         p = os.path.join(DAEDIR, i)
         if os.path.isfile(p) and p[-4:] == '.dae':

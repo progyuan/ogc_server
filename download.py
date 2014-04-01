@@ -6,7 +6,7 @@
 
 import sys
 import gmapcatcher.mapConf as mapConf
-
+from gmapcatcher import openanything
 from gmapcatcher.mapUtils import *
 from gmapcatcher.mapArgs import MapArgs
 from gmapcatcher.mapServices import MapServ
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         os.kill(os.getpid(), signal.SIGTERM)
 
 #--satellite --threads=20 --max-zoom=-1 --min-zoom=-1 --latitude=25.05077 --longitude=102.70294 --width=20.0 --height=20.0
-#--satellite --threads=20 --max-zoom=14 --min-zoom=2 --latitude=25.05077 --longitude=102.70294 --latrange=2 --lngrange=2
+#--satellite --threads=20 --max-zoom=14 --min-zoom=-1 --latitude=25.05077 --longitude=102.70294 --latrange=1 --lngrange=1
 #--latitude=25 --longitude=103 --latrange=180 --lngrange=360
 #E:\Python27\python.exe g:\work\python\ogc_server\download.py --satellite --threads=20 --max-zoom=0 --min-zoom=-2 --latitude=25.036389 --longitude=102.708611 --width=20.0 --height=20.0
 #E:\Python27\python.exe g:\work\python\ogc_server\download.py --satellite --threads=20 --max-zoom=17 --min-zoom=13 --full-range
