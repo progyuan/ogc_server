@@ -5,6 +5,7 @@ var g_view_extent;
 var g_czml_towers = {};
 var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_gltf_models = {};
+var g_dlg_tower_info;
 $(function() {
 
 	var providerViewModels = [];
@@ -19,17 +20,6 @@ $(function() {
 				//}
 			//}));
 	providerViewModels.push(new Cesium.ImageryProviderViewModel({
-				name : '地图',
-				iconUrl : 'img/wmts-map.png',
-				tooltip : '地图',
-				creationFunction : function() {
-					return new WMTSImageryProvider({
-						url :  g_host + 'wmts',
-						imageType:'google_map',
-					});
-				}
-			}));
-	providerViewModels.push(new Cesium.ImageryProviderViewModel({
 				name : '卫星图',
 				iconUrl : 'img/wmts-sat.png',
 				tooltip : '卫星图',
@@ -37,6 +27,17 @@ $(function() {
 					return new WMTSImageryProvider({
 						url :  g_host + 'wmts',
 						imageType:'google_sat',
+					});
+				}
+			}));
+	providerViewModels.push(new Cesium.ImageryProviderViewModel({
+				name : '地图',
+				iconUrl : 'img/wmts-map.png',
+				tooltip : '地图',
+				creationFunction : function() {
+					return new WMTSImageryProvider({
+						url :  g_host + 'wmts',
+						imageType:'google_map',
 					});
 				}
 			}));
@@ -96,7 +97,7 @@ $(function() {
 	//scene.camera.controller.viewExtent(extent, ellipsoid);
 	
 	
-	if(true) return;
+	//if(true) return;
 	
 	
 	
@@ -191,7 +192,8 @@ function CreateTowerCzmlFromGeojson(geojson)
 		cz['label']['style'] = 'FILL';
 		cz['label']['text'] = tower['properties']['tower_name'];
 		cz['label']['verticalOrigin'] = 'CENTER';
-		cz['description'] = tower['properties']['tower_name'];
+		cz['description'] = '<!--HTML-->\r\n<p>des:' + tower['properties']['tower_name'] + '</p>';
+		//cz['description']['text'] = 'des:' + tower['properties']['tower_name'];
 		ret.push(cz);
 	}
 	return ret;
@@ -301,35 +303,47 @@ function FlyToExtent(scene, west, south, east, north)
 	scene.animations.add(flight);
 }
 
-function LoadTowerModelByTowerId(viewer, tower_id)
+function GetTowerInfoByTowerId(tower_id)
 {
-	var scene = viewer.scene;
-	var ellipsoid = scene.primitives.centralBody.ellipsoid;
-	
+	var ret = null;
 	for(var i in g_geojson_towers['features'])
 	{
 		var tower = g_geojson_towers['features'][i];
 		//console.log(tower);
 		if(tower['properties']['id'] == tower_id)
 		{
-			if(!g_gltf_models[tower_id])
-			{
-				var model = CreateTowerModel(
-					scene, 
-					ellipsoid, 
-					GetModelUrl(tower['properties']['model_code_height']), 
-					tower['geometry']['coordinates'][0],  
-					tower['geometry']['coordinates'][1], 
-					tower['properties']['geo_z'] ,  
-					tower['properties']['rotate'],
-					10
-				);
-				g_gltf_models[tower_id] = model;
-				console.log("load model for [" + tower_id + "]");
-			}
+			ret = tower;
 			break;
 		}
 	}
+	return ret;
+}
+
+function LoadTowerModelByTowerId(viewer, tower_id)
+{
+	var scene = viewer.scene;
+	var ellipsoid = scene.primitives.centralBody.ellipsoid;
+	
+	var tower = GetTowerInfoByTowerId(tower_id);
+	if(tower && tower['properties']['id'] == tower_id)
+	{
+		if(!g_gltf_models[tower_id])
+		{
+			var model = CreateTowerModel(
+				scene, 
+				ellipsoid, 
+				GetModelUrl(tower['properties']['model_code_height']), 
+				tower['geometry']['coordinates'][0],  
+				tower['geometry']['coordinates'][1], 
+				tower['properties']['geo_z'] ,  
+				tower['properties']['rotate'],
+				10
+			);
+			g_gltf_models[tower_id] = model;
+			console.log("load model for [" + tower_id + "]");
+		}
+	}
+	return tower;
 }
 
 function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
@@ -460,6 +474,7 @@ function TowerInfoMixin(viewer)
 	}
 
 	var infoBox = viewer.infoBox;
+	//console.log(infoBox);
 	var infoBoxViewModel = Cesium.defined(infoBox) ? infoBox.viewModel : undefined;
 
 	var selectionIndicator = viewer.selectionIndicator;
@@ -472,6 +487,9 @@ function TowerInfoMixin(viewer)
 
 	function trackSelectedObject() {
 		viewer.trackedObject = viewer.selectedObject;
+		var id = viewer.trackedObject.id;
+		//console.log('track id=' + id);
+		LookAtTarget(viewer.scene, id);
 	}
 
 	function clearTrackedObject() {
@@ -530,11 +548,11 @@ function TowerInfoMixin(viewer)
 				infoBoxViewModel.enableCamera = enableCamera;
 				infoBoxViewModel.isCameraTracking = (viewer.trackedObject === viewer.selectedObject);
 
-				if (Cesium.defined(selectedObject.description)) {
-					infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedObject.description.getValue(time), '');
-				} else {
-					infoBoxViewModel.descriptionRawHtml = '';
-				}
+				//if (Cesium.defined(selectedObject.description)) {
+					//infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedObject.description.getValue(time), '');
+				//} else {
+					//infoBoxViewModel.descriptionRawHtml = '';
+				//}
 			}
 		}
 
@@ -584,7 +602,14 @@ function TowerInfoMixin(viewer)
 			var id = viewer.selectedObject.id;
 			g_selected_obj_id = id;
 			console.log('selected id=' + id);
-			LoadTowerModelByTowerId(viewer, id);
+			var tower = LoadTowerModelByTowerId(viewer, id);
+			if(tower)
+			{
+				ShowTowerInfo(tower);
+			}
+		}
+		else{
+			$('#dlg_tower_info').dialog("close");
 		}
 	}
 
@@ -717,6 +742,38 @@ function TowerInfoMixin(viewer)
 	});
 }
 
-	
+function ShowTowerInfo(tower)
+{
+	//if(!g_dlg_tower_info)
+	//{
+		$('#dlg_tower_info').dialog({
+			width: 600,
+			height: 400,
+			maxWidth:800,
+			maxHeight: 600,
+			draggable: true,
+			resizable: true, 
+			modal: false,
+			title:tower['properties']['tower_name'],
+			buttons:[
+				{ 	text: "保存", 
+					click: function(){ 
+						
+					}
+				},
+				{ 	text: "关闭", 
+					click: function(){ 
+						$( this ).dialog( "close" );
+					}
+				}
+			
+			]
+		
+		});
+	//}
+	//else{
+		//$( ".selector" ).dialog( "open" );
+	//}
+}
 
 
