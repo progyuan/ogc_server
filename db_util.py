@@ -31,6 +31,7 @@ import random
 from PIL import Image
 from module_locator import module_path
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 #try:
     #import arcpy
@@ -8135,7 +8136,7 @@ def test_gen_geojson_by_list(data_dir, filelist):
         gen_geojson_by_list(data_dir, tname, ret)
         gen_boundry_by_list(data_dir, tname, ret)
  
-def gen_mongo_geojson_by_line_id(line_id, area, piny):
+def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
     ret = []
     towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
     validlgtlat = None, None
@@ -8170,25 +8171,167 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny):
         for k in tower.keys():
             if isinstance(tower[k], unicode):
                 tower[k] = enc(tower[k])
-            if k=='tower_name':
+            if k=='line_id':
+                #if not tower_obj['properties'].has_key('line_id'):
+                    #tower_obj['properties']['line_id'] = []
+                #tower_obj['properties']['line_id'].append(tower[k])
+                continue
+            elif k=='id':
+                if mapping.has_key(tower[k]):
+                    tower_obj['_id'] = mapping[tower[k]]
+                #continue
+            elif k=='same_tower':
+                #if not tower[k] == '00000000-0000-0000-0000-000000000000':
+                    #st = odbc_get_records('TABLE_TOWER', "id='%s'" % tower[k], 'km')
+                    #if len(st)>0:
+                        #lindid = st[0]['line_id']
+                        #if not tower_obj['properties'].has_key('line_id'):
+                            #tower_obj['properties']['line_id'] = []
+                        #tower_obj['properties']['line_id'].append(lindid)
+                continue
+            elif k=='tower_name':
                 tower_obj['properties'][k] = tower[k]
                 tower_obj['properties']['py'] = ''
                 try:
                     tower_obj['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(dec(tower[k]).replace('#','').replace('I',u'一').replace('II',u'二')))
                 except:
                     pass
-            if k=='geo_x' or k=='geo_y':
+            elif k=='geo_x' or k=='geo_y':
                 continue
-            tower_obj['properties'][k] = tower[k]
-        if prev:
-            tower_obj['properties']['prev_ids'] = [prev['id'],]
-        else:
+            elif k in ['model_code', 'model_code_height']:
+                if not tower_obj['properties'].has_key('model'):
+                    tower_obj['properties']['model'] = {}
+                tower_obj['properties']['model'][k] = tower[k]
+                if not tower_obj['properties']['model'].has_key('contact_points'):
+                    tower_obj['properties']['model']['contact_points'] = []
+                if k == 'model_code_height':
+                    pts = odbc_get_records('TABLE_CONTACT_POINT', "model_code='%s'" % tower[k], 'km')
+                    if len(pts)>0:
+                        for pt in pts:
+                            o = {}
+                            o['side'] = 0
+                            if pt['side'] == u'正':
+                                o['side'] = 1
+                            o['position'] = enc(pt['position'])
+                            o['contact_index'] = pt['contact_index']
+                            o['x'] = pt['offset_x']
+                            o['y'] = pt['offset_y']
+                            o['z'] = pt['offset_z']
+                            o['split_count'] = pt['split_count']
+                            tower_obj['properties']['model']['contact_points'].append(o)
+            else:
+                tower_obj['properties'][k] = tower[k]
+                
+        if not tower_obj['properties'].has_key('prev_ids'):
             tower_obj['properties']['prev_ids'] = []
+        if not tower_obj['properties'].has_key('next_ids'):
+            tower_obj['properties']['next_ids'] = []
+        if prev:
+            if mapping.has_key(prev['id']):
+                tower_obj['properties']['prev_ids'].append(mapping[prev['id']])
+        #else:
+            #tower_obj['properties']['prev_ids'] = []
             
         if nextt:
-            tower_obj['properties']['next_ids'] = [nextt['id'],]
-        else:
-            tower_obj['properties']['next_ids'] = []
+            if mapping.has_key(nextt['id']):
+                tower_obj['properties']['next_ids'].append(mapping[nextt['id']])
+        #else:
+            #tower_obj['properties']['next_ids'] = []
+            
+        if not tower_obj['properties'].has_key('metals'):
+            tower_obj['properties']['metals'] = []
+        attachs = odbc_get_records('TABLE_TOWER_METALS', "tower_id='%s'" % tower['id'], 'km')
+        if len(attachs)>0:
+            for attach in attachs:
+                o = {}
+                o['assembly_graph'] = ''
+                o['manufacturer'] = ''
+                o['model'] = ''
+                o['type'] = enc(u'未知')
+                #if attach['manufacturer']:
+                    #o['manufacturer'] = enc(attach['manufacturer'])
+                if attach['attach_type'] == u'防振锤':
+                    o['type'] = enc(u'防振锤')
+                    o['side'] = ''
+                    if attach['attach_subtype']:
+                        o['side'] = enc(attach['attach_subtype'])
+                    o['count'] = attach['strand']
+                    o['distance'] = attach['value1']
+                elif attach['attach_type'] == u'绝缘子串':
+                    o['type'] = enc(u'绝缘子串')
+                    o['insulator_type'] = ''
+                    if attach['attach_subtype']:
+                        o['insulator_type'] = enc(attach['attach_subtype'])
+                    o['model'] = ''
+                    if attach['specification']:
+                        o['model'] = enc(attach['specification'])
+                    o['material'] = ''
+                    if attach['material']:
+                        o['material'] = enc(attach['material'])
+                    o['strand'] = attach['strand']
+                    o['slice'] = attach['slice']
+                elif attach['attach_type'] == u'接地装置':
+                    o['type'] = enc(u'接地装置')
+                    o['model'] = ''
+                    if attach['specification']:
+                        o['model'] = enc(attach['specification'])
+                    o['count'] = attach['strand']
+                    o['depth'] = attach['value1']
+                elif attach['attach_type'] == u'基础':
+                    o['type'] = enc(u'铁塔')
+                    o['model'] = ''
+                    o['platform_model'] = ''
+                    o['anchor_model'] = ''
+                    o['count'] = attach['strand']
+                    o['depth'] = attach['value1']
+                tower_obj['properties']['metals'].append(o)
+        #if not tower_obj['properties'].has_key('attachments'):
+            #tower_obj['properties']['attachments'] = []
+        attachs = odbc_get_records('TABLE_TOWER_ATTACH', "tower_id='%s'" % tower['id'], 'km')
+        if len(attachs)>0:
+            for attach in attachs:
+                o = {}
+                o['assembly_graph'] = ''
+                o['manufacturer'] = ''
+                o['model'] = ''
+                o['type'] = enc(u'未知')
+                if attach['manufacturer']:
+                    o['manufacturer'] = enc(attach['manufacturer'])
+                if attach['attach_name'] == u'接地装置':
+                    o['type'] = enc(u'接地装置')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['count'] = attach['int_value1']
+                    o['depth'] = attach['float_value1']
+                elif u'计数器' in attach['attach_name'] :
+                    o['type'] = enc(u'雷电计数器')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['counter'] = attach['int_value1']
+                elif u'防鸟刺' in attach['attach_name'] :
+                    o['type'] = enc(u'防鸟刺')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['count'] = attach['int_value1']
+                elif u'在线监测装置' in attach['attach_name'] :
+                    o['type'] = enc(u'在线监测装置')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['count'] = attach['int_value1']
+                elif attach['attach_name'] == u'基础':
+                    o['type'] = enc(u'基础')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['platform_model'] = enc(u'铁塔')
+                    o['anchor_model'] = ''
+                    o['count'] = attach['int_value1']
+                    o['depth'] = attach['float_value1']
+                elif attach['attach_name'] == u'拉线':
+                    o['type'] = enc(u'拉线')
+                    if attach['series']:
+                        o['model'] = enc(attach['series'])
+                    o['count'] = attach['int_value1']
+                tower_obj['properties']['metals'].append(o)
             
         ret.append(tower_obj)
     return ret
@@ -8209,7 +8352,8 @@ def find_extent(data):
         ret['south'] = min(yl)
         ret['east'] = max(xl)
         ret['north'] = max(yl)
-    return ret   
+    return ret
+
 def mongo_find(dbname, collection_name, *args, **kwargs):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
@@ -8226,6 +8370,18 @@ def mongo_find(dbname, collection_name, *args, **kwargs):
                 cur = db[collection_name].find(*args, **kwargs)
                 for i in cur:
                     ret.append(remove_mongo_id(i))
+                    #ret.append(i)
+            elif collection_name == 'mongo_get_towers_by_line_name':
+                lines = db['lines'].find(*args, **kwargs)
+                towerids = []
+                for line in lines:
+                    for t in line['towers']:
+                        #print(str(t))
+                        towerids.append(t)
+                towers = db['towers'].find({'_id':{'$in':towerids}})
+                for i in towers:
+                    ret.append(remove_mongo_id(i))
+                    #ret.append(i)
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -8259,12 +8415,16 @@ def mongo_find_one(dbname, collection_name, *args, **kwargs):
     return ret
     
 def remove_mongo_id(obj):
-    if isinstance(obj, dict):
-        if obj.has_key(u'_id'):
-            del obj[u'_id']
+    if isinstance(obj, ObjectId):
+        obj = str(obj)
+        return obj
+    elif isinstance(obj, dict):
+        #if obj.has_key(u'_id'):
+            ##del obj[u'_id']
+            #obj[u'_id'] = str(obj[u'_id'])
         for k in obj.keys():
             obj[k] = remove_mongo_id(obj[k])
-    if isinstance(obj, list):
+    elif isinstance(obj, list):
         for i in obj:
             obj[obj.index(i)] = remove_mongo_id(i)
     return obj
@@ -8278,8 +8438,9 @@ def test_mongo_import_towers():
     piny.load_word()
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
+    mapping = get_tower_id_mapping()
     for line in lines:
-        towers = gen_mongo_geojson_by_line_id(line['id'], area, piny)
+        towers = gen_mongo_geojson_by_line_id(line['id'], area, piny, mapping)
         l.extend(towers)
 
     host, port = 'localhost', 27017
@@ -8298,24 +8459,77 @@ def test_mongo_import_towers():
         print(err)
     
     
-    
-    
-    
-    
-def test_mongo_import_line():
+def test_build_tower_odbc_mongo_id_mapping():
     global gClientMongo
     host, port = 'localhost', 27017
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
         db = gClientMongo['kmgd']
-        collection_lines = db['lines']
-        odbc_lines = odbc_get_records('TABLE_LINE', '1=1', 'km')
+        if 'tower_ids_mapping' in db.collection_names(False):
+            db.drop_collection('tower_ids_mapping')
+        collection = db.create_collection('tower_ids_mapping')
+        l = mongo_find('kmgd', 'towers')
+        for i in l:
+            collection.save({'uuid':i['properties']['id'], 'id':i['_id']})
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+     
+def test_build_line_odbc_mongo_id_mapping():
+    global gClientMongo
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        if 'line_ids_mapping' in db.collection_names(False):
+            db.drop_collection('line_ids_mapping')
+        collection = db.create_collection('line_ids_mapping')
+        l = mongo_find('kmgd', 'lines')
+        for i in l:
+            collection.save({'uuid':i['id'], 'id':i['_id']})
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+    
+def get_tower_id_mapping():
+    mapping = {}
+    #tower_ids_mapping = db['tower_ids_mapping']
+    tower_ids_mapping = mongo_find('kmgd', 'tower_ids_mapping')
+    for i in tower_ids_mapping:
+        mapping[i['uuid']] = i['id']
+    return mapping
+    
+    
+def test_mongo_import_line():
+    global gClientMongo
+    host, port = 'localhost', 27017
+    area = 'km'
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        
+        if 'lines' in db.collection_names(False):
+            db.drop_collection('lines')
+        collection_lines = db.create_collection('lines')
+        mapping = get_tower_id_mapping()
+        #collection_lines = db['lines']
+        odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
+            towers_sort = odbc_get_sorted_tower_by_line(line['id'], area)
             del line['box_north']
             del line['box_south']
             del line['box_east']
             del line['box_west']
+            line['towers'] = []
+            for i in towers_sort:
+                if mapping.has_key(i['id']):
+                    line['towers'].append(mapping[i['id']])
+            del line['id']
             collection_lines.save(line)
     except:
         traceback.print_exc()
@@ -8397,8 +8611,11 @@ if __name__=="__main__":
     #print('alt=%f' % alt)
     #test_mongo_import_line()
     #test_mongo_import_code()
-    test_mongo_import_towers()
-    #ret = mongo_find('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
+    #test_build_tower_odbc_mongo_id_mapping()
+    #test_build_line_odbc_mongo_id_mapping()
+    #test_mongo_import_towers()
+    ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
+    print(ret)
     #print('count=%d' % len(ret))
     #for i in ret:
         #print(i)

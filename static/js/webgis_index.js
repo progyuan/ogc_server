@@ -4,6 +4,7 @@ var g_selected_obj_pos;
 var g_view_extent;
 var g_czml_towers = {};
 var g_geojson_towers = {"type": "FeatureCollection","features": []};
+var g_lines = [];
 var g_gltf_models = {};
 var g_dlg_tower_info;
 $(function() {
@@ -78,7 +79,9 @@ $(function() {
 	//}));
 	
 	var viewer = new Cesium.Viewer('cesiumContainer',{
+		animation:false,
 		baseLayerPicker:true,
+		timeline:false,
 		imageryProviderViewModels:providerViewModels,
 		terrainProvider:new Cesium.CesiumTerrainProvider({
 			url: g_host + "terrain"
@@ -111,8 +114,8 @@ $(function() {
 		//},
 		//Cesium.ScreenSpaceEventType.MOUSE_MOVE
 	//);
-	var line_id = 'AF77864E-B8D5-479F-896B-C5F5DFE3450F';
-	LoadTowerByLineId(viewer, ellipsoid, line_id);
+	var line_name = '七罗I回';
+	LoadTowerByLineName(viewer, ellipsoid, line_name);
 	//viewer.extend(Cesium.viewerDynamicObjectMixin);
 	TowerInfoMixin(viewer);
 	
@@ -172,7 +175,8 @@ function CreateTowerCzmlFromGeojson(geojson)
 	{
 		var tower = geojson[i];
 		var cz = {}
-		cz['id'] = tower['properties']['id'];
+		//cz['id'] = tower['properties']['id'];
+		cz['id'] = tower['_id'];
 		cz['name'] = tower['properties']['tower_name'];
 		cz['position'] = {};
 		cz['position']['cartographicDegrees'] = [tower['geometry']['coordinates'][0], tower['geometry']['coordinates'][1], tower['properties']['geo_z']];
@@ -199,29 +203,52 @@ function CreateTowerCzmlFromGeojson(geojson)
 	return ret;
 }
 
-function LoadTowerByLineId(viewer, ellipsoid, line_id)
+function GetLineIdFromLineName(line_name)
 {
-	var geo_cond = {'db':'kmgd', 'collection':'towers', 'properties.line_id':line_id};
-	var czml_cond = {'db':'kmgd', 'collection':'towers','use_czml':true, 'properties.line_id':line_id};
-	var ext_cond = {'db':'kmgd', 'collection':'towers','get_extext':true, 'properties.line_id':line_id};
-	MongoFind( ext_cond, 
-		function(data){
-			g_view_extent = data;
-			FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
-			console.log(g_view_extent);
-	});
-	MongoFind( geo_cond, 
-		function(data){
-			for(var i in data)
+	var ret = null;
+	for(var i in g_lines)
+	{
+		if(g_lines[i]['line_name'] == line_name)
+		{
+			ret = g_lines[i]['_id'];
+			break;
+		}
+	}
+	return ret;
+}
+
+function LoadTowerByLineName(viewer, ellipsoid, line_name)
+{
+	var geo_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name', 'line_name':line_name};
+	var line_cond = {'db':'kmgd', 'collection':'lines', 'line_name':line_name};
+	var ext_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'line_name':line_name};
+	
+	MongoFind( line_cond, 
+		function(linedata){
+			g_lines = linedata;
+			var line_id = GetLineIdFromLineName(line_name);
+			if(line_id)
 			{
-				g_geojson_towers["features"].push(data[i]);
+				MongoFind( ext_cond, 
+					function(data){
+						g_view_extent = data;
+						FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+						console.log(g_view_extent);
+				});
+				MongoFind( geo_cond, 
+					function(data){
+						for(var i in data)
+						{
+							g_geojson_towers["features"].push(data[i]);
+						}
+						g_czml_towers[line_id] = CreateTowerCzmlFromGeojson(data);
+						//console.log(g_czml_towers[line_id]);
+						//viewer.dataSources.removeAll();
+						var dataSource = new Cesium.CzmlDataSource();
+						dataSource.load(g_czml_towers[line_id]);
+						viewer.dataSources.add(dataSource);
+				});
 			}
-			g_czml_towers[line_id] = CreateTowerCzmlFromGeojson(data);
-			//console.log(g_czml_towers[line_id]);
-			//viewer.dataSources.removeAll();
-			var dataSource = new Cesium.CzmlDataSource();
-			dataSource.load(g_czml_towers[line_id]);
-			viewer.dataSources.add(dataSource);
 	});
 }
 
@@ -234,7 +261,7 @@ function LookAtTarget(scene, id)
 	for(var i in g_geojson_towers['features'])
 	{
 		var tower = g_geojson_towers['features'][i];
-		if(tower['properties']['id'] == id)
+		if(tower['_id'] == id)
 		{
 			var x = tower['geometry']['coordinates'][0];
 			var y = tower['geometry']['coordinates'][1];
@@ -303,14 +330,14 @@ function FlyToExtent(scene, west, south, east, north)
 	scene.animations.add(flight);
 }
 
-function GetTowerInfoByTowerId(tower_id)
+function GetTowerInfoByTowerId(id)
 {
 	var ret = null;
 	for(var i in g_geojson_towers['features'])
 	{
 		var tower = g_geojson_towers['features'][i];
 		//console.log(tower);
-		if(tower['properties']['id'] == tower_id)
+		if(tower['_id'] == id)
 		{
 			ret = tower;
 			break;
@@ -319,28 +346,31 @@ function GetTowerInfoByTowerId(tower_id)
 	return ret;
 }
 
-function LoadTowerModelByTowerId(viewer, tower_id)
+function LoadTowerModelByTowerId(viewer, id)
 {
 	var scene = viewer.scene;
 	var ellipsoid = scene.primitives.centralBody.ellipsoid;
 	
-	var tower = GetTowerInfoByTowerId(tower_id);
-	if(tower && tower['properties']['id'] == tower_id)
+	var tower = GetTowerInfoByTowerId(id);
+	if(tower && tower['_id'] == id)
 	{
-		if(!g_gltf_models[tower_id])
+		if(!g_gltf_models[id])
 		{
-			var model = CreateTowerModel(
-				scene, 
-				ellipsoid, 
-				GetModelUrl(tower['properties']['model_code_height']), 
-				tower['geometry']['coordinates'][0],  
-				tower['geometry']['coordinates'][1], 
-				tower['properties']['geo_z'] ,  
-				tower['properties']['rotate'],
-				10
-			);
-			g_gltf_models[tower_id] = model;
-			console.log("load model for [" + tower_id + "]");
+			if(tower['properties']['model']['model_code_height'])
+			{
+				var model = CreateTowerModel(
+					scene, 
+					ellipsoid, 
+					GetModelUrl(tower['properties']['model']['model_code_height']), 
+					tower['geometry']['coordinates'][0],  
+					tower['geometry']['coordinates'][1], 
+					tower['properties']['geo_z'] ,  
+					tower['properties']['rotate'],
+					10
+				);
+				g_gltf_models[id] = model;
+				console.log("load model for [" + id + "]");
+			}
 		}
 	}
 	return tower;
@@ -588,7 +618,7 @@ function TowerInfoMixin(viewer)
 		if (Cesium.defined(dynamicObject)) {
 			trackObject(dynamicObject);
 			var id = dynamicObject.id;
-			console.log('track id=' + id);
+			//console.log('track id=' + id);
 			LookAtTarget(viewer.scene, id);
 			
 		}
@@ -605,12 +635,12 @@ function TowerInfoMixin(viewer)
 			var tower = LoadTowerModelByTowerId(viewer, id);
 			if(tower)
 			{
-				ShowTowerInfo(tower);
+				ShowTowerInfo(viewer, tower);
 			}
 		}
-		else{
-			$('#dlg_tower_info').dialog("close");
-		}
+		//else{
+			//$('#dlg_tower_info').dialog("close");
+		//}
 	}
 
 	if (Cesium.defined(viewer.homeButton)) {
@@ -742,38 +772,38 @@ function TowerInfoMixin(viewer)
 	});
 }
 
-function ShowTowerInfo(tower)
+function ShowTowerInfo(viewer, tower)
 {
-	//if(!g_dlg_tower_info)
-	//{
-		$('#dlg_tower_info').dialog({
-			width: 600,
-			height: 400,
-			maxWidth:800,
-			maxHeight: 600,
-			draggable: true,
-			resizable: true, 
-			modal: false,
-			title:tower['properties']['tower_name'],
-			buttons:[
-				{ 	text: "保存", 
-					click: function(){ 
-						
-					}
-				},
-				{ 	text: "关闭", 
-					click: function(){ 
-						$( this ).dialog( "close" );
-					}
+	var infoBox = viewer.infoBox;
+	console.log($(infoBox.container).position());
+	$('#dlg_tower_info').dialog({
+		width: 600,
+		height: 700,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		position:{at: "right center"},
+		title:tower['properties']['tower_name'],
+		buttons:[
+			{ 	text: "保存", 
+				click: function(){ 
+					
 				}
-			
-			]
+			},
+			{ 	text: "关闭", 
+				click: function(){ 
+					$( this ).dialog( "close" );
+				}
+			}
 		
+		]
+	});
+	$('#tabs_tower_info').tabs({ 
+		collapsible: true,
+		active: 0
 		});
-	//}
-	//else{
-		//$( ".selector" ).dialog( "open" );
-	//}
 }
 
 

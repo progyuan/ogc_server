@@ -51,8 +51,8 @@ def build():
                     'static/demos',
                     'static/theme',
                     'static/indexdata.js',
-                    'static/index_pymongoadmin.html',
-                    'static/welcome_pymongoadmin.html',
+                    #'static/index_pymongoadmin.html',
+                    #'static/welcome_pymongoadmin.html',
                     'static/dishen_test.html',
                     ],
                 "include_msvcr": True

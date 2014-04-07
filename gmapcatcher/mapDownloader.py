@@ -293,7 +293,7 @@ class MapDownloaderGevent:
                 if self.proxy_host:
                     http = HTTPClient.from_url(url, proxy_host=self.proxy_host, proxy_port=self.proxy_port,)
                 else:
-                    http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0)
+                    http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
                 try:
                     response = http.get(url.request_uri)
                     if response.status_code == 200:
