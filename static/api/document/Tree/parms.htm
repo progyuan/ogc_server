@@ -393,6 +393,36 @@
                                         null
                     				</td> 
 			</tr>
+					<tr>
+				<td>  
+                    <a name="property_isExpand"  key="isExpand" class="linkname"></a>
+                                                                       <a href="#linkpro498" title="点击查看示例">isExpand</a>
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                         &nbsp;是否展开&nbsp;<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1,可以是true/false&nbsp;<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 2,也可以是数字(层次)N 代表第1层到第N层都是展开的，其他收缩<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 3,或者是判断函数 函数参数e(data,level) 返回true/false<br /><br /><br />&nbsp; &nbsp; &nbsp; &nbsp; 优先级没有节点数据的isexpand属性高,并没有delay属性高
+                    				</td>
+                <td>  
+                                        null
+                    				</td> 
+			</tr>
+					<tr>
+				<td>  
+                    <a name="property_delay"  key="delay" class="linkname"></a>
+                                                                       <a href="#linkpro499" title="点击查看示例">delay</a>
+                                            				</td>
+                <td>  
+                                        Object
+                    				</td>
+                <td class="description">  
+                                         是否延迟加载&nbsp;<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1,可以是true/false&nbsp;<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 2,也可以是数字(层次)N 代表第N层延迟加载&nbsp;<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 3,或者是字符串(Url) 加载数据的远程地址<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 4,如果是数组,代表这些层都延迟加载,如[1,2]代表第1、2层延迟加载<br />&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 5,再是函数(运行时动态获取延迟加载参数) 函数参数e(data,level),返回true/false或者{url:...,parms:...}<br /><br /><br />&nbsp; &nbsp; &nbsp; &nbsp; 优先级没有节点数据的delay属性高
+                    				</td>
+                <td>  
+                                        &nbsp;
+                    				</td> 
+			</tr>
 		        </tbody>
 		</table>
 
@@ -429,7 +459,145 @@ http://www.CodeHighlighter.com/
 </span><span style="color: #008080;">21</span> <span style="color: #000000;">            }
 </span><span style="color: #008080;">22</span> <span style="color: #000000;">            );</span></div></pre>
                 </p>
-                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                        <a name="linkpro498"></a>
+                <h3 class="property">isExpand参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #000000;"> $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#tree1</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerTree({ 
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">                data : createData(),
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">, 
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                isExpand: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">, 
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;"> 
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">              
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#tree2</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">                isExpand: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">17</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">18</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">19</span> <span style="color: #000000;">
+</span><span style="color: #008080;">20</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#tree3</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">21</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">22</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;">23</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">24</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">25</span> <span style="color: #000000;">                isExpand: </span><span style="color: #000000;">2</span><span style="color: #000000;">,
+</span><span style="color: #008080;">26</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">27</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">28</span> <span style="color: #000000;">
+</span><span style="color: #008080;">29</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#tree4</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">30</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">31</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;">32</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">33</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">34</span> <span style="color: #000000;">                isExpand: </span><span style="color: #0000FF;">function</span><span style="color: #000000;"> (e)
+</span><span style="color: #008080;">35</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;">36</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> data </span><span style="color: #000000;">=</span><span style="color: #000000;"> e.data; 
+</span><span style="color: #008080;">37</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> data.index </span><span style="color: #000000;">%</span><span style="color: #000000;"> </span><span style="color: #000000;">2</span><span style="color: #000000;"> </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #000000;">0</span><span style="color: #000000;">;
+</span><span style="color: #008080;">38</span> <span style="color: #000000;">                },
+</span><span style="color: #008080;">39</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">40</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">41</span> <span style="color: #000000;">
+</span><span style="color: #008080;">42</span> <span style="color: #000000;">            </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> data5 </span><span style="color: #000000;">=</span><span style="color: #000000;"> createData();
+</span><span style="color: #008080;">43</span> <span style="color: #000000;">            data5[</span><span style="color: #000000;">2</span><span style="color: #000000;">].isExpand </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">true</span><span style="color: #000000;">;
+</span><span style="color: #008080;">44</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#tree5</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">45</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #000000;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">46</span> <span style="color: #000000;">                data: data5,
+</span><span style="color: #008080;">47</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">48</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #000000;">'</span><span style="color: #000000;">id</span><span style="color: #000000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">49</span> <span style="color: #000000;">                isExpand: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;">50</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">51</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                                                <a name="linkpro499"></a>
+                <h3 class="property">delay参数  示例：</h3>
+
+                <p>
+                <pre><div><!--
+
+Code highlighting produced by Actipro CodeHighlighter (freeware)
+http://www.CodeHighlighter.com/
+
+--><span style="color: #008080;"> 1</span> <span style="color: #000000;">   $(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">#tree2</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #800080;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #800000;">'</span><span style="color: #800000;">id</span><span style="color: #800000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                delay: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">            $(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">#tree3</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #800080;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #800000;">'</span><span style="color: #800000;">id</span><span style="color: #800000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">15</span> <span style="color: #000000;">                delay: </span><span style="color: #800080;">2</span><span style="color: #000000;">,
+</span><span style="color: #008080;">16</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">17</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">18</span> <span style="color: #000000;">
+</span><span style="color: #008080;">19</span> <span style="color: #000000;">            $(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">#tree4</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">20</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #800080;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">21</span> <span style="color: #000000;">                data: createData(),
+</span><span style="color: #008080;">22</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">23</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #800000;">'</span><span style="color: #800000;">id</span><span style="color: #800000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">24</span> <span style="color: #000000;">                delay: function (e)
+</span><span style="color: #008080;">25</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;">26</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> data </span><span style="color: #000000;">=</span><span style="color: #000000;"> e.data; 
+</span><span style="color: #008080;">27</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> data.index </span><span style="color: #000000;">%</span><span style="color: #000000;"> </span><span style="color: #800080;">2</span><span style="color: #000000;"> </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #800080;">0</span><span style="color: #000000;">;
+</span><span style="color: #008080;">28</span> <span style="color: #000000;">                },
+</span><span style="color: #008080;">29</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">30</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">31</span> <span style="color: #000000;">
+</span><span style="color: #008080;">32</span> <span style="color: #000000;">            </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> data5 </span><span style="color: #000000;">=</span><span style="color: #000000;"> createData();
+</span><span style="color: #008080;">33</span> <span style="color: #000000;">            data5[</span><span style="color: #800080;">0</span><span style="color: #000000;">].delay </span><span style="color: #000000;">=</span><span style="color: #000000;"> </span><span style="color: #0000FF;">true</span><span style="color: #000000;">;
+</span><span style="color: #008080;">34</span> <span style="color: #000000;">            $(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">#tree5</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">35</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #800080;">200</span><span style="color: #000000;">,
+</span><span style="color: #008080;">36</span> <span style="color: #000000;">                data: data5,
+</span><span style="color: #008080;">37</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">38</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #800000;">'</span><span style="color: #800000;">id</span><span style="color: #800000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">39</span> <span style="color: #000000;">                delay: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;">40</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">41</span> <span style="color: #000000;">            });
+</span><span style="color: #008080;">42</span> <span style="color: #000000;">
+</span><span style="color: #008080;">43</span> <span style="color: #000000;"> $(</span><span style="color: #800000;">&quot;</span><span style="color: #800000;">#tree1</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">).ligerTree({
+</span><span style="color: #008080;">44</span> <span style="color: #000000;">                nodeWidth: </span><span style="color: #800080;">300</span><span style="color: #000000;">,
+</span><span style="color: #008080;">45</span> <span style="color: #000000;">                url: </span><span style="color: #800000;">'</span><span style="color: #800000;">treeDeptData.ashx?type=company</span><span style="color: #800000;">'</span><span style="color: #000000;">,
+</span><span style="color: #008080;">46</span> <span style="color: #000000;">                isLeaf : function(data)
+</span><span style="color: #008080;">47</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;">48</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (</span><span style="color: #000000;">!</span><span style="color: #000000;">data) </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> </span><span style="color: #0000FF;">false</span><span style="color: #000000;">;
+</span><span style="color: #008080;">49</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> data.type </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">employee</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">;
+</span><span style="color: #008080;">50</span> <span style="color: #000000;">                },
+</span><span style="color: #008080;">51</span> <span style="color: #000000;">                delay: function(e)
+</span><span style="color: #008080;">52</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;">53</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> data </span><span style="color: #000000;">=</span><span style="color: #000000;"> e.data;
+</span><span style="color: #008080;">54</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (data.type </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">company</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)
+</span><span style="color: #008080;">55</span> <span style="color: #000000;">                    {
+</span><span style="color: #008080;">56</span> <span style="color: #000000;">                        </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> { url: </span><span style="color: #800000;">'</span><span style="color: #800000;">treeDeptData.ashx?type=deptment&amp;prev=</span><span style="color: #800000;">'</span><span style="color: #000000;"> </span><span style="color: #000000;">+</span><span style="color: #000000;"> data.id }
+</span><span style="color: #008080;">57</span> <span style="color: #000000;">                    }
+</span><span style="color: #008080;">58</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">if</span><span style="color: #000000;"> (data.type </span><span style="color: #000000;">==</span><span style="color: #000000;"> </span><span style="color: #800000;">&quot;</span><span style="color: #800000;">deptment</span><span style="color: #800000;">&quot;</span><span style="color: #000000;">)
+</span><span style="color: #008080;">59</span> <span style="color: #000000;">                    {
+</span><span style="color: #008080;">60</span> <span style="color: #000000;">                        </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> { url: </span><span style="color: #800000;">'</span><span style="color: #800000;">treeDeptData.ashx?type=employee&amp;prev=</span><span style="color: #800000;">'</span><span style="color: #000000;"> </span><span style="color: #000000;">+</span><span style="color: #000000;"> data.id }
+</span><span style="color: #008080;">61</span> <span style="color: #000000;">                    }
+</span><span style="color: #008080;">62</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> </span><span style="color: #0000FF;">false</span><span style="color: #000000;">;
+</span><span style="color: #008080;">63</span> <span style="color: #000000;">                },
+</span><span style="color: #008080;">64</span> <span style="color: #000000;">                checkbox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">,
+</span><span style="color: #008080;">65</span> <span style="color: #000000;">                idFieldName: </span><span style="color: #800000;">'</span><span style="color: #800000;">id</span><span style="color: #800000;">'</span><span style="color: #000000;">, 
+</span><span style="color: #008080;">66</span> <span style="color: #000000;">                slide: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">
+</span><span style="color: #008080;">67</span> <span style="color: #000000;">            });</span></div></pre>
+                </p>
+                    
 
          	</body>
 </html>

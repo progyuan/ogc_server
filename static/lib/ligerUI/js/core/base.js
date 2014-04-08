@@ -1,5 +1,5 @@
 ﻿/**
-* jQuery ligerUI 1.2.2
+* jQuery ligerUI 1.2.3
 * 
 * http://ligerui.com
 *  
@@ -894,8 +894,12 @@
             {
                 //field in form , column in grid
                 var field = editParm.field || editParm.column, options = controlOptions || {};
+                var isInGrid = editParm.column ? true : false;
                 var p = $.extend({}, e.options);
-                var inputBody = $("<input type='" + (e.password ? "password" : "text") + "'/>");
+                var inputType = "text";
+                if ($.inArray(type, ["password", "file"]) != -1) inputType = type;
+                if (e.password) inputType = "password";
+                var inputBody = $("<input type='" + inputType + "'/>");
                 if (e.body)
                 {
                     inputBody = e.body.clone();
@@ -954,9 +958,14 @@
                     var ext = field.editor.p || field.editor.ext;
                     ext = typeof (ext) == 'function' ? ext(editParm) : ext;
                     $.extend(p, ext);
-                }
+                } 
                 //返回的是ligerui对象
-                return inputBody['liger' + control](p);
+                var lobj = inputBody['liger' + control](p); 
+                if (isInGrid)
+                {
+                    setTimeout(function () { inputBody.focus(); }, 100);
+                }
+                return lobj;
             },
             getValue: function (editor, editParm)
             {

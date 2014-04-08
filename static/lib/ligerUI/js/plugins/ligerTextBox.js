@@ -1,9 +1,9 @@
 ﻿/**
-* jQuery ligerUI 1.2.2
+* jQuery ligerUI 1.2.3
 * 
 * http://ligerui.com
 *  
-* Author daomi 2013 [ gd_star@163.com ] 
+* Author daomi 2014 [ gd_star@163.com ] 
 * 
 */
 (function ($)
@@ -106,10 +106,17 @@
             var v = g.inputText.val() || "";
             if (p.currency) v = v.replace(/\$|\,/g, '');
             var isFloat = p.number || p.currency, isDigits = p.digits;
-            if (isFloat && !/^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(v) || isDigits && !/^\d+$/.test(v))
+            if (v != "" && isFloat && !/^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(v) || isDigits && !/^\d+$/.test(v))
             {
-                //不符合,恢复到原来的值
-                g.inputText.val(g.value || 0);
+                if (g.value != null)
+                {
+                    //不符合,恢复到原来的值
+                    g.inputText.val(g.value);
+                }
+                else
+                {
+                    g.inputText.val('');
+                }
                 p.currency && g.inputText.val(currencyFormatter(g.value));
                 return;
             }

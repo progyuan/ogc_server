@@ -16,7 +16,8 @@
 	]
     }, 
 	{ text: '弹窗',isexpand:false, children: [ 
-		{url:"demos/dialog/dialogAll.htm",text:"弹出框"},
+		{ url: "demos/dialog/dialogAll.htm", text: "弹出框" },
+        { url: "demos/dialog/dialogParent.htm", text: "子窗口传参" },
 		{url:"demos/dialog/dialogTarget.htm",text:"载入目标DIV"},
 		{url:"demos/dialog/dialogUrl.htm",text:"窗口"}, 
 		{url:"demos/dialog/tip.htm",text:"右下角的提示"}, 
@@ -30,7 +31,7 @@
 	{ text: '下拉框',isexpand:false, children: [  
 		{ url: "demos/comboBox/comboBoxSelect.htm", text: "select表单" },
         { url: "demos/comboBox/comboBoxUnSelect.htm", text: "可取消选择" },
-         { url: "demos/comboBox/comboBoxAuto.htm", text: "自动完成" },
+        { url: "demos/comboBox/comboBoxAuto.htm", text: "自动完成" },
 		{url:"demos/comboBox/comboBoxSingle.htm",text:"单选"},
 		{url:"demos/comboBox/comboBoxSingleCheckBox.htm",text:"单选(复选框)"},
 		{url:"demos/comboBox/comboBoxMul.htm",text:"多选"},
@@ -40,9 +41,10 @@
 		{url:"demos/comboBox/comboBoxEven.htm",text:"事件支持"},
 		{url:"demos/comboBox/comboBoxCase001.htm",text:"联动效果"},
 		{url:"demos/comboBox/comboBoxTree.htm",text:"下拉框 - 树"},
-		{ url: "demos/comboBox/comboBoxGrid.htm", text: "下拉框 - 分页表格" },
-        { url: "demos/comboBox/comboBoxGridWitchCondition.htm", text: "下拉框 - 分页表格(带搜索)" },
-		{url:"demos/comboBox/comboBoxPop.htm",text:"下拉框 - 新页面选取数据"}
+		{url: "demos/comboBox/comboBoxGrid.htm", text: "下拉框 - 分页表格" },
+        {url: "demos/comboBox/comboBoxGridWitchCondition.htm", text: "下拉框 - 分页表格(带搜索)" },
+		{ url: "demos/comboBox/comboBoxPop.htm", text: "下拉框 - 新页面选取数据" },
+        { url: "demos/comboBox/comboBoxV123.htm", text: "实时新增数据项" }
 	]},
 	{
 	    text: '树', isexpand: false, children: [
@@ -81,8 +83,9 @@
 	{
 	    text: '表单', isexpand: false, children: [
             { url: "demos/v121/form/data.htm", text: "加载/设置数据" },
-        { url: "demos/form/v118/autoform.htm", text: "自动创建表单(新)" },
+        { url: "demos/form/v118/autoform.htm", text: "自动创建表单" },
         { url: "demos/form/v118/autoform2.htm", text: "自动创建表单2" },
+        { url: "demos/form/v118/autoformNew.htm", text: "自动创建表单New" },
          { url: "demos/v120/form/selectLink.htm", text: "联动效果" },
          { url: "demos/v120/form/buttons.htm", text: "按钮" },
          { url: "demos/v120/form/buttons2.htm", text: "按钮2" },
@@ -229,7 +232,22 @@
 	    {url:"demos/layout/layoutLeftHide.htm",text:"左边刚开始隐藏"}, 
 	    {url:"demos/layout/layoutHideToggle.htm",text:"左边右边不允许隐藏"},  
 	    {url:"demos/layout/layoutResizeDisable.htm",text:"左边底部不允许调整大小"}  
-    ]}
+    ]
+    },
+    {
+        isexpand: "false", text: "Portal", children: [
+            { url: "demos/portal/portal.htm", text: "默认" },
+           { url: "demos/portal/panel.htm", text: "panel" },
+           { url: "demos/portal/portal-columns.htm", text: "columns" },
+           { url: "demos/portal/portal-cookie.htm", text: "记忆" },
+           { url: "demos/portal/portal-drag.htm", text: "可拖动" },
+           { url: "demos/portal/portal-get.htm", text: "方法" },
+           { url: "demos/portal/portal-url.htm", text: "载入页面" },
+            { url: "demos/portal/portal-rows-url.htm", text: "通过url载入模型" },
+           { url: "demos/portal/portal-inject.htm", text: "html启动模式" },
+           { url: "demos/portal/portal-method.htm", text: "方法2" }
+        ]
+    }
 ];
 
 

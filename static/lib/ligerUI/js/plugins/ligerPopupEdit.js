@@ -1,9 +1,9 @@
 ﻿/**
-* jQuery ligerUI 1.2.2
+* jQuery ligerUI 1.2.3
 * 
 * http://ligerui.com
 *  
-* Author daomi 2013 [ gd_star@163.com ] 
+* Author daomi 2014 [ gd_star@163.com ] 
 * 
 */
 (function ($)
@@ -225,6 +225,21 @@
                 g.inputText.height(value - 2);
             }
         },
+        getData : function()
+        { 
+            var g = this, p = this.options;
+            var data = [];
+            var v = $(g.valueField).val(), t = $(g.inputText).val();
+            var values = v ? v.split(p.split) : null, texts = t ? t.split(p.split) : null;
+            $(values).each(function (i)
+            {
+                var o = {};
+                o[p.textField] = texts[i];
+                o[p.valueField] = values[i];
+                data.push(o);
+            });
+            return data;
+        },
         _getText: function ()
         {
             return $(this.inputText).val();
@@ -328,6 +343,7 @@
                         valueField: p.valueField,
                         textField: p.textField,
                         split: p.split,
+                        lastSelected : g.getData(),
                         onSelect: function (e)
                         {
                             if (g.trigger('select', e) == false) return;
@@ -341,7 +357,7 @@
                                 g.setText(e.text);
                             }
                             g.trigger('selected', e);
-                        },
+                        }, 
                         selectInit: function (rowdata)
                         {
                             var value = g.getValue();
@@ -377,7 +393,7 @@
             selectInit: function (rowdata) { return false }  //选择初始化
         }, p);
         if (!p.grid) return;
-        var win, grid, condition, lastSelected = [];
+        var win, grid, condition, lastSelected = p.lastSelected || []; 
         return function ()
         {
             show();
@@ -470,6 +486,15 @@
 
             grid.refreshSize();
         }
+        function exist(value,data)
+        {
+            for (var i = 0; data && data[i]; i++)
+            {
+                var item = data[i];
+                if (item[p.valueField] == value) return true;
+            }
+            return false;
+        }
         function toSelect()
         {
             var selected = grid.selected || [];
@@ -483,11 +508,11 @@
                 data.push(o);
             });
             var unSelected = [];
-            $(lastSelected).each(function ()
+            $(lastSelected).each(function (i,item)
             {
-                if ($.inArray(this, selected) == -1 && $.inArray(this, grid.rows) != -1)
+                if (!exist(item[p.valueField], selected) && exist(item[p.valueField], grid.rows))
                 {
-                    unSelected.push(this);
+                    unSelected.push(item);
                 }
             });
             var removeValue = [], removeText = [], removeData = [];

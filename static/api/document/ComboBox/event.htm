@@ -98,7 +98,7 @@
 					<tr> 
                 <td> 
                     <a name="event_onBeforeOpen" key="onBeforeOpen" class="linkname"></a>
-                                                                     <a href="#link7" title="点击查看示例">onBeforeOpen</a>
+                                                                     onBeforeOpen
                         
                     				</td>
                 <td> 
@@ -106,6 +106,19 @@
                     				</td>
 				<td class="description"> 
                                         打开前事件
+                    				</td> 
+			</tr>
+					<tr> 
+                <td> 
+                    <a name="event_onButtonClick" key="onButtonClick" class="linkname"></a>
+                                                                     <a href="#link170" title="点击查看示例">onButtonClick</a>
+                        
+                    				</td>
+                <td> 
+                                        ()
+                    				</td>
+				<td class="description"> 
+                                        右侧图标按钮事件
                     				</td> 
 			</tr>
 		
@@ -172,8 +185,8 @@ http://www.CodeHighlighter.com/
 </span><span style="color: #008080;">23</span> <span style="color: #000000;">            });
 </span><span style="color: #008080;">24</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#city</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({ data: </span><span style="color: #0000FF;">null</span><span style="color: #000000;">, isMultiSelect: </span><span style="color: #0000FF;">true</span><span style="color: #000000;">, isShowCheckBox: </span><span style="color: #0000FF;">true</span><span style="color: #000000;"> });</span></div></pre>
                 </p>
-                                                                                                                                <a name="link7"></a>
-                <h3 class="event">onBeforeOpen事件 示例：</h3>
+                                                                                                                                                    <a name="link170"></a>
+                <h3 class="event">onButtonClick事件 示例：</h3>
 
                 <p>
                 <pre><div><!--
@@ -181,21 +194,20 @@ http://www.CodeHighlighter.com/
 Code highlighting produced by Actipro CodeHighlighter (freeware)
 http://www.CodeHighlighter.com/
 
---><span style="color: #008080;"> 1</span> <span style="color: #000000;"> $(</span><span style="color: #0000FF;">function</span><span style="color: #000000;"> ()
-</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">        { 
-</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txtContactName</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({
-</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">                onBeforeOpen: f_selectContact, valueFieldID: </span><span style="color: #000000;">'</span><span style="color: #000000;">hidCustomerID</span><span style="color: #000000;">'</span><span style="color: #000000;">,width:</span><span style="color: #000000;">300</span><span style="color: #000000;">
-</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">            });
-</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">        });
-</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">        </span><span style="color: #0000FF;">function</span><span style="color: #000000;"> f_selectContact()
-</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">        {
-</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">            $.ligerDialog.open({ title: </span><span style="color: #000000;">'</span><span style="color: #000000;">选择联系人</span><span style="color: #000000;">'</span><span style="color: #000000;">, name:</span><span style="color: #000000;">'</span><span style="color: #000000;">winselector</span><span style="color: #000000;">'</span><span style="color: #000000;">,width: </span><span style="color: #000000;">700</span><span style="color: #000000;">, height: </span><span style="color: #000000;">300</span><span style="color: #000000;">, url: </span><span style="color: #000000;">'</span><span style="color: #000000;">SelectContact.htm</span><span style="color: #000000;">'</span><span style="color: #000000;">, buttons: [
-</span><span style="color: #008080;">10</span> <span style="color: #000000;">                { text: </span><span style="color: #000000;">'</span><span style="color: #000000;">确定</span><span style="color: #000000;">'</span><span style="color: #000000;">, onclick: f_selectContactOK },
-</span><span style="color: #008080;">11</span> <span style="color: #000000;">                { text: </span><span style="color: #000000;">'</span><span style="color: #000000;">取消</span><span style="color: #000000;">'</span><span style="color: #000000;">, onclick: f_selectContactCancel }
-</span><span style="color: #008080;">12</span> <span style="color: #000000;">            ]
-</span><span style="color: #008080;">13</span> <span style="color: #000000;">            });
-</span><span style="color: #008080;">14</span> <span style="color: #000000;">            </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> </span><span style="color: #0000FF;">false</span><span style="color: #000000;">;
-</span><span style="color: #008080;">15</span> <span style="color: #000000;">        }</span></div></pre>
+--><span style="color: #008080;"> 1</span> <span style="color: #000000;"> </span><span style="color: #0000FF;">var</span><span style="color: #000000;"> proData </span><span style="color: #000000;">=</span><span style="color: #000000;">
+</span><span style="color: #008080;"> 2</span> <span style="color: #000000;">            [{ id: </span><span style="color: #000000;">1</span><span style="color: #000000;">, text: </span><span style="color: #000000;">'</span><span style="color: #000000;">广东</span><span style="color: #000000;">'</span><span style="color: #000000;"> },
+</span><span style="color: #008080;"> 3</span> <span style="color: #000000;">            { id: </span><span style="color: #000000;">2</span><span style="color: #000000;">, text: </span><span style="color: #000000;">'</span><span style="color: #000000;">福建</span><span style="color: #000000;">'</span><span style="color: #000000;">}];
+</span><span style="color: #008080;"> 4</span> <span style="color: #000000;">            $(</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">#txtPro</span><span style="color: #000000;">&quot;</span><span style="color: #000000;">).ligerComboBox({ data: proData, isMultiSelect: </span><span style="color: #0000FF;">false</span><span style="color: #000000;">,
+</span><span style="color: #008080;"> 5</span> <span style="color: #000000;">                onBeforeSelect: </span><span style="color: #0000FF;">function</span><span style="color: #000000;"> (newvalue)
+</span><span style="color: #008080;"> 6</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;"> 7</span> <span style="color: #000000;">                    alert(</span><span style="color: #000000;">'</span><span style="color: #000000;">要选择的是</span><span style="color: #000000;">'</span><span style="color: #000000;"> </span><span style="color: #000000;">+</span><span style="color: #000000;"> newvalue);
+</span><span style="color: #008080;"> 8</span> <span style="color: #000000;">                    </span><span style="color: #0000FF;">return</span><span style="color: #000000;"> confirm(</span><span style="color: #000000;">'</span><span style="color: #000000;">onBeforeSelect事件可以阻止选择，是否继续</span><span style="color: #000000;">'</span><span style="color: #000000;">);
+</span><span style="color: #008080;"> 9</span> <span style="color: #000000;">                },
+</span><span style="color: #008080;">10</span> <span style="color: #000000;">                onSelected: </span><span style="color: #0000FF;">function</span><span style="color: #000000;"> (newvalue)
+</span><span style="color: #008080;">11</span> <span style="color: #000000;">                {
+</span><span style="color: #008080;">12</span> <span style="color: #000000;">                    alert(</span><span style="color: #000000;">'</span><span style="color: #000000;">选择的是</span><span style="color: #000000;">'</span><span style="color: #000000;"> </span><span style="color: #000000;">+</span><span style="color: #000000;"> newvalue);
+</span><span style="color: #008080;">13</span> <span style="color: #000000;">                }
+</span><span style="color: #008080;">14</span> <span style="color: #000000;">            });</span></div></pre>
                 </p>
                     	</body>
 </html>

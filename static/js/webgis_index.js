@@ -7,6 +7,8 @@ var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_lines = [];
 var g_gltf_models = {};
 var g_dlg_tower_info;
+var g_contextmenu_metal;
+var g_selected_metal_item;
 $(function() {
 
 	var providerViewModels = [];
@@ -118,52 +120,6 @@ $(function() {
 	LoadTowerByLineName(viewer, ellipsoid, line_name);
 	//viewer.extend(Cesium.viewerDynamicObjectMixin);
 	TowerInfoMixin(viewer);
-	
-	
-	
-	//viewer.homeButton.viewModel.command.beforeExecute.addEventListener(function(commandInfo){
-		//if(viewer.selectedObject)
-		//{
-			//g_selected_obj_id = viewer.selectedObject.id;
-			//g_selected_obj_pos = viewer.selectedObject.position._value;
-		//}
-		//commandInfo.cancel = false;
-		//viewer.selectedObject = undefined;
-	//});
-	
-	//viewer.homeButton.viewModel.command.afterExecute.addEventListener(function(commandInfo){
-		//FlyToExtent(scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
-		////commandInfo.cancel = false;
-	//});
-	
-	
-	//var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-	//handler.setInputAction(
-		//function (movement) {
-		
-			//if(viewer.selectedObject)
-			//{
-				//g_selected_obj_id = viewer.selectedObject.id;
-				//g_selected_obj_pos = ellipsoid.cartesianToCartographic(viewer.selectedObject.position._value);
-				//console.log(g_selected_obj_id);
-				////console.log(g_selected_obj_pos);
-				//LoadTowerModelByTowerId(viewer, g_selected_obj_id);
-			//}
-			//else
-			//{
-				//g_selected_obj_id = null;
-				//g_selected_obj_pos = null;
-			//}
-		//}, Cesium.ScreenSpaceEventType.LEFT_CLICK//LEFT_DOUBLE_CLICK,LEFT_CLICK
-	//);
-	//handler.setInputAction(
-		//function (movement) {
-			//if(g_selected_obj_id)
-			//{
-				//LookAtTarget(scene, g_selected_obj_id);
-			//}
-		//}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK//LEFT_DOUBLE_CLICK,LEFT_CLICK
-	//);
 	
 });
 
@@ -638,9 +594,9 @@ function TowerInfoMixin(viewer)
 				ShowTowerInfo(viewer, tower);
 			}
 		}
-		//else{
-			//$('#dlg_tower_info').dialog("close");
-		//}
+		else{
+			g_selected_obj_id = undefined;
+		}
 	}
 
 	if (Cesium.defined(viewer.homeButton)) {
@@ -775,10 +731,10 @@ function TowerInfoMixin(viewer)
 function ShowTowerInfo(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
-	console.log($(infoBox.container).position());
+	//console.log($(infoBox.container).position());
 	$('#dlg_tower_info').dialog({
-		width: 600,
-		height: 700,
+		width: 500,
+		height: 730,
 		minWidth:200,
 		minHeight: 200,
 		draggable: true,
@@ -803,7 +759,404 @@ function ShowTowerInfo(viewer, tower)
 	$('#tabs_tower_info').tabs({ 
 		collapsible: true,
 		active: 0
+	});
+		
+	var form_tower_info_base = $("#form_tower_info_base").ligerForm({
+		inputWidth: 120, labelWidth: 95, space: 10,
+		validate : true,
+		//fields:		BuildFormFieldTowerBaseInfo()
+		//fields: [
+		//{ name: "ProductID", type: "hidden" }, 
+		//{ display: "日期 ", name: "AddTime", newline: true, type: "date" ,validate:{required:true,minlength:5} },
+		//{ display: "折扣", name: "QuantityPerUnit", newline: true, width:70, type: "number",validate:{required:true,minlength:5} },
+		//{ display: "单价", name: "UnitPrice", newline: true,  type: "number",validate:{required:true,minlength:5} },
+		//{ display: "库存量", name: "UnitsInStock", newline: true, type: "digits", group: "库存"}, //groupicon: groupicon },
+		//{ display: "订购量", name: "UnitsOnOrder", newline: false, width:70, type: "digits" },
+		//{ display: "备注", name: "Remark", newline: true, type: "text" ,width:310,validate:{required:true,minlength:5} },
+		//{ display: "备注", name: "Remark1", newline: true, type: "text" ,width:310 }
+		//]
+		fields: [
+		{ name: "_id", type: "hidden" },
+		//地理信息
+		{ display: "经度", name: "lng", newline: true,  type: "number", group:'地理信息', width:300 },
+		{ display: "纬度", name: "lat", newline: true, type: "number", group:'地理信息', width:300 },
+		{ display: "海拔(米)", name: "alt", newline: true, type: "number", group:'地理信息', width:300 },
+		//信息
+		{ display: "名称", name: "tower_name", newline: true,  type: "text", group:'信息', width:300, validate:{required:true} },
+		{ display: "代码", name: "tower_code", newline: true,  type: "text", group:'信息', width:300 },
+		{ display: "塔型", name: "model_code", newline: true,  type: "text", group:'信息', width:100 },
+		{ display: "呼称高", name: "denomi_height", newline: false,  type: "number", group:'信息', width:90 },
+		//电气
+		{ display: "接地电阻", name: "grnd_resistance", newline: true,  type: "number", group:'电气', width:300 },
+		//土木
+		{ display: "水平档距", name: "horizontal_span", newline: true,  type: "number", group:'土木', width:95 },
+		{ display: "垂直档距", name: "vertical_span", newline: false,  type: "number", group:'土木', width:95 },
+		//工程
+		{ display: "所属工程", name: "project", newline: true,  type: "text", group:'工程', width:300 }
+		
+		]
+	});
+	form_tower_info_base.setData({
+		'_id':tower['_id'], 
+		'lng':tower['geometry']['coordinates'][0],
+		'lat':tower['geometry']['coordinates'][1],
+		'alt':tower['properties']['geo_z'],
+		'tower_name':tower['properties']['tower_name'],
+		'tower_code':tower['properties']['tower_code'],
+		'model_code':tower['properties']['model']['model_code'],
+		'denomi_height':tower['properties']['denomi_height'],
+		'grnd_resistance':tower['properties']['grnd_resistance'],
+		'horizontal_span':tower['properties']['horizontal_span'],
+		'vertical_span':tower['properties']['vertical_span'],
+		'project':GetProjectNameByTowerId(tower['_id'])
+	});	
+	
+	var data = [];
+	var idx = 1;
+	for(var i in tower['properties']['metals'])
+	{
+		data.push({
+			'idx':idx, 
+			'type':tower['properties']['metals'][i]['type'],
+			'model':tower['properties']['metals'][i]['model']
+			});
+		idx += 1;
+	}
+	
+	
+	
+	
+	//var form_tower_info_metal = $("#form_tower_info_metal").ligerForm({
+		//inputWidth: 120, labelWidth: 120, space: 10,
+		//validate : true,
+		//fields: []
+	//});
+	
+	if(!g_contextmenu_metal)
+	{
+		g_contextmenu_metal = $.ligerMenu({ top: 100, left: 100, width: 120, items:
+			[
+			{ text: '增加金具', icon:'add',
+				children:[
+					{ text:'绝缘子串',click: AddMetal},
+					{ text:'防振锤',click: AddMetal},
+					{ text:'接地装置',click: AddMetal},
+					{ text:'基础',click: AddMetal},
+					{ text:'拉线',click: AddMetal},
+					{ text:'防鸟刺',click: AddMetal},
+					{ text:'在线监测装置',click: AddMetal},
+					{ text:'雷电计数器',click: AddMetal}
+				]
+			},
+			{ text: '删除金具', click: DeleteMetal,icon:'delete' }
+			//{ line: true },
+			//{ text: '查看', click: onclick11 },
+			//{ text: '关闭', click: onclick112 }
+			]
 		});
+	}
+	
+	
+	$("#listbox_tower_info_metal").bind("contextmenu", function (e)
+	{
+		g_contextmenu_metal.show({ top: e.pageY, left: e.pageX });
+		return false;
+	});
+
+	var listbox_tower_info_metal = $("#listbox_tower_info_metal").ligerListBox({
+		data: data,
+		valueField:'idx',
+		textField: 'type',
+		//readonly:true,
+		columns: [
+			{ header: 'ID', name: 'idx', width: 20 },
+			{ header: '金具类型', name: 'type' },
+			{ header: '金具型号', name: 'model' }
+		],
+		isMultiSelect: false,
+		isShowCheckBox: false,
+		width: 400,
+		height:150,
+		onSelected:function(idx, name, obj){
+			//console.log(idx);
+			//console.log(name);
+			//console.log(obj);
+			//var list = this.getSelectedItems();
+			if(obj)
+			{
+				g_selected_metal_item = obj;
+				var o = obj;
+				var flds = [];
+				var formdata = {};
+				if(o['type'] == '绝缘子串')
+				{
+					var insulator_type_list = [
+						{'value':'导线绝缘子','text':'导线绝缘子'},
+						{'value':'跳线绝缘子','text':'跳线绝缘子'},
+						{'value':'地线绝缘子','text':'地线绝缘子'},
+						{'value':'OPGW绝缘子串','text':'OPGW绝缘子串'}
+					];
+					var mat_type_list = [
+						{'value':'未知','text':'陶瓷'},
+						{'value':'玻璃','text':'玻璃'},
+						{'value':'合成','text':'合成'},
+						{'value':'未知','text':'未知'}
+					];
+					var insulator_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true}, width:275, validate:{required:true}},
+						{display: "绝缘子类型", name: "insulator_type", newline: true,  type: "select", editor: {data:insulator_type_list},  width:275},
+						{display: "绝缘子材料", name: "material", newline: true,  type: "select", editor: {data:mat_type_list},  width:275},
+						{display: "绝缘子型号", name: "model", newline: true,  type: "text", width:275},
+						{display: "串数", name: "strand", newline: true,  type: "digits", width:70},
+						{display: "片数", name: "slice", newline: false,  type: "digits", width:70},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					
+					
+					flds = insulator_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '防振锤')
+				{
+					var damper_list = [
+						{'value':'导线大号侧','text':'导线大号侧'},
+						{'value':'导线小号侧','text':'导线小号侧'},
+						{'value':'地线大号侧','text':'地线大号侧'},
+						{'value':'地线小号侧','text':'地线小号侧'}
+					];
+					var damper_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
+						{display: "安装部位", name: "side", newline: true,  type: "select", editor: {data:damper_list},  width:275},
+						{display: "防振锤型号", name: "model", newline: true,  type: "text", width:275},
+						{display: "防振锤数量", name: "count", newline: true,  type: "digits", width:70},
+						{display: "安装距离", name: "distance", newline: false,  type: "number", width:80},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					flds = damper_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '接地装置')
+				{
+					var grd_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
+						{display: "型号", name: "model", newline: true,  type: "text", width:275},
+						{display: "数量", name: "count", newline: true,  type: "digits", width:70},
+						{display: "埋深", name: "depth", newline: false,  type: "number", width:80},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					flds = grd_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '基础')
+				{
+					var platform_model_list = [
+						{'value':'铁塔','text':'铁塔'},
+						{'value':'水泥塔','text':'水泥塔'}
+					];
+					var base_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
+						{display: "平台类型", name: "platform_model", newline: true,  type: "select", editor: {data:platform_model_list}, width:275},
+						{display: "数量", name: "count", newline: true,  type: "digits", width:70},
+						{display: "埋深", name: "depth", newline: false,  type: "number", width:80},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					flds = grd_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '拉线' || o['type'] == '防鸟刺' || o['type'] == '在线监测装置')
+				{
+					var base_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
+						{display: "型号", name: "model", newline: true,  type: "text", width:275},
+						{display: "数量", name: "count", newline: true,  type: "digits", width:70},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					flds = grd_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '雷电计数器')
+				{
+					var base_flds = [
+						{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
+						{display: "型号", name: "model", newline: true,  type: "text", width:275},
+						{display: "读数", name: "counter", newline: true,  type: "digits", width:70},
+						{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
+						{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
+					];
+					flds = grd_flds;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+
+				//console.log(formdata);
+				
+				$("#form_tower_info_metal").empty();
+				var form_tower_info_metal = $("#form_tower_info_metal").ligerForm({
+					inputWidth: 120, labelWidth: 120, space: 10,
+					validate : true,
+					fields: flds
+				});
+				form_tower_info_metal.setData(formdata);	
+			}
+		}
+	});
 }
 
+function GetProjectNameByTowerId(id)
+{
+	var ret = '';
+	var l = [];
+	for(var i in g_lines)
+	{
+		for(var j in g_lines[i]['towers'])
+		{
+			if(g_lines[i]['towers'][j] == id)
+			{
+				l.push(g_lines[i]['line_name']);
+			}
+		}
+	}
+	for(var i in l)
+	{
+		ret += l[i] + ',';
+	}
+	return ret;
+}
+
+function AddMetal(e)
+{
+	//console.log(e);
+	//if(e.text == '绝缘子串')
+	if(g_selected_obj_id)
+	{
+		for(var i in g_geojson_towers['features'])
+		{
+			var tower = g_geojson_towers['features'][i];
+			if(tower['_id'] == g_selected_obj_id)
+			{
+				var o = {};
+				o['type'] = e.text;
+				o['assembly_graph'] = '';
+				o['manufacturer'] = '';
+				o['model'] = '';
+				if(e.text == '绝缘子串')
+				{
+					o['insulator_type'] = '';
+					o['material'] = '';
+					o['strand'] = 0;
+					o['slice'] = 0;
+				}
+				if(e.text == '防振锤')
+				{
+					o['side'] = '';
+					o['count'] = 0;
+					o['distance'] = 0;
+				}
+				if(e.text == '接地装置')
+				{
+					o['count'] = 0;
+					o['depth'] = 0;
+				}
+				if(e.text == '雷电计数器')
+				{
+					o['counter'] = 0;
+				}
+				if(e.text == '防鸟刺' || e.text == '在线监测装置' || e.text == '拉线')
+				{
+					o['count'] = 0;
+				}
+				if(e.text == '基础')
+				{
+					o['count'] = 0;
+					o['platform_model'] = '';
+					o['anchor_model'] = '';
+					o['depth'] = 0;
+				}
+				tower['properties']['metals'].push(o);
+				var data = [];
+				var idx = 1;
+				for(var i in tower['properties']['metals'])
+				{
+					data.push({
+						'idx':idx, 
+						'type':tower['properties']['metals'][i]['type'],
+						'model':tower['properties']['metals'][i]['model']
+						});
+					idx += 1;
+				}
+				g_selected_metal_item = undefined;
+				$("#listbox_tower_info_metal").ligerListBox().setData(data);
+				break;
+			}
+		}
+	}
+			
+	
+	
+	
+	
+	
+}
+
+function DeleteMetal()
+{
+	if(g_selected_obj_id)
+	{
+		for(var i in g_geojson_towers['features'])
+		{
+			var tower = g_geojson_towers['features'][i];
+			if(tower['_id'] == g_selected_obj_id)
+			{
+				if(g_selected_metal_item)
+				{
+					var o = g_selected_metal_item;
+					tower['properties']['metals'].splice(o['idx']-1, 1);
+				}
+				var data = [];
+				var idx = 1;
+				for(var i in tower['properties']['metals'])
+				{
+					data.push({
+						'idx':idx, 
+						'type':tower['properties']['metals'][i]['type'],
+						'model':tower['properties']['metals'][i]['model']
+						});
+					idx += 1;
+				}
+				g_selected_metal_item = undefined;
+				$("#listbox_tower_info_metal").ligerListBox().setData(data);
+				break;
+			}
+		}
+	}
+
+}
 

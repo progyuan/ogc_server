@@ -2,7 +2,10 @@
 .l-form { margin:7px;overflow:hidden;}
 .l-form .l-group{ clear:both; margin:0; height:28px; line-height:28px; font-weight:bold; font-size:12px; color:#333; border-bottom:solid 1px #ebebeb; padding-top:5px;margin-bottom:10px; display:block; position:relative; clear:both;}
 .l-group span{float:left;width:90px;}
-.l-form .l-group-hasicon{ padding-left:30px;}
+.l-group-hasicon span { 
+margin-left: 40px;
+}
+.l-form .l-group-hasicon{ }
 .l-form .l-group-hasicon img{ width:16px; height:16px; position:absolute; left:6px; top:6px;}
 .l-form .l-group-hasicon div{ width:16px; height:16px; position:absolute; left:6px; top:6px;}
 .l-form ul, .l-form li{ list-style:none;}
@@ -20,8 +23,7 @@
 }
 .l-hidden{ display:none;}
 .l-form-container {
-	clear: both;
-	width: 3000px;
+	clear: both; 
 	overflow: hidden;
 }
 /* -------------
@@ -182,7 +184,7 @@
     display:none;
     position:absolute; padding:0px;  
     border:1px solid #AECAF0; background:white;
-    width:130px; height:120px;
+    width:130px; height:auto;
     margin-top:1px;
     z-index:9300; font-size:12px; line-height:18px;
 }
@@ -204,18 +206,38 @@ background:#DBEBFF url('../images/controls/bg-panel-title.gif') repeat-x left;
 	margin:0; padding:2px; background:#EAF2FF;border-bottom: 1px solid #AECAF0;
 }
 .l-box-select-lookup .l-box-select-inner {
-	padding:0;overflow:hidden;
+	padding:0;overflow:hidden; height:auto;
 }
 .l-box-select-absolute
 {
     margin-top:0px;
 }
-.l-box-select-inner{ margin:0; padding:0; width:100%;overflow:auto; height:100%;color:#333;}
+.l-box-select-inner{ margin:0; padding:0; width:100%;overflow:auto;  height:120px;color:#333;}
 .l-box-select-inner .l-box-select-table{margin:0; padding:0; width:100%; }
 .l-box-select .l-table-nocheckbox td:hover,.l-box-select .l-table-nocheckbox td.l-over{ background-color:#FFE7A2; cursor:pointer;}
 .l-box-select .l-table-nocheckbox td.l-selected{ background-color:#FFBD69;}
 .l-box-select .l-box-select-table td{ padding:2px; text-align:left;}
+.l-box-select-add {
+    border-top: 1px solid #ddd;
+    background: #f5f5f5;
+    padding-left: 5px;
+}
+.l-box-select-add .link {
+    line-height: 30px; display:block;
+padding-left: 20px;
+position: relative;
+color: #555555;
+cursor: pointer;
+outline: medium none;
+text-decoration: none;
+}
+.l-box-select-add .link .icon {
+    background:url('../images/icon/spr_icons.gif') no-repeat; width:12px; height:12px; line-height:12px; overflow:hidden;left: 1px;position: absolute;top: 8px;
+}
 
+.l-box-select-add  a:hover {
+color: #2A66BB;
+}
 /* listbox */
 .l-listbox {
 	border:1px solid #AECAF0; background:white;

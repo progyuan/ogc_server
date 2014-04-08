@@ -1,9 +1,9 @@
 ﻿/**
-* jQuery ligerUI 1.2.2
+* jQuery ligerUI 1.2.3
 * 
 * http://ligerui.com
 *  
-* Author daomi 2013 [ gd_star@163.com ] 
+* Author daomi 2014 [ gd_star@163.com ] 
 * 
 */
 (function ($)
@@ -195,6 +195,13 @@
                 nodes.push({ target: this, data: g._getDataNodeByTreeDataIndex(g.data, treedataindex) });
             });
             return nodes;
+        },
+    	//add by superzoc 12/24/2012 
+        refreshTree: function () {
+            var g = this, p = this.options;
+			$.each(this.getChecked(),function(k,v){		
+				 g._setParentCheckboxStatus($(v.target));
+			});
         },
         getSelected: function ()
         {

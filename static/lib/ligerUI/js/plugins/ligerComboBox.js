@@ -1,9 +1,9 @@
 ﻿/**
-* jQuery ligerUI 1.2.2
+* jQuery ligerUI 1.2.3
 * 
 * http://ligerui.com
 *  
-* Author daomi 2013 [ gd_star@163.com ] 
+* Author daomi 2014 [ gd_star@163.com ] 
 * 
 */
 (function ($)
@@ -25,7 +25,7 @@
         isShowCheckBox: false,  //是否选择复选框
         columns: null,       //表格状态
         selectBoxWidth: null, //宽度
-        selectBoxHeight: null, //高度
+        selectBoxHeight: 120, //高度
         onBeforeSelect: false, //选择前事件
         onSelected: null, //选择值事件 
         initValue: null,
@@ -45,9 +45,14 @@
         hideOnLoseFocus: true,
         hideGridOnLoseFocus : false,
         url: null,              //数据源URL(需返回JSON)
+        emptyText: '（空）',       //空行
+        addRowButton: '新增',           //新增按钮
+        addRowButtonClick: null,        //新增事件
+        triggerIcon : null,         //
         onSuccess: null,
         onError: null,
         onBeforeOpen: null,      //打开下拉框前事件，可以通过return false来阻止继续操作，利用这个参数可以用来调用其他函数，比如打开一个新窗口来选择值
+        onButtonClick: null,      //右侧图标按钮事件，可以通过return false来阻止继续操作，利用这个参数可以用来调用其他函数，比如打开一个新窗口来选择值
         render: null,            //文本框显示html函数
         absolute: true,         //选择框是否在附加到body,并绝对定位
         cancelable: true,      //可取消选择
@@ -55,6 +60,7 @@
         parms: null,         //ajax提交表单 
         renderItem : null,   //选项自定义函数
         autocomplete: false,  //自动完成 
+        highLight : false,    //自动完成是否匹配字符高亮显示
         readonly: false,              //是否只读
         ajaxType: 'post',
         alwayShowInTop: false,      //下拉框是否一直显示在上方
@@ -141,13 +147,16 @@
                 g.valueField.addClass(p.valueFieldCssClass);
             }
             if (g.valueField[0].name == undefined) g.valueField[0].name = g.valueField[0].id;
+            //update by superzoc 增加初始值
+	    if (p.initValue != null) g.valueField[0].value = p.initValue;
             g.valueField.attr("data-ligerid", g.id);
             //开关
             g.link = $('<div class="l-trigger"><div class="l-trigger-icon"></div></div>');
-           
+            if (p.triggerIcon) g.link.find("div:first").addClass(p.triggerIcon);
             //下拉框
             g.selectBox = $('<div class="l-box-select" style="display:none"><div class="l-box-select-inner"><table cellpadding="0" cellspacing="0" border="0" class="l-box-select-table"></table></div></div>');
             g.selectBox.table = $("table:first", g.selectBox);
+            g.selectBoxInner = g.selectBox.find(".l-box-select-inner:first");
             //外层
             g.wrapper = g.inputText.wrap('<div class="l-text l-text-combobox"></div>').parent();
             g.wrapper.append('<div class="l-text-l"></div><div class="l-text-r"></div>'); 
@@ -190,6 +199,7 @@
             }).click(function ()
             {
                 if (p.disabled || p.readonly) return;
+                if (g.trigger('buttonClick') == false) return false;
                 if (g.trigger('beforeOpen') == false) return false;
                 g._toggleSelectBox(g.selectBox.is(":visible"));
             });
@@ -265,18 +275,30 @@
         clear : function()
         {
             this._changeValue("", "");
+            $("a.l-checkbox-checked", this.selectBox).removeClass("l-checkbox-checked");
+            $("td.l-selected", this.selectBox).removeClass("l-selected");
+            $(":checkbox", this.selectBox).each(function () { this.checked = false; });
             this.trigger('clear');
         },
-        _setSelectBoxHeight: function (height) {
+        _setSelectBoxHeight: function (height)
+        { 
             if (!height) return;
             var g = this, p = this.options;
             if (p.grid) {
                 g.grid && g.grid.set('height', g.getGridHeight(height));
-            } else if(!p.table) {
+            } else
+            { 
                 var itemsleng = $("tr", g.selectBox.table).length;
                 if (!p.selectBoxHeight && itemsleng < 8) p.selectBoxHeight = itemsleng * 30;
-                if (p.selectBoxHeight) {
-                    g.selectBox.height(p.selectBoxHeight);
+                if (p.selectBoxHeight)
+                {
+                    if (itemsleng < 8)
+                    {
+                        g.selectBoxInner.height('auto');
+                    } else
+                    {
+                        g.selectBoxInner.height(p.selectBoxHeight);
+                    }
                 }
             }
         }, 
@@ -373,8 +395,7 @@
             if (value > 20)
             {
                 g.wrapper.css({ width: value });
-                g.inputText.css({ width: value - 20 });
-                g.textwrapper.css({ width: value });
+                g.inputText.css({ width: value - 20 }); 
                 if (!p.selectBoxWidth) {
                     g.selectBox.css({ width: value });
                 }
@@ -386,8 +407,7 @@
             if (value > 10)
             {
                 g.wrapper.height(value);
-                g.inputText.height(value - 2); 
-                g.textwrapper.css({ width: value });
+                g.inputText.height(value - 2);  
             }
         },
         _setResize: function (resize)
@@ -398,8 +418,10 @@
             }
             //调整大小支持
             if (resize && $.fn.ligerResizable)
-            { 
-                g.selectBox.ligerResizable({ handles: 'se,s,e', onStartResize: function ()
+            {
+                var handles = p.selectBoxHeight ? 'e' : 'se,s,e';
+                g.selectBox.ligerResizable({
+                    handles: handles, onStartResize: function ()
                 {
                     g.resizing = true;
                     g.trigger('startResize');
@@ -479,27 +501,29 @@
             });
             if (values.length > 0) values = values.substr(0, values.length - 1);
             return values;
-        },
-        removeItem: function ()
+        }, 
+        insertItem: function (data,index)
         {
+            var g = this, p = this.options;
+            g.data = g.data || [];
+            g.data.splice(index, 0, data);
+            g.setData(g.data);
         },
-        insertItem: function ()
+        addItem: function (data)
         {
-        },
-        addItem: function ()
-        {
-
+            var g = this, p = this.options;
+            g.insertItem(data, (g.data || []).length);
         },
         _setValue: function (value,text)
         {
-            var g = this, p = this.options;  
+            var g = this, p = this.options; 
             text = g.findTextByValue(value);
             if (p.tree)
             {
                 g.selectValueByTree(value);
             }
             else if (!p.isMultiSelect)
-            {
+            {  
                 g._changeValue(value, text);
                 $("tr[value='" + value + "'] td", g.selectBox).addClass("l-selected");
                 $("tr[value!='" + value + "'] td", g.selectBox).removeClass("l-selected");
@@ -579,8 +603,8 @@
         {
             var g = this, p = this.options;
             $("table", g.selectBox).html("");
-            //g.inputText.val("");
-            //g.valueField.val("");
+            g.inputText.val("");
+            g.valueField.val(""); 
         },
         setSelect: function ()
         {
@@ -637,7 +661,7 @@
         setData: function (data)
         {
             var g = this, p = this.options; 
-            if (!data || !data.length) return;
+            if (!data || !data.length) data = [];
             if (g.data != data) g.data = data;
             this.clearContent();
             if (p.columns)
@@ -656,7 +680,14 @@
 
                 }
             }
-            var out = [];
+            var out = []; 
+            if (p.emptyText && !g.emptyRow)
+            { 
+                g.emptyRow = {};
+                g.emptyRow[p.textField] = p.emptyText;
+                g.emptyRow[p.valueField] = null;
+                data.splice(0, 0, g.emptyRow);
+            } 
             for (var i = 0; i < data.length; i++)
             {
                 var val = data[i][p.valueField];
@@ -675,7 +706,7 @@
                             text: txt,
                             key: g.inputText.val()
                         });
-                    } else if (p.autocomplete)
+                    } else if (p.autocomplete && p.highLight)
                     {
                         itemHtml = g._highLight(txt, g.inputText.val());
                     }
@@ -699,6 +730,13 @@
             } else { 
                 g.selectBox.table.append(out.join(''));
             }
+            if (p.addRowButton && p.addRowButtonClick && !g.addRowButton)
+            {
+                g.addRowButton = $('<div class="l-box-select-add"><a href="javascript:void(0)" class="link"><div class="icon"></div></a></div>'); 
+                g.addRowButton.find(".link").append(p.addRowButton).click(p.addRowButtonClick);
+                g.selectBoxInner.after(g.addRowButton);
+            }
+            g.set('selectBoxHeight', p.selectBoxHeight);
             //自定义复选框支持
             if (p.isShowCheckBox && $.fn.ligerCheckBox)
             {
@@ -832,7 +870,8 @@
             if (p.condition) {
                 var conditionParm = $.extend({
                     labelWidth: 60,
-                    space: 20
+                    space: 20,
+                    width: p.selectBoxWidth
                 }, p.condition); 
                 g.condition = conditionPanel.ligerForm(conditionParm);
             } else {
@@ -1223,6 +1262,7 @@
         }, 
         _highLight: function (str, key)
         {
+            if (!str) return str;
             var index = str.indexOf(key);
             if (index == -1) return str;
             return str.substring(0, index) + "<span class='l-highLight'>" + key + "</span>" + str.substring(key.length + index);

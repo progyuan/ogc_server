@@ -31,7 +31,7 @@
 
                 return itemdata;
             };
-            var arr = ['UIComponent', 'Grid', 'Tree', 'Accordion', 'CheckBox', 'ComboBox', 'DateEditor', 'CheckBoxList', 'RadioList', 'PopupEdit', 'Dialog', 'Drag', 'Form', 'Layout', 'Menu', 'Messagebox', 'Radio', 'Resizable', 'Spinner', 'Tab', 'textBox', 'ToolBar', 'Tree', 'Window', 'Filter'];
+            var arr = ['UIComponent', 'Grid', 'Tree', 'Accordion', 'CheckBox', 'ComboBox', 'DateEditor', 'CheckBoxList', 'RadioList', 'PopupEdit', 'Dialog', 'Drag', 'Form', 'Layout', 'Menu', 'Messagebox', 'Radio', 'Resizable', 'Spinner', 'Tab', 'textBox', 'ToolBar', 'Tree', 'Window', 'Filter', 'Panel', 'Portal'];
             var data = [];
             $(arr).each(function (i, name)
             {
@@ -200,7 +200,7 @@
     </div> 
 </div>
     <div id="layout1" style="width:99.2%; margin:0 auto; margin-top:4px; ">
-        <div position="left" title="插件列表" id="accordion1">
+        <div position="left" title="插件列表" id="accordion1" style="overflow: auto">
             <ul id="tree1" style="margin-top: 3px;">
             </ul>
         </div>

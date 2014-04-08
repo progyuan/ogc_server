@@ -9,13 +9,20 @@
     <title>KMGD WebGIS Demo v0.01</title>
 	<link rel="stylesheet" href="js/CesiumUnminified/Widgets/widgets.css" />
 	<link rel="stylesheet" href="css/black-green-theme/jquery-ui-1.10.4.custom.css" />
+	<link rel="stylesheet" href="css/ligerui-skins/Aqua/css/ligerui-all.css" />
+	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
     <script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/WMTSImageryProvider.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/ArcgisTileImageryProvider.js"></script>
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
+    <!--<script type="text/javascript" src="js/jquery/jquery-1.5.2.min.js"></script>-->
     <script type="text/javascript" src="js/jquery/jquery-uuid.js"></script>
     <script type="text/javascript" src="js/jquery/jquery-ui-1.10.4.custom.js"></script>
     <script type="text/javascript" src="js/json3.js"></script>
+    <script type="text/javascript" src="js/jquery/jquery.validate.min.js"></script>
+    <script type="text/javascript" src="js/jquery/jquery.metadata.js"></script>
+    <script type="text/javascript" src="js/jquery/messages_cn.js"></script>
+    <script type="text/javascript" src="js/ligerui.all.js"></script>
 </head>
 <body >
 <style>
@@ -31,16 +38,17 @@
 			<li><a href="#tower_info_photo">照片</a></li>
 		</ul>
 		<div id="tower_info_base">
-			tower_info_base
+			<form id="form_tower_info_base"></form>
 		</div>
 		<div id="tower_info_model">
 			tower_info_model
 		</div>
-		<div id="tower_info_attachment">
-			tower_info_attachment
-		</div>
+		<!--<div id="tower_info_attachment">-->
+			<!--tower_info_attachment-->
+		<!--</div>-->
 		<div id="tower_info_metal">
-			tower_info_metal
+			<div id="listbox_tower_info_metal"></div>
+			<form id="form_tower_info_metal"></form>
 		</div>
 		<div id="tower_info_photo">
 			tower_info_photo
