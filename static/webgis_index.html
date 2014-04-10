@@ -41,11 +41,23 @@
 			<form id="form_tower_info_base"></form>
 		</div>
 		<div id="tower_info_model">
-			tower_info_model
+			<div style='opacity:1.0;'>
+				<iframe style='border:solid 1px #00FF00; width:100%;height:450px;' src=''>正在加载模型...</iframe>
+			</div>
+			<div style='width:100%;height:100%;'>
+				<div style='float:left;' id="title_model_code"></div><div style='float:right;' id="title_contact_point"></div>
+			</div>
+			
+			<div style='width:100%;display:none' id='contact_point_coords'>
+				<!--<label style='float:left;' for='contact_point_coords_x'>X:</label>-->
+				X:<input style='float:left;width:80px;' id='contact_point_coords_x'>
+				<!--<label style='float:left;' for='contact_point_coords_y'>Y:</label>-->
+				Y:<input style='float:left;width:80px;' id='contact_point_coords_y'>
+				<!--<label style='float:left;' for='contact_point_coords_z'>Z:</label>-->
+				Z:<input style='float:left;width:80px;' id='contact_point_coords_z'>
+			</div>
+			
 		</div>
-		<!--<div id="tower_info_attachment">-->
-			<!--tower_info_attachment-->
-		<!--</div>-->
 		<div id="tower_info_metal">
 			<div id="listbox_tower_info_metal"></div>
 			<form id="form_tower_info_metal"></form>

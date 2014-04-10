@@ -8178,7 +8178,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 continue
             elif k=='id':
                 if mapping.has_key(tower[k]):
-                    tower_obj['_id'] = mapping[tower[k]]
+                    tower_obj['_id'] = ObjectId(mapping[tower[k]])
                 #continue
             elif k=='same_tower':
                 #if not tower[k] == '00000000-0000-0000-0000-000000000000':
@@ -8215,8 +8215,8 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                             o['position'] = enc(pt['position'])
                             o['contact_index'] = pt['contact_index']
                             o['x'] = pt['offset_x']
-                            o['y'] = pt['offset_y']
-                            o['z'] = pt['offset_z']
+                            o['y'] = pt['offset_z']
+                            o['z'] = pt['offset_y']
                             o['split_count'] = pt['split_count']
                             tower_obj['properties']['model']['contact_points'].append(o)
             else:
@@ -8613,9 +8613,9 @@ if __name__=="__main__":
     #test_mongo_import_code()
     #test_build_tower_odbc_mongo_id_mapping()
     #test_build_line_odbc_mongo_id_mapping()
-    #test_mongo_import_towers()
-    ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
-    print(ret)
+    test_mongo_import_towers()
+    #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
+    #print(ret)
     #print('count=%d' % len(ret))
     #for i in ret:
         #print(i)

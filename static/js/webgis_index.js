@@ -1,4 +1,5 @@
-var g_host = "http://localhost:88/";
+//var g_host = "http://localhost:88/";
+var g_host = "";
 var g_selected_obj_id;
 var g_selected_obj_pos;
 var g_view_extent;
@@ -120,10 +121,97 @@ $(function() {
 	LoadTowerByLineName(viewer, ellipsoid, line_name);
 	//viewer.extend(Cesium.viewerDynamicObjectMixin);
 	TowerInfoMixin(viewer);
+
+	var iframe = $('#tower_info_model').find('iframe');
+	iframe.load(function(){
+		var iframeDoc = iframe.contents().get(0);
+		$(iframeDoc).off();
+		$(iframeDoc).on('mousedown', function(e){
+			for (var i = 1; i < 99; i++)
+			{
+				iframe[0].contentWindow.clearInterval(i);
+			}
+		});
+	});
+	$('#contact_point_coords_x').spinner({
+		step: 0.01,
+		max:200.0,
+		min:-200.0,
+		change:function( event, ui ) {
+			var pos = GetObjectPos();
+			if(event.currentTarget)
+			{
+				pos['x'] = event.currentTarget.value;
+				iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var pos = GetObjectPos();
+			pos['x'] = ui.value;
+			iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			//event.preventDefault();
+		}
+	});
+	$('#contact_point_coords_y').spinner({
+		step: 0.01,
+		max:200.0,
+		min:-200.0,
+		change:function( event, ui ) {
+			var pos = GetObjectPos();
+			if(event.currentTarget)
+			{
+				pos['y'] = event.currentTarget.value;
+				iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var pos = GetObjectPos();
+			pos['y'] = ui.value;
+			iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			//event.preventDefault();
+		}
+	});
+	$('#contact_point_coords_z').spinner({
+		step: 0.01,
+		max:200.0,
+		min:-200.0,
+		change:function( event, ui ) {
+			var pos = GetObjectPos();
+			if(event.currentTarget)
+			{
+				pos['z'] = event.currentTarget.value;
+				iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var pos = GetObjectPos();
+			pos['z'] = ui.value;
+			iframe[0].contentWindow.SetSelectObjectPosition(pos);
+			//event.preventDefault();
+		}
+	});
+	//$(window).on('message',function(e) {
+		////console.log('recv:' + text);
+		//var text = e.originalEvent.data;
+		//console.log('recv:' + text);
+		//var obj = JSON.parse(text);
+		//console.log(obj);
+		
+	//});
 	
 });
 
-
+function GetObjectPos()
+{
+	var ret = {};
+	ret['x'] = parseFloat($('#contact_point_coords_x').spinner()[0].value);
+	ret['y'] = parseFloat($('#contact_point_coords_y').spinner()[0].value);
+	ret['z'] = parseFloat($('#contact_point_coords_z').spinner()[0].value);
+	return ret;
+}
 function CreateTowerCzmlFromGeojson(geojson)
 {
 	var ret = [];
@@ -324,8 +412,11 @@ function LoadTowerModelByTowerId(viewer, id)
 					tower['properties']['rotate'],
 					10
 				);
-				g_gltf_models[id] = model;
-				console.log("load model for [" + id + "]");
+				if(model)
+				{
+					g_gltf_models[id] = model;
+					console.log("load model for [" + id + "]");
+				}
 			}
 		}
 	}
@@ -402,13 +493,20 @@ function ReadTable(url, success, failed)
 
 function GetModelUrl(model_code_height)
 {
+	if(!model_code_height)
+	{
+		return '';
+	}
 	return g_host + "gltf/" + model_code_height + ".json" ;
 	//return "http://localhost:88/gltf/test.json";//?random=" + $.uuid();
 }
 
 function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotate, scale) 
 {
-
+	if(modelurl.length==0)
+	{
+		return null;
+	}
 	height = Cesium.defaultValue(height, 0.0);
 	var cart3 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(lng, lat, height));
 	var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(cart3);
@@ -733,7 +831,7 @@ function ShowTowerInfo(viewer, tower)
 	var infoBox = viewer.infoBox;
 	//console.log($(infoBox.container).position());
 	$('#dlg_tower_info').dialog({
-		width: 500,
+		width: 550,
 		height: 730,
 		minWidth:200,
 		minHeight: 200,
@@ -757,8 +855,36 @@ function ShowTowerInfo(viewer, tower)
 		]
 	});
 	$('#tabs_tower_info').tabs({ 
-		collapsible: true,
-		active: 0
+		collapsible: false,
+		active: 0,
+		beforeActivate: function( event, ui ) {
+			var title = ui.newTab.context.innerText;
+			if(title == '杆塔模型')
+			{
+				var iframe = $(ui.newPanel.context).find('#tower_info_model').find('iframe');
+				//console.log(iframe);
+				
+				//var iframeDoc = iframe.contents().get(0);
+				//iframe.click(function(e){
+					////iframe[0].contentWindow.postMessage('stop', '*');
+					//console.log(e);
+					//iframeDoc.ClearRoundCamera();
+				//});
+				
+				var url = GetModelUrl(tower['properties']['model']['model_code_height']);
+				if(url.length>0)
+				{
+					var obj = {};
+					obj['url'] = '/' + url;
+					obj['data'] = tower['properties']['model'];
+					obj['denomi_height'] = tower['properties']['denomi_height'];
+					$('#title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + tower['properties']['denomi_height']);
+					var json = encodeURIComponent(JSON.stringify(obj));
+					iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
+				}
+			}
+		}
+		//threejs/editor/index.html
 	});
 		
 	var form_tower_info_base = $("#form_tower_info_base").ligerForm({
