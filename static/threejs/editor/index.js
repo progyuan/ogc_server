@@ -1,7 +1,20 @@
 var g_camera_move_around_int;
 var g_elapsedTime = 0.0;
 var g_editor;
+var g_mode;
+var g_is_add_seg = false;
+var g_cp_pair = [];
 $(function() {
+
+	var param = GetParamsFromUrl();
+	if(param['url_next'])
+	{
+		g_mode = 'segs';
+	}else
+	{
+		g_mode = 'tower';
+	}
+
 	window.URL = window.URL || window.webkitURL;
 	window.BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder;
 
@@ -83,29 +96,38 @@ $(function() {
 	var OnSelected = function(obj)
 	{
 		ShowLabelBySelected(editor);
-		if(obj && obj.name.indexOf('tower/')==-1)
+		if(window.parent)
 		{
-			//window.postMessage(JSON.stringify({'contact_point':obj.name}), '*');
-			$(window.parent.document).find('#title_contact_point').html(obj.name);
-			$(window.parent.document).find('#contact_point_coords').css('display','inline-block');
-			
-			$(window.parent.document).find('#contact_point_coords_x').spinner()[0].value = obj.position.x.toFixed(2);
-			$(window.parent.document).find('#contact_point_coords_y').spinner()[0].value = obj.position.y.toFixed(2);
-			$(window.parent.document).find('#contact_point_coords_z').spinner()[0].value = obj.position.z.toFixed(2);
-			//$(window.parent.document).find('#contact_point_coords_x').spinner().value(obj.position.x);
-			//$(window.parent.document).find('#contact_point_coords_y').spinner().value(obj.position.y);
-			//$(window.parent.document).find('#contact_point_coords_z').spinner().value(obj.position.z);
-		}
-		else
-		{
-			$(window.parent.document).find('#contact_point_coords').css('display','none');
+			if(g_mode == 'tower')
+			{
+				//if(obj && obj.name.indexOf('tower/')==-1)
+				//{
+					//$(window.parent.document).find('#title_contact_point').html(obj.name);
+					//$(window.parent.document).find('#contact_point_coords').css('display','inline-block');
+					
+					//$(window.parent.document).find('#contact_point_coords_x').spinner()[0].value = obj.position.x.toFixed(2);
+					//$(window.parent.document).find('#contact_point_coords_y').spinner()[0].value = obj.position.y.toFixed(2);
+					//$(window.parent.document).find('#contact_point_coords_z').spinner()[0].value = obj.position.z.toFixed(2);
+				//}
+				//else
+				//{
+					//$(window.parent.document).find('#contact_point_coords').css('display','none');
+				//}
+			}
+			if(g_mode == 'segs')
+			{
+				if(g_is_add_seg)
+				{
+					if(g_cp_pair.length == 2)
+					{
+						//$(window.parent.document).find('#title_contact_point')
+					}
+				}
+			}
 		}
 	};
 	
 	editor.signals.objectSelected.add( OnSelected );
-
-	//console.log(viewport.renderer);
-	//console.log(viewport.camera);
 
 	
 	document.addEventListener( 'dragover', function ( event ) {
@@ -115,9 +137,6 @@ $(function() {
 
 	}, false );
 
-	//document.addEventListener( 'mousedown', function ( event ) {
-		//ClearRoundCamera();
-	//}, false );
 	
 	$(document).mousedown(function() {
 		ClearRoundCamera();
@@ -127,26 +146,13 @@ $(function() {
 		//console.log(g_camera_move_around_int);
 		//ClearRoundCamera();
 	//});
-	//$(window).on('mouseup',function(event) {
-		//if(editor.selected && editor.selected.name.indexOf('tower/')==-1)
-		//{
-			////console.log(editor.selected.position.x);
-			////console.log(editor.selected.position.y);
-			////console.log(editor.selected.position.z);
-			////$(window.parent.document).find('#contact_point_coords_x').spinner()[0].value = editor.selected.position.x.toFixed(2);
-			////$(window.parent.document).find('#contact_point_coords_y').spinner()[0].value = editor.selected.position.y.toFixed(2);
-			////$(window.parent.document).find('#contact_point_coords_z').spinner()[0].value = editor.selected.position.z.toFixed(2);
-		//}
-		//event.preventDefault();
-		
-	//});
 	
-	document.addEventListener( 'drop', function ( event ) {
+	//document.addEventListener( 'drop', function ( event ) {
 
-		event.preventDefault();
-		editor.loader.loadFile( event.dataTransfer.files[ 0 ] );
+		//event.preventDefault();
+		//editor.loader.loadFile( event.dataTransfer.files[ 0 ] );
 
-	}, false );
+	//}, false );
 
 	document.addEventListener( 'keydown', function ( event ) {
 		console.log(event.keyCode);
@@ -168,7 +174,7 @@ $(function() {
 	}, false );
 
 	var onWindowResize = function ( event ) {
-		ClearRoundCamera();
+		//ClearRoundCamera();
 		editor.signals.windowResize.dispatch();
 	};
 
@@ -178,39 +184,334 @@ $(function() {
 	
 	AddHemisphereLight(editor);
 	
-	var param = GetParamsFromUrl();
-	if(param['url'])
-	{
-		LoadGltfFromUrl(editor, viewport,  param['url'], [-90,0,0], [10,10,10], '#00FF00');
-	}
 	//LoadGltfFromUrl(editor, viewport, 'http://localhost:88/gltf/BJ1_25_0.json', [-90,0,0], [10,10,10], '#00FF00');
-	if(param['data'])
+	var off_x = 10, off_z = 30;
+	if(g_mode == 'segs')
 	{
-		for(var i in param['data']['contact_points'])
+		if(param['url_next'].length==1)
 		{
-			var cp = param['data']['contact_points'][i];
-			var side = '';
-			var color;
-			var size;
-			if(cp['side']==0)
-			{
-				side = '小号端' ;
-				color = '#FF0000';
-				size = 0.2;
-			}
-			if(cp['side']==1)
-			{
-				side = '大号端' ;
-				color = '#0000FF';
-				size = 0.5;
-			}
-			side = side + '#' + cp['contact_index'];
-			AddSphere(editor, [cp['x'], cp['y'], cp['z']], size, side, color);
+			LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [0, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
+		}
+		if(param['url_next'].length==2)
+		{
+			LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [-off_x, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
+			LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
+		}
+		if(param['data_next'].length==1)
+		{
+			LoadContactPoint(editor, param['data_next'][0], [0, 0, -off_z]);
+		}
+		if(param['data_next'].length==2)
+		{
+			LoadContactPoint(editor, param['data_next'][0], [-off_x, 0, -off_z]);
+			LoadContactPoint(editor, param['data_next'][1], [off_x, 0, -off_z]);
+		}
+		if(param['data'])
+		{
+			LoadContactPoint(editor, param['data'], [0, 0, off_z]);
+		}
+		if(param['url'])
+		{
+			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, off_z], [-90,0,0], [10,10,10], '#00FF00',
+				function(target){
+					if(window.parent)
+					{
+						if(param['data_next'].length==1)
+						{
+							DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], 0, off_z);
+						}
+						if(param['data_next'].length==2)
+						{
+							DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], off_x, off_z);
+						}
+					}
+					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
+			});
+		}
+	}else if(g_mode == 'tower')
+	{
+		if(param['url'])
+		{
+			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
+				function(target){
+					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 60.0, target);
+			});
+		}
+		if(param['data'])
+		{
+			LoadContactPoint(editor, param['data'], [0, 0, 0]);
 		}
 	}
 	
+	$('[id^="button_"]').css('display','none');
+	$('#div_contact_point_coords').css('display','none');
+	if(g_mode == 'tower')
+	{
+		$('#button_add_cp').css('display','block');
+		$('#button_cp_side').css('display','block');
+		$('#button_add_cp').button();
+		$('#button_add_cp').on('click', function() {
+			AddContactPoint();
+		});
+		$('#button_cp_side').buttonset();
+		
+		$('#contact_point_coords_x').spinner({
+			step: 0.01,
+			max:200.0,
+			min:-200.0,
+			change:function( event, ui ) {
+				var pos = GetObjectPos();
+				if(event.currentTarget)
+				{
+					pos['x'] = event.currentTarget.value;
+					SetSelectObjectPosition(pos);
+				}
+				event.preventDefault();
+			},
+			spin:function( event, ui ) {
+				var pos = GetObjectPos();
+				pos['x'] = ui.value;
+				SetSelectObjectPosition(pos);
+				//event.preventDefault();
+			}
+		});
+		$('#contact_point_coords_y').spinner({
+			step: 0.01,
+			max:200.0,
+			min:-200.0,
+			change:function( event, ui ) {
+				var pos = GetObjectPos();
+				if(event.currentTarget)
+				{
+					pos['y'] = event.currentTarget.value;
+					SetSelectObjectPosition(pos);
+				}
+				event.preventDefault();
+			},
+			spin:function( event, ui ) {
+				var pos = GetObjectPos();
+				pos['y'] = ui.value;
+				SetSelectObjectPosition(pos);
+				//event.preventDefault();
+			}
+		});
+		$('#contact_point_coords_z').spinner({
+			step: 0.01,
+			max:200.0,
+			min:-200.0,
+			change:function( event, ui ) {
+				var pos = GetObjectPos();
+				if(event.currentTarget)
+				{
+					pos['z'] = event.currentTarget.value;
+					SetSelectObjectPosition(pos);
+				}
+				event.preventDefault();
+			},
+			spin:function( event, ui ) {
+				var pos = GetObjectPos();
+				pos['z'] = ui.value;
+				SetSelectObjectPosition(pos);
+				//event.preventDefault();
+			}
+		});
+	}
+	if(g_mode == 'segs')
+	{
+		$('#button_del_seg').css('display','block');
+		$('#button_add_seg').css('display','block');
+		$('#button_phase').css('display','block');
+		$('#button_del_seg').button();
+		$('#checkbox_add_segment').button();
+		$('#checkbox_add_segment').on('click', function() {
+			g_is_add_seg = !g_is_add_seg;
+			console.log(g_is_add_seg);
+		});
+		$('#button_phase').buttonset();
+	}
+
+	
 });
 
+function GetObjectPos()
+{
+	var ret = {};
+	ret['x'] = parseFloat($('#contact_point_coords_x').spinner()[0].value);
+	ret['y'] = parseFloat($('#contact_point_coords_y').spinner()[0].value);
+	ret['z'] = parseFloat($('#contact_point_coords_z').spinner()[0].value);
+	return ret;
+}
+
+function AddContactPoint()
+{
+	var obj = $("#button_cp_side :radio:checked").attr('id');
+	console.log(obj);
+}
+function DeleteSegment()
+{
+	$('#dlg_delete_segment').dialog({
+		title:'你确定要删除此线段吗?',
+		closeOnEscape: true,
+		modal:true,
+		draggable:true,
+		width:500,
+		height:300,
+		buttons: [ 
+			{  	text: "确定", 
+				click: function() { 
+					console.log('ok'); 
+				}
+			},
+			{	text: "取消", 
+				click: function() { 
+					$( this ).dialog( "close" ); 
+				} 
+			}]
+	});
+}
+
+
+
+function GetDrawInfoFromContactPoint(side, idx, data, offset_x, offset_z)
+{
+	var ret = null;
+	if(data instanceof Object)
+	{
+		for(var i in data['contact_points'])
+		{
+			var cp = data['contact_points'][i];
+			if(cp['contact_index'] == idx && cp['side'] == side)
+			{
+				ret = {};
+				ret['model_code'] = data['model_code_height'];
+				ret['index'] =  cp['contact_index'];
+				ret['x'] = cp['x'] + offset_x;
+				ret['y'] = cp['y'];
+				ret['z'] = cp['z'] + offset_z;
+				break;
+			}
+		}
+	}
+	if(data instanceof Array)
+	{
+		for(var i in data)
+		{
+			var info = GetDrawInfoFromContactPoint(side, idx, data[i], offset_x, offset_z);
+			if(info)
+			{
+				ret = info;
+				break;
+			}
+		}
+	}
+	return ret;
+}
+function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, offset_z)
+{
+	for(var i in next_ids)
+	{
+		var next = next_ids[i];
+		for(var j in window.parent.g_segments)
+		{
+			var seg = window.parent.g_segments[j];
+			if(seg['start_tower'] == tower_id && seg['end_tower'] == next)
+			{
+				for(var k in seg['contact_points'])
+				{
+					var cp = seg['contact_points'][k];
+					var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+					var end, end1, end2;
+					if(data_next.length==1)
+					{
+						end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
+					}
+					if(data_next.length==2)
+					{
+						end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
+						end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
+					}
+					var color = 0x000000;
+					if(cp['phase'] == 'A')
+						color = 0xFFFF00;
+					if(cp['phase'] == 'B')
+						color = 0xFF0000;
+					if(cp['phase'] == 'C')
+						color = 0x00FF00;
+					if(cp['phase'] == 'L')
+						color = 0x000000;
+					if(cp['phase'] == 'R')
+						color = 0x000000;
+					//console.log(start);
+					//console.log(end);
+					if(end)
+						DrawLine(editor, start, end, color, seg, cp);
+					if(end1)
+						DrawLine(editor, start, end1, color, seg, cp);
+					if(end2)
+						DrawLine(editor, start, end2, color, seg, cp);
+				}
+				break;
+			}
+		}
+	}
+}
+
+function DrawLine(editor, start, end, color, seg, cp)
+{
+	var geometry = new THREE.Geometry();
+	var p = new THREE.Vector3(start.x, start.y, start.z);
+	geometry.vertices.push( p );
+	p = new THREE.Vector3(end.x, end.y, end.z);
+	geometry.vertices.push( p );
+	var line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { color: color, opacity: 1.0 } ) );
+	line.name = start.index + ','+ end.index;
+	line['userData']['type'] = 'line';
+	line['userData']['data'] = {
+		'start_tower':seg['start_tower'],
+		'end_tower':seg['end_tower'],
+		'start_side':seg['start_side'],
+		'end_side':seg['end_side'],
+		'start':cp['start'],
+		'end':cp['end'],
+		'phase':cp['phase']
+	};
+	editor.addObject( line );
+}
+
+
+
+function LoadContactPoint(editor, data, offset)
+{
+	for(var i in data['contact_points'])
+	{
+		var cp = data['contact_points'][i];
+		var title = '';
+		var color;
+		var size;
+		if(cp['side']==0)
+		{
+			title = '小号端' ;
+			color = '#FF0000';
+			size = 0.2;
+		}
+		if(cp['side']==1)
+		{
+			title = '大号端' ;
+			color = '#0000FF';
+			size = 0.5;
+		}
+		if(g_mode=='tower')
+		{
+			title = title + '#' + cp['contact_index'];
+		}
+		if(g_mode=='segs')
+		{
+			title = data['model_code_height'] + '#' + title + '#' + cp['contact_index'];
+		}
+		AddSphere(editor, [cp['x'] + offset[0], cp['y'] + offset[1], cp['z'] + offset[2]], size, title, color, cp);
+	}
+
+}
 function SetSelectObjectPosition(pos)
 {
 	if(g_editor.selected && g_editor.selected.name.indexOf('tower/')==-1)
@@ -231,24 +532,31 @@ function ClearRoundCamera()
 		g_elapsedTime = 0.0;
 	}
 }
-function SetupRoundCamera(scene, renderer, camera,  target)
+function SetupRoundCamera(scene, renderer, camera, radius, target)
 {
-	var radius = 60.0;
+	//var radius = 60.0;
 	var constant = 0.5;
 	var inteval = 0.05;
 	var height = 60.0;
-	var ret = setInterval(function(){
-		camera.position.y = height;
-		camera.position.x = target.position.x + radius * Math.cos( constant * g_elapsedTime );         
-		camera.position.z = target.position.z + radius * Math.sin( constant * g_elapsedTime );
-		camera.lookAt( target.position );
+	g_camera_move_around_int  = setInterval(function(){
+		if(target)
+		{
+			camera.position.y = height;
+			camera.position.x = target.position.x + radius * Math.cos( constant * g_elapsedTime );         
+			camera.position.z = target.position.z + radius * Math.sin( constant * g_elapsedTime );
+			camera.lookAt( target.position );
+		}else{
+			camera.position.y = height;
+			camera.position.x = radius * Math.cos( constant * g_elapsedTime );         
+			camera.position.z = radius * Math.sin( constant * g_elapsedTime );
+			camera.lookAt( new THREE.Vector3(0, 0, 0) );
+		}
 		renderer.render( scene, camera );
 		g_elapsedTime += inteval;
 	}, 1000 * inteval);
-	return ret;
 }
 
-function LoadGltfFromUrl(editor, viewport,  url, rotation, scale, color)
+function LoadGltfFromUrl(editor, viewport,  url, offset, rotation, scale, color, callback)
 {
 	var loader = new THREE.glTFLoader();
 	loader.useBufferGeometry = false;
@@ -273,13 +581,18 @@ function LoadGltfFromUrl(editor, viewport,  url, rotation, scale, color)
 		obj['name'] = url.substr(url.lastIndexOf('/')+1);
 		obj['name'] = obj['name'].substr(0, obj['name'].indexOf('.'));
 		obj['name'] = 'tower/' + obj['name'];
+		obj['userData']['type'] = 'tower';
 		//console.log(obj);
 		editor.addObject( obj );
 		editor.select( obj );
 		editor.select( null );
+		obj.position.set( offset[0], offset[1], offset[2] );
 		obj.scale.set( scale[0], scale[1], scale[2] );
 		obj.rotation.set( rotation[0] * Math.PI /180.0, rotation[1] * Math.PI /180.0, rotation[2] * Math.PI /180.0 );
-		g_camera_move_around_int = SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, obj);
+		if(callback)
+		{
+			callback(obj);
+		}
 	});
 
 }
@@ -290,11 +603,11 @@ function AddHemisphereLight(editor)
 	var intensity = 1;
 	var light = new THREE.HemisphereLight( skyColor, groundColor, intensity );
 	light.name = 'HemisphereLight';
-	light.position.set( 0, -1, 0 ).multiplyScalar( 500 );
+	light.position.set( 0, 1, 0 ).multiplyScalar( 900 );
 	editor.addObject( light );
 }
 
-function AddSphere(editor, position, radius, name, color)
+function AddSphere(editor, position, radius, name, color, data)
 {
 	var c = tinycolor(color).toRgb();
 	var widthSegments = 32;
@@ -303,16 +616,12 @@ function AddSphere(editor, position, radius, name, color)
 	var geometry = new THREE.SphereGeometry( radius, widthSegments, heightSegments );
 	var mesh = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial() );
 	mesh.name = name ;
+	mesh['userData']['type'] = 'contact_point';
+	mesh['userData']['data'] = data;
 	mesh.material.color.setRGB(c['r']/255.0, c['g']/255.0, c['b']/255.0);
 	editor.addObject( mesh );
 	//editor.select( mesh );
 	mesh.position.set( position[0], position[1], position[2] );
-	
-	////var sprite = makeTextSprite( name, { fontsize: 16, backgroundColor: {r:0, g:255, b:0, a:1} } );
-	//var sprite = MakeLabel( name, { fontsize: 32, backgroundColor: {r:0, g:255, b:0, a:1} } );
-	//editor.addObject( sprite );
-	//sprite.position = mesh.position;
-
 }
 
 function ShowLabelBySelected(editor)
@@ -337,8 +646,13 @@ function ClearAllLabels(editor)
 		{
 			editor.removeObject(child);
 		}
+		if(child && child['name'].length==0 && child.parent instanceof THREE.Scene)
+		{
+			editor.removeObject(child);
+		}
 	});		
 }
+
 
 function MakeLabel(text, parameters) {
 	if ( parameters === undefined ) parameters = {};

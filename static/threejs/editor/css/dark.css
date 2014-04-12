@@ -91,7 +91,7 @@ input.Number {
 	top: 0px;
 	left: 0px;
 	right: 0px;
-	bottom: 0px;
+	bottom: 43px;
 }
 
 #menubar {
@@ -184,20 +184,25 @@ input.Number {
 #toolbar {
 	position: absolute;
 	left: 0px;
-	right: 300px;
+	/*right: 300px;*/
 	bottom: 0px;
-	height: 32px;
-	background-color: #111;
-	color: #333;
+	height: 26px;
+	/*background-color: #111;*/
+	/*color: #333;*/
+	background: #000000;
+	color:#00FF00;
 }
 
 	#toolbar .Panel {
-		padding: 4px;
-		color: #888;
+		padding: 0px;
+		/*color: #888;*/
 	}
 
 	#toolbar button {
-		margin-right: 6px;
+		font-size: 1.1em;
+		background: #000000;
+		color:#00FF00;
+		/*margin-right: 6px;*/
 	}
 
 

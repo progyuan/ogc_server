@@ -253,22 +253,53 @@ Editor.prototype = {
 	//
 
 	select: function ( object ) {
-		if ( object instanceof THREE.Object3D && object.parent instanceof THREE.Scene && !(object instanceof THREE.Sprite || object instanceof THREE.HemisphereLight))
+		//console.log(object);
+		if(object && object['name'].length==0 &&  object.parent instanceof THREE.Scene)
+		//if(object instanceof Object &&  object.parent instanceof THREE.Scene)
+		{
+			//console.log('remove ' + object.id);
+			this.removeObject(object);
+		}
+		
+		if(object instanceof THREE.Sprite || object instanceof THREE.HemisphereLight)
+		{
+			this.selected = null;
+		}
+		if(object && object['userData'] && object['userData']['type'] && object['userData']['type'] == 'tower')
+		{
+			this.selected = null;
+		}
+		if ( object && object['userData'] && object['userData']['type'] && (object['userData']['type'] == 'contact_point' || object['userData']['type'] == 'line')  )
 		{
 			this.selected = object;
+			if(object['userData']['type'] == 'contact_point')
+			{
+				if(g_mode=='tower')
+				{
+					$('#div_contact_point_coords').css('display','block');
+					$('[id^="button_"]').css('display','none');
+				}
+			}
 	
 		}else
 		{
 			this.selected = null;
+			$('#div_contact_point_coords').css('display','none');
+			if(g_mode=='tower')
+			{
+				$('#button_add_cp').css('display','block');
+				$('#button_cp_side').css('display','block');
+			}
 		}
-		if ( this.selected !== null ) {
-
-			this.config.setKey( 'selected', this.selected.uuid );
-
-		} else {
-			this.config.setKey( 'selected', null );
-		}
-		this.signals.objectSelected.dispatch( this.selected );
+		//if ( this.selected !== null ) {
+			//this.config.setKey( 'selected', this.selected.uuid );
+		//} else {
+			//this.config.setKey( 'selected', null );
+		//}
+		//if(this.selected )
+		//{
+			this.signals.objectSelected.dispatch( this.selected );
+		//}
 	},
 
 	selectById: function ( id ) {

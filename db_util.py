@@ -8213,7 +8213,27 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                             if pt['side'] == u'正':
                                 o['side'] = 1
                             o['position'] = enc(pt['position'])
-                            o['contact_index'] = pt['contact_index']
+                            #o['contact_index'] = pt['contact_index']
+                            #if o['side'] == 0:
+                            if pt['position'] in [u'地左',u'地单']:
+                                o['contact_index'] = 0
+                            if pt['position'] == u'地右':
+                                o['contact_index'] = 1
+                            if pt['position'] in [ u'单回',u'左侧']:
+                                if pt['contact_index']==1:
+                                    o['contact_index'] = 2
+                                if pt['contact_index']==2:
+                                    o['contact_index'] = 3
+                                if pt['contact_index']==3:
+                                    o['contact_index'] = 4
+                            if pt['position'] in [ u'右侧']:
+                                if pt['contact_index']==1:
+                                    o['contact_index'] = 5
+                                if pt['contact_index']==2:
+                                    o['contact_index'] = 6
+                                if pt['contact_index']==3:
+                                    o['contact_index'] = 7
+                            
                             o['x'] = pt['offset_x']
                             o['y'] = pt['offset_z']
                             o['z'] = pt['offset_y']
@@ -8428,7 +8448,130 @@ def remove_mongo_id(obj):
         for i in obj:
             obj[obj.index(i)] = remove_mongo_id(i)
     return obj
-     
+
+
+def test_mongo_import_segments():
+    global gClientMongo
+    area = 'km'
+    lines = odbc_get_records('TABLE_LINE', '1=1', area)
+    l = []
+    mapping = get_tower_id_mapping()
+    for line in lines:
+        segs = gen_mongo_segments_by_line_id(line['id'], area,  mapping)
+        l.extend(segs)
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        if 'segments' in db.collection_names(False):
+            db.drop_collection('segments')
+        collection = db.create_collection('segments')
+        for i in l:
+            collection.save(i)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+
+def gen_mongo_segments_by_line_id(line_id, area, mapping): 
+    ret = []
+    towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
+    validlgtlat = None, None
+    prev, tower, nextt = None, None, None
+    for i in range(len(towers_sort)):
+        if i == 0:
+            if len(towers_sort)==1:
+                prev, tower, nextt = None, towers_sort[i], None
+            else:    
+                prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
+        elif i == len(towers_sort) - 1:
+            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
+        else:    
+            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
+        if tower and nextt:
+            segs = odbc_get_records('VIEW_CONTACT_SEGMENT', "start_tower_id='%s' AND end_tower_id='%s'" % (tower['id'],  nextt['id']), 'km')
+            obj = {}
+            for seg in segs:
+                if mapping.has_key(seg['start_tower_id']) and mapping.has_key(seg['end_tower_id']):
+                    side0 = 0
+                    #if seg['start_side'] == u'正':
+                        #side0 = 1
+                    side1 = 1
+                    #if seg['end_side'] == u'正':
+                        #side1 = 1
+                    if not obj.has_key('start_tower'):
+                        obj['start_tower'] = ObjectId(mapping[seg['start_tower_id']])
+                    if not obj.has_key('end_tower'):
+                        obj['end_tower'] = ObjectId(mapping[seg['end_tower_id']])
+                    if not obj.has_key('start_model_code'):
+                        obj['start_model_code'] = seg['start_model_code']
+                    if not obj.has_key('end_model_code'):
+                        obj['end_model_code'] = seg['end_model_code']
+                    if not obj.has_key('start_side'):
+                        obj['start_side'] = side0
+                    if not obj.has_key('end_side'):
+                        obj['end_side'] = side1
+                    if not obj.has_key('splitting'):
+                        obj['splitting'] = seg['splitting']
+                    if not obj.has_key('conductor_count'):
+                        obj['conductor_count'] = seg['conductor_count']
+                    if not obj.has_key('crosspoint_count'):
+                        obj['crosspoint_count'] = seg['crosspoint_count']
+                    if not obj.has_key('seperator_bar'):
+                        obj['seperator_bar'] = seg['seperator_bar']
+                    if not obj.has_key('connector_count'):
+                        obj['connector_count'] = seg['connector_count']
+                    if not obj.has_key('connector_type'):
+                        obj['connector_type'] = seg['connector_type']
+                    if not obj.has_key('contact_points'):
+                        obj['contact_points'] = []
+                    o = {}
+                    o['phase'] = seg['phase']
+                    #o['start_side'] = seg['start_side']
+                    #o['end_side'] = seg['end_side']
+                    if seg['start_position'] in [u'地左',u'地单']:
+                        o['start'] = 0
+                    if seg['start_position'] == u'地右':
+                        o['start'] = 1
+                    if seg['start_position'] in [ u'单回',u'左侧']:
+                        if seg['start_contact_index']==1:
+                            o['start'] = 2
+                        if seg['start_contact_index']==2:
+                            o['start'] = 3
+                        if seg['start_contact_index']==3:
+                            o['start'] = 4
+                    if seg['start_position'] in [ u'右侧']:
+                        if seg['start_contact_index']==1:
+                            o['start'] = 5
+                        if seg['start_contact_index']==2:
+                            o['start'] = 6
+                        if seg['start_contact_index']==3:
+                            o['start'] = 7
+                    if seg['end_position'] in [u'地左',u'地单']:
+                        o['end'] = 0
+                    if seg['end_position'] == u'地右':
+                        o['end'] = 1
+                    if seg['end_position'] in [ u'单回',u'左侧']:
+                        if seg['end_contact_index']==1:
+                            o['end'] = 2
+                        if seg['end_contact_index']==2:
+                            o['end'] = 3
+                        if seg['end_contact_index']==3:
+                            o['end'] = 4
+                    if seg['end_position'] in [ u'右侧']:
+                        if seg['end_contact_index']==1:
+                            o['end'] = 5
+                        if seg['end_contact_index']==2:
+                            o['end'] = 6
+                        if seg['end_contact_index']==3:
+                            o['end'] = 7
+                    obj['contact_points'].append(o)
+            if len(obj.keys())>0:
+                ret.append(obj)
+    return ret           
+            
+    
 def test_mongo_import_towers():
     global gClientMongo
     area = 'km'
@@ -8613,7 +8756,8 @@ if __name__=="__main__":
     #test_mongo_import_code()
     #test_build_tower_odbc_mongo_id_mapping()
     #test_build_line_odbc_mongo_id_mapping()
-    test_mongo_import_towers()
+    #test_mongo_import_towers()
+    test_mongo_import_segments()
     #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
     #print(ret)
     #print('count=%d' % len(ret))

@@ -151,15 +151,9 @@ var Viewport = function ( editor ) {
 		
 		if(editor.selected && editor.selected.name.indexOf('tower/')==-1)
 		{
-			//console.log(editor.selected.position.x);
-			//console.log(editor.selected.position.y);
-			//console.log(editor.selected.position.z);
-			if(window.parent)
-			{
-				$(window.parent.document).find('#contact_point_coords_x').spinner()[0].value = editor.selected.position.x.toFixed(2);
-				$(window.parent.document).find('#contact_point_coords_y').spinner()[0].value = editor.selected.position.y.toFixed(2);
-				$(window.parent.document).find('#contact_point_coords_z').spinner()[0].value = editor.selected.position.z.toFixed(2);
-			}
+			$('#contact_point_coords_x').spinner()[0].value = editor.selected.position.x.toFixed(2);
+			$('#contact_point_coords_y').spinner()[0].value = editor.selected.position.y.toFixed(2);
+			$('#contact_point_coords_z').spinner()[0].value = editor.selected.position.z.toFixed(2);
 		}
 		
 		document.removeEventListener( 'mouseup', onMouseUp );
