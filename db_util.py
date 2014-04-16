@@ -7279,12 +7279,12 @@ def convert_shp_to_geojson(area, bound, shp, piny):
             atr = {}
             for i in range(len(field_names)):
                 #atr[enc(dec(field_names[i]))] = enc(dec(sr.record[i]))
-                atr[enc(dec1(field_names[i]))] = enc(dec1(sr.record[i]))
+                atr[dec1(field_names[i])] = dec1(sr.record[i])
             atr['type'] = k
             atr['py'] = ''
             if atr.has_key('NAME') and len(dec(atr['NAME'].strip()))>0:
                 try:
-                    atr['py'] = enc(piny.hanzi2pinyin_first_letter(dec(atr['NAME'].strip())))
+                    atr['py'] = piny.hanzi2pinyin_first_letter(dec(atr['NAME'].strip()))
                 except:
                     pass
             #print('%s=%s' % (dec(atr['NAME']), atr['py']))
@@ -7303,8 +7303,7 @@ def convert_shp_to_geojson(area, bound, shp, piny):
         
         
         with open(fpath, "w") as f:
-            f.write(json.dumps({"type": "FeatureCollection", "features": buf},ensure_ascii=False, indent=4) + "\n")
-            #f.write(json.dumps({"type": "FeatureCollection", "features": buf},ensure_ascii=True))
+            f.write(enc(json.dumps({"type": "FeatureCollection", "features": buf},ensure_ascii=False, indent=4)) + "\n")
         #try:
             #p = os.path.join(JSONROOT, os.path.basename(fpath))
             #if os.path.exists(p):
@@ -7353,23 +7352,25 @@ def gen_geojson_by_tunnel_devices(area, piny):
         o['geometry']['coordinates'] = [tun['longitude'],  tun['latitude']]
         o['type'] = 'Feature'
         o['properties'] = {}
-        o['properties']['device_name'] = enc(tun['equip_name'])
+        o['properties']['device_name'] = tun['equip_name']
+        o['properties']['NAME'] = tun['equip_name']
         o['properties']['py'] = ''
         try:
-            o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(tun['equip_name'].replace('#','').replace('I',u'一').replace('II',u'二')))
+            o['properties']['py'] = piny.hanzi2pinyin_first_letter(tun['equip_name'].replace('#','').replace('I',u'一').replace('II',u'二'))
         except:
             pass
         for k in tun.keys():
             if isinstance(tun[k], unicode):
-                tun[k] = enc(tun[k])
+                #tun[k] = tun[k]
+                pass
             o['properties'][k] = tun[k]
         ret[tun['tunnel_id']]['features'].append(o)
         
     for k in ret.keys():    
-        s = json.dumps(ret[k], indent=4, ensure_ascii=True)
+        s = json.dumps(ret[k], indent=4, ensure_ascii=False)
         path = os.path.join(absroot, 'geojson_tunneldevice_%s_%s.json' % (area, k) )
         with open(path, 'w') as f:
-            f.write(s + '\n')
+            f.write(enc(s) + '\n')
     return ret
         
     
@@ -7407,20 +7408,22 @@ def gen_geojson_by_tunnels(area, piny):
             o['properties'] = {}
             
             
-            o['properties']['tunnel_name'] = enc(tuns[0]['tunnel_name'] + u' ' + sec['start_point'] + u'至' + sec['end_point'])
+            o['properties']['tunnel_name'] = tuns[0]['tunnel_name'] + u' ' + sec['start_point'] + u'至' + sec['end_point']
+            o['properties']['NAME'] = tuns[0]['tunnel_name'] + u' ' + sec['start_point'] + u'至' + sec['end_point']
             o['properties']['py'] = ''
             try:
-                o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(tuns[0]['tunnel_name'].replace('#','').replace('I',u'一').replace('II',u'二')))
+                o['properties']['py'] = piny.hanzi2pinyin_first_letter(tuns[0]['tunnel_name'].replace('#','').replace('II',u'二').replace('I',u'一'))
             except:
                 pass
             for k in sec.keys():
                 if isinstance(sec[k], unicode):
-                    sec[k] = enc(sec[k])
+                    #sec[k] = enc(sec[k])
+                    pass
                 o['properties'][k] = sec[k]
             tunnel_obj['features'].append(o)
-            s = json.dumps(tunnel_obj, indent=4, ensure_ascii=True)
+            s = json.dumps(tunnel_obj, indent=4, ensure_ascii=False)
             with open(path, 'w') as f:
-                f.write(s + '\n')
+                f.write(enc(s) + '\n')
             ret[sec['ts_id']] = tunnel_obj
     return ret
                 
@@ -7449,12 +7452,12 @@ def gen_geojson_by_potential_risk(area, piny):
         o['geometry']['coordinates'] = [x, y]
         o['type'] = 'Feature'
         o['properties'] = {}
-        o['properties']['type'] = enc(rec['risk_type'])
-        o['properties']['NAME'] = enc(rec['risk_info'])
-        o['properties']['tip'] = enc(u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], ))
+        o['properties']['type'] = rec['risk_type']
+        o['properties']['NAME'] = rec['risk_info']
+        o['properties']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
         o['properties']['py'] = ''
         try:
-            o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('I',u'一').replace('II',u'二')))
+            o['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('I',u'一').replace('II',u'二'))
             #print(o['properties']['py'])
         except:
             print(sys.exc_info()[1])
@@ -7462,7 +7465,7 @@ def gen_geojson_by_potential_risk(area, piny):
     
     with open(path, 'w') as f:
         #s = json.dumps(obj)
-        f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+        f.write(enc(json.dumps(obj, ensure_ascii=False, indent=4)) + '\n')
     #try:
         #p = os.path.join(JSONROOT, os.path.basename(path))
         #if os.path.exists(p):
@@ -7513,12 +7516,13 @@ def gen_geojson_by_line_id(line_id, area, piny):
     
     for k in line.keys():
         if isinstance(line[k], unicode):
-            line[k] = enc(line[k])
+            #line[k] = line[k]
+            pass
         if k=='line_name':
             o['properties']['NAME'] = line[k]
             o['properties']['py'] = ''
             try:
-                o['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(dec(line[k]).replace('#','').replace('I',u'一').replace('II',u'二')))
+                o['properties']['py'] = piny.hanzi2pinyin_first_letter(line[k].replace('#','').replace('I',u'一').replace('II',u'二'))
             except:
                 pass
         o['properties'][k] = line[k]
@@ -7541,12 +7545,13 @@ def gen_geojson_by_line_id(line_id, area, piny):
         tower_obj['properties'] = {}
         for k in tower.keys():
             if isinstance(tower[k], unicode):
-                tower[k] = enc(tower[k])
+                #tower[k] = tower[k]
+                pass
             if k=='tower_name':
                 tower_obj['properties']['NAME'] = tower[k]
                 tower_obj['properties']['py'] = ''
                 try:
-                    tower_obj['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(dec(tower[k]).replace('#','').replace('I',u'一').replace('II',u'二')))
+                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('I',u'一').replace('II',u'二'))
                 except:
                     pass
             tower_obj['properties'][k] = tower[k]
@@ -7555,9 +7560,9 @@ def gen_geojson_by_line_id(line_id, area, piny):
     
     line_obj['features'].append(o)    
     with open(linepath, 'w') as f:
-        f.write(json.dumps(line_obj, ensure_ascii=False, indent=4) + '\n')
+        f.write(enc(json.dumps(line_obj, ensure_ascii=False, indent=4) + '\n'))
     with open(towerspath, 'w') as f:
-        f.write(json.dumps(towers_obj, ensure_ascii=False, indent=4) + '\n')
+        f.write(enc(json.dumps(towers_obj, ensure_ascii=False, indent=4) + '\n'))
     #try:
         #p = os.path.join(JSONROOT, os.path.basename(linepath))
         #if os.path.exists(p):
@@ -7987,7 +7992,7 @@ def gen_boundry_by_list(datadir, tunnelname, data = {}):
             obj['lnglat']['maxx'] = env['maxx']
             obj['lnglat']['maxy'] = env['maxy']
             with open(path, 'w') as f:
-                f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+                f.write(enc(json.dumps(obj, ensure_ascii=False, indent=4)) + '\n')
     
     
     
@@ -8023,7 +8028,7 @@ def gen_geojson_by_list(datadir, tunnelname, data = {}):
                 obj['features'].append(o)
             
         with open(path, 'w') as f:
-            f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+            f.write(enc(json.dumps(obj, ensure_ascii=False, indent=4)) + '\n')
                 
 def gen_tunnel_data_json():
     gen_tunnel_data_json_from_xls(u'羊甫隧道')
@@ -8123,7 +8128,7 @@ def gen_tunnel_data_json_from_xls(tname):
       
     jsonpath = ur'F:\work\cpp\kmgdgis3D\data\blend\%s.json' % tname
     with open(jsonpath, 'w+') as f:
-        f.write(json.dumps(obj, ensure_ascii=True, indent=4) + '\n')
+        f.write(enc(json.dumps(obj, ensure_ascii=False, indent=4)) + '\n')
 
         
     
@@ -8170,7 +8175,8 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
         tower_obj['properties'] = {}
         for k in tower.keys():
             if isinstance(tower[k], unicode):
-                tower[k] = enc(tower[k])
+                #tower[k] = tower[k]
+                pass
             if k=='line_id':
                 #if not tower_obj['properties'].has_key('line_id'):
                     #tower_obj['properties']['line_id'] = []
@@ -8193,7 +8199,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 tower_obj['properties'][k] = tower[k]
                 tower_obj['properties']['py'] = ''
                 try:
-                    tower_obj['properties']['py'] = enc(piny.hanzi2pinyin_first_letter(dec(tower[k]).replace('#','').replace('I',u'一').replace('II',u'二')))
+                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('I',u'一').replace('II',u'二'))
                 except:
                     pass
             elif k=='geo_x' or k=='geo_y':
@@ -8212,7 +8218,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                             o['side'] = 0
                             if pt['side'] == u'正':
                                 o['side'] = 1
-                            o['position'] = enc(pt['position'])
+                            o['position'] = pt['position']
                             #o['contact_index'] = pt['contact_index']
                             #if o['side'] == 0:
                             if pt['position'] in [u'地左',u'地单']:
@@ -8267,38 +8273,36 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 o['assembly_graph'] = ''
                 o['manufacturer'] = ''
                 o['model'] = ''
-                o['type'] = enc(u'未知')
-                #if attach['manufacturer']:
-                    #o['manufacturer'] = enc(attach['manufacturer'])
+                o['type'] = u'未知'
                 if attach['attach_type'] == u'防振锤':
-                    o['type'] = enc(u'防振锤')
+                    o['type'] = u'防振锤'
                     o['side'] = ''
                     if attach['attach_subtype']:
-                        o['side'] = enc(attach['attach_subtype'])
+                        o['side'] = attach['attach_subtype']
                     o['count'] = attach['strand']
                     o['distance'] = attach['value1']
                 elif attach['attach_type'] == u'绝缘子串':
-                    o['type'] = enc(u'绝缘子串')
+                    o['type'] = u'绝缘子串'
                     o['insulator_type'] = ''
                     if attach['attach_subtype']:
-                        o['insulator_type'] = enc(attach['attach_subtype'])
+                        o['insulator_type'] = attach['attach_subtype']
                     o['model'] = ''
                     if attach['specification']:
-                        o['model'] = enc(attach['specification'])
+                        o['model'] = attach['specification']
                     o['material'] = ''
                     if attach['material']:
-                        o['material'] = enc(attach['material'])
+                        o['material'] = attach['material']
                     o['strand'] = attach['strand']
                     o['slice'] = attach['slice']
                 elif attach['attach_type'] == u'接地装置':
-                    o['type'] = enc(u'接地装置')
+                    o['type'] = u'接地装置'
                     o['model'] = ''
                     if attach['specification']:
-                        o['model'] = enc(attach['specification'])
+                        o['model'] = attach['specification']
                     o['count'] = attach['strand']
                     o['depth'] = attach['value1']
                 elif attach['attach_type'] == u'基础':
-                    o['type'] = enc(u'铁塔')
+                    o['type'] = u'铁塔'
                     o['model'] = ''
                     o['platform_model'] = ''
                     o['anchor_model'] = ''
@@ -8314,42 +8318,42 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 o['assembly_graph'] = ''
                 o['manufacturer'] = ''
                 o['model'] = ''
-                o['type'] = enc(u'未知')
+                o['type'] = u'未知'
                 if attach['manufacturer']:
-                    o['manufacturer'] = enc(attach['manufacturer'])
+                    o['manufacturer'] = attach['manufacturer']
                 if attach['attach_name'] == u'接地装置':
-                    o['type'] = enc(u'接地装置')
+                    o['type'] = u'接地装置'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
+                        o['model'] = attach['series']
                     o['count'] = attach['int_value1']
                     o['depth'] = attach['float_value1']
                 elif u'计数器' in attach['attach_name'] :
-                    o['type'] = enc(u'雷电计数器')
+                    o['type'] = u'雷电计数器'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
+                        o['model'] = attach['series']
                     o['counter'] = attach['int_value1']
                 elif u'防鸟刺' in attach['attach_name'] :
-                    o['type'] = enc(u'防鸟刺')
+                    o['type'] = u'防鸟刺'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
+                        o['model'] = attach['series']
                     o['count'] = attach['int_value1']
                 elif u'在线监测装置' in attach['attach_name'] :
-                    o['type'] = enc(u'在线监测装置')
+                    o['type'] = u'在线监测装置'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
+                        o['model'] = attach['series']
                     o['count'] = attach['int_value1']
                 elif attach['attach_name'] == u'基础':
-                    o['type'] = enc(u'基础')
+                    o['type'] = u'基础'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
-                    o['platform_model'] = enc(u'铁塔')
+                        o['model'] = attach['series']
+                    o['platform_model'] = u'铁塔'
                     o['anchor_model'] = ''
                     o['count'] = attach['int_value1']
                     o['depth'] = attach['float_value1']
                 elif attach['attach_name'] == u'拉线':
-                    o['type'] = enc(u'拉线')
+                    o['type'] = u'拉线'
                     if attach['series']:
-                        o['model'] = enc(attach['series'])
+                        o['model'] = attach['series']
                     o['count'] = attach['int_value1']
                 tower_obj['properties']['metals'].append(o)
             

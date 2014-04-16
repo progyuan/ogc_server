@@ -4,12 +4,15 @@ var g_editor;
 var g_mode;
 var g_is_add_seg = false;
 var g_cp_pair = [];
+var g_contact_points;
+var g_segments = [];
 $(function() {
 
 	var param = GetParamsFromUrl();
 	if(param['url_next'])
 	{
 		g_mode = 'segs';
+		g_segments = param['segments'];
 	}else
 	{
 		g_mode = 'tower';
@@ -96,35 +99,30 @@ $(function() {
 	var OnSelected = function(obj)
 	{
 		ShowLabelBySelected(editor);
-		if(window.parent)
+		if(g_mode == 'tower')
 		{
-			if(g_mode == 'tower')
+			$('[id^="button_"]').css('display','none');
+			if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 			{
-				//if(obj && obj.name.indexOf('tower/')==-1)
-				//{
-					//$(window.parent.document).find('#title_contact_point').html(obj.name);
-					//$(window.parent.document).find('#contact_point_coords').css('display','inline-block');
-					
-					//$(window.parent.document).find('#contact_point_coords_x').spinner()[0].value = obj.position.x.toFixed(2);
-					//$(window.parent.document).find('#contact_point_coords_y').spinner()[0].value = obj.position.y.toFixed(2);
-					//$(window.parent.document).find('#contact_point_coords_z').spinner()[0].value = obj.position.z.toFixed(2);
-				//}
-				//else
-				//{
-					//$(window.parent.document).find('#contact_point_coords').css('display','none');
-				//}
+				$('#div_contact_point_coords').css('display','block');
+			}else
+			{
+				$('#div_contact_point_coords').css('display','none');
+				$('#button_add_cp').css('display','block');
+				$('#button_cp_side').css('display','block');
 			}
-			if(g_mode == 'segs')
+		}
+		if(g_mode == 'segs')
+		{
+			if(g_is_add_seg)
 			{
-				if(g_is_add_seg)
+				if(g_cp_pair.length == 2)
 				{
-					if(g_cp_pair.length == 2)
-					{
-						//$(window.parent.document).find('#title_contact_point')
-					}
+					//$(window.parent.document).find('#title_contact_point')
 				}
 			}
 		}
+		
 	};
 	
 	editor.signals.objectSelected.add( OnSelected );
@@ -218,11 +216,13 @@ $(function() {
 					{
 						if(param['data_next'].length==1)
 						{
-							DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], 0, off_z);
+							//DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], 0, off_z);
+							DrawSegments(editor,  param['data'], param['data_next'], 0, off_z);
 						}
 						if(param['data_next'].length==2)
 						{
-							DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], off_x, off_z);
+							//DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], off_x, off_z);
+							DrawSegments(editor,  param['data'], param['data_next'], off_x, off_z);
 						}
 					}
 					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
@@ -239,6 +239,7 @@ $(function() {
 		}
 		if(param['data'])
 		{
+			g_contact_points =  param['data']['contact_points'];
 			LoadContactPoint(editor, param['data'], [0, 0, 0]);
 		}
 	}
@@ -252,6 +253,10 @@ $(function() {
 		$('#button_add_cp').button();
 		$('#button_add_cp').on('click', function() {
 			AddContactPoint();
+		});
+		$('#button_del_cp').button();
+		$('#button_del_cp').on('click', function() {
+			DelContactPoint();
 		});
 		$('#button_cp_side').buttonset();
 		
@@ -322,6 +327,10 @@ $(function() {
 		$('#button_add_seg').css('display','block');
 		$('#button_phase').css('display','block');
 		$('#button_del_seg').button();
+		$('#button_del_seg').on('click', function() {
+			DeleteSegment();
+		});
+		
 		$('#checkbox_add_segment').button();
 		$('#checkbox_add_segment').on('click', function() {
 			g_is_add_seg = !g_is_add_seg;
@@ -347,6 +356,34 @@ function AddContactPoint()
 	var obj = $("#button_cp_side :radio:checked").attr('id');
 	console.log(obj);
 }
+function DelContactPoint()
+{
+	var obj = g_editor.selected;
+	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
+	{
+		console.log(obj['userData']['data']);
+		$('#dlg_delete_cp').dialog({
+			title:'你确定要删除此挂线点吗?',
+			closeOnEscape: true,
+			modal:true,
+			draggable:true,
+			width:400,
+			height:250,
+			buttons: [ 
+				{  	text: "确定", 
+					click: function() { 
+						console.log('ok'); 
+					}
+				},
+				{	text: "取消", 
+					click: function() { 
+						$( this ).dialog( "close" ); 
+					} 
+				}]
+		});
+	}
+}
+
 function DeleteSegment()
 {
 	$('#dlg_delete_segment').dialog({
@@ -354,8 +391,8 @@ function DeleteSegment()
 		closeOnEscape: true,
 		modal:true,
 		draggable:true,
-		width:500,
-		height:300,
+		width:400,
+		height:250,
 		buttons: [ 
 			{  	text: "确定", 
 				click: function() { 
@@ -406,54 +443,55 @@ function GetDrawInfoFromContactPoint(side, idx, data, offset_x, offset_z)
 	}
 	return ret;
 }
-function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, offset_z)
+//function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, offset_z)
+function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 {
-	for(var i in next_ids)
+	//for(var i in next_ids)
+	//{
+		//var next = next_ids[i];
+	for(var j in g_segments)
 	{
-		var next = next_ids[i];
-		for(var j in window.parent.g_segments)
+		var seg = g_segments[j];
+		//if(seg['start_tower'] == tower_id && seg['end_tower'] == next)
+		//{
+		for(var k in seg['contact_points'])
 		{
-			var seg = window.parent.g_segments[j];
-			if(seg['start_tower'] == tower_id && seg['end_tower'] == next)
+			var cp = seg['contact_points'][k];
+			var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+			var end, end1, end2;
+			if(data_next.length==1)
 			{
-				for(var k in seg['contact_points'])
-				{
-					var cp = seg['contact_points'][k];
-					var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
-					var end, end1, end2;
-					if(data_next.length==1)
-					{
-						end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
-					}
-					if(data_next.length==2)
-					{
-						end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
-						end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
-					}
-					var color = 0x000000;
-					if(cp['phase'] == 'A')
-						color = 0xFFFF00;
-					if(cp['phase'] == 'B')
-						color = 0xFF0000;
-					if(cp['phase'] == 'C')
-						color = 0x00FF00;
-					if(cp['phase'] == 'L')
-						color = 0x000000;
-					if(cp['phase'] == 'R')
-						color = 0x000000;
-					//console.log(start);
-					//console.log(end);
-					if(end)
-						DrawLine(editor, start, end, color, seg, cp);
-					if(end1)
-						DrawLine(editor, start, end1, color, seg, cp);
-					if(end2)
-						DrawLine(editor, start, end2, color, seg, cp);
-				}
-				break;
+				end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
 			}
+			if(data_next.length==2)
+			{
+				end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
+				end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
+			}
+			var color = 0x000000;
+			if(cp['phase'] == 'A')
+				color = 0xFFFF00;
+			if(cp['phase'] == 'B')
+				color = 0xFF0000;
+			if(cp['phase'] == 'C')
+				color = 0x00FF00;
+			if(cp['phase'] == 'L')
+				color = 0x000000;
+			if(cp['phase'] == 'R')
+				color = 0x000000;
+			//console.log(start);
+			//console.log(end);
+			if(end)
+				DrawLine(editor, start, end, color, seg, cp);
+			if(end1)
+				DrawLine(editor, start, end1, color, seg, cp);
+			if(end2)
+				DrawLine(editor, start, end2, color, seg, cp);
 		}
+			//break;
+		//}
 	}
+	//}
 }
 
 function DrawLine(editor, start, end, color, seg, cp)

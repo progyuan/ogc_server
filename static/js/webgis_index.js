@@ -874,6 +874,7 @@ function ShowTowerInfo(viewer, tower)
 					obj['tower_id'] = tower['_id'];
 					obj['next_ids'] = tower['properties']['next_ids'];
 					obj['data_next'] = GetNextTowerModelData(tower['properties']['next_ids']);
+					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], tower['properties']['next_ids']);
 					//obj['denomi_height'] = tower['properties']['denomi_height'];
 					//$('#title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + tower['properties']['denomi_height']);
 					var json = encodeURIComponent(JSON.stringify(obj));
@@ -1204,7 +1205,24 @@ function ShowTowerInfo(viewer, tower)
 	});
 }
 
-
+function GetSegmentsByTowerStartEnd(start_id, end_ids)
+{
+	var ret = [];
+	for(var i in end_ids)
+	{
+		var end_id = end_ids[i];
+		for(var j in g_segments)
+		{
+			var seg = g_segments[j];
+			if(seg['start_tower'] == start_id && seg['end_tower'] == end_id)
+			{
+				ret.push(seg);
+				break;
+			}
+		}
+	}
+	return ret;
+}
 
 function GetProjectNameByTowerId(id)
 {

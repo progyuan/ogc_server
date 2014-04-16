@@ -936,9 +936,6 @@ def handle_test(Env, Start_response):
     d = cgi.parse(None, Env)
     print(d)
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
-    #if d.has_key('id') :
-        #obj = TEST_DATA[d['id'][0]]
-    #s = json.dumps(obj, ensure_ascii=False)
     print(s)
     return [s]
     
@@ -982,10 +979,10 @@ def handle_get_method(Env, Start_response):
     if d.has_key('geojson'):
         if d['geojson'][0]=='line_towers':
             data = db_util.gen_geojson_by_lines(area)
-            s = json.dumps(data, ensure_ascii=True)        
+            s = json.dumps(data, ensure_ascii=True, indent=4)        
         elif d['geojson'][0]=='tracks':
             data = db_util.gen_geojson_tracks(area)
-            s = json.dumps(data, ensure_ascii=True)        
+            s = json.dumps(data, ensure_ascii=True, indent=4)        
         else:
             k = d['geojson'][0]
             p = os.path.abspath(STATICRESOURCE_DIR)
@@ -1026,7 +1023,7 @@ def handle_get_method(Env, Start_response):
                 
         if isgrid:
             data = {'Rows':data}
-        s = json.dumps(data, ensure_ascii=True)
+        s = json.dumps(data, ensure_ascii=True, indent=4)
         
     if d.has_key('check_file'):
         fn = dec(d['check_file'][0])
@@ -1045,7 +1042,7 @@ def handle_get_method(Env, Start_response):
                 ret["result"]["exist"] = "true"
             else:
                 ret["result"]["exist"] = "false"
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
     if d.has_key('delete_file'):
         fn = dec(d['delete_file'][0])
         dir_name = dec(d['dir_name'][0])
@@ -1071,7 +1068,7 @@ def handle_get_method(Env, Start_response):
                 ret["result"]["removed"] = "true"
             else:
                 ret["result"]["removed"] = "false"
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
     if d.has_key('list_file_dir_name'):
         dir_name = dec(d['list_file_dir_name'][0])
         del d['list_file_dir_name']
@@ -1083,12 +1080,12 @@ def handle_get_method(Env, Start_response):
             ret["result"]["files"] = l
         else:
             ret["result"]["files"] = []
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
     if d.has_key('get_voice_files'):
         get_voice_files = d['get_voice_files'][0]
         ret["result"] = {}
         ret["result"]["ids"] = get_voice_file_all()
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
     if d.has_key('op'):
         op = d['op'][0]
         del d['op']
@@ -1099,15 +1096,17 @@ def handle_get_method(Env, Start_response):
             del d['port']
             ret["result"] = {}
             ret["result"]["data"] = db_util.mongodb_get_server_tree(host, port)
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
         
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
     if len(ret.keys())==0:
         ret["result"] = "ok"
     if len(s)==0:
-        s = json.dumps(ret, ensure_ascii=True)
+        s = json.dumps(ret, ensure_ascii=True, indent=4)
     #return [str(current_process().pid) + '_' + s]
     #time.sleep(5.5)
+    #return [urllib.quote(enc(s))]
+    #print(s)
     return [s]
 
 def create_voice_dir():
@@ -1269,7 +1268,7 @@ def handle_post_method(Env, Start_response):
     get_extext = False
     try:
         ds_plus = urllib.unquote_plus(buf)
-        obj = json.loads(ds_plus)
+        obj = json.loads(dec(ds_plus))
         if obj.has_key(u'db') and obj.has_key(u'collection'):
             is_mongo = True
             dbname = obj[u'db']
@@ -1293,7 +1292,7 @@ def handle_post_method(Env, Start_response):
                 ret = l
             elif isinstance(l, czml.CZML):
                 Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
-                return [urllib.quote(l.dumps()),]
+                return [enc(l.dumps()),]
             else:
                 ret["result"] = "%s.%s return 0 record" % (dbname, collection)
         else:
@@ -1337,7 +1336,8 @@ def handle_post_method(Env, Start_response):
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
     #time.sleep(6)
     #print(ret)
-    return [urllib.quote(json.dumps(ret))]
+    #return [urllib.quote(enc(json.dumps(ret)))]
+    return [json.dumps(ret, ensure_ascii=True, indent=4)]
 
 def handle_thunder_soap(obj):
     ret = {}

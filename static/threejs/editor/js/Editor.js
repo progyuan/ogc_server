@@ -272,24 +272,10 @@ Editor.prototype = {
 		if ( object && object['userData'] && object['userData']['type'] && (object['userData']['type'] == 'contact_point' || object['userData']['type'] == 'line')  )
 		{
 			this.selected = object;
-			if(object['userData']['type'] == 'contact_point')
-			{
-				if(g_mode=='tower')
-				{
-					$('#div_contact_point_coords').css('display','block');
-					$('[id^="button_"]').css('display','none');
-				}
-			}
 	
 		}else
 		{
 			this.selected = null;
-			$('#div_contact_point_coords').css('display','none');
-			if(g_mode=='tower')
-			{
-				$('#button_add_cp').css('display','block');
-				$('#button_cp_side').css('display','block');
-			}
 		}
 		//if ( this.selected !== null ) {
 			//this.config.setKey( 'selected', this.selected.uuid );
