@@ -11,8 +11,37 @@ var g_gltf_models = {};
 var g_dlg_tower_info;
 var g_contextmenu_metal;
 var g_selected_metal_item;
-$(function() {
+var g_polylines_segments = [];
+var g_use_catenary = true;
+var g_phase_color_mapping = {
+	'A':'#FFFF00',
+	'B':'#FF0000',
+	'C':'#00FF00',
+	'G':'#000000',
+	'G1':'#000000'
+};
+var g_tower_baseinfo_fields = [
+	{ name: "_id", type: "hidden" },
+	//地理信息
+	{ display: "经度", name: "tower_baseinfo_lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true}},
+	{ display: "纬度", name: "tower_baseinfo_lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true}},
+	{ display: "海拔(米)", name: "tower_baseinfo_alt", newline: true, type: "spinner", step:0.01, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true}},
+	//信息
+	{ display: "名称", name: "tower_baseinfo_tower_name", newline: true,  type: "text", group:'信息', width:330, validate:{required:true} },
+	{ display: "代码", name: "tower_baseinfo_tower_code", newline: true,  type: "text", group:'信息', width:330 },
+	{ display: "塔型", name: "tower_baseinfo_model_code", newline: false,  type: "text", group:'信息', width:100 },
+	{ display: "呼称高", name: "tower_baseinfo_denomi_height", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'信息', width:90 },
+	//电气
+	{ display: "接地电阻", name: "tower_baseinfo_grnd_resistance", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'电气', width:300 },
+	//土木
+	{ display: "水平档距", name: "tower_baseinfo_horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85 },
+	{ display: "垂直档距", name: "tower_baseinfo_vertical_span", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85 },
+	//工程
+	{ display: "所属工程", name: "tower_baseinfo_project", newline: true,  type: "text", group:'工程', width:330 }
+];
 
+
+$(function() {
 	var providerViewModels = [];
 	//providerViewModels.push(new Cesium.ImageryProviderViewModel({
 				//name : 'OSM卫星图',
@@ -142,7 +171,7 @@ $(function() {
 		//console.log(obj);
 		
 	//});
-	
+	ValidateForm('form_tower_info_base', g_tower_baseinfo_fields);
 });
 
 function CreateTowerCzmlFromGeojson(geojson)
@@ -671,6 +700,7 @@ function TowerInfoMixin(viewer)
 			if(tower)
 			{
 				ShowTowerInfo(viewer, tower);
+				DrawSegmentsByTowerId(viewer.scene, id);
 			}
 		}
 		else{
@@ -807,10 +837,222 @@ function TowerInfoMixin(viewer)
 	});
 }
 
+function GetNeighborTowers(ids)
+{
+	var ret = [];
+	for(var j in ids)
+	{
+		var id = ids[j];
+		for(var i in g_geojson_towers['features'])
+		{
+			var tower = g_geojson_towers['features'][i];
+			if(tower['_id'] == id)
+			{
+				ret.push(tower);
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+function GetSegmentPairsByTowTowerId(id0, id1)
+{
+	var ret = [];
+	for(var i in g_segments)
+	{
+		var seg = g_segments[i];
+		if(seg['start_tower'] == id0 && seg['end_tower'] == id1)
+		{
+			ret = seg['contact_points'];
+			break;
+		}
+	}
+	return ret;
+}
+
+function GetPhaseColor(phase)
+{
+	var ret = '#000000';
+	if(g_phase_color_mapping[phase])
+	{
+		ret = g_phase_color_mapping[phase];
+	}
+	return ret;
+}
+
+function GetContactPointByIndex(tower, side, index)
+{
+	var ret = null;
+	for(var i in tower['properties']['model']['contact_points'])
+	{
+		var cp = tower['properties']['model']['contact_points'][i];
+		if(cp['side'] == side && cp['contact_index'] == index)
+		{
+			ret = cp;
+			break;
+		}
+	}
+	return ret;
+}
+
+function CheckSegmentsExist(tower0, tower1)
+{
+	var ret = false;
+	for(var i in g_polylines_segments)
+	{
+		var seg = g_polylines_segments[i];
+		if(
+			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
+		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
+		){
+			ret = true;
+			break;
+		}
+	}
+	return ret;
+}
+function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
+{
+	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
+	{
+		var ellipsoid = scene.primitives.centralBody.ellipsoid;
+		var lng0 = tower0['geometry']['coordinates'][0],
+			lat0 = tower0['geometry']['coordinates'][1],
+			height0 = tower0['properties']['geo_z'],
+			rotate0 = Cesium.Math.toRadians(tower0['properties']['rotate'] - 90),
+			lng1 = tower1['geometry']['coordinates'][0],
+			lat1 = tower1['geometry']['coordinates'][1],
+			height1 = tower1['properties']['geo_z'],
+			rotate1 = Cesium.Math.toRadians(tower1['properties']['rotate'] - 90);
+			
+		var cart3_0 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(lng0, lat0, height0));
+		var	modelMatrix_0 = Cesium.Transforms.eastNorthUpToFixedFrame(cart3_0);
+		var	quat_0 = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, rotate0);
+		var	rot_mat3_0 = Cesium.Matrix3.fromQuaternion(quat_0);
+		
+		var cart3_1 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(lng1, lat1, height1));
+		var	modelMatrix_1 = Cesium.Transforms.eastNorthUpToFixedFrame(cart3_1);
+		var	quat_1 = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, rotate1);
+		var	rot_mat3_1 = Cesium.Matrix3.fromQuaternion(quat_1);
+		
+		var segpairs = GetSegmentPairsByTowTowerId(tower0['_id'], tower1['_id']);
+		
+		//var mat4 = Cesium.Matrix4.fromRotationTranslation(rot_mat3_0, Cesium.Cartesian3.ZERO);
+		//mat4 = Cesium.Matrix4.multiplyByTranslation(mat4, cart3_0);
+		//var m = Cesium.Matrix4.multiplyTransformation(modelMatrix_0, mat4);
+		
+		
+		var polylines = new Cesium.PolylineCollection({'modelMatrix':Cesium.Matrix4.IDENTITY});
+		for(var i in segpairs)
+		{
+			var pair = segpairs[i];
+			var cp0 = GetContactPointByIndex(tower0, 0, pair['start']);
+			var	cp1 = GetContactPointByIndex(tower1, 1, pair['end']);
+			var color = Cesium.Color.fromCssColorString(GetPhaseColor(pair['phase']));
+			if(cp0 && cp1)
+			{
+				var tran_vec3_0 = new Cesium.Cartesian3(cp0['x'], cp0['z'], cp0['y']);
+				var mat4_0 = Cesium.Matrix4.fromRotationTranslation(rot_mat3_0, Cesium.Cartesian3.ZERO);
+				mat4_0 = Cesium.Matrix4.multiplyByTranslation(mat4_0, tran_vec3_0);
+				var m_0 = Cesium.Matrix4.multiplyTransformation(modelMatrix_0, mat4_0);
+				
+				
+				var tran_vec3_1 = new Cesium.Cartesian3(cp1['x'], cp1['z'], cp1['y']);
+				var mat4_1 = Cesium.Matrix4.fromRotationTranslation(rot_mat3_1, Cesium.Cartesian3.ZERO);
+				mat4_1 = Cesium.Matrix4.multiplyByTranslation(mat4_1, tran_vec3_1);
+				var m_1 = Cesium.Matrix4.multiplyTransformation(modelMatrix_1, mat4_1);
+
+				var p0 = Cesium.Matrix4.getTranslation(m_0),
+					p1 = Cesium.Matrix4.getTranslation(m_1);
+				//var p0 = tran_vec3_0,
+					//p1 = tran_vec3_1;
+				
+				var positions = CalcCatenary(ellipsoid, p0, p1, 15);
+				var polyline = polylines.add({
+					positions : positions,
+					material : Cesium.Material.fromType('Color', {
+						color : color
+					}),
+					width : 1.0
+				});
+			}
+		}
+		//polylines.modelMatrix = m;
+		scene.primitives.add(polylines);
+		g_polylines_segments.push({'start':tower0['_id'], 'end':tower1['_id']});
+	}
+	
+}
+
+function CalcCatenary(ellipsoid, p0, p1, segnum)
+{
+	var ret = [];
+	if(g_use_catenary)
+	{
+		//var l = MathLib.sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y));
+		//var h = p1.z - p0.z;
+		//var step = l/segnum;
+		//var dx = (p1.x-p0.x)/segnum,
+			//dy = (p1.y-p0.y)/segnum;
+		
+		//for(var i=0; i<=segnum; i++)
+		//{
+			//var z = get_z(l, h, p0.z, i*step, 0.7, 0.001);
+			//var p = new Cesium.Cartesian3(p0.x + i * dx,  p0.y + i * dy,  z);
+			//ret.push(p);
+		//}
+		var carto0 = ellipsoid.cartesianToCartographic(p0);
+		var carto1 = ellipsoid.cartesianToCartographic(p1);
+		//var l = MathLib.sqrt((carto0.longitude-carto1.longitude)*(carto0.longitude-carto1.longitude) + (carto0.latitude-carto1.latitude)*(carto0.latitude-carto1.latitude));
+		var l = MathLib.sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y));
+		var h = carto1.height - carto0.height;
+		var step = l/segnum;
+		var dx = (carto1.longitude-carto0.longitude)/segnum,
+			dy = (carto1.latitude-carto0.latitude)/segnum;
+		
+		for(var i=0; i<=segnum; i++)
+		{
+			var z = get_z(l, h, carto0.height, i*step, 0.9, 0.001);
+			var carto = new Cesium.Cartographic(carto0.longitude + i * dx,  carto0.latitude + i * dy,  z);
+			var p = ellipsoid.cartographicToCartesian(carto);
+			ret.push(p);
+		}
+	}else
+	{
+		ret = [	p0,
+				p1
+			];
+	}
+	return ret;
+}
+function DrawSegmentsByTowerId(scene, id)
+{
+	var tower = GetTowerInfoByTowerId(id);
+	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
+	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	for(var i in prev_towers)
+	{
+		var t = prev_towers[i];
+		DrawSegmentsBetweenTowTower(scene, t, tower);
+	}
+	for(var i in next_towers)
+	{
+		var t = next_towers[i];
+		DrawSegmentsBetweenTowTower(scene, tower, t);
+	}
+
+}
+
 function ShowTowerInfo(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
 	//console.log($(infoBox.container).position());
+	var title = '';
+	if(tower)
+	{
+		title = tower['properties']['tower_name'];
+	}
 	$('#dlg_tower_info').dialog({
 		width: 600,
 		height: 730,
@@ -820,7 +1062,7 @@ function ShowTowerInfo(viewer, tower)
 		resizable: true, 
 		modal: false,
 		position:{at: "right center"},
-		title:tower['properties']['tower_name'],
+		title:title,
 		buttons:[
 			{ 	text: "保存", 
 				click: function(){ 
@@ -885,66 +1127,79 @@ function ShowTowerInfo(viewer, tower)
 		//threejs/editor/index.html
 	});
 		
-	var form_tower_info_base = $("#form_tower_info_base").ligerForm({
-		inputWidth: 120, labelWidth: 95, space: 10,
-		validate : true,
-		//fields:		BuildFormFieldTowerBaseInfo()
+	//var form_tower_info_base = $("#form_tower_info_base").ligerForm({
+		//inputWidth: 120, 
+		//labelWidth: 95, 
+		//space: 10,
+		//validate : true,
 		//fields: [
-		//{ name: "ProductID", type: "hidden" }, 
-		//{ display: "日期 ", name: "AddTime", newline: true, type: "date" ,validate:{required:true,minlength:5} },
-		//{ display: "折扣", name: "QuantityPerUnit", newline: true, width:70, type: "number",validate:{required:true,minlength:5} },
-		//{ display: "单价", name: "UnitPrice", newline: true,  type: "number",validate:{required:true,minlength:5} },
-		//{ display: "库存量", name: "UnitsInStock", newline: true, type: "digits", group: "库存"}, //groupicon: groupicon },
-		//{ display: "订购量", name: "UnitsOnOrder", newline: false, width:70, type: "digits" },
-		//{ display: "备注", name: "Remark", newline: true, type: "text" ,width:310,validate:{required:true,minlength:5} },
-		//{ display: "备注", name: "Remark1", newline: true, type: "text" ,width:310 }
-		//]
-		fields: [
-		{ name: "_id", type: "hidden" },
-		//地理信息
-		{ display: "经度", name: "lng", newline: true,  type: "number", group:'地理信息', width:300 },
-		{ display: "纬度", name: "lat", newline: true, type: "number", group:'地理信息', width:300 },
-		{ display: "海拔(米)", name: "alt", newline: true, type: "number", group:'地理信息', width:300 },
-		//信息
-		{ display: "名称", name: "tower_name", newline: true,  type: "text", group:'信息', width:300, validate:{required:true} },
-		{ display: "代码", name: "tower_code", newline: true,  type: "text", group:'信息', width:300 },
-		{ display: "塔型", name: "model_code", newline: true,  type: "text", group:'信息', width:100 },
-		{ display: "呼称高", name: "denomi_height", newline: false,  type: "number", group:'信息', width:90 },
-		//电气
-		{ display: "接地电阻", name: "grnd_resistance", newline: true,  type: "number", group:'电气', width:300 },
-		//土木
-		{ display: "水平档距", name: "horizontal_span", newline: true,  type: "number", group:'土木', width:95 },
-		{ display: "垂直档距", name: "vertical_span", newline: false,  type: "number", group:'土木', width:95 },
-		//工程
-		{ display: "所属工程", name: "project", newline: true,  type: "text", group:'工程', width:300 }
+		//{ name: "_id", type: "hidden" },
+		////地理信息
+		//{ display: "经度", name: "lng", newline: true,  type: "geographic", group:'地理信息', width:300 },
+		//{ display: "纬度", name: "lat", newline: true, type: "geographic",  group:'地理信息', width:300 },
+		//{ display: "海拔(米)", name: "alt", newline: true, type: "spinner", group:'地理信息', width:300 },
+		////信息
+		//{ display: "名称", name: "tower_name", newline: true,  type: "text", group:'信息', width:300, validate:{required:true} },
+		//{ display: "代码", name: "tower_code", newline: true,  type: "text", group:'信息', width:300 },
+		//{ display: "塔型", name: "model_code", newline: true,  type: "text", group:'信息', width:100 },
+		//{ display: "呼称高", name: "denomi_height", newline: false,  type: "spinner", group:'信息', width:90 },
+		////电气
+		//{ display: "接地电阻", name: "grnd_resistance", newline: true,  type: "spinner", group:'电气', width:300 },
+		////土木
+		//{ display: "水平档距", name: "horizontal_span", newline: true,  type: "spinner", group:'土木', width:95 },
+		//{ display: "垂直档距", name: "vertical_span", newline: false,  type: "spinner", group:'土木', width:95 },
+		////工程
+		//{ display: "所属工程", name: "project", newline: true,  type: "text", group:'工程', width:300 }
 		
-		]
-	});
-	form_tower_info_base.setData({
-		'_id':tower['_id'], 
-		'lng':tower['geometry']['coordinates'][0],
-		'lat':tower['geometry']['coordinates'][1],
-		'alt':tower['properties']['geo_z'],
-		'tower_name':tower['properties']['tower_name'],
-		'tower_code':tower['properties']['tower_code'],
-		'model_code':tower['properties']['model']['model_code'],
-		'denomi_height':tower['properties']['denomi_height'],
-		'grnd_resistance':tower['properties']['grnd_resistance'],
-		'horizontal_span':tower['properties']['horizontal_span'],
-		'vertical_span':tower['properties']['vertical_span'],
-		'project':GetProjectNameByTowerId(tower['_id'])
-	});	
+		//]
+	//});
+	//form_tower_info_base.setData({
+		//'_id':tower['_id'], 
+		//'lng':tower['geometry']['coordinates'][0],
+		//'lat':tower['geometry']['coordinates'][1],
+		//'alt':tower['properties']['geo_z'],
+		//'tower_name':tower['properties']['tower_name'],
+		//'tower_code':tower['properties']['tower_code'],
+		//'model_code':tower['properties']['model']['model_code'],
+		//'denomi_height':tower['properties']['denomi_height'],
+		//'grnd_resistance':tower['properties']['grnd_resistance'],
+		//'horizontal_span':tower['properties']['horizontal_span'],
+		//'vertical_span':tower['properties']['vertical_span'],
+		//'project':GetProjectNameByTowerId(tower['_id'])
+	//});	
 	
-	var data = [];
-	var idx = 1;
-	for(var i in tower['properties']['metals'])
+	BuildForm('form_tower_info_base', g_tower_baseinfo_fields);
+	if(tower)
 	{
-		data.push({
-			'idx':idx, 
-			'type':tower['properties']['metals'][i]['type'],
-			'model':tower['properties']['metals'][i]['model']
-			});
-		idx += 1;
+		var data = {
+			'_id':tower['_id'], 
+			'tower_baseinfo_lng':tower['geometry']['coordinates'][0],
+			'tower_baseinfo_lat':tower['geometry']['coordinates'][1],
+			'tower_baseinfo_alt':tower['properties']['geo_z'],
+			'tower_baseinfo_tower_name':tower['properties']['tower_name'],
+			'tower_baseinfo_tower_code':tower['properties']['tower_code'],
+			'tower_baseinfo_model_code':tower['properties']['model']['model_code'],
+			'tower_baseinfo_denomi_height':tower['properties']['denomi_height'],
+			'tower_baseinfo_grnd_resistance':tower['properties']['grnd_resistance'],
+			'tower_baseinfo_horizontal_span':tower['properties']['horizontal_span'],
+			'tower_baseinfo_vertical_span':tower['properties']['vertical_span'],
+			'tower_baseinfo_project':GetProjectNameByTowerId(tower['_id'])
+		};	
+		SetFormData('form_tower_info_base', data);
+	}
+	if(tower)
+	{
+		var data = [];
+		var idx = 1;
+		for(var i in tower['properties']['metals'])
+		{
+			data.push({
+				'idx':idx, 
+				'type':tower['properties']['metals'][i]['type'],
+				'model':tower['properties']['metals'][i]['model']
+				});
+			idx += 1;
+		}
 	}
 	
 	
@@ -1222,6 +1477,133 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 		}
 	}
 	return ret;
+}
+
+function ValidateForm(id, fields)
+{
+	var rules = {};
+	for(var i in fields)
+	{
+		var fld = fields[i];
+		if(fld.validate)
+		{
+			rules[fld.name] = fld.validate;
+		}
+	}
+	$('#' + id).validate({
+		rules: rules,
+		debug:true
+	});
+}
+
+function SetFormData(id, data)
+{
+	for(var k in data)
+	{
+		$('#' + id).find('#' + k).val(data[k]);
+	}
+}
+function BuildForm(id, fields)
+{
+	$('#' + id).empty();
+	var labelwidth = 90;
+	//var donegroups = {};
+	var groups = [];
+	for(var i in fields)
+	{
+		var fld = fields[i];
+		if(fld.type == 'hidden')
+		{
+			$('#' + id).append('<input type="hidden" id="' + fld.name + '">');
+		}
+		if(fld.group)
+		{
+			if(groups.indexOf(fld.group)==-1)
+			{
+				groups.push(fld.group);
+			}
+		}
+	}
+	
+	
+	for(var j in groups)
+	{
+		var group = groups[j];
+		var uid = $.uuid();
+		var g = $('#' + id).append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+		$('#' + id).append('</fieldset>');
+		$('#' + id).append('<p></p>');
+		
+		for(var i in fields)
+		{
+			var fld = fields[i];
+			var validate = '';
+			if(fld.validate)
+			{
+				validate = '<span style="color:#FF0000">*</span>';
+			}
+			if(fld.type == 'spinner' && fld.group == group)
+			{
+				var newline = "float:left;";
+				if(fld.newline) newline = "";
+				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
+				var spin = 	$('#' + fld.name).spinner({
+					step: fld.step,
+					max:fld.max,
+					min:fld.min,
+					change:function( event, ui ) {
+						//var pos = GetObjectPos();
+						if(event.currentTarget)
+						{
+							console.log(event.currentTarget.value);
+							//SetSelectObjectPosition(pos);
+						}
+						event.preventDefault();
+					},
+					spin:function( event, ui ) {
+						//var pos = GetObjectPos();
+						console.log(ui.value);
+						//SetSelectObjectPosition(pos);
+						////event.preventDefault();
+					}
+				});
+			}
+			if(fld.type == 'geographic' && fld.group == group)
+			{
+				var newline = "float:left;";
+				if(fld.newline) newline = "";
+				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
+				var spin = 	$('#' + fld.name).spinner({
+					step: 0.000001,
+					max:179.0,
+					min:-179.0,
+					change:function( event, ui ) {
+						//var pos = GetObjectPos();
+						if(event.currentTarget)
+						{
+							console.log(event.currentTarget.value);
+							//SetSelectObjectPosition(pos);
+						}
+						event.preventDefault();
+					},
+					spin:function( event, ui ) {
+						//var pos = GetObjectPos();
+						console.log(ui.value);
+						//SetSelectObjectPosition(pos);
+						////event.preventDefault();
+					}
+				});
+			}
+			if(fld.type == 'text' && fld.group == group)
+			{
+				var newline = "float:left;";
+				if(fld.newline) newline = "";
+				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
+			}
+			
+		}
+	}
+	
 }
 
 function GetProjectNameByTowerId(id)

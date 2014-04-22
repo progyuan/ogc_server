@@ -1037,6 +1037,9 @@
         "spinner": {
             control: 'Spinner'
         },
+        "geographic": {
+            control: 'Spinner'
+        },
         "checkbox": {
             control: 'CheckBox'
         },
@@ -6585,13 +6588,15 @@
     };
 
     //description 自动创建ligerui风格的表单-编辑器构造函数
-    //editorBulider -> editorBuilder 命名错误 
     //param {jinput} 表单元素jQuery对象 比如input、select、textarea 
-    $.ligerDefaults.Form.editorBulider = function ( jinput )
+    $.ligerDefaults.Form.editorBuilder = function ( jinput )
     {
         //这里this就是form的ligerui对象
         var g = this, p = this.options;
         var options = {}, ltype = jinput.attr( "ltype" ), field = {};
+		
+		//console.log('ltype = ' + ltype);
+		
         if ( p.readonly ) options.readonly = true;
         options = $.extend( {
             width: ( field.width || p.inputWidth ) - 2
@@ -6614,6 +6619,11 @@
                 case "combobox":
                 case "autocomplete":
                     jinput.ligerComboBox( options );
+                    break;
+                case "geographic":
+					options.type = 'geo';
+					//console.log('options.type = ' + options.type);
+                    jinput.ligerSpinner( options );
                     break;
                 case "spinner":
                     jinput.ligerSpinner( options );
@@ -6692,7 +6702,7 @@
             //生成ligerui表单样式
             $( "input,select,textarea", jform ).each( function ()
             {
-                p.editorBulider.call( g, $( this ) );
+                p.editorBuilder.call( g, $( this ) );
             } );
             g.set( p );
             if ( p.buttons )
@@ -7223,6 +7233,8 @@
             type = ( field.type || "text" ).toLowerCase(),
             readonly = ( field.readonly || ( field.editor && field.editor.readonly ) ) ? true : false;
             var out = [];
+			//console.log('type=' + type);
+
             if ( type == "textarea" || type == "htmleditor" )
             {
                 out.push( '<textarea ' );
@@ -15660,7 +15672,12 @@
             {
                 p.step = 1;
                 p.interval = 100;
-            } else if (p.type == 'time')
+            } else if (p.type == 'geo')
+            {
+                p.decimalplace = 7,
+                p.step = 0.000001;
+                p.interval = 1000;
+            }else if (p.type == 'time')
             {
                 p.step = 1;
                 p.interval = 100;
