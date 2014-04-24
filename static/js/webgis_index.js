@@ -1,7 +1,7 @@
 //var g_host = "http://localhost:88/";
 var g_host = "";
 var g_selected_obj_id;
-var g_selected_obj_pos;
+var g_prev_selected_id;
 var g_view_extent;
 var g_czml_towers = {};
 var g_geojson_towers = {"type": "FeatureCollection","features": []};
@@ -13,6 +13,9 @@ var g_contextmenu_metal;
 var g_selected_metal_item;
 var g_polylines_segments = [];
 var g_use_catenary = true;
+var g_validates = {};
+var g_progress_interval;
+var g_progress_value;
 var g_phase_color_mapping = {
 	'A':'#FFFF00',
 	'B':'#FF0000',
@@ -21,27 +24,64 @@ var g_phase_color_mapping = {
 	'G1':'#000000'
 };
 var g_tower_baseinfo_fields = [
-	{ name: "_id", type: "hidden" },
+	{ id: "tower_baseinfo_id", type: "hidden" },
 	//地理信息
-	{ display: "经度", name: "tower_baseinfo_lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true}},
-	{ display: "纬度", name: "tower_baseinfo_lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true}},
-	{ display: "海拔(米)", name: "tower_baseinfo_alt", newline: true, type: "spinner", step:0.01, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true}},
+	{ display: "经度", id: "tower_baseinfo_lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true, number: true}},
+	{ display: "纬度", id: "tower_baseinfo_lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true, number: true}},
+	{ display: "海拔(米)", id: "tower_baseinfo_alt", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true}},
+	{ display: "旋转角度", id: "tower_baseinfo_rotate", newline: false, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:300 , validate:{required:true, number: true}},
 	//信息
-	{ display: "名称", name: "tower_baseinfo_tower_name", newline: true,  type: "text", group:'信息', width:330, validate:{required:true} },
-	{ display: "代码", name: "tower_baseinfo_tower_code", newline: true,  type: "text", group:'信息', width:330 },
-	{ display: "塔型", name: "tower_baseinfo_model_code", newline: false,  type: "text", group:'信息', width:100 },
-	{ display: "呼称高", name: "tower_baseinfo_denomi_height", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'信息', width:90 },
+	{ display: "名称", id: "tower_baseinfo_tower_name", newline: true,  type: "text", group:'信息', width:330, validate:{required:true}},
+	{ display: "代码", id: "tower_baseinfo_tower_code", newline: true,  type: "text", group:'信息', width:330 },
+	{ display: "塔型", id: "tower_baseinfo_model_code", newline: false,  type: "text", group:'信息', width:100 },
+	{ display: "呼称高", id: "tower_baseinfo_denomi_height", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'信息', width:90, validate:{number: true}},
 	//电气
-	{ display: "接地电阻", name: "tower_baseinfo_grnd_resistance", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'电气', width:300 },
+	{ display: "接地电阻", id: "tower_baseinfo_grnd_resistance", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'电气', width:300, validate:{number: true}},
 	//土木
-	{ display: "水平档距", name: "tower_baseinfo_horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85 },
-	{ display: "垂直档距", name: "tower_baseinfo_vertical_span", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85 },
+	{ display: "水平档距", id: "tower_baseinfo_horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true} },
+	{ display: "垂直档距", id: "tower_baseinfo_vertical_span", newline: true,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true} },
 	//工程
-	{ display: "所属工程", name: "tower_baseinfo_project", newline: true,  type: "text", group:'工程', width:330 }
+	{ display: "所属工程", id: "tower_baseinfo_project", newline: true,  type: "text", group:'工程', width:330 }
 ];
 
 
+
+function ShowProgressBar(show, title, msg)
+{
+	if(show)
+	{
+		$('#div_progress_msg').html(msg);
+		$('#dlg_progress_bar').dialog({
+			width: 700,
+			height: 200,
+			draggable: false,
+			resizable: false, 
+			modal: true,
+			title:title
+		});
+		g_progress_value = 0;
+		$('#div_progress_bar').progressbar({
+			max:100,
+			value:0
+		});
+		g_progress_interval = setInterval(function(){
+			g_progress_value += 1;
+			$('#div_progress_bar').progressbar('value', g_progress_value);
+			$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
+		}, 100);
+	
+	}
+	else{
+		//document.body.className = document.body.className.replace(/(?:\s|^)loading(?:\s|$)/, ' ');
+		clearInterval(g_progress_interval);
+		$('#div_progress_bar').progressbar('destroy');
+		$('#dlg_progress_bar').dialog('close');
+	}
+}
+
 $(function() {
+	ShowProgressBar(true, '载入中', '正在载入，请稍候...');
+	//if(true) return;
 	var providerViewModels = [];
 	//providerViewModels.push(new Cesium.ImageryProviderViewModel({
 				//name : 'OSM卫星图',
@@ -124,16 +164,6 @@ $(function() {
 	var scene = viewer.scene;
 	var ellipsoid = scene.primitives.centralBody.ellipsoid;
 	
-	//var west = Cesium.Math.toRadians(102.70);
-	//var south = Cesium.Math.toRadians(25.04);
-	//var east = Cesium.Math.toRadians(103.720);
-	//var north = Cesium.Math.toRadians(25.06);
-
-	//var extent = new Cesium.Extent(west, south, east, north);
-	//scene.camera.controller.viewExtent(extent, ellipsoid);
-	
-	
-	//if(true) return;
 	
 	
 	
@@ -171,7 +201,14 @@ $(function() {
 		//console.log(obj);
 		
 	//});
-	ValidateForm('form_tower_info_base', g_tower_baseinfo_fields);
+	
+	g_validates['form_tower_info_base'] = $('#form_tower_info_base' ).validate({
+		debug:true,
+		errorElement:'div'
+	});
+	
+	
+	
 });
 
 function CreateTowerCzmlFromGeojson(geojson)
@@ -259,6 +296,7 @@ function LoadTowerByLineName(viewer, ellipsoid, line_name)
 						var dataSource = new Cesium.CzmlDataSource();
 						dataSource.load(g_czml_towers[line_id]);
 						viewer.dataSources.add(dataSource);
+						ShowProgressBar(false);
 				});
 			}
 	});
@@ -358,37 +396,47 @@ function GetTowerInfoByTowerId(id)
 	return ret;
 }
 
-function LoadTowerModelByTowerId(viewer, id)
+function LoadTowerModelByTower(viewer, tower)
 {
 	var scene = viewer.scene;
 	var ellipsoid = scene.primitives.centralBody.ellipsoid;
 	
-	var tower = GetTowerInfoByTowerId(id);
-	if(tower && tower['_id'] == id)
+	if(tower)
 	{
+		var id = tower['_id'];
 		if(!g_gltf_models[id])
 		{
 			if(tower['properties']['model']['model_code_height'])
 			{
-				var model = CreateTowerModel(
-					scene, 
-					ellipsoid, 
-					GetModelUrl(tower['properties']['model']['model_code_height']), 
-					tower['geometry']['coordinates'][0],  
-					tower['geometry']['coordinates'][1], 
-					tower['properties']['geo_z'] ,  
-					tower['properties']['rotate'],
-					10
-				);
-				if(model)
+				var lng = parseFloat($('input[id="tower_baseinfo_lng"]').val()),
+					lat = parseFloat($('input[id="tower_baseinfo_lat"]').val()),
+					height = parseFloat($('input[id="tower_baseinfo_alt"]').val()),
+					rotate = parseFloat($('input[id="tower_baseinfo_rotate"]').val());
+				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
-					g_gltf_models[id] = model;
-					console.log("load model for [" + id + "]");
+					var model = CreateTowerModel(
+						scene, 
+						ellipsoid, 
+						GetModelUrl(tower['properties']['model']['model_code_height']), 
+						//tower['geometry']['coordinates'][0],  
+						//tower['geometry']['coordinates'][1], 
+						//tower['properties']['geo_z'] ,  
+						//tower['properties']['rotate'],
+						lng,  
+						lat, 
+						height ,  
+						rotate,
+						10
+					);
+					if(model)
+					{
+						g_gltf_models[id] = model;
+						console.log("load model for [" + id + "]");
+					}
 				}
 			}
 		}
 	}
-	return tower;
 }
 
 function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
@@ -694,16 +742,50 @@ function TowerInfoMixin(viewer)
 		if (Cesium.defined(viewer.selectedObject)) 
 		{
 			var id = viewer.selectedObject.id;
+			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = id;
 			console.log('selected id=' + id);
-			var tower = LoadTowerModelByTowerId(viewer, id);
-			if(tower)
+			console.log('prev selected id=' + g_prev_selected_id);
+			if(g_prev_selected_id != g_selected_obj_id)
 			{
-				ShowTowerInfo(viewer, tower);
-				DrawSegmentsByTowerId(viewer.scene, id);
+				if(g_prev_selected_id)
+				{
+					if(CheckTowerInfoModified())
+					{
+						$('#dlg_save_validate').dialog({
+							width: 500,
+							height: 200,
+							draggable: true,
+							resizable: false, 
+							modal: true,
+							title:'保存确认',
+							buttons:[
+								{ 	text: "确定", 
+									click: function(){
+										//console.log('save ok');
+										$( this ).dialog( "close" );
+										SaveTower();
+										ShowTowerInfo(viewer, g_selected_obj_id);
+									}
+								},
+								{ 	text: "取消", 
+									click: function(){
+										$( this ).dialog( "close" );
+										ShowTowerInfo(viewer, g_selected_obj_id);
+									}
+							}]
+						});
+					}else{
+						ShowTowerInfo(viewer, g_selected_obj_id);
+					}
+				}
+				else{
+					ShowTowerInfo(viewer, g_selected_obj_id);
+				}
 			}
 		}
 		else{
+			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = undefined;
 		}
 	}
@@ -896,6 +978,40 @@ function GetContactPointByIndex(tower, side, index)
 	return ret;
 }
 
+function GetSegmentsModel(tower0, tower1)
+{
+	var ret = null;
+	for(var i in g_polylines_segments)
+	{
+		var seg = g_polylines_segments[i];
+		if(
+			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
+		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
+		){
+			ret = seg['model'];
+			break;
+		}
+	}
+	return ret;
+}
+function RemoveSegmentsFromArray(tower0, tower1)
+{
+	var ret = null;
+	for(var i in g_polylines_segments)
+	{
+		var seg = g_polylines_segments[i];
+		if(
+			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
+		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
+		){
+			ret = seg;
+			g_polylines_segments.splice(i,1);
+			break;
+		}
+	}
+	return ret;
+}
+
 function CheckSegmentsExist(tower0, tower1)
 {
 	var ret = false;
@@ -912,6 +1028,24 @@ function CheckSegmentsExist(tower0, tower1)
 	}
 	return ret;
 }
+
+function RemoveSegmentsBetweenTow(scene, tower0, tower1)
+{
+	if(CheckSegmentsExist(tower0, tower1))
+	{
+		var seg = RemoveSegmentsFromArray(tower0, tower1);
+		if(seg)
+		{
+			while(!seg['model'].isDestroyed())
+			{
+				//seg['model'].destroy();
+				var ret = scene.primitives.remove(seg['model']);
+				//console.log(ret);
+			}
+		}
+	}
+}
+
 function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 {
 	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
@@ -978,9 +1112,8 @@ function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 				});
 			}
 		}
-		//polylines.modelMatrix = m;
 		scene.primitives.add(polylines);
-		g_polylines_segments.push({'start':tower0['_id'], 'end':tower1['_id']});
+		g_polylines_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'model':polylines});
 	}
 	
 }
@@ -1026,25 +1159,116 @@ function CalcCatenary(ellipsoid, p0, p1, segnum)
 	}
 	return ret;
 }
-function DrawSegmentsByTowerId(scene, id)
+
+
+function RemoveSegmentsTower(scene, tower)
 {
-	var tower = GetTowerInfoByTowerId(id);
 	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
 	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
-		DrawSegmentsBetweenTowTower(scene, t, tower);
+		RemoveSegmentsBetweenTow(scene, t, tower);
 	}
 	for(var i in next_towers)
 	{
 		var t = next_towers[i];
-		DrawSegmentsBetweenTowTower(scene, tower, t);
+		RemoveSegmentsBetweenTow(scene, tower, t);
+	}
+}
+function DrawSegmentsByTower(scene, tower)
+{
+	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
+	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	
+	var lng = parseFloat($('input[id="tower_baseinfo_lng"]').val()),
+		lat = parseFloat($('input[id="tower_baseinfo_lat"]').val()),
+		height = parseFloat($('input[id="tower_baseinfo_alt"]').val()),
+		rotate = parseFloat($('input[id="tower_baseinfo_rotate"]').val());
+	if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
+	{
+		var tt = {};
+		tt['_id'] = tower['_id'];
+		tt['geometry'] = {};
+		tt['geometry']['coordinates'] = [lng, lat];
+		tt['properties'] = {};
+		tt['properties']['geo_z'] = height;
+		tt['properties']['rotate'] = rotate;
+		tt['properties']['model'] = tower['properties']['model'];
+		for(var i in prev_towers)
+		{
+			var t = prev_towers[i];
+			DrawSegmentsBetweenTowTower(scene, t, tt);
+		}
+		for(var i in next_towers)
+		{
+			var t = next_towers[i];
+			DrawSegmentsBetweenTowTower(scene, tt, t);
+		}
+	}
+}
+
+
+function CheckTowerInfoModified()
+{
+	var id = $('input[id="tower_baseinfo_id"]').val();
+	//console.log('tower_id=' + id);
+	var tower = GetTowerInfoByTowerId(id);
+	if(tower)
+	{
+		var lng = $('input[id="tower_baseinfo_lng"]').val(),
+			lat = $('input[id="tower_baseinfo_lat"]').val(),
+			height = $('input[id="tower_baseinfo_alt"]').val(),
+			rotate = $('input[id="tower_baseinfo_rotate"]').val();
+		var mc = $('input[id="tower_baseinfo_model_code"]').val();
+		if(lng != tower['geometry']['coordinates'][0] 
+		|| lat != tower['geometry']['coordinates'][1]
+		|| height != tower['properties']['geo_z']
+		|| rotate != tower['properties']['rotate']
+		|| mc != tower['properties']['model']['model_code']
+		)
+		{
+			return true;
+		}
+		for(var k in tower['properties'])
+		{
+			var kk = 'tower_baseinfo_' + k;
+			if($('input[id="' + kk + '"]').length)
+			{
+				var v = $('input[id="' + kk + '"]').val();
+				if(v.length>0 && v != tower['properties'][k] )
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+function SaveTower(id)
+{
+	if(id)
+	{
+		console.log('save tower ' + id);
+	}else
+	{
+		var id = $('input[id="tower_baseinfo_id"]').val();
+		console.log('save form tower ' + id);
+	}
+}
+function ShowTowerInfo(viewer, id)
+{
+	var tower = GetTowerInfoByTowerId(id);
+	if(tower)
+	{
+		ShowTowerInfoDialog(viewer, tower);
+		LoadTowerModelByTower(viewer, tower);
+		DrawSegmentsByTower(viewer.scene, tower);
 	}
 
 }
-
-function ShowTowerInfo(viewer, tower)
+function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
 	//console.log($(infoBox.container).position());
@@ -1066,7 +1290,35 @@ function ShowTowerInfo(viewer, tower)
 		buttons:[
 			{ 	text: "保存", 
 				click: function(){ 
-					
+					if($('#form_tower_info_base').valid())
+					{
+						if(CheckTowerInfoModified())
+						{
+							$('#dlg_save_validate').dialog({
+								width: 500,
+								height: 200,
+								draggable: true,
+								resizable: false, 
+								modal: true,
+								title:'保存确认',
+								buttons:[
+									{ 	text: "确定", 
+										click: function(){
+											SaveTower();
+											$( this ).dialog( "close" );
+										}
+									},
+									{ 	text: "取消", 
+										click: function(){
+											$( this ).dialog( "close" );
+										}
+								}]
+							});
+						}
+						else{
+							//$( this ).dialog( "close" );
+						}
+					}
 				}
 			},
 			{ 	text: "关闭", 
@@ -1127,55 +1379,15 @@ function ShowTowerInfo(viewer, tower)
 		//threejs/editor/index.html
 	});
 		
-	//var form_tower_info_base = $("#form_tower_info_base").ligerForm({
-		//inputWidth: 120, 
-		//labelWidth: 95, 
-		//space: 10,
-		//validate : true,
-		//fields: [
-		//{ name: "_id", type: "hidden" },
-		////地理信息
-		//{ display: "经度", name: "lng", newline: true,  type: "geographic", group:'地理信息', width:300 },
-		//{ display: "纬度", name: "lat", newline: true, type: "geographic",  group:'地理信息', width:300 },
-		//{ display: "海拔(米)", name: "alt", newline: true, type: "spinner", group:'地理信息', width:300 },
-		////信息
-		//{ display: "名称", name: "tower_name", newline: true,  type: "text", group:'信息', width:300, validate:{required:true} },
-		//{ display: "代码", name: "tower_code", newline: true,  type: "text", group:'信息', width:300 },
-		//{ display: "塔型", name: "model_code", newline: true,  type: "text", group:'信息', width:100 },
-		//{ display: "呼称高", name: "denomi_height", newline: false,  type: "spinner", group:'信息', width:90 },
-		////电气
-		//{ display: "接地电阻", name: "grnd_resistance", newline: true,  type: "spinner", group:'电气', width:300 },
-		////土木
-		//{ display: "水平档距", name: "horizontal_span", newline: true,  type: "spinner", group:'土木', width:95 },
-		//{ display: "垂直档距", name: "vertical_span", newline: false,  type: "spinner", group:'土木', width:95 },
-		////工程
-		//{ display: "所属工程", name: "project", newline: true,  type: "text", group:'工程', width:300 }
-		
-		//]
-	//});
-	//form_tower_info_base.setData({
-		//'_id':tower['_id'], 
-		//'lng':tower['geometry']['coordinates'][0],
-		//'lat':tower['geometry']['coordinates'][1],
-		//'alt':tower['properties']['geo_z'],
-		//'tower_name':tower['properties']['tower_name'],
-		//'tower_code':tower['properties']['tower_code'],
-		//'model_code':tower['properties']['model']['model_code'],
-		//'denomi_height':tower['properties']['denomi_height'],
-		//'grnd_resistance':tower['properties']['grnd_resistance'],
-		//'horizontal_span':tower['properties']['horizontal_span'],
-		//'vertical_span':tower['properties']['vertical_span'],
-		//'project':GetProjectNameByTowerId(tower['_id'])
-	//});	
-	
-	BuildForm('form_tower_info_base', g_tower_baseinfo_fields);
+	BuildForm(viewer.scene, 'form_tower_info_base', g_tower_baseinfo_fields);
 	if(tower)
 	{
 		var data = {
-			'_id':tower['_id'], 
+			'tower_baseinfo_id':tower['_id'], 
 			'tower_baseinfo_lng':tower['geometry']['coordinates'][0],
 			'tower_baseinfo_lat':tower['geometry']['coordinates'][1],
 			'tower_baseinfo_alt':tower['properties']['geo_z'],
+			'tower_baseinfo_rotate':tower['properties']['rotate'],
 			'tower_baseinfo_tower_name':tower['properties']['tower_name'],
 			'tower_baseinfo_tower_code':tower['properties']['tower_code'],
 			'tower_baseinfo_model_code':tower['properties']['model']['model_code'],
@@ -1201,8 +1413,6 @@ function ShowTowerInfo(viewer, tower)
 			idx += 1;
 		}
 	}
-	
-	
 	
 	
 	//var form_tower_info_metal = $("#form_tower_info_metal").ligerForm({
@@ -1234,58 +1444,6 @@ function ShowTowerInfo(viewer, tower)
 			]
 		});
 	}
-	
-	
-	//$('#button_delete_segment').button({
-	//});
-	//$('#button_delete_segment').off();
-	//$('#button_delete_segment').on('click', function() {
-		//DeleteSegment();
-	//});
-	//$('#button_add_segment').button({
-	//});
-	//$('#button_add_segment').on('change', function(e) {
-		////console.log(e.target.checked);
-		//var iframe = $('#tower_info_segment').find('iframe');
-		////iframe[0].contentWindow.g_is_add_seg = e.target.checked;
-		//iframe[0].contentWindow.g_editor.signals.windowResize.dispatch();
-		////console.log(iframe[0].contentWindow.g_is_add_seg);
-		//if(e.target.checked)
-		//{
-			//$('#div_choose_phase').css('display', 'block');
-			//$('#menu_choose_phase').menu({
-				//select:function(event, ui){
-					//console.log(ui.item.attr('id'));
-					//if(ui.item.attr('id') == 'phase_G')
-					//{
-						//$('#title_segment_tips').html('新建地线');
-					//}
-					//if(ui.item.attr('id') == 'phase_A')
-					//{
-						//$('#title_segment_tips').html('新建A相');
-					//}
-					//if(ui.item.attr('id') == 'phase_B')
-					//{
-						//$('#title_segment_tips').html('新建B相');
-					//}
-					//if(ui.item.attr('id') == 'phase_C')
-					//{
-						//$('#title_segment_tips').html('新建C相');
-					//}
-					//$('#menu_choose_phase').menu('destroy');
-					//$('#div_choose_phase').css('display', 'none');
-				//}		
-			//});
-		//}
-		//else
-		//{
-			//$('#div_choose_phase').css('display', 'none');
-			//$('#title_segment_tips').html('');
-		//}
-		////AddContactPoint();
-	//});
-	
-	
 	
 	$("#listbox_tower_info_metal").bind("contextmenu", function (e)
 	{
@@ -1481,19 +1639,14 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 
 function ValidateForm(id, fields)
 {
-	var rules = {};
 	for(var i in fields)
 	{
 		var fld = fields[i];
 		if(fld.validate)
 		{
-			rules[fld.name] = fld.validate;
+			$('input[name="' + fld.id + '"]').rules('add',fld.validate);
 		}
 	}
-	$('#' + id).validate({
-		rules: rules,
-		debug:true
-	});
 }
 
 function SetFormData(id, data)
@@ -1503,10 +1656,33 @@ function SetFormData(id, data)
 		$('#' + id).find('#' + k).val(data[k]);
 	}
 }
-function BuildForm(id, fields)
+
+function PositionModel(ellipsoid, model, lng, lat, height, rotate)
 {
+	
+	//console.log(lng);
+	//console.log(lat);
+	//console.log(height);
+	//console.log('modelMatrix=' + model.modelMatrix.toString());
+	if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
+	{
+		var cart3 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(parseFloat(lng), parseFloat(lat), parseFloat(height)));
+		var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(cart3);
+		var quat = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(rotate - 90));
+		var mat3 = Cesium.Matrix3.fromQuaternion(quat);
+		var mat4 = Cesium.Matrix4.fromRotationTranslation(mat3, Cesium.Cartesian3.ZERO);
+		var m = Cesium.Matrix4.multiplyTransformation(modelMatrix, mat4);
+		model.modelMatrix = m;
+	}
+
+}
+function BuildForm(scene, id, fields)
+{
+	var ellipsoid = scene.primitives.centralBody.ellipsoid;
 	$('#' + id).empty();
 	var labelwidth = 90;
+	var margin = 10/2;
+	var groupmargin = 18/2;
 	//var donegroups = {};
 	var groups = [];
 	for(var i in fields)
@@ -1514,7 +1690,7 @@ function BuildForm(id, fields)
 		var fld = fields[i];
 		if(fld.type == 'hidden')
 		{
-			$('#' + id).append('<input type="hidden" id="' + fld.name + '">');
+			$('#' + id).append('<input type="hidden" id="' + fld.id + '">');
 		}
 		if(fld.group)
 		{
@@ -1530,7 +1706,7 @@ function BuildForm(id, fields)
 	{
 		var group = groups[j];
 		var uid = $.uuid();
-		var g = $('#' + id).append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+		var g = $('#' + id).append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
 		$('#' + id).append('</fieldset>');
 		$('#' + id).append('<p></p>');
 		
@@ -1546,25 +1722,49 @@ function BuildForm(id, fields)
 			{
 				var newline = "float:left;";
 				if(fld.newline) newline = "";
-				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
-				var spin = 	$('#' + fld.name).spinner({
+				$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+				var spin = 	$('#' + fld.id).spinner({
 					step: fld.step,
 					max:fld.max,
 					min:fld.min,
 					change:function( event, ui ) {
-						//var pos = GetObjectPos();
 						if(event.currentTarget)
 						{
-							console.log(event.currentTarget.value);
-							//SetSelectObjectPosition(pos);
+							var fid = $(event.target).attr('id');
+							var id = $('input[id="tower_baseinfo_id"]').val();
+							var lng = $('input[id="tower_baseinfo_lng"]').val(),
+								lat = $('input[id="tower_baseinfo_lat"]').val(),
+								height = $('input[id="tower_baseinfo_alt"]').val(),
+								rotate = $('input[id="tower_baseinfo_rotate"]').val();
+							if(g_gltf_models[id])
+							{
+								if(fid.indexOf('_alt')>-1) height = event.currentTarget.value;
+								if(fid.indexOf('_rotate')>-1) rotate = event.currentTarget.value;
+								PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+								//console.log('ok');
+								var tower = GetTowerInfoByTowerId(id);
+								if(tower)
+								{
+									RemoveSegmentsTower(scene, tower);
+									DrawSegmentsByTower(scene, tower);
+								}
+							}
 						}
 						event.preventDefault();
 					},
 					spin:function( event, ui ) {
-						//var pos = GetObjectPos();
-						console.log(ui.value);
-						//SetSelectObjectPosition(pos);
-						////event.preventDefault();
+						var fid = $(event.target).attr('id');
+						var id = $('input[id="tower_baseinfo_id"]').val();
+						var lng = $('input[id="tower_baseinfo_lng"]').val(),
+							lat = $('input[id="tower_baseinfo_lat"]').val(),
+							height = $('input[id="tower_baseinfo_alt"]').val(),
+							rotate = $('input[id="tower_baseinfo_rotate"]').val();
+						if(g_gltf_models[id]) 
+						{
+							if(fid.indexOf('_alt')>-1)		height = ui.value;
+							if(fid.indexOf('_rotate')>-1)	rotate = ui.value;
+							PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
+						}
 					}
 				});
 			}
@@ -1572,25 +1772,50 @@ function BuildForm(id, fields)
 			{
 				var newline = "float:left;";
 				if(fld.newline) newline = "";
-				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
-				var spin = 	$('#' + fld.name).spinner({
-					step: 0.000001,
+				$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+				var spin = 	$('#' + fld.id).spinner({
+					step: 0.00001,
 					max:179.0,
 					min:-179.0,
 					change:function( event, ui ) {
-						//var pos = GetObjectPos();
-						if(event.currentTarget)
+						var fid = $(event.target).attr('id');
+						var id = $('input[id="tower_baseinfo_id"]').val();
+						if(g_gltf_models[id])
 						{
-							console.log(event.currentTarget.value);
-							//SetSelectObjectPosition(pos);
+							if(event.currentTarget)
+							{
+								var lng = $('input[id="tower_baseinfo_lng"]').val(),
+									lat = $('input[id="tower_baseinfo_lat"]').val(),
+									height = $('input[id="tower_baseinfo_alt"]').val(),
+									rotate = $('input[id="tower_baseinfo_rotate"]').val();
+								if(fid.indexOf('_lng')>-1) lng = event.currentTarget.value;
+								if(fid.indexOf('_lat')>-1) lat = event.currentTarget.value;
+								PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+								var tower = GetTowerInfoByTowerId(id);
+								if(tower)
+								{
+									RemoveSegmentsTower(scene, tower);
+									DrawSegmentsByTower(scene, tower);
+								}
+							}
 						}
 						event.preventDefault();
 					},
 					spin:function( event, ui ) {
-						//var pos = GetObjectPos();
-						console.log(ui.value);
-						//SetSelectObjectPosition(pos);
-						////event.preventDefault();
+						var fid = $(event.target).attr('id');
+						//console.log(ui.value);
+						var id = $('input[id="tower_baseinfo_id"]').val();
+						if(g_gltf_models[id])
+						{
+							var lng = $('input[id="tower_baseinfo_lng"]').val(),
+								lat = $('input[id="tower_baseinfo_lat"]').val(),
+								height = $('input[id="tower_baseinfo_alt"]').val(),
+								rotate = $('input[id="tower_baseinfo_rotate"]').val();
+							if(fid.indexOf('_lng')>-1) lng = ui.value;
+							if(fid.indexOf('_lat')>-1) lat = ui.value;
+							PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+						}
+						
 					}
 				});
 			}
@@ -1598,12 +1823,12 @@ function BuildForm(id, fields)
 			{
 				var newline = "float:left;";
 				if(fld.newline) newline = "";
-				$('#' + 'fieldset_' + uid).append('<div style="margin:10px;' + newline + '"><label for="' + fld.name + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.name + '">' + validate + '</div>');
+				$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
 			}
 			
 		}
 	}
-	
+	ValidateForm(id, fields);
 }
 
 function GetProjectNameByTowerId(id)
