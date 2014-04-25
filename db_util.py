@@ -8378,6 +8378,37 @@ def find_extent(data):
         ret['north'] = max(yl)
     return ret
 
+def mongo_action(dbname, collection_name, action, data):
+    global gClientMongo
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    ret = []
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        if dbname in gClientMongo.database_names():      
+            db = gClientMongo[dbname]
+            if collection_name in db.collection_names():
+                if action.lower() == 'save':
+                    if isinstance( data, list):
+                        for i in data:
+                            cur = db[collection_name].save(i)
+                    if isinstance(data, dict):
+                        cur = db[collection_name].save(data)
+            else:
+                print('collection [%s] does not exist.' % collection_name)
+        else:
+            print('database [%s] does not exist.' % dbname)
+    except:
+        traceback.print_exc()
+        #err = sys.exc_info()[1].message
+        #print(err)
+        ret = []
+    return ret
+    
+    
 def mongo_find(dbname, collection_name, *args, **kwargs):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
@@ -8498,12 +8529,8 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
             obj = {}
             for seg in segs:
                 if mapping.has_key(seg['start_tower_id']) and mapping.has_key(seg['end_tower_id']):
-                    side0 = 0
-                    #if seg['start_side'] == u'正':
-                        #side0 = 1
-                    side1 = 1
-                    #if seg['end_side'] == u'正':
-                        #side1 = 1
+                    side0 = 1
+                    side1 = 0
                     if not obj.has_key('start_tower'):
                         obj['start_tower'] = ObjectId(mapping[seg['start_tower_id']])
                     if not obj.has_key('end_tower'):

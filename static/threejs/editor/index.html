@@ -83,6 +83,7 @@
     <script type="text/javascript" src="/js/jquery/jquery-ui-1.10.4.custom.js"></script>
     <script type="text/javascript" src="/js/tinycolor-min.js"></script>
     <script type="text/javascript" src="/js/json3.js"></script>
+    <script type="text/javascript" src="/js/common.js"></script>
     <script src="index.js"></script>
     <div style='width:100%;height:42px;bottom:0px;position:absolute;'>
         <div id='button_add_cp' style='float:left'>新增挂线点
@@ -97,11 +98,13 @@
 			<input type="checkbox" id="checkbox_add_segment" >
 			<label for='checkbox_add_segment'>添加线段</label>
         </div>
+        <div id='button_save_seg'  style='float:left'>保存
+        </div>
         <div id="button_phase" style='float:right'>
-            <input type="radio" id="phase_g" name="button_phase" checked="checked"><label for="phase_g">地(黑)</label>
-            <input type="radio" id="phase_a" name="button_phase"><label for="phase_a">A(黄)</label>
-            <input type="radio" id="phase_b" name="button_phase"><label for="phase_b">B(红)</label>
-            <input type="radio" id="phase_c" name="button_phase"><label for="phase_c">C(绿)</label>
+            <input type="radio" id="phase_G" name="button_phase" checked="checked"><label for="phase_G">地(白)</label>
+            <input type="radio" id="phase_A" name="button_phase"><label for="phase_A">A(黄)</label>
+            <input type="radio" id="phase_B" name="button_phase"><label for="phase_B">B(红)</label>
+            <input type="radio" id="phase_C" name="button_phase"><label for="phase_C">C(绿)</label>
         </div>
 		
 		<div style='width:100%;color:#00FF00;' id='div_contact_point_coords'>
@@ -114,10 +117,14 @@
 
     </div>
 	
-	<div style='display:none' id='dlg_delete_segment'>删除线段后，你可以重新创建线段，方法是,确认“添加线段”按钮按下,然后在右边选择该线段的类型,然后先点击一个杆塔的挂线端点，再点击另一个杆塔的挂线端点，即可完成添加.
+	<div id='dlg_confirm'><div></div>
 	</div>
 	
-	<div style='display:none' id='dlg_delete_cp'>删除挂线点后，你可以重新创建挂线点，方法是选择该挂线点的类型(大号端,小号端),然后点击"添加挂线点"按钮，即可完成添加.
+	<div id='dlg_message'><div></div>
+	</div>
+	<div  id="dlg_progress_bar">
+		<div id="div_progress_msg"></div>
+		<div id="div_progress_bar"><span class="progressbartext"></span></div>
 	</div>
 	
 </body>

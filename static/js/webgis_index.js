@@ -1,5 +1,4 @@
-//var g_host = "http://localhost:88/";
-var g_host = "";
+
 var g_selected_obj_id;
 var g_prev_selected_id;
 var g_view_extent;
@@ -14,15 +13,7 @@ var g_selected_metal_item;
 var g_polylines_segments = [];
 var g_use_catenary = true;
 var g_validates = {};
-var g_progress_interval;
-var g_progress_value;
-var g_phase_color_mapping = {
-	'A':'#FFFF00',
-	'B':'#FF0000',
-	'C':'#00FF00',
-	'G':'#000000',
-	'G1':'#000000'
-};
+
 var g_tower_baseinfo_fields = [
 	{ id: "tower_baseinfo_id", type: "hidden" },
 	//地理信息
@@ -46,41 +37,9 @@ var g_tower_baseinfo_fields = [
 
 
 
-function ShowProgressBar(show, title, msg)
-{
-	if(show)
-	{
-		$('#div_progress_msg').html(msg);
-		$('#dlg_progress_bar').dialog({
-			width: 700,
-			height: 200,
-			draggable: false,
-			resizable: false, 
-			modal: true,
-			title:title
-		});
-		g_progress_value = 0;
-		$('#div_progress_bar').progressbar({
-			max:100,
-			value:0
-		});
-		g_progress_interval = setInterval(function(){
-			g_progress_value += 1;
-			$('#div_progress_bar').progressbar('value', g_progress_value);
-			$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
-		}, 100);
-	
-	}
-	else{
-		//document.body.className = document.body.className.replace(/(?:\s|^)loading(?:\s|$)/, ' ');
-		clearInterval(g_progress_interval);
-		$('#div_progress_bar').progressbar('destroy');
-		$('#dlg_progress_bar').dialog('close');
-	}
-}
 
 $(function() {
-	ShowProgressBar(true, '载入中', '正在载入，请稍候...');
+	ShowProgressBar(true, 700, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
 	var providerViewModels = [];
 	//providerViewModels.push(new Cesium.ImageryProviderViewModel({
@@ -476,35 +435,8 @@ function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
 	});
 }
 
-function MongoFind(data, success)
-{
-	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
-	$.post(g_host + 'post', JSON.stringify(data), function( data1 ){
-		ret = JSON.parse(decodeURIComponent(data1));
-		if(ret.result)
-		{
-			console.log(ret.result);
-			success([]);
-		}
-		else
-		{
-			success(ret);
-		}
-	}, 'text');
-}
 
 
-function ReadTable(url, success, failed)
-{
-	$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
-	$.getJSON( url)
-	.done(function( data ){
-		success(data);
-	})
-	.fail(function( jqxhr ){
-		failed();
-	});	
-}
 
 function GetNextTowerModelData(ids)
 {
@@ -752,29 +684,19 @@ function TowerInfoMixin(viewer)
 				{
 					if(CheckTowerInfoModified())
 					{
-						$('#dlg_save_validate').dialog({
-							width: 500,
-							height: 200,
-							draggable: true,
-							resizable: false, 
-							modal: true,
-							title:'保存确认',
-							buttons:[
-								{ 	text: "确定", 
-									click: function(){
-										//console.log('save ok');
-										$( this ).dialog( "close" );
-										SaveTower();
-										ShowTowerInfo(viewer, g_selected_obj_id);
-									}
-								},
-								{ 	text: "取消", 
-									click: function(){
-										$( this ).dialog( "close" );
-										ShowTowerInfo(viewer, g_selected_obj_id);
-									}
-							}]
-						});
+						
+						ShowConfirm(500, 200,
+							'保存确认',
+							'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+							function(){
+								SaveTower();
+								ShowTowerInfo(viewer, g_selected_obj_id);
+							},
+							function(){
+								ShowTowerInfo(viewer, g_selected_obj_id);
+							}
+						);
+						
 					}else{
 						ShowTowerInfo(viewer, g_selected_obj_id);
 					}
@@ -1271,14 +1193,13 @@ function ShowTowerInfo(viewer, id)
 function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
-	//console.log($(infoBox.container).position());
 	var title = '';
 	if(tower)
 	{
 		title = tower['properties']['tower_name'];
 	}
 	$('#dlg_tower_info').dialog({
-		width: 600,
+		width: 670,
 		height: 730,
 		minWidth:200,
 		minHeight: 200,
@@ -1294,26 +1215,16 @@ function ShowTowerInfoDialog(viewer, tower)
 					{
 						if(CheckTowerInfoModified())
 						{
-							$('#dlg_save_validate').dialog({
-								width: 500,
-								height: 200,
-								draggable: true,
-								resizable: false, 
-								modal: true,
-								title:'保存确认',
-								buttons:[
-									{ 	text: "确定", 
-										click: function(){
-											SaveTower();
-											$( this ).dialog( "close" );
-										}
-									},
-									{ 	text: "取消", 
-										click: function(){
-											$( this ).dialog( "close" );
-										}
-								}]
-							});
+							ShowConfirm(500, 200,
+								'保存确认',
+								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+								function(){
+									SaveTower();
+								},
+								function(){
+								
+								}
+							);
 						}
 						else{
 							//$( this ).dialog( "close" );
@@ -1919,12 +1830,6 @@ function AddMetal(e)
 			}
 		}
 	}
-			
-	
-	
-	
-	
-	
 }
 
 function DeleteMetal()
@@ -1958,6 +1863,7 @@ function DeleteMetal()
 			}
 		}
 	}
-
 }
+
+
 

@@ -4,8 +4,13 @@ var g_editor;
 var g_mode;
 var g_is_add_seg = false;
 var g_cp_pair = [];
+var g_cpdata, g_cpdata_next, g_next_ids;
 var g_contact_points;
 var g_segments = [];
+var g_segments_editting = [];
+var g_off_x = 10, g_off_z = 30;
+
+
 $(function() {
 
 	var param = GetParamsFromUrl();
@@ -13,6 +18,14 @@ $(function() {
 	{
 		g_mode = 'segs';
 		g_segments = param['segments'];
+		for(var i in g_segments)
+		{
+			//g_segments_editting = $.merge([], g_segments);
+			g_segments_editting.push( $.extend(true, {}, g_segments[i]));
+		}
+		g_cpdata = param['data'];
+		g_cpdata_next = param['data_next'];
+		g_next_ids = param['next_ids'];
 	}else
 	{
 		g_mode = 'tower';
@@ -116,9 +129,93 @@ $(function() {
 		{
 			if(g_is_add_seg)
 			{
-				if(g_cp_pair.length == 2)
+				if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 				{
-					//$(window.parent.document).find('#title_contact_point')
+					g_cp_pair.push({'tower_id':obj['userData']['tower_id'],'data':obj['userData']['data']});
+					if(g_cp_pair.length == 2)
+					{
+						var side1 = g_cp_pair[0].data.side,
+							side2 = g_cp_pair[1].data.side;
+						var t1 = g_cp_pair[0].tower_id,
+							t2 = g_cp_pair[1].tower_id;
+						var i1 = g_cp_pair[0].data.contact_index,
+							i2 = g_cp_pair[1].data.contact_index;
+						if(side1 != side2 && t1 != t2)
+						{
+							if(!CheckSegExist(t1, t2, side1, side2, i1, i2))
+							{
+								var phase = $('#button_phase :radio:checked').attr('id');
+								phase = phase.substr(phase.indexOf('_') + 1);
+								console.log(t1 + ':side(' + side1 + '):index(' + i1 + '):phase(' + phase + ')<--->' + t2 + ':side(' + side2 + '):index(' + i2 + '):phase(' + phase + ')');
+								var color = parseInt(tinycolor(g_phase_color_mapping[phase]).toHex(), 16);
+								var seg = {start_tower:t1, end_tower:t2, start_side:side1, end_side:side2},
+									cp = {start:i1, end:i2, phase:phase};
+								var start,  end, end1, end2;
+								var offset_x = g_off_x, offset_z = g_off_z;
+								if(side1 == 1)
+								{
+									start = GetDrawInfoFromContactPoint(1, i1, g_cpdata, 0, offset_z);
+									if(g_cpdata_next.length==1)
+									{
+										end = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[0], 0, -offset_z);
+									}
+									if(g_cpdata_next.length==2)
+									{
+										for(var j in g_next_ids)
+										{
+											if(t2 == g_next_ids[j])
+											{
+												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[0], -offset_x, -offset_z);
+												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[1], offset_x, -offset_z);
+											}
+										}
+									}
+								}
+								if(side1 == 0)
+								{
+									seg = {start_tower:t2, end_tower:t1, start_side:side2, end_side:side1};
+									cp = {start:i2, end:i1, phase:phase};
+									start = GetDrawInfoFromContactPoint(1,  i2,  g_cpdata, 0, offset_z);
+									if(g_cpdata_next.length==1)
+									{
+										end = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[0], 0, -offset_z);
+									}
+									if(g_cpdata_next.length==2)
+									{
+										for(var j in g_next_ids)
+										{
+											if(t1 == g_next_ids[j])
+											{
+												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[0], -offset_x, -offset_z);
+												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[1], offset_x, -offset_z);
+											}
+										}
+									}
+								}
+								if(start && end)
+									DrawLine(editor, start, end, color, seg, cp);
+								if(start && end1)
+									DrawLine(editor, start, end1, color, seg, cp);
+								if(start && end2)
+									DrawLine(editor, start, end2, color, seg, cp);
+								AddSeg(t1, t2, side1, side2, i1, i2, phase);
+							}else
+							{
+								ShowMessage(400, 150, '已存在','所连接的线段已经存在');
+							}
+						}
+						g_cp_pair.length = 0;
+					}
+					//if(g_cp_pair.length == 1)
+					//{
+						//var little = g_cp_pair[0];
+						//var big = g_cp_pair[1];
+					//}
+					//if(g_cp_pair.length == 0)
+					//{
+						//var little = g_cp_pair[0];
+						//var big = g_cp_pair[1];
+					//}
 				}
 			}
 		}
@@ -181,9 +278,9 @@ $(function() {
 	onWindowResize();
 	
 	AddHemisphereLight(editor);
-	
+	var off_x = g_off_x, off_z = g_off_z;
+
 	//LoadGltfFromUrl(editor, viewport, 'http://localhost:88/gltf/BJ1_25_0.json', [-90,0,0], [10,10,10], '#00FF00');
-	var off_x = 10, off_z = 30;
 	if(g_mode == 'segs')
 	{
 		if(param['url_next'].length==1)
@@ -197,16 +294,16 @@ $(function() {
 		}
 		if(param['data_next'].length==1)
 		{
-			LoadContactPoint(editor, param['data_next'][0], [0, 0, -off_z]);
+			LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [0, 0, -off_z]);
 		}
 		if(param['data_next'].length==2)
 		{
-			LoadContactPoint(editor, param['data_next'][0], [-off_x, 0, -off_z]);
-			LoadContactPoint(editor, param['data_next'][1], [off_x, 0, -off_z]);
+			LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [-off_x, 0, -off_z]);
+			LoadContactPoint(editor, param['next_ids'][1], param['data_next'][1], [off_x, 0, -off_z]);
 		}
 		if(param['data'])
 		{
-			LoadContactPoint(editor, param['data'], [0, 0, off_z]);
+			LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, off_z]);
 		}
 		if(param['url'])
 		{
@@ -240,7 +337,7 @@ $(function() {
 		if(param['data'])
 		{
 			g_contact_points =  param['data']['contact_points'];
-			LoadContactPoint(editor, param['data'], [0, 0, 0]);
+			LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, 0]);
 		}
 	}
 	
@@ -325,6 +422,7 @@ $(function() {
 	{
 		$('#button_del_seg').css('display','block');
 		$('#button_add_seg').css('display','block');
+		$('#button_save_seg').css('display','block');
 		$('#button_phase').css('display','block');
 		$('#button_del_seg').button();
 		$('#button_del_seg').on('click', function() {
@@ -336,11 +434,116 @@ $(function() {
 			g_is_add_seg = !g_is_add_seg;
 			console.log(g_is_add_seg);
 		});
+		
+		$('#button_save_seg').button();
+		$('#button_save_seg').on('click', function() {
+			SaveSegment();
+		});
+		
 		$('#button_phase').buttonset();
 	}
 
 	
 });
+
+function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
+{
+	for(var i in g_segments_editting)
+	{
+		var seg = g_segments_editting[i];
+		if(	(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
+		||	(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+		){
+			//console.log('before=' + seg.contact_points.length);
+			if(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
+				seg['contact_points'].push({start:index0, end:index1, phase:phase});
+			if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+				seg['contact_points'].push({start:index1, end:index0, phase:phase});
+			//console.log('after=' + seg.contact_points.length);
+			g_segments_editting[i] = seg;
+			break;
+		}
+	}
+}
+function DelSeg(data)
+{
+	for(var i in g_segments_editting)
+	{
+		var seg = g_segments_editting[i];
+		var tower_id0 = data['start_tower'],
+			tower_id1 = data['end_tower'],
+			side0 = data['start_side'],
+			side1 = data['end_side'],
+			index0 = data['start'],
+			index1 = data['end'];
+			
+		if(	(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
+		||	(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+		){
+			if(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
+			{
+				for(var j in seg['contact_points'])
+				{
+					var cp = seg['contact_points'][j];
+					if(cp['start'] == index0 && cp['end'] == index1)
+					{
+						seg['contact_points'].splice(j, 1);
+						g_segments_editting[i] = seg;
+						break;
+					}
+				}
+			}
+			if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+			{
+				for(var j in seg['contact_points'])
+				{
+					var cp = seg['contact_points'][j];
+					if(cp['start'] == index1 && cp['end'] == index0)
+					{
+						seg['contact_points'].splice(j, 1);
+						g_segments_editting[i] = seg;
+						break;
+					}
+				}
+			}
+			
+		}
+	}
+}
+
+function CheckSegExist(tower_id0, tower_id1, side0, side1, index0, index1)
+{
+	var ret = false;
+	for(var i in g_segments_editting)
+	{
+		var seg = g_segments_editting[i];
+		if(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 
+			&& seg['start_side'] == side0 && seg['end_side'] == side1
+		){
+			for(var j in seg['contact_points'])
+			{
+				var cp = seg['contact_points'][j];
+				if(cp['start'] == index0 && cp['end'] == index1)
+				{
+					return true;
+				}
+			}
+		}
+		if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 
+			&& seg['start_side'] == side1 && seg['end_side'] == side0
+		){
+			for(var j in seg['contact_points'])
+			{
+				var cp = seg['contact_points'][j];
+				if(cp['start'] == index1 && cp['end'] == index0)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return ret;
+}
 
 function GetObjectPos()
 {
@@ -356,55 +559,84 @@ function AddContactPoint()
 	var obj = $("#button_cp_side :radio:checked").attr('id');
 	console.log(obj);
 }
+
 function DelContactPoint()
 {
 	var obj = g_editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 	{
-		console.log(obj['userData']['data']);
-		$('#dlg_delete_cp').dialog({
-			title:'你确定要删除此挂线点吗?',
-			closeOnEscape: true,
-			modal:true,
-			draggable:true,
-			width:400,
-			height:250,
-			buttons: [ 
-				{  	text: "确定", 
-					click: function() { 
-						console.log('ok'); 
-					}
-				},
-				{	text: "取消", 
-					click: function() { 
-						$( this ).dialog( "close" ); 
-					} 
-				}]
+		ShowConfirm(400, 200,
+			'你确定要删除此挂线点吗?', 
+			'删除挂线点后，你可以重新创建挂线点，方法是选择该挂线点的类型(大号端,小号端),然后点击"添加挂线点"按钮，即可完成添加.', 
+			function(){
+				
 		});
 	}
 }
 
 function DeleteSegment()
 {
-	$('#dlg_delete_segment').dialog({
-		title:'你确定要删除此线段吗?',
-		closeOnEscape: true,
-		modal:true,
-		draggable:true,
-		width:400,
-		height:250,
-		buttons: [ 
-			{  	text: "确定", 
-				click: function() { 
-					console.log('ok'); 
+	var obj = g_editor.selected;
+	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'line')
+	{
+		ShowConfirm(400, 200,
+			'你确定要删除此线段吗?', 
+			'删除线段后，你可以重新创建线段，方法是,确认“添加线段”按钮按下,然后在右边选择该线段的类型,然后先点击一个杆塔的挂线端点，再点击另一个杆塔的挂线端点，即可完成添加.', 
+			function(){
+				DelSeg(obj['userData']['data']);
+				DelLine(g_editor);
+		});
+	}
+}
+function SaveSegment()
+{
+	if(CheckSegsModified())
+	{
+		ShowConfirm(400, 200,
+			'发现已修改', 
+			'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。', 
+			function(){
+				SaveSeg();
+		});
+	}
+}
+
+function CheckSegsModified()
+{
+	var ret = false;
+	for(var i in g_segments)
+	{
+		if(g_segments[i].contact_points.length != g_segments_editting[i].contact_points.length)
+		{
+			return true;
+		}
+		for(var j in g_segments[i].contact_points)
+		{
+			var cp1 = g_segments[i].contact_points[j];
+			var cp2 = g_segments_editting[i].contact_points[j];
+			for(var k in cp1)
+			{
+				//console.log(cp1[k] + '<==>' + cp2[k]);
+				if(cp1[k] != cp2[k])
+				{
+					return true;
 				}
-			},
-			{	text: "取消", 
-				click: function() { 
-					$( this ).dialog( "close" ); 
-				} 
-			}]
+			}
+		}
+	}
+	return ret;
+}
+function SaveSeg()
+{
+	//console.log(g_segments);
+	console.log(g_segments_editting);
+	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
+	var data = {'db':'kmgd', 'collection':'segments','action':'save', 'data':g_segments_editting};
+	MongoFind(data, function(data1){
+			
 	});
+	
+	
 }
 
 
@@ -443,7 +675,6 @@ function GetDrawInfoFromContactPoint(side, idx, data, offset_x, offset_z)
 	}
 	return ret;
 }
-//function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, offset_z)
 function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 {
 	//for(var i in next_ids)
@@ -468,19 +699,7 @@ function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 				end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
 				end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 			}
-			var color = 0x000000;
-			if(cp['phase'] == 'A')
-				color = 0xFFFF00;
-			if(cp['phase'] == 'B')
-				color = 0xFF0000;
-			if(cp['phase'] == 'C')
-				color = 0x00FF00;
-			if(cp['phase'] == 'L')
-				color = 0x000000;
-			if(cp['phase'] == 'R')
-				color = 0x000000;
-			//console.log(start);
-			//console.log(end);
+			var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
 			if(end)
 				DrawLine(editor, start, end, color, seg, cp);
 			if(end1)
@@ -493,7 +712,11 @@ function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 	}
 	//}
 }
-
+function DelLine(editor)
+{
+	editor.removeObject(editor.selected);
+	editor.deselect();
+}
 function DrawLine(editor, start, end, color, seg, cp)
 {
 	var geometry = new THREE.Geometry();
@@ -501,7 +724,7 @@ function DrawLine(editor, start, end, color, seg, cp)
 	geometry.vertices.push( p );
 	p = new THREE.Vector3(end.x, end.y, end.z);
 	geometry.vertices.push( p );
-	var line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { color: color, opacity: 1.0 } ) );
+	var line = new THREE.Line( geometry, new THREE.LineBasicMaterial( { color: color, opacity: 1.0, linewidth:2.0 } ) );
 	line.name = start.index + ','+ end.index;
 	line['userData']['type'] = 'line';
 	line['userData']['data'] = {
@@ -518,7 +741,7 @@ function DrawLine(editor, start, end, color, seg, cp)
 
 
 
-function LoadContactPoint(editor, data, offset)
+function LoadContactPoint(editor, tower_id, data, offset)
 {
 	for(var i in data['contact_points'])
 	{
@@ -526,13 +749,13 @@ function LoadContactPoint(editor, data, offset)
 		var title = '';
 		var color;
 		var size;
-		if(cp['side']==0)
+		if(cp['side']==1)
 		{
 			title = '小号端' ;
 			color = '#FF0000';
 			size = 0.2;
 		}
-		if(cp['side']==1)
+		if(cp['side']==0)
 		{
 			title = '大号端' ;
 			color = '#0000FF';
@@ -546,7 +769,7 @@ function LoadContactPoint(editor, data, offset)
 		{
 			title = data['model_code_height'] + '#' + title + '#' + cp['contact_index'];
 		}
-		AddSphere(editor, [cp['x'] + offset[0], cp['y'] + offset[1], cp['z'] + offset[2]], size, title, color, cp);
+		AddSphere(editor, tower_id, [cp['x'] + offset[0], cp['y'] + offset[1], cp['z'] + offset[2]], size, title, color, cp);
 	}
 
 }
@@ -645,7 +868,7 @@ function AddHemisphereLight(editor)
 	editor.addObject( light );
 }
 
-function AddSphere(editor, position, radius, name, color, data)
+function AddSphere(editor, tower_id, position, radius, name, color, data)
 {
 	var c = tinycolor(color).toRgb();
 	var widthSegments = 32;
@@ -656,6 +879,7 @@ function AddSphere(editor, position, radius, name, color, data)
 	mesh.name = name ;
 	mesh['userData']['type'] = 'contact_point';
 	mesh['userData']['data'] = data;
+	mesh['userData']['tower_id'] = tower_id;
 	mesh.material.color.setRGB(c['r']/255.0, c['g']/255.0, c['b']/255.0);
 	editor.addObject( mesh );
 	//editor.select( mesh );

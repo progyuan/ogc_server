@@ -1273,6 +1273,13 @@ def handle_post_method(Env, Start_response):
             is_mongo = True
             dbname = obj[u'db']
             collection = obj[u'collection']
+            action = None
+            data = None
+            if obj.has_key(u'action') and obj.has_key(u'data'):
+                action = obj[u'action']
+                data = obj[u'data']
+                del obj[u'action']
+                del obj[u'data']
             if obj.has_key(u'use_czml') and obj[u'use_czml']:
                 use_czml = True
                 del obj[u'use_czml']
@@ -1281,7 +1288,10 @@ def handle_post_method(Env, Start_response):
                 del obj[u'get_extext']
             del obj[u'db']
             del obj[u'collection']
-            l = db_util.mongo_find(dbname, collection, obj)
+            if action:
+                l = db_util.mongo_action(dbname, collection, action, data)
+            else:
+                l = db_util.mongo_find(dbname, collection, obj)
             if get_extext:
                 l = db_util.find_extent(l)
             if use_czml:

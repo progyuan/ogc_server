@@ -24,7 +24,9 @@
     <script type="text/javascript" src="js/jquery/messages_cn.js"></script>
     <script type="text/javascript" src="js/ligerui.all.js"></script>
     <script type="text/javascript" src="js/MathLib.min.js"></script>
+    <script type="text/javascript" src="js/tinycolor-min.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
+    <script type="text/javascript" src="js/common.js"></script>
 </head>
 <body >
 <style>
@@ -37,7 +39,9 @@
 <!--<div id="loadingOverlay"><h1>正在载入，请稍候...</h1></div>-->
 <div id="dlg_tower_info">
 
-	<div style='display:none' id='dlg_save_validate'>检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。
+	<div id='dlg_confirm'><div></div>
+	</div>
+	<div id='dlg_message'><div></div>
 	</div>
 
 	<div id="tabs_tower_info">
