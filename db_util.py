@@ -8378,7 +8378,7 @@ def find_extent(data):
         ret['north'] = max(yl)
     return ret
 
-def mongo_action(dbname, collection_name, action, data):
+def mongo_action(dbname, collection_name, action, data, conditions):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
@@ -8392,11 +8392,13 @@ def mongo_action(dbname, collection_name, action, data):
             db = gClientMongo[dbname]
             if collection_name in db.collection_names():
                 if action.lower() == 'save':
+                    data = add_mongo_id(data)
                     if isinstance( data, list):
                         for i in data:
-                            cur = db[collection_name].save(i)
+                            db[collection_name].save(i)
                     if isinstance(data, dict):
-                        cur = db[collection_name].save(data)
+                        db[collection_name].save(data)
+                    ret = mongo_find(dbname, collection_name, conditions)
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -8409,7 +8411,7 @@ def mongo_action(dbname, collection_name, action, data):
     return ret
     
     
-def mongo_find(dbname, collection_name, *args, **kwargs):
+def mongo_find(dbname, collection_name, conditions):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
@@ -8421,13 +8423,15 @@ def mongo_find(dbname, collection_name, *args, **kwargs):
             gClientMongo = MongoClient(host, port)
         if dbname in gClientMongo.database_names():      
             db = gClientMongo[dbname]
+            conditions = add_mongo_id(conditions)
+            conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
-                cur = db[collection_name].find(*args, **kwargs)
+                cur = db[collection_name].find(conds)
                 for i in cur:
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
             elif collection_name == 'mongo_get_towers_by_line_name':
-                lines = db['lines'].find(*args, **kwargs)
+                lines = db['lines'].find(conds)
                 towerids = []
                 for line in lines:
                     for t in line['towers']:
@@ -8446,9 +8450,11 @@ def mongo_find(dbname, collection_name, *args, **kwargs):
         #err = sys.exc_info()[1].message
         #print(err)
         ret = []
+    print(conditions)
+    print(len(ret))
     return ret
 
-def mongo_find_one(dbname, collection_name, *args, **kwargs):
+def mongo_find_one(dbname, collection_name, conditions):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = None
@@ -8460,7 +8466,9 @@ def mongo_find_one(dbname, collection_name, *args, **kwargs):
             gClientMongo = MongoClient(host, port)
                 
         db = gClientMongo[dbname]
-        ret = db[collection_name].find_one(*args, **kwargs)
+        conditions = add_mongo_id(conditions)
+        conds = build_mongo_conditions(conditions)
+        ret = db[collection_name].find_one(conds)
         ret = remove_mongo_id(ret)
     except:
         traceback.print_exc()
@@ -8468,15 +8476,43 @@ def mongo_find_one(dbname, collection_name, *args, **kwargs):
         #print(err)
         ret = None
     return ret
+
+def test_find_by_string_id():
+    ret = mongo_find('kmgd', 'segments', {'_id':[ObjectId('535a1560ca49c804e457446a'), ObjectId('535a1560ca49c804e457446b')]})
+    print(ret)
+    print(len(ret))
+    
+    
+
+def build_mongo_conditions(obj):
+    if isinstance(obj, list):
+        obj = {'$in': obj}
+        return obj
+    elif isinstance(obj, dict):
+        for k in obj.keys():
+            obj[k] = build_mongo_conditions(obj[k])
+    return obj
+    
+def add_mongo_id(obj):
+    if isinstance(obj, str):
+        try:
+            obj = ObjectId(obj)
+        except:
+            pass
+        return obj
+    elif isinstance(obj, dict):
+        for k in obj.keys():
+            obj[k] = add_mongo_id(obj[k])
+    elif isinstance(obj, list):
+        for i in obj:
+            obj[obj.index(i)] = add_mongo_id(i)
+    return obj
     
 def remove_mongo_id(obj):
     if isinstance(obj, ObjectId):
         obj = str(obj)
         return obj
     elif isinstance(obj, dict):
-        #if obj.has_key(u'_id'):
-            ##del obj[u'_id']
-            #obj[u'_id'] = str(obj[u'_id'])
         for k in obj.keys():
             obj[k] = remove_mongo_id(obj[k])
     elif isinstance(obj, list):
@@ -8788,7 +8824,7 @@ if __name__=="__main__":
     #test_build_tower_odbc_mongo_id_mapping()
     #test_build_line_odbc_mongo_id_mapping()
     #test_mongo_import_towers()
-    test_mongo_import_segments()
+    #test_mongo_import_segments()
     #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
     #print(ret)
     #print('count=%d' % len(ret))
@@ -8797,5 +8833,6 @@ if __name__=="__main__":
     #print('find one')
     #ret = mongo_find_one('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
     #print(ret)
+    test_find_by_string_id()
     
     

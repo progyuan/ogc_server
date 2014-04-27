@@ -629,9 +629,14 @@ function CheckSegsModified()
 function SaveSeg()
 {
 	//console.log(g_segments);
-	console.log(g_segments_editting);
+	//console.log(g_segments_editting);
 	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
-	var data = {'db':'kmgd', 'collection':'segments','action':'save', 'data':g_segments_editting};
+	var ids = [];
+	for(var i in g_segments_editting)
+	{
+		ids.push(g_segments_editting[i]['_id']);
+	}
+	var data = {'db':'kmgd', 'collection':'segments','action':'save', 'data':g_segments_editting, '_id':ids};
 	MongoFind(data, function(data1){
 			
 	});

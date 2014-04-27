@@ -63,6 +63,7 @@ function ShowProgressBar(show, width, height, title, msg)
 		});
 		g_progress_interval = setInterval(function(){
 			g_progress_value += 1;
+			if(g_progress_value > 100) g_progress_value = 100;
 			$('#div_progress_bar').progressbar('value', g_progress_value);
 			$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
 		}, 100);
