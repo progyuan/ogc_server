@@ -8450,8 +8450,8 @@ def mongo_find(dbname, collection_name, conditions):
         #err = sys.exc_info()[1].message
         #print(err)
         ret = []
-    print(conditions)
-    print(len(ret))
+    #print(conditions)
+    #print(len(ret))
     return ret
 
 def mongo_find_one(dbname, collection_name, conditions):

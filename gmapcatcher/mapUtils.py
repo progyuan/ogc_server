@@ -43,12 +43,60 @@ def mod(x, y):
 def coord_to_tile(coord):
     world_tiles = tiles_on_level(coord[2])
     x = world_tiles / 360.0 * (coord[1] + 180.0)
+    #x = world_tiles / 360.0 * coord[1]
     tiles_pre_radian = world_tiles / (2 * math.pi)
     e = math.sin(coord[0] * (1 / 180. * math.pi))
     y = world_tiles / 2 + 0.5 * math.log((1 + e) / (1 - e)) * (-tiles_pre_radian)
     offset = int((x - int(x)) * TILES_WIDTH), \
              int((y - int(y)) * TILES_HEIGHT)
     return (int(x) % world_tiles, int(y) % world_tiles), offset
+
+
+def DegToRad(d):
+    return d * math.pi/180.0
+
+def RadToDeg(r):
+    return r*180.0/math.pi
+
+def LonToX(lon,offset,radius):
+    return offset+radius*DegToRad(lon)
+
+def LatToY(lat,offset,radius):
+    return offset-radius * math.log((1 + math.sin(DegToRad(lat)))/(1-math.sin(DegToRad(lat))))/2.0
+
+def XToLon(x,offset,radius):
+    return RadToDeg((x-offset)/radius)
+
+def YToLat(y,offset,radius):
+    return RadToDeg(math.pi/2-2*math.atan(math.exp((y-offset)/radius)))
+
+#For Google, use:
+
+    #offset=16777216;
+    #radius=5340354;
+
+#For MSN, use:
+
+    #offset=16777216;
+    #radius=5102510;
+
+#It appears MSN adjusts for the bulge at the equator.  Google uses a
+#perfectly spherical earth.
+
+#The values for "x" & "y" are "pixel" coordinates, not "tile" numbers.
+#To convert from "pixels" to "tiles", use:
+
+def coord_to_tile1(coord):
+    offset=16777216;
+    radius=5340354;
+    x = int(LonToX(coord[1],offset,radius)/TILES_WIDTH)>>coord[2]
+    y = int(LatToY(coord[0],offset,radius)/TILES_HEIGHT)>>coord[2]
+    return (x, y), ()
+
+
+
+
+
 
 
 ## Convert from ((tile, offset), zoom_level) to coord(lat, lon, zoom_level)

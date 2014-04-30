@@ -44,10 +44,10 @@ def build():
                     'static/img',
                     'static/geojson',
                     'static/css',
-                    #'static/js',
-                    #'static/lib',
-                    #'static/lab',
-                    #'static/api',
+                    'static/js',
+                    'static/lib',
+                    'static/lab',
+                    'static/api',
                     #'static/demos',
                     #'static/theme',
                     #'static/indexdata.js',
@@ -64,11 +64,11 @@ def build():
                                       targetName = "ogc_server.exe",
                                       #icon ='res/nfdw_gui.ico'
                                       ),
-                #Executable("proc.py",
-                         #base = base,
-                         #targetName = "sync.exe",
+                Executable("download.py",
+                         base = base,
+                         targetName = "download.exe",
                          #icon ='res/nfdw.ico'
-                         #),                       
+                         ),                       
             ]
     )
     

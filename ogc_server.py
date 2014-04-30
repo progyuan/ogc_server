@@ -877,6 +877,11 @@ def handle_arcgistile(Env, Start_response):
         
         ret = gSatTileCache[key]
     else:
+        if not gSatTileCache.has_key('missing'):
+            picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+            with open(picpath, 'rb') as f:
+                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                gSatTileCache['missing'] = f1.read()
         ret = gSatTileCache['missing']
         
     Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ('Access-Control-Allow-Origin', '*')])

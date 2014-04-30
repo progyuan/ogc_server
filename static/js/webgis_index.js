@@ -116,7 +116,8 @@ $(function() {
 		timeline:false,
 		imageryProviderViewModels:providerViewModels,
 		terrainProvider:new Cesium.CesiumTerrainProvider({
-			url: g_host + "terrain"
+			//url: g_host + "terrain"
+			url: "http://cf-storage:88/" + "terrain"
 		})
 	});
 	

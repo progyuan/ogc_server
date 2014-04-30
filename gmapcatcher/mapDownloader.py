@@ -287,7 +287,7 @@ class MapDownloaderGevent:
             href = gConfig['googlemap']['server'] + '/vt?lyrs=' + map_server_query[layer] + '&hl=' + gConfig['googlemap']['language'] + '&x=%i&y=%i&z=%i' % (coord[0], coord[1], 17 - coord[2])
             #http://mts0.googleapis.com/vt?lyrs=m&x=6354&y=3436&z=13
             if href:
-                #print('gevent url=%s' % href)
+                print('gevent url=%s' % href)
                 url = URL(href)
                 http = None
                 if self.proxy_host:
@@ -299,7 +299,7 @@ class MapDownloaderGevent:
                     if response.status_code == 200:
                         #CHUNK_SIZE = 1024 * 16 # 16KB
                         filename = self.coord_to_path(coord, layer, conf)
-                        #print('gevent filename=%s' % filename)
+                        print('downloaded filename=%s' % filename)
                         with open(filename, 'wb') as f:
                             f.write(response.read())
                         callback(True, coord, layer)
@@ -357,11 +357,11 @@ class MapDownloaderGevent:
         if dlon > 358:
             lon0 = 0
             dlon = 358
-
-        top_left = mapUtils.coord_to_tile(
+        #zoom = 18 - zoom
+        top_left = mapUtils.coord_to_tile1(
             (lat0 + dlat / 2, lon0 - dlon / 2, zoom)
         )
-        bottom_right = mapUtils.coord_to_tile(
+        bottom_right = mapUtils.coord_to_tile1(
             (lat0 - dlat / 2, lon0 + dlon / 2, zoom)
         )
         self.query_region(top_left[0][0], bottom_right[0][0],
