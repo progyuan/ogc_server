@@ -6,6 +6,7 @@ import json
 import math
 import decimal
 import datetime
+import threading
 from gevent import pywsgi
 import gevent
 import gevent.fileobject
@@ -1711,6 +1712,7 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
+    server = None
     if port and not enable_cluster:
         if enable_ssl:
             print('listening at host 127.0.0.1, port %d with ssl crypted' % port)
@@ -1787,7 +1789,7 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                 servers[-1].serve_forever()
         else:
             print('wrong host or port in %s' % CONFIGFILE)
-
+    return server
 
 
 def mainloop_nginx(popen):
@@ -1957,6 +1959,35 @@ if __name__=="__main__":
     #print(webservice_GetFlashofDate('',''))
     
     
+class Win32ServiceHandler(object):
+
+    # no parameters are permitted; all configuration should be placed in the
+    # configuration file and handled in the Initialize() method
+    def __init__(self):
+        #freeze_support()
+        self.server = None
+        self.stopEvent = threading.Event()
+        self.stopRequestedEvent = threading.Event()
+
+    # called when the service is starting
+    def Initialize(self, configFileName):
+        pass
+
+    # called when the service is starting immediately after Initialize()
+    # use this to perform the work of the service; don't forget to set or check
+    # for the stop event or the service GUI will not respond to requests to
+    # stop the service
+    def Run(self):
+        #self.stopRequestedEvent.wait()
+        self.stopEvent.set()
+        self.server = mainloop_single()
+
+    # called when the service is being stopped by the service manager GUI
+    def Stop(self):
+        self.stopRequestedEvent.set()
+        self.stopEvent.wait()
+        if self.server:
+            self.server.stop()
     
     
     

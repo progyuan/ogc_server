@@ -27,9 +27,11 @@ from cx_Freeze import setup, Executable
 def build():
     base = None
     base_gui = None
-    if sys.platform == "win32":
-        base = "Console"
-        base_gui = "Win32GUI"
+    base_services = None
+    if sys.platform == 'win32':
+        base = 'Console'
+        base_gui = 'Win32GUI'
+        base_services = 'Win32Service'
     
     setup(
             name = "ogc_server",
@@ -37,9 +39,11 @@ def build():
             description = "昭通供电局服务器端应用程序",
             options = {"build_exe" : {
                 #"packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
-                "includes": ["lxml._elementpath", "greenlet", ],
+                "includes": ['lxml._elementpath', 'greenlet','gevent', 'cx_Logging', 'ogc_server'],
                 "include_files" : [
                     'ogc-config.ini', 
+                    'ogc_service_install.bat', 
+                    'ogc_service_uninstall.bat', 
                     'pinyin_word.data',
                     'static/img',
                     'static/geojson',
@@ -53,7 +57,7 @@ def build():
                     #'static/indexdata.js',
                     #'static/index_pymongoadmin.html',
                     #'static/welcome_pymongoadmin.html',
-                    'static/dishen_test.html',
+                    #'static/dishen_test.html',
                     ],
                 "include_msvcr": True
             }
@@ -62,6 +66,11 @@ def build():
                 Executable("ogc_server.py",
                                       base = base,
                                       targetName = "ogc_server.exe",
+                                      #icon ='res/nfdw_gui.ico'
+                                      ),
+                Executable("ogc_server_services.py",
+                                      base = base_services,
+                                      targetName = "ogc_server_services.exe",
                                       #icon ='res/nfdw_gui.ico'
                                       ),
                 Executable("download.py",

@@ -7282,9 +7282,10 @@ def convert_shp_to_geojson(area, bound, shp, piny):
                 atr[dec1(field_names[i])] = dec1(sr.record[i])
             atr['type'] = k
             atr['py'] = ''
-            if atr.has_key('NAME') and len(dec(atr['NAME'].strip()))>0:
+            #if atr.has_key('NAME') and len(dec(atr['NAME'].strip()))>0:
+            if atr.has_key(u'NAME') and len(atr[u'NAME'].strip())>0:
                 try:
-                    atr['py'] = piny.hanzi2pinyin_first_letter(dec(atr['NAME'].strip()))
+                    atr['py'] = piny.hanzi2pinyin_first_letter(atr[u'NAME'].strip().replace(u'银行',u'银哈').replace(u'工行',u'工哈').replace(u'农行',u'农哈').replace(u'建行',u'建哈').replace(u'中行',u'中哈').replace(u'交行',u'交哈').replace(u'招行',u'招哈').replace(u'支行',u'支哈').replace(u'分行',u'分哈'))
                 except:
                     pass
             #print('%s=%s' % (dec(atr['NAME']), atr['py']))
@@ -8801,7 +8802,7 @@ if __name__=="__main__":
     
     #test_get_area_by_latlng('km')
     #gen_geojson_by_lines('km')
-    #gen_geojson_by_shape('km')
+    gen_geojson_by_shape('km')
     #odbc_update_towers_rotate(False, 'km')
     #filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls']
     filelist = [
@@ -8833,6 +8834,6 @@ if __name__=="__main__":
     #print('find one')
     #ret = mongo_find_one('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
     #print(ret)
-    test_find_by_string_id()
+    #test_find_by_string_id()
     
     
