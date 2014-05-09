@@ -27,18 +27,75 @@
     <script type="text/javascript" src="js/tinycolor-min.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/common.js"></script>
+    <script type="text/javascript" src="js/webgis_form_data.js"></script>
+	<style>
+
+#input_search{
+	opacity:0.6;
+    position: absolute;
+    top: 10px;
+    left: 59px;
+	color:#00FF00;
+	background:#000000;
+    width: 400px;
+	height:48px;
+	display:none;
+	border:1px solid #00FF00;
+	font-size: 1.6em;
+	z-index:10;
+}
+
+#button_search{
+	opacity:0.6;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 48px;
+	height:48px;
+	border-right:1px solid #00FF00;
+	background:#FFFFFF url(/img/search.png)  center;
+	background-size:48px 48px;
+}
+#button_search:hover {
+    background-color: #00FFFF;
+}
+#button_search_clear{
+	opacity:0.3;
+    position: absolute;
+    top: 10px;
+    left: 421px;
+    width: 48px;
+	height:48px;
+	font-size: 2.5em;
+	display:none;
+	border:0px solid #00FF00;
+	z-index:20;
+}
+#text_search_waiting{
+	opacity:0.5;
+    position: absolute;
+    top: 20px;
+    left: 200px;
+	font-size: 1.4em;
+	display:none;
+	border:0px;
+	z-index:30;
+}
+	</style>
+	
 </head>
 <body >
 <style>
 </style>
 <div style="" id="dlg_progress_bar">
 	<div id="div_progress_msg"></div>
-	<div id="div_progress_bar"><span class="progressbartext"></span></div>
+	<div id="div_progress_bar"><span class="progressbartext" style="width:95%;"></span></div>
 </div>
 <div id="cesiumContainer" class="fullSize"></div>
-<!--<div id="loadingOverlay"><h1>正在载入，请稍候...</h1></div>-->
+<div id="button_search" ></div>
+<div id="text_search_waiting" >正在查询，请稍候...</div>
+<input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
 <div id="dlg_tower_info">
-
 	<div id='dlg_confirm'><div></div>
 	</div>
 	<div id='dlg_message'><div></div>
@@ -69,7 +126,8 @@
 		</div>
 		<div id="tower_info_metal">
 			<div id="listbox_tower_info_metal"></div>
-			<form id="form_tower_info_metal"></form>
+			<form id="form_tower_info_metal">
+			</form>
 		</div>
 		<div id="tower_info_photo">
 			tower_info_photo

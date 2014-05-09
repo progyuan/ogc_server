@@ -188,10 +188,20 @@
 	overflow: auto;
 }
 .ui-autocomplete {
+	max-height: 300px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 20px;
 	position: absolute;
 	top: 0;
 	left: 0;
 	cursor: default;
+	background: #000000 url(images/ui-bg_diagonals-small_50_000000_40x40.png) 50% 50% repeat;
+	color: #00ff00;
+}
+.ui-autocomplete-input {
+	background: #000000 url(images/ui-bg_diagonals-small_50_000000_40x40.png) 50% 50% repeat;
+	color: #00ff00;
 }
 .ui-button {
 	display: inline-block;

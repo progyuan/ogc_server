@@ -20,7 +20,7 @@ function MongoFind(data, success)
 		ret = JSON.parse(decodeURIComponent(data1));
 		if(ret.result)
 		{
-			ShowMessage(400, 150, '信息', ret.result);
+			//ShowMessage(400, 250, '信息', ret.result);
 			success([]);
 		}
 		else

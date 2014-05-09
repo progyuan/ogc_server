@@ -8200,7 +8200,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 tower_obj['properties'][k] = tower[k]
                 tower_obj['properties']['py'] = ''
                 try:
-                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('I',u'一').replace('II',u'二'))
+                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('II',u'额').replace('I',u'一'))
                 except:
                     pass
             elif k=='geo_x' or k=='geo_y':
@@ -8379,7 +8379,7 @@ def find_extent(data):
         ret['north'] = max(yl)
     return ret
 
-def mongo_action(dbname, collection_name, action, data, conditions):
+def mongo_action(dbname, collection_name, action, data, conditions={}):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
@@ -8400,6 +8400,18 @@ def mongo_action(dbname, collection_name, action, data, conditions):
                     if isinstance(data, dict):
                         db[collection_name].save(data)
                     ret = mongo_find(dbname, collection_name, conditions)
+            if action.lower() == 'pinyinsearch':
+                arr = []
+                if collection_name in db.collection_names():
+                    arr.append(collection_name)
+                if '*' in collection_name:
+                    arr = db.collection_names()
+                if ';' in collection_name:
+                    arr = collection_name.split(';')
+                if not data.has_key('py'):
+                    arr = []
+                for i in arr:
+                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}}))
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -8412,7 +8424,7 @@ def mongo_action(dbname, collection_name, action, data, conditions):
     return ret
     
     
-def mongo_find(dbname, collection_name, conditions):
+def mongo_find(dbname, collection_name, conditions={}):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
@@ -8435,7 +8447,7 @@ def mongo_find(dbname, collection_name, conditions):
                 lines = db['lines'].find(conds)
                 towerids = []
                 for line in lines:
-                    for t in line['towers']:
+                    for t in line['properties']['towers']:
                         #print(str(t))
                         towerids.append(t)
                 towers = db['towers'].find({'_id':{'$in':towerids}})
@@ -8713,12 +8725,23 @@ def get_tower_id_mapping():
     for i in tower_ids_mapping:
         mapping[i['uuid']] = i['id']
     return mapping
+def get_line_id_mapping():
+    mapping = {}
+    #tower_ids_mapping = db['tower_ids_mapping']
+    line_ids_mapping = mongo_find('kmgd', 'line_ids_mapping')
+    for i in line_ids_mapping:
+        mapping[i['uuid']] = i['id']
+    return mapping
     
     
 def test_mongo_import_line():
     global gClientMongo
     host, port = 'localhost', 27017
     area = 'km'
+    from pinyin import PinYin
+    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
+    piny =  PinYin(pydatapath)
+    piny.load_word()
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
@@ -8726,22 +8749,30 @@ def test_mongo_import_line():
         
         if 'lines' in db.collection_names(False):
             db.drop_collection('lines')
-        collection_lines = db.create_collection('lines')
-        mapping = get_tower_id_mapping()
+        collection = db.create_collection('lines')
+        line_mapping = get_line_id_mapping()
+        tower_mapping = get_tower_id_mapping()
         #collection_lines = db['lines']
         odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
-            towers_sort = odbc_get_sorted_tower_by_line(line['id'], area)
-            del line['box_north']
-            del line['box_south']
-            del line['box_east']
-            del line['box_west']
-            line['towers'] = []
-            for i in towers_sort:
-                if mapping.has_key(i['id']):
-                    line['towers'].append(mapping[i['id']])
-            del line['id']
-            collection_lines.save(line)
+            lineobj = {}
+            if line_mapping.has_key(line['id']):
+                lineobj['_id'] = line_mapping[line['id']]
+                lineobj['properties'] = {}
+                towers_sort = odbc_get_sorted_tower_by_line(line['id'], area)
+                del line['box_north']
+                del line['box_south']
+                del line['box_east']
+                del line['box_west']
+                del line['id']
+                lineobj['properties']['towers'] = []
+                for i in towers_sort:
+                    if tower_mapping.has_key(i['id']):
+                        lineobj['properties']['towers'].append(tower_mapping[i['id']])
+                for k in line.keys():
+                    lineobj['properties'][k] = line[k]
+                lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
+                collection.save(add_mongo_id(lineobj))
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message
@@ -8777,6 +8808,28 @@ def test_mongo_import_code():
         err = sys.exc_info()[1].message
         print(err)
    
+def test_pinyin_search():
+    dbname = 'kmgd'
+    collection_name = '*'
+    action = 'pinyinsearch'
+    data = {'py':'qly'}
+    conditions = {}
+    ret = mongo_action(dbname, collection_name, action, data)
+    print(len(ret))
+    p1 = 0
+    p2 = 0
+    for i in ret:
+        if i.has_key('geometry') and i['geometry']['type'] == 'Point':
+            p1 += 1
+        else:
+            p2 += 1
+    print('p1=%d, p2=%d' % (p1, p2))
+    
+            
+            
+    
+    
+    
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -8802,7 +8855,7 @@ if __name__=="__main__":
     
     #test_get_area_by_latlng('km')
     #gen_geojson_by_lines('km')
-    gen_geojson_by_shape('km')
+    #gen_geojson_by_shape('km')
     #odbc_update_towers_rotate(False, 'km')
     #filelist = [ur'F:\work\cpp\kmgdgis3D\data\docs\郭家凹隧道.xls']
     filelist = [
@@ -8835,5 +8888,6 @@ if __name__=="__main__":
     #ret = mongo_find_one('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
     #print(ret)
     #test_find_by_string_id()
+    test_pinyin_search()
     
     
