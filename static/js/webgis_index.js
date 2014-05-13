@@ -836,29 +836,31 @@ function TowerInfoMixin(viewer)
 		else{
 			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = undefined;
-			//if(g_prev_selected_pos)
-			//{
-				////var vm = viewer.homeButton.viewModel;
-				////vm.flightDuration = 1;
-				////vm.command();
-				////ClearTrackedObj(viewer);
-				////ReloadCzmlDataSource(viewer);
-				//var pos = viewer.scene.primitives.centralBody.ellipsoid.cartesianToCartographic(g_prev_selected_pos._value);
-				//FlyToPoint(viewer.scene, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 1.6, 1);
-				//g_prev_selected_pos = null;
-			//}
 		}
 	}
 
 	if (Cesium.defined(viewer.homeButton)) {
-		eventHelper.add(viewer.homeButton.viewModel.command.beforeExecute, clearTrackedObject);
+		eventHelper.add(viewer.homeButton.viewModel.command.beforeExecute, function(commandInfo){
+			clearTrackedObject();
+		});
 		eventHelper.add(viewer.homeButton.viewModel.command.afterExecute, function(commandInfo){
 			if (Cesium.defined(g_view_extent))
 			{
 				FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+				if(g_prev_selected_pos)
+				{
+					//var vm = viewer.homeButton.viewModel;
+					//vm.flightDuration = 1;
+					//vm.command();
+					//ClearTrackedObj(viewer);
+					//ReloadCzmlDataSource(viewer);
+					var pos = viewer.scene.primitives.centralBody.ellipsoid.cartesianToCartographic(g_prev_selected_pos._value);
+					FlyToPoint(viewer.scene, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
+					g_prev_selected_pos = null;
+				}
+				
 				if (Cesium.defined(g_selected_obj_id))
 				{
-					//LookAtTargetExtent(viewer.scene, g_selected_obj_id, 0.001, 0.001);
 					g_selected_obj_id = undefined;
 				}
 			}
