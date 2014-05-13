@@ -72,14 +72,17 @@
 	z-index:20;
 }
 #text_search_waiting{
-	opacity:0.5;
+	opacity:0.4;
     position: absolute;
     top: 20px;
-    left: 200px;
-	font-size: 1.4em;
+    left: 100px;
 	display:none;
+	font-size: 1.4em;
 	border:0px;
 	z-index:30;
+}
+#dlg_tower_info{
+	display:none;
 }
 	</style>
 	
@@ -93,9 +96,9 @@
 </div>
 <div id="cesiumContainer" class="fullSize"></div>
 <div id="button_search" ></div>
-<div id="text_search_waiting" >正在查询，请稍候...</div>
+<div id="text_search_waiting" >输入关键字拼音首字母</div>
 <input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
-<div id="dlg_tower_info">
+<div id="dlg_tower_info" >
 	<div id='dlg_confirm'><div></div>
 	</div>
 	<div id='dlg_message'><div></div>

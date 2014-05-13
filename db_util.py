@@ -8411,7 +8411,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                 if not data.has_key('py'):
                     arr = []
                 for i in arr:
-                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}}))
+                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}}, limit=100))
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -8424,7 +8424,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
     return ret
     
     
-def mongo_find(dbname, collection_name, conditions={}):
+def mongo_find(dbname, collection_name, conditions={}, limit=0):
     global gClientMongo
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
@@ -8439,7 +8439,7 @@ def mongo_find(dbname, collection_name, conditions={}):
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
-                cur = db[collection_name].find(conds)
+                cur = db[collection_name].find(conds).limit(limit)
                 for i in cur:
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
@@ -8450,7 +8450,7 @@ def mongo_find(dbname, collection_name, conditions={}):
                     for t in line['properties']['towers']:
                         #print(str(t))
                         towerids.append(t)
-                towers = db['towers'].find({'_id':{'$in':towerids}})
+                towers = db['towers'].find({'_id':{'$in':towerids}}).limit(limit)
                 for i in towers:
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
