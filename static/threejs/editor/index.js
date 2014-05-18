@@ -12,7 +12,7 @@ var g_off_x = 10, g_off_z = 30;
 
 
 $(function() {
-
+	ShowProgressBar(true, 400, 150, '载入中', '正在载入，请稍候...');
 	var param = GetParamsFromUrl();
 	if(param['url_next'])
 	{
@@ -323,6 +323,7 @@ $(function() {
 						}
 					}
 					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
+					ShowProgressBar(false);
 			});
 		}
 	}else if(g_mode == 'tower')
@@ -332,12 +333,17 @@ $(function() {
 			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
 				function(target){
 					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 60.0, target);
+					ShowProgressBar(false);
 			});
 		}
 		if(param['data'])
 		{
 			g_contact_points =  param['data']['contact_points'];
 			LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, 0]);
+		}
+		if(!param['url'])
+		{
+			ShowProgressBar(false);
 		}
 	}
 	

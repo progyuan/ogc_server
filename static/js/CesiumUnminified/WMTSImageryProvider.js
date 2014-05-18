@@ -27,6 +27,7 @@ var WMTSImageryProvider = function WMTSImageryProvider(description) {
     this._minimumLevel = Cesium.defaultValue(description.minimumLevel, 0);
     this._maximumLevel = Cesium.defaultValue(description.maximumLevel, 17);
     this._extent = Cesium.defaultValue(description.extent, this._tilingScheme.extent);
+    this._rectangle = Cesium.defaultValue(description.rectangle, this._tilingScheme.rectangle);
 
     // Check the number of tiles at the minimum level.  If it's more than four,
     // throw an exception, because starting at the higher minimum
@@ -140,6 +141,14 @@ Cesium.defineProperties(WMTSImageryProvider.prototype, {
                 throw new Cesium.DeveloperError('extent must not be called before the imagery provider is ready.');
             }
             return this._extent;
+        }
+    },
+    rectangle : {
+        get : function() {
+            if (!this._ready) {
+                throw new DeveloperError('rectangle must not be called before the imagery provider is ready.');
+            }
+            return this._rectangle;
         }
     },
 

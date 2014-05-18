@@ -22,7 +22,7 @@ lang = langs[0]
 print("Will use lang '%s'" % (lang))
 # Ex: Will use lang 'fra'
 
-IMGPATH = u'D:\\2014项目\\Untitled.png'
+IMGPATH = ur'D:\ocr\1.png'
 
 #if __name__=="__main__":
 txt = tool.image_to_string(Image.open(IMGPATH),

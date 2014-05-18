@@ -100,7 +100,7 @@ var g_tower_baseinfo_fields = [
 function BuildForm(viewer, id, fields)
 {
 	var scene = viewer.scene;
-	var ellipsoid = scene.primitives.centralBody.ellipsoid;
+	var ellipsoid = scene.globe.ellipsoid;
 	$('#' + id).empty();
 	var labelwidth = 90;
 	var margin = 10/2;

@@ -26,6 +26,7 @@ var ArcgisTileImageryProvider = function ArcgisTileImageryProvider(description) 
     this._minimumLevel = Cesium.defaultValue(description.minimumLevel, 0);
     this._maximumLevel = Cesium.defaultValue(description.maximumLevel, 17);
     this._extent = Cesium.defaultValue(description.extent, this._tilingScheme.extent);
+    this._rectangle = Cesium.defaultValue(description.rectangle, this._tilingScheme.rectangle);
 
     // Check the number of tiles at the minimum level.  If it's more than four,
     // throw an exception, because starting at the higher minimum

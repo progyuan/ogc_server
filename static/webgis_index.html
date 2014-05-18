@@ -11,13 +11,19 @@
 	<link rel="stylesheet" href="css/black-green-theme/jquery-ui-1.10.4.custom.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/Aqua/css/ligerui-all.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
+	<!--<link rel="stylesheet" href="css/jquery.mCustomScrollbar.css" />-->
+	<!--<link rel="stylesheet" href="css/nanoscroller.css" />-->
+	<!--<link rel="stylesheet" href="css/nanoscroller/style.css" />-->
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/WMTSImageryProvider.js"></script>
-    <script type="text/javascript" src="js/CesiumUnminified/ArcgisTileImageryProvider.js"></script>
+    <!--<script type="text/javascript" src="js/CesiumUnminified/ArcgisTileImageryProvider.js"></script>-->
     <!--<script type="text/javascript" src="js/jquery/jquery-1.5.2.min.js"></script>-->
     <script type="text/javascript" src="js/jquery/jquery-uuid.js"></script>
     <script type="text/javascript" src="js/jquery/jquery-ui-1.10.4.custom.js"></script>
+    <!--<script type="text/javascript" src="js/jquery/jquery.mousewheel.js"></script>-->
+    <!--<script type="text/javascript" src="js/jquery/jquery.mCustomScrollbar.js"></script>-->
+    <script type="text/javascript" src="js/iscroll.js"></script>
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.validate.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.metadata.js"></script>
@@ -84,6 +90,85 @@
 #dlg_tower_info{
 	display:none;
 }
+
+#tower_info_model_list_filter{
+	color:#00FF00;
+	background:#000000;
+}
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: #000000; 
+}
+::-webkit-scrollbar-track-piece {
+    background: #000000; 
+}
+::-webkit-scrollbar-thumb {
+	background: #00FF00; 
+}
+::-webkit-scrollbar-button{
+    width: 4px;
+	display:none;
+}
+#div_tower_info_model_list_selectable
+{
+	width:99%;
+	max-height: 420px;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+#tower_info_model_list_selectable
+{
+	margin:0px;
+	margin-right:5px;
+}
+#tower_info_model_list_selectable li
+{
+	margin:1px;
+}
+#tower_info_model_list_filter
+{
+	color: #00FF00;
+	border:1px solid #00FF00;
+	font-size: 1.2em;
+	background:#000000;
+	width:90%;
+}
+#tower_info_model_list_toggle :hover
+{
+	cursor:hand;
+}
+#tower_info_model_list_toggle
+{
+	height:16px;
+	font-size: 0.8em;
+	float:left;
+}
+#tower_info_title_model_code
+{
+	height:16px;
+	font-size: 0.8em;
+	float:right;
+}
+.ui-widget-content1
+{
+	border:1px solid #00FF00;
+	font-size: 0.8em;
+}
+#tower_info_model_list_selectable .ui-selecting
+{
+	background:#005500;
+}
+#tower_info_model_list_selectable .ui-selected
+{
+	background:#009900;
+}
+#tower_info_model_list
+{
+	width:20%;
+	float:left;
+}
 	</style>
 	
 </head>
@@ -118,12 +203,27 @@
 		</div>
 		<div id="tower_info_model">
 			<div style='opacity:1.0;'>
-				<iframe style='border:solid 1px #00FF00; width:100%;height:500px;' src=''>正在加载模型...</iframe>
+				
+				<div id="tower_info_model_list" >
+					<div style="height:16px"></div>
+					<div ><input id='tower_info_model_list_filter' type='text' ></div>
+					<div id="div_tower_info_model_list_selectable">
+						<ol id="tower_info_model_list_selectable" >
+							<!--<li class="ui-widget-content">Item 1</li>-->
+						</ol>					
+					</div>
+				</div>
+				<div style="width:79%">
+					<div id="tower_info_model_list_toggle" ><a href='#'></a></div>
+					<div id="tower_info_title_model_code" ></div>
+				</div>
+				<iframe style='border:solid 1px #00FF00; width:79%;height:500px;' src=''>正在加载模型...</iframe>
 			</div>
 		</div>
 		<div id="tower_info_segment">
 			<div style='opacity:1.0;'>
 				<iframe style='border:solid 1px #00FF00; width:100%;height:500px;' src=''>正在加载模型...</iframe>
+				<div id="tower_info_segment_blank" style='width:100%;height:450px;'></div>
 			</div>
 			
 		</div>

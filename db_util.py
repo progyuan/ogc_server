@@ -106,6 +106,7 @@ SHAPEROOT= ur'I:\云南省矢量数据'
 #SHAPEROOT= ur'D:\work\云南省矢量数据'
 JSONROOT= ur'I:\geotiff\kmgdgis\download'
 SERVERJSONROOT= os.path.join(module_path(),'static', 'geojson')
+SERVERGLTFROOT= os.path.join(module_path(),'static', 'gltf')
 
 GEOJSONSHAPEMAPPING = {'hotel':u'宾馆酒店',
                        'restaurant':u'餐饮',
@@ -8400,7 +8401,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                     if isinstance(data, dict):
                         db[collection_name].save(data)
                     ret = mongo_find(dbname, collection_name, conditions)
-            if action.lower() == 'pinyinsearch':
+            elif action.lower() == 'pinyinsearch':
                 arr = []
                 if collection_name in db.collection_names():
                     arr.append(collection_name)
@@ -8412,6 +8413,10 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                     arr = []
                 for i in arr:
                     ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}}, limit=100))
+            elif action.lower() == 'modelslist':
+                for i in os.listdir(SERVERGLTFROOT):
+                    if i[-4:].lower() == '.bin':
+                        ret.append(i[:-4])
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
