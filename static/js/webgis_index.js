@@ -22,6 +22,7 @@ var g_is_tower_focus = false;
 
 
 
+
 $(function() {
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
@@ -100,7 +101,7 @@ $(function() {
 	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
 		name : '无地形',
 		iconUrl : Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/Ellipsoid.png'),
-		tooltip : 'WGS84 standard ellipsoid, also known as EPSG:4326',
+		tooltip : 'no-terrain',
 		creationFunction : function() {
 			return new Cesium.EllipsoidTerrainProvider();
 		}
@@ -226,7 +227,9 @@ $(function() {
 function TranslateToCN()
 {
 	$($('.cesium-baseLayerPicker-sectionTitle')[0]).html('地表图源');
+	//$($('.cesium-baseLayerPicker-sectionTitle')[0]).attr('imgtype', 'imagery');
 	$($('.cesium-baseLayerPicker-sectionTitle')[1]).html('3D地型数据源');
+	//$($('.cesium-baseLayerPicker-sectionTitle')[1]).attr('imgtype', 'terrain');
 	$('.cesium-navigation-help-pan').html('平移');
 	$('.cesium-navigation-help-pan').siblings().html('左键点击 + 拖动');
 	$('.cesium-navigation-help-zoom').html('缩放');
@@ -385,7 +388,7 @@ function ShowSearchResult(viewer, geojson)
 			if(!g_czmls[geojson['_id']])
 			{
 				g_czmls[geojson['_id']] = CreateTowerCzmlFromGeojson(geojson);
-				ReloadCzmlDataSource(viewer);
+				ReloadCzmlDataSource(viewer, g_zaware);
 			}
 		}
 	}
@@ -566,35 +569,55 @@ function LoadTowerByLineName(viewer,  line_name)
 				
 			}
 			//viewer.dataSources.removeAll();
-			ReloadCzmlDataSource(viewer);
+			ReloadCzmlDataSource(viewer, g_zaware);
 			var extent = GetExtentByCzml();
 			console.log(extent);
 			FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
 	});
 }
 
-function ReloadCzmlDataSource(viewer)
+
+function GetIndexCzmlDataSources(viewer)
 {
-	var ellipsoid = viewer.scene.globe.ellipsoid;
-	for(var i =0; i < viewer.dataSources.length; i++)
+	var ret = -1;
+	for(var i = 0; i < viewer.dataSources.length; i++)
 	{
 		var ds = viewer.dataSources.get(i);
-		if(ds.name == 'czml')
+		//console.log('ds.name=' + ds.name);
+		if(ds.dsname == 'czml')
 		{
 			viewer.dataSources.remove(ds);
+			ret = i;
 			break;
 		}
 	}
+	return ret;
+}
+function ReloadCzmlDataSource(viewer, z_aware)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var idx = GetIndexCzmlDataSources(viewer);
+	while(idx > -1)
+	{
+		viewer.dataSources.remove(idx);
+		idx = GetIndexCzmlDataSources(viewer);
+	}
 	var arr = [];
 	var pos;
+	console.log('z_aware=' + z_aware);
 	for(var k in g_czmls)
 	{
-		arr.push(g_czmls[k]);
+		var obj =  $.extend(true, {}, g_czmls[k]);
+		if(!z_aware)
+		{
+			obj['position']['cartographicDegrees'] = [g_czmls[k]['position']['cartographicDegrees'][0],  g_czmls[k]['position']['cartographicDegrees'][1], 0];
+		}
+		arr.push(obj);
 		if(viewer.selectedObject)
 		{
-			if(g_czmls[k]['id'] === viewer.selectedObject.id)
+			if(obj['id'] === viewer.selectedObject.id)
 			{
-				pos = g_czmls[k]['position']['cartographicDegrees'];
+				pos = obj['position']['cartographicDegrees'];
 				console.log(pos);
 			}
 		}
@@ -606,7 +629,8 @@ function ReloadCzmlDataSource(viewer)
 	}
 	var dataSource = new Cesium.CzmlDataSource();
 	dataSource.load(arr);
-	dataSource.name = 'czml';
+	dataSource.dsname = 'czml';
+	//console.log('dataSource.dsname=' + dataSource.dsname);
 	viewer.dataSources.add(dataSource);
 	if(viewer.selectedObject && pos)
 	{
@@ -723,16 +747,13 @@ function LoadTowerModelByTower(viewer, tower)
 					lat = parseFloat($('input[id="tower_baseinfo_lat"]').val()),
 					height = parseFloat($('input[id="tower_baseinfo_alt"]').val()),
 					rotate = parseFloat($('input[id="tower_baseinfo_rotate"]').val());
+				if(!g_zaware) height = 0;
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
 					var model = CreateTowerModel(
 						scene, 
 						ellipsoid, 
 						GetModelUrl(tower['properties']['model']['model_code_height']), 
-						//tower['geometry']['coordinates'][0],  
-						//tower['geometry']['coordinates'][1], 
-						//tower['properties']['geo_z'] ,  
-						//tower['properties']['rotate'],
 						lng,  
 						lat, 
 						height ,  
@@ -746,6 +767,9 @@ function LoadTowerModelByTower(viewer, tower)
 					}
 				}
 			}
+		}
+		else
+		{
 		}
 	}
 }
@@ -1054,6 +1078,52 @@ function TowerInfoMixin(viewer)
 			g_selected_obj_id = undefined;
 		}
 	}
+
+	//event after terrain change
+	$('.cesium-baseLayerPicker-choices').on('click', function(e){
+		var db = $(e.target).parent().parent().attr('data-bind');
+		if(db == 'foreach: terrainProviderViewModels')
+		{
+			if($(e.target).parent().attr('title') == 'no-terrain')
+			{
+				//console.log('no terrain');
+				g_zaware = false;
+			}
+			else
+			{
+				g_zaware = true;
+				//console.log('yes terrain');			
+			}
+			ReloadCzmlDataSource(viewer, g_zaware);
+			for(var k in g_czmls)
+			{
+				if(g_gltf_models[k])
+				{
+					var t = GetTowerInfoByTowerId(k);
+					if(t)
+					{
+						RemoveSegmentsTower(viewer.scene, t);
+						//DrawSegmentsByTower(viewer.scene, t);
+						
+						var lng = t['geometry']['coordinates'][0],
+							lat = t['geometry']['coordinates'][1],
+							height = t['properties']['geo_z'],
+							rotate = t['properties']['rotate'];
+						
+						if(!g_zaware) height = 0;
+						var scene = viewer.scene;
+						var ellipsoid = scene.globe.ellipsoid;
+						PositionModel(ellipsoid, g_gltf_models[k], lng, lat, height, rotate);
+					}
+				}
+			}
+		}
+	});
+	//console.log(viewer.baseLayerPicker.viewModel.selectedImagery.command.afterExecute);
+	//eventHelper.add(viewer.scene.globe.imageryLayers.layerShownOrHidden, function(commandInfo){
+		//console.log(commandInfo);
+	//});
+
 
 	if (Cesium.defined(viewer.homeButton)) {
 		eventHelper.add(viewer.homeButton.viewModel.command.beforeExecute, function(commandInfo){
@@ -1396,6 +1466,13 @@ function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 			lat1 = tower1['geometry']['coordinates'][1],
 			height1 = tower1['properties']['geo_z'],
 			rotate1 = Cesium.Math.toRadians(tower1['properties']['rotate'] - 90);
+		
+		if(!g_zaware)
+		{
+			height0 = 0;
+			height1 = 0;
+		}
+
 			
 		var cart3_0 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(lng0, lat0, height0));
 		var	modelMatrix_0 = Cesium.Transforms.eastNorthUpToFixedFrame(cart3_0);
@@ -2054,7 +2131,7 @@ function RePositionPoint(viewer, id, lng, lat, height, rotate)
 	if(g_czmls[id] && $.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 	{
 		g_czmls[id]['position']['cartographicDegrees'] = [parseFloat(lng), parseFloat(lat), parseFloat(height)];
-		ReloadCzmlDataSource(viewer);
+		ReloadCzmlDataSource(viewer, g_zaware);
 	}
 
 }

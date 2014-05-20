@@ -1,3 +1,5 @@
+var g_zaware = false;
+
 //绝缘子串
 var g_insulator_type_list = [
 	{'value':'导线绝缘子','label':'导线绝缘子', 'py':'dxjyzc'},
@@ -161,6 +163,7 @@ function BuildForm(viewer, id, fields)
 									lat = $('input[id="tower_baseinfo_lat"]').val(),
 									height = $('input[id="tower_baseinfo_alt"]').val(),
 									rotate = $('input[id="tower_baseinfo_rotate"]').val();
+								if(!g_zaware) height = 0;
 								if(g_gltf_models[id])
 								{
 									if(fid.indexOf('_alt')>-1) height = event.currentTarget.value;
@@ -187,6 +190,7 @@ function BuildForm(viewer, id, fields)
 								lat = $('input[id="tower_baseinfo_lat"]').val(),
 								height = $('input[id="tower_baseinfo_alt"]').val(),
 								rotate = $('input[id="tower_baseinfo_rotate"]').val();
+							if(!g_zaware) height = 0;
 							if(g_gltf_models[id]) 
 							{
 								if(fid.indexOf('_alt')>-1)		height = ui.value;
@@ -218,6 +222,7 @@ function BuildForm(viewer, id, fields)
 										lat = $('input[id="tower_baseinfo_lat"]').val(),
 										height = $('input[id="tower_baseinfo_alt"]').val(),
 										rotate = $('input[id="tower_baseinfo_rotate"]').val();
+									if(!g_zaware) height = 0;
 									if(fid.indexOf('_lng')>-1) lng = event.currentTarget.value;
 									if(fid.indexOf('_lat')>-1) lat = event.currentTarget.value;
 									PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
@@ -244,6 +249,7 @@ function BuildForm(viewer, id, fields)
 									lat = $('input[id="tower_baseinfo_lat"]').val(),
 									height = $('input[id="tower_baseinfo_alt"]').val(),
 									rotate = $('input[id="tower_baseinfo_rotate"]').val();
+								if(!g_zaware) height = 0;
 								if(fid.indexOf('_lng')>-1) lng = ui.value;
 								if(fid.indexOf('_lat')>-1) lat = ui.value;
 								//RePositionPoint(viewer, id, lng, lat, height, rotate);
