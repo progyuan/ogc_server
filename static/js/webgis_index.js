@@ -6,17 +6,20 @@ var g_view_extent;
 var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
-var g_lines = [];
+var g_lines = {};
 var g_segments = [];
 var g_gltf_models = {};
 var g_dlg_tower_info;
 var g_contextmenu_metal;
 var g_selected_metal_item;
-var g_polylines_segments = [];
+var g_geometry_segments = [];
+var g_geometry_lines = {};
 var g_use_catenary = true;
 var g_validates = {};
 var g_models = [];
 var g_is_tower_focus = false;
+var g_primitive_appearance;
+var g_buffers = {};
 
 
 
@@ -428,19 +431,19 @@ function CreateTowerCzmlFromGeojson(tower)
 	return cz;
 }
 
-function GetLineIdFromLineName(line_name)
-{
-	var ret = null;
-	for(var i in g_lines)
-	{
-		if(g_lines[i]['properties']['line_name'] == line_name)
-		{
-			ret = g_lines[i]['_id'];
-			break;
-		}
-	}
-	return ret;
-}
+//function GetLineIdFromLineName(line_name)
+//{
+	//var ret = null;
+	//for(var i in g_lines)
+	//{
+		//if(g_lines[i]['properties']['line_name'] == line_name)
+		//{
+			//ret = g_lines[i]['_id'];
+			//break;
+		//}
+	//}
+	//return ret;
+//}
 
 function FilterModelList(str)
 {
@@ -532,25 +535,9 @@ function GetExtentByCzml()
 function LoadTowerByLineName(viewer,  line_name)
 {
 	var geo_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name', 'properties.line_name':line_name};
-	var line_cond = {'db':'kmgd', 'collection':'lines'};
+	var line_cond = {'db':'kmgd', 'collection':'lines', 'properties.line_name':line_name};
 	//var ext_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'properties.line_name':line_name};
 	
-	if(g_lines.length == 0)
-	{
-		MongoFind( line_cond, 
-			function(linedata){
-				g_lines = linedata;
-		});
-	}
-			//var line_id = GetLineIdFromLineName(line_name);
-			//if(line_id)
-			//{
-				//MongoFind( ext_cond, 
-					//function(data){
-						//g_view_extent = data;
-						//FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
-						//console.log(g_view_extent);
-				//});
 	MongoFind( geo_cond, 
 		function(data){
 			ShowProgressBar(false);
@@ -573,7 +560,37 @@ function LoadTowerByLineName(viewer,  line_name)
 			var extent = GetExtentByCzml();
 			console.log(extent);
 			FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+			
+			MongoFind( line_cond, 
+				function(linedatas){
+					if(linedatas.length>0)
+					{
+						g_lines[linedatas[0]['_id']] = linedatas[0];
+						var color = '#FF0000';
+						if(linedatas[0].properties.voltage == '13')
+						{
+							color = '#FF0000';
+						}
+						if(linedatas[0].properties.voltage == '15')
+						{
+							color = '#0000FF';
+						}
+						DrawLineModelByLine(viewer, linedatas[0], 4.0, color);
+						//DrawBufferOfLine(viewer, linedatas[0], 5000, 3000, '#00FF00', 0.2);
+					}
+			});
 	});
+				
+				
+			//var line_id = GetLineIdFromLineName(line_name);
+			//if(line_id)
+			//{
+				//MongoFind( ext_cond, 
+					//function(data){
+						//g_view_extent = data;
+						//FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+						//console.log(g_view_extent);
+				//});
 }
 
 
@@ -593,18 +610,32 @@ function GetIndexCzmlDataSources(viewer)
 	}
 	return ret;
 }
+function GetCzmlDataSources(viewer)
+{
+	var ret;
+	for(var i = 0; i < viewer.dataSources.length; i++)
+	{
+		var ds = viewer.dataSources.get(i);
+		if(ds.dsname == 'czml')
+		{
+			ret = ds;
+			break;
+		}
+	}
+	return ret;
+}
 function ReloadCzmlDataSource(viewer, z_aware)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
-	var idx = GetIndexCzmlDataSources(viewer);
-	while(idx > -1)
-	{
-		viewer.dataSources.remove(idx);
-		idx = GetIndexCzmlDataSources(viewer);
-	}
+	//var idx = GetIndexCzmlDataSources(viewer);
+	//while(idx > -1)
+	//{
+		//viewer.dataSources.remove(idx);
+		//idx = GetIndexCzmlDataSources(viewer);
+	//}
 	var arr = [];
 	var pos;
-	console.log('z_aware=' + z_aware);
+	//console.log('z_aware=' + z_aware);
 	for(var k in g_czmls)
 	{
 		var obj =  $.extend(true, {}, g_czmls[k]);
@@ -618,7 +649,7 @@ function ReloadCzmlDataSource(viewer, z_aware)
 			if(obj['id'] === viewer.selectedObject.id)
 			{
 				pos = obj['position']['cartographicDegrees'];
-				console.log(pos);
+				//console.log(pos);
 			}
 		}
 	}
@@ -627,14 +658,28 @@ function ReloadCzmlDataSource(viewer, z_aware)
 		viewer.selectedObject = undefined;
 		g_selected_obj_id = undefined;
 	}
-	var dataSource = new Cesium.CzmlDataSource();
-	dataSource.load(arr);
-	dataSource.dsname = 'czml';
-	//console.log('dataSource.dsname=' + dataSource.dsname);
-	viewer.dataSources.add(dataSource);
-	if(viewer.selectedObject && pos)
+	//var dataSource = new Cesium.CzmlDataSource();
+	//dataSource.load(arr);
+	//dataSource.dsname = 'czml';
+	//viewer.dataSources.add(dataSource);
+	//if(viewer.selectedObject && pos)
+	//{
+		//viewer.selectedObject.position._value = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(pos[0], pos[1], pos[2]));
+	//}
+	var dataSource = GetCzmlDataSources(viewer);
+	if(dataSource)
 	{
-		viewer.selectedObject.position._value = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(pos[0], pos[1], pos[2]));
+		dataSource.load(arr);
+		if(viewer.selectedObject && pos)
+		{
+			viewer.selectedObject.position._value = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(pos[0], pos[1], pos[2]));
+		}
+	}else
+	{
+		dataSource = new Cesium.CzmlDataSource();
+		dataSource.load(arr);
+		dataSource.dsname = 'czml';
+		viewer.dataSources.add(dataSource);
 	}
 }
 function LookAtTarget(scene, id)
@@ -774,42 +819,42 @@ function LoadTowerModelByTower(viewer, tower)
 	}
 }
 
-function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
-{
-	var scene = viewer.scene;
-	scene.primitives.removeAll(); // Remove previous model
+//function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
+//{
+	//var scene = viewer.scene;
+	//scene.primitives.removeAll(); // Remove previous model
 	
-	var idx = 0;
-	var labels = new Cesium.LabelCollection();
+	//var idx = 0;
+	//var labels = new Cesium.LabelCollection();
 	
-	var cond = {'db':'kmgd', 'collection':'towers', 'properties.line_id':line_id};
-	MongoFind( cond, 
-		function(data){
-			for(var i in data)
-			{
-				var t = data[i];
-				var label = labels.add({
-					position : ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'])),
-					text     : t['properties']['tower_name'],
-					fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
-				});
+	//var cond = {'db':'kmgd', 'collection':'towers', 'properties.line_id':line_id};
+	//MongoFind( cond, 
+		//function(data){
+			//for(var i in data)
+			//{
+				//var t = data[i];
+				//var label = labels.add({
+					//position : ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'])),
+					//text     : t['properties']['tower_name'],
+					//fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
+				//});
 				
-				var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
-				if(idx > 10)
-				{
-					FlyToPoint(scene, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
-					var controller = scene.screenSpaceCameraController;
-					//controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
-					//controller.enableTilt = true;
-					var r = t['properties']['geo_z'];
-					//controller.minimumZoomDistance = r ;
-					break;
-				}
-				idx++;
-			}
-			scene.primitives.add(labels);
-	});
-}
+				//var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
+				//if(idx > 10)
+				//{
+					//FlyToPoint(scene, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
+					//var controller = scene.screenSpaceCameraController;
+					////controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
+					////controller.enableTilt = true;
+					//var r = t['properties']['geo_z'];
+					////controller.minimumZoomDistance = r ;
+					//break;
+				//}
+				//idx++;
+			//}
+			//scene.primitives.add(labels);
+	//});
+//}
 
 
 
@@ -959,49 +1004,56 @@ function TowerInfoMixin(viewer)
 		}
 
 		var selectedObject = viewer.selectedObject;
-		var showSelection = Cesium.defined(selectedObject) && enableInfoOrSelection;
-		if (showSelection) {
-			var oldPosition = Cesium.defined(selectionIndicatorViewModel) ? selectionIndicatorViewModel.position : undefined;
-			var position;
-			var enableCamera = false;
-
-			if (selectedObject.isAvailable(time)) {
-				if (Cesium.defined(selectedObject.position)) {
-					position = selectedObject.position.getValue(time, oldPosition);
-					enableCamera = Cesium.defined(position) && (viewer.trackedObject !== viewer.selectedObject);
-				} else if (Cesium.defined(selectedObject.vertexPositions)) {
-					scratchVertexPositions = selectedObject.vertexPositions.getValue(time, scratchVertexPositions);
-					scratchBoundingSphere = Cesium.BoundingSphere.fromPoints(scratchVertexPositions, scratchBoundingSphere);
-					position = scratchBoundingSphere.center;
-					// Can't track scratch positions: "enableCamera" is false.
+		if(selectedObject && selectedObject.isAvailable)
+		{
+			var showSelection = Cesium.defined(selectedObject) && enableInfoOrSelection;
+			if (showSelection) {
+				var oldPosition = Cesium.defined(selectionIndicatorViewModel) ? selectionIndicatorViewModel.position : undefined;
+				var position;
+				var enableCamera = false;
+	
+				if (selectedObject.isAvailable(time)) {
+					if (Cesium.defined(selectedObject.position)) {
+						position = selectedObject.position.getValue(time, oldPosition);
+						enableCamera = Cesium.defined(position) && (viewer.trackedObject !== viewer.selectedObject);
+					} else if (Cesium.defined(selectedObject.vertexPositions)) {
+						scratchVertexPositions = selectedObject.vertexPositions.getValue(time, scratchVertexPositions);
+						scratchBoundingSphere = Cesium.BoundingSphere.fromPoints(scratchVertexPositions, scratchBoundingSphere);
+						position = scratchBoundingSphere.center;
+						// Can't track scratch positions: "enableCamera" is false.
+					}
+					// else "position" is undefined and "enableCamera" is false.
 				}
 				// else "position" is undefined and "enableCamera" is false.
+	
+				if (Cesium.defined(selectionIndicatorViewModel)) {
+					selectionIndicatorViewModel.position = position;
+				}
+	
+				if (Cesium.defined(infoBoxViewModel)) {
+					infoBoxViewModel.enableCamera = enableCamera;
+					infoBoxViewModel.isCameraTracking = (viewer.trackedObject === viewer.selectedObject);
+	
+					//if (Cesium.defined(selectedObject.description)) {
+						//infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedObject.description.getValue(time), '');
+					//} else {
+						//infoBoxViewModel.descriptionRawHtml = '';
+					//}
+				}
 			}
-			// else "position" is undefined and "enableCamera" is false.
-
+	
 			if (Cesium.defined(selectionIndicatorViewModel)) {
-				selectionIndicatorViewModel.position = position;
+				selectionIndicatorViewModel.showSelection = showSelection;
+				selectionIndicatorViewModel.update();
 			}
-
+	
 			if (Cesium.defined(infoBoxViewModel)) {
-				infoBoxViewModel.enableCamera = enableCamera;
-				infoBoxViewModel.isCameraTracking = (viewer.trackedObject === viewer.selectedObject);
-
-				//if (Cesium.defined(selectedObject.description)) {
-					//infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedObject.description.getValue(time), '');
-				//} else {
-					//infoBoxViewModel.descriptionRawHtml = '';
-				//}
+				infoBoxViewModel.showInfo = showSelection;
 			}
-		}
-
-		if (Cesium.defined(selectionIndicatorViewModel)) {
-			selectionIndicatorViewModel.showSelection = showSelection;
+		}else
+		{
+			selectionIndicatorViewModel.showSelection = false;
 			selectionIndicatorViewModel.update();
-		}
-
-		if (Cesium.defined(infoBoxViewModel)) {
-			infoBoxViewModel.showInfo = showSelection;
 		}
 	}
 	eventHelper.add(viewer.clock.onTick, onTick);
@@ -1012,6 +1064,10 @@ function TowerInfoMixin(viewer)
 			var id = Cesium.defaultValue(picked.id, picked.primitive.id);
 			if (id instanceof Cesium.DynamicObject) {
 				return id;
+			}
+			
+			if (picked.primitive && picked.primitive instanceof Cesium.Primitive) {
+				return picked;
 			}
 		}
 	}
@@ -1024,56 +1080,96 @@ function TowerInfoMixin(viewer)
 
 	function pickAndTrackObject(e) {
 		var dynamicObject = pickDynamicObject(e);
-		if (Cesium.defined(dynamicObject)) {
-			trackObject(dynamicObject);
-			var id = dynamicObject.id;
-			//console.log('track id=' + id);
-			LookAtTarget(viewer.scene, id);
-			
+		if (Cesium.defined(dynamicObject)) 
+		{
+			if (dynamicObject.primitive && dynamicObject.primitive instanceof Cesium.Primitive)
+			{
+			}
+			else
+			{
+				trackObject(dynamicObject);
+				var id = dynamicObject.id;
+				LookAtTarget(viewer.scene, id);
+			}
 		}
 	}
 
 	function pickAndSelectObject(e) {
+	
 		viewer.selectedObject = pickDynamicObject(e);
-		
 		if (Cesium.defined(viewer.selectedObject)) 
 		{
-			var id = viewer.selectedObject.id;
-			g_prev_selected_pos = viewer.selectedObject.position;
-			g_prev_selected_id = g_selected_obj_id;
-			g_selected_obj_id = id;
-			//console.log('selected id=' + id);
-			//console.log('prev selected id=' + g_prev_selected_id);
-			if(g_prev_selected_id != g_selected_obj_id)
+			if (viewer.selectedObject.primitive && viewer.selectedObject.primitive instanceof Cesium.Primitive)
 			{
-				if(g_prev_selected_id)
+				var id = viewer.selectedObject.id;
+				g_primitive_appearance =  viewer.selectedObject.primitive.appearance;
+				if(g_primitive_appearance.material)
 				{
-					if(CheckTowerInfoModified())
+					console.log('selected line id=' + id);
+					viewer.selectedObject.primitive.appearance = new Cesium.PolylineMaterialAppearance({
+							//material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
+							material : Cesium.Material.fromType('PolylineOutline',{
+								color:	g_primitive_appearance.material.uniforms.color,
+								outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
+								outlineWidth: 3.0
+							})
+							//material : Cesium.Material.fromType('Color', {
+								//color : Cesium.Color.fromCssColorString(rgba)
+							//})
+						});
+					g_prev_selected_id = viewer.selectedObject;
+				}
+			}
+			else
+			{
+				
+				if(g_prev_selected_id && g_prev_selected_id.primitive && g_prev_selected_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
+				{
+					g_prev_selected_id.primitive.appearance = g_primitive_appearance;
+				}
+				//g_prev_selected_id = undefined;
+				//g_selected_obj_id = undefined;
+				
+				var id = viewer.selectedObject.id;
+				g_prev_selected_pos = viewer.selectedObject.position;
+				g_prev_selected_id = g_selected_obj_id;
+				g_selected_obj_id = id;
+				//console.log('selected id=' + id);
+				//console.log('prev selected id=' + g_prev_selected_id);
+				if(g_prev_selected_id != g_selected_obj_id)
+				{
+					if(g_prev_selected_id)
 					{
-						
-						ShowConfirm(500, 200,
-							'保存确认',
-							'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
-							function(){
-								SaveTower();
-								ShowTowerInfo(viewer, g_selected_obj_id);
-							},
-							function(){
-								ShowTowerInfo(viewer, g_selected_obj_id);
-							}
-						);
-						
-					}else{
+						if(CheckTowerInfoModified())
+						{
+							
+							ShowConfirm(500, 200,
+								'保存确认',
+								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+								function(){
+									SaveTower();
+									ShowTowerInfo(viewer, g_selected_obj_id);
+								},
+								function(){
+									ShowTowerInfo(viewer, g_selected_obj_id);
+								}
+							);
+							
+						}else{
+							ShowTowerInfo(viewer, g_selected_obj_id);
+						}
+					}
+					else{
 						ShowTowerInfo(viewer, g_selected_obj_id);
 					}
 				}
-				else{
-					ShowTowerInfo(viewer, g_selected_obj_id);
-				}
 			}
-			
 		}
 		else{
+			if(g_selected_obj_id && g_selected_obj_id.primitive && g_selected_obj_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
+			{
+				g_selected_obj_id.primitive.appearance = g_primitive_appearance;
+			}
 			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = undefined;
 		}
@@ -1116,6 +1212,20 @@ function TowerInfoMixin(viewer)
 						PositionModel(ellipsoid, g_gltf_models[k], lng, lat, height, rotate);
 					}
 				}
+			}
+			for(var k in g_lines)
+			{
+				var color = '#FF0000';
+				if(g_lines[k].properties.voltage == '13')
+				{
+					color = '#FF0000';
+				}
+				if(g_lines[k].properties.voltage == '15')
+				{
+					color = '#0000FF';
+				}
+				DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
+				DrawBufferOfLine(viewer, 'test', g_lines[k], 1500, 2300, '#00FF00', 0.3);
 			}
 		}
 	});
@@ -1388,14 +1498,14 @@ function GetContactPointByIndex(tower, side, index)
 function GetSegmentsModel(tower0, tower1)
 {
 	var ret = null;
-	for(var i in g_polylines_segments)
+	for(var i in g_geometry_segments)
 	{
-		var seg = g_polylines_segments[i];
+		var seg = g_geometry_segments[i];
 		if(
 			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
 		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
 		){
-			ret = seg['model'];
+			ret = seg['primitive'];
 			break;
 		}
 	}
@@ -1404,15 +1514,15 @@ function GetSegmentsModel(tower0, tower1)
 function RemoveSegmentsFromArray(tower0, tower1)
 {
 	var ret = null;
-	for(var i in g_polylines_segments)
+	for(var i in g_geometry_segments)
 	{
-		var seg = g_polylines_segments[i];
+		var seg = g_geometry_segments[i];
 		if(
 			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
 		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
 		){
 			ret = seg;
-			g_polylines_segments.splice(i,1);
+			g_geometry_segments.splice(i,1);
 			break;
 		}
 	}
@@ -1422,9 +1532,9 @@ function RemoveSegmentsFromArray(tower0, tower1)
 function CheckSegmentsExist(tower0, tower1)
 {
 	var ret = false;
-	for(var i in g_polylines_segments)
+	for(var i in g_geometry_segments)
 	{
-		var seg = g_polylines_segments[i];
+		var seg = g_geometry_segments[i];
 		if(
 			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
 		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
@@ -1436,6 +1546,29 @@ function CheckSegmentsExist(tower0, tower1)
 	return ret;
 }
 
+
+function RemoveLineModel(viewer, line_id)
+{
+	var m;
+	var l = [];
+	for(var id in g_geometry_lines)
+	{
+		if(id.indexOf(line_id) > -1)
+		{
+			var model = g_geometry_lines[id];
+			l.push({id:id, model:model});
+		}
+	}
+	while(l.length>0)
+	{
+		var o = l.pop();
+		delete g_geometry_lines[o.id];
+		viewer.scene.primitives.remove(o.model);	
+	}
+}
+
+
+
 function RemoveSegmentsBetweenTow(scene, tower0, tower1)
 {
 	if(CheckSegmentsExist(tower0, tower1))
@@ -1443,16 +1576,207 @@ function RemoveSegmentsBetweenTow(scene, tower0, tower1)
 		var seg = RemoveSegmentsFromArray(tower0, tower1);
 		if(seg)
 		{
-			while(!seg['model'].isDestroyed())
+			while(!seg['primitive'].isDestroyed())
 			{
-				//seg['model'].destroy();
-				var ret = scene.primitives.remove(seg['model']);
-				//console.log(ret);
+				var ret = scene.primitives.remove(seg['primitive']);
 			}
 		}
 	}
 }
 
+function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var array = line['properties']['towers'];
+	if(array.length>0)
+	{
+		if(array[0] instanceof Array)
+		{
+		}
+		else if(typeof(array[0]) == 'string')
+		{
+			var positions = GetPositions2DByCzmlArray(ellipsoid, array);
+			DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color, alpha);
+		}
+	}
+}
+function RemoveBuffer(viewer, buf_id)
+{
+	for(var i in g_buffers)
+	{
+		if(i === buf_id)
+		{
+			var primitive = g_buffers[i];
+			viewer.scene.primitives.remove(primitive);
+			delete g_buffers[i];
+		}
+	}
+}
+function DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color, alpha)
+{
+	RemoveBuffer(viewer, buf_id);
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var rgba = tinycolor(color).toRgb();
+	rgba.a = 0.5;
+	if(alpha) rgba.a = alpha;
+	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
+	
+	if(!g_zaware) height = 0;
+	
+	var corridorGeometry = new Cesium.CorridorGeometry({
+			positions : positions,
+			width : width,
+			extrudedHeight : height,
+			vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+			cornerType: Cesium.CornerType.ROUNDED
+			//cornerType: Cesium.CornerType.BEVELED
+			//cornerType: Cesium.CornerType.MITERED
+	});
+	var primitive = new Cesium.Primitive({
+		geometryInstances : new Cesium.GeometryInstance({
+			id:	buf_id,
+			geometry : corridorGeometry,
+			attributes : {
+				color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString(rgba))
+			}
+		}),
+		appearance : new Cesium.PerInstanceColorAppearance({
+            flat:true,
+            closed : true,
+            translucent : true,
+			//material : Cesium.Material.fromType('Color', {
+				//color : Cesium.Color.fromCssColorString(rgba)
+			//}),
+			renderState : {
+				depthTest : {
+					enabled : true
+				}
+			}
+		})
+	});
+	viewer.scene.primitives.add(primitive);
+	g_buffers[buf_id] = primitive;
+	
+	
+}
+
+function GetPositionsByCzmlArray(ellipsoid, arr, force2d)
+{
+	var ret = [];
+	for(var i in arr)
+	{
+		var id = arr[i];
+		if(g_czmls[id])
+		{
+			var cz = g_czmls[id];
+			var pos = [];
+			pos.push(cz['position']['cartographicDegrees'][0]);
+			pos.push(cz['position']['cartographicDegrees'][1]);
+			if(force2d)
+			{
+				pos.push(0);
+			}else
+			{
+				if(g_zaware)
+				{
+					pos.push(cz['position']['cartographicDegrees'][2]);
+				}else
+				{
+					pos.push(0);
+				}
+			}
+			var carto = Cesium.Cartographic.fromDegrees(pos[0],  pos[1],  pos[2]);
+			var p = ellipsoid.cartographicToCartesian(carto);
+			ret.push(p);
+		}
+	}
+	return ret;
+}
+function GetPositions2DByCzmlArray(ellipsoid, arr)
+{
+	return GetPositionsByCzmlArray(ellipsoid, arr, true);
+}
+
+
+function DrawLineModelByLine(viewer, line, width, color, alpha)
+{
+	RemoveLineModel(viewer, line['_id']);
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	
+	var rgba = tinycolor(color).toRgb();
+	rgba.a = 0.5;
+	if(alpha) rgba.a = alpha;
+	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
+	//console.log(rgba);
+	
+	var array = line['properties']['towers'];
+	if(array.length>0)
+	{
+		//var polylines = new Cesium.PolylineCollection();
+		
+		if(array[0] instanceof Array)
+		{
+			for(var i in array)
+			{
+				var poss = GetPositionsByCzmlArray(ellipsoid, array[i]);
+				var primitive = new Cesium.Primitive({
+					geometryInstances : new Cesium.GeometryInstance({
+						id:	line['_id'] + '_' + i,
+						geometry : new Cesium.PolylineGeometry({
+							positions : poss,
+							width : width,
+							vertexFormat : Cesium.PolylineMaterialAppearance.VERTEX_FORMAT
+						})
+					}),
+					appearance : new Cesium.PolylineMaterialAppearance({
+						//material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
+						material : Cesium.Material.fromType('Color', {
+							color : Cesium.Color.fromCssColorString(rgba)
+						}),
+						renderState : {
+							depthTest : {
+								enabled : false
+							}
+						}
+					})
+				});
+				viewer.scene.primitives.add(primitive);
+				g_geometry_lines[line['_id'] + '_' + i] = primitive;
+			}
+		}
+		else if(typeof(array[0]) == 'string')
+		{
+			var poss = GetPositionsByCzmlArray(ellipsoid, array);
+			var primitive = new Cesium.Primitive({
+				geometryInstances : new Cesium.GeometryInstance({
+					id:	line['_id'],
+					geometry : new Cesium.PolylineGeometry({
+						positions : poss,
+						width : width,
+						vertexFormat : Cesium.PolylineMaterialAppearance.VERTEX_FORMAT
+					})
+				}),
+				appearance : new Cesium.PolylineMaterialAppearance({
+					material : Cesium.Material.fromType('Color', {
+						color : Cesium.Color.fromCssColorString(rgba)
+					}),
+					renderState : {
+						depthTest : {
+							enabled : false
+						}
+					}
+				})
+			});
+			viewer.scene.primitives.add(primitive);
+			g_geometry_lines[line['_id']] = primitive;
+			
+			
+		}
+		//viewer.scene.primitives.add(polylines);
+		//viewer.scene.primitives.add(polylines);
+		//g_geometry_segments.push({'line_id': line['_id'], 'model':polylines});
+	}
+}
 function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 {
 	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
@@ -1491,13 +1815,18 @@ function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 		//var m = Cesium.Matrix4.multiplyTransformation(modelMatrix_0, mat4);
 		
 		
-		var polylines = new Cesium.PolylineCollection({'modelMatrix':Cesium.Matrix4.IDENTITY});
+		var polylines = new Cesium.PolylineCollection({
+			modelMatrix:Cesium.Matrix4.IDENTITY,
+			depthTest : false
+		});
 		for(var i in segpairs)
 		{
 			var pair = segpairs[i];
 			var cp0 = GetContactPointByIndex(tower0, 0, pair['start']);
 			var	cp1 = GetContactPointByIndex(tower1, 1, pair['end']);
 			var color = Cesium.Color.fromCssColorString(GetPhaseColor(pair['phase']));
+			
+			
 			if(cp0 && cp1)
 			{
 				var tran_vec3_0 = new Cesium.Cartesian3(cp0['x'], cp0['z'], cp0['y']);
@@ -1513,21 +1842,20 @@ function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
 
 				var p0 = Cesium.Matrix4.getTranslation(m_0),
 					p1 = Cesium.Matrix4.getTranslation(m_1);
-				//var p0 = tran_vec3_0,
-					//p1 = tran_vec3_1;
 				
 				var positions = CalcCatenary(ellipsoid, p0, p1, 15);
 				var polyline = polylines.add({
 					positions : positions,
 					material : Cesium.Material.fromType('Color', {
-						color : color
+						color : color,
+						translucent:true
 					}),
 					width : 1.0
 				});
 			}
 		}
 		scene.primitives.add(polylines);
-		g_polylines_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'model':polylines});
+		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines});
 	}
 	
 }
@@ -2160,7 +2488,7 @@ function GetProjectNameByTowerId(id)
 	{
 		for(var j in g_lines[i]['properties']['towers'])
 		{
-			if(g_lines[i]['properties']['towers'][j] == id)
+			if(g_lines[i]['properties']['towers'][j] === id)
 			{
 				l.push(g_lines[i]['properties']['line_name']);
 			}
