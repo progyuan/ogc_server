@@ -20,15 +20,38 @@ var g_models = [];
 var g_is_tower_focus = false;
 var g_primitive_appearance;
 var g_buffers = {};
-
-
-
-
+var g_borders = {};
 
 
 $(function() {
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
+	var viewer = InitCesiumViewer();
+	InitTowerInfoDialog();
+	//$(window).on('message',function(e) {
+		////console.log('recv:' + text);
+		//var text = e.originalEvent.data;
+		//console.log('recv:' + text);
+		//var obj = JSON.parse(text);
+		//console.log(obj);
+		
+	//});
+	InitSearchBox(viewer);
+	InitToolPanel(viewer);
+	InitModelList(viewer);
+	
+	//var line_name = '七罗I回';
+	//LoadTowerByLineName(viewer,  line_name);
+	LoadSegments(viewer);
+	LoadModelsList();
+	LoadBorder(viewer, {'properties.name':'云南省'});
+	LoadBorder(viewer, {'properties.type':'cityborder'});
+	//LoadBorder(viewer, {'properties.type':'countyborder'});
+	
+});
+
+function InitCesiumViewer()
+{
 	var providerViewModels = [];
 	//providerViewModels.push(new Cesium.ImageryProviderViewModel({
 				//name : 'OSM卫星图',
@@ -146,9 +169,6 @@ $(function() {
 		//}
 	//}));
 	
-	
-	
-	
 	var viewer = new Cesium.Viewer('cesiumContainer',{
 		animation:false,
 		baseLayerPicker:true,
@@ -166,11 +186,11 @@ $(function() {
 		//})
 	});
 	TranslateToCN();
-	var scene = viewer.scene;
-	var ellipsoid = scene.globe.ellipsoid;
-	
-	
-	
+	//viewer.extend(Cesium.viewerDynamicObjectMixin);
+	TowerInfoMixin(viewer);
+	//viewer.extend(Cesium.viewerCesiumInspectorMixin);
+
+    //viewer.scene.globe.depthTestAgainstTerrain = false;
 	
 	//var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
 	//handler.setInputAction(
@@ -182,18 +202,11 @@ $(function() {
 		//},
 		//Cesium.ScreenSpaceEventType.MOUSE_MOVE
 	//);
-	var line_name = '七罗I回';
-	LoadTowerByLineName(viewer,  line_name);
-	LoadSegments(viewer);
-	LoadModelsList();
-	//viewer.extend(Cesium.viewerDynamicObjectMixin);
-	TowerInfoMixin(viewer);
-	//viewer.extend(Cesium.viewerCesiumInspectorMixin);
+	return viewer;
+}
 
-    //viewer.scene.globe.depthTestAgainstTerrain = false;
-
-
-
+function InitTowerInfoDialog()
+{
 	var iframe = $('#tower_info_model').find('iframe');
 	iframe.load(function(){
 		var iframeDoc = iframe.contents().get(0);
@@ -205,15 +218,6 @@ $(function() {
 			}
 		});
 	});
-	//$(window).on('message',function(e) {
-		////console.log('recv:' + text);
-		//var text = e.originalEvent.data;
-		//console.log('recv:' + text);
-		//var obj = JSON.parse(text);
-		//console.log(obj);
-		
-	//});
-	
 	g_validates['form_tower_info_base'] = $('#form_tower_info_base' ).validate({
 		debug:true,
 		errorElement:'div'
@@ -222,11 +226,23 @@ $(function() {
 		debug:true,
 		errorElement:'div'
 	});
-	InitSearchBox(viewer);
-	InitModelList(viewer);
-	
-});
 
+}
+function InitToolPanel(viewer)
+{
+	$('#control_toolpanel_kmgd').css('display', 'none');
+	$('#control_toolpanel_kmgd_handle').on( 'mouseenter', function(e){
+		$('#control_toolpanel_kmgd').show('slide',{}, 800, function(){
+			$(e.target).css('display','none');
+		});
+	});
+	$('#control_toolpanel_kmgd').on( 'mouseleave', function(e){
+		$('#control_toolpanel_kmgd').hide('slide',{}, 800, function(){
+			$('#control_toolpanel_kmgd_handle').css('display','block');
+		});
+	});
+	$( "#accordion_tools" ).accordion({ active: 0 });
+}
 function TranslateToCN()
 {
 	$($('.cesium-baseLayerPicker-sectionTitle')[0]).html('地表图源');
@@ -278,6 +294,7 @@ function InitSearchBox(viewer)
 		$('#input_search').val('');
 		$('#text_search_waiting').css('display','block');
 		$('#text_search_waiting').html('输入关键字拼音首字母');
+		$('#input_search').focus();
 	});
 	$( "#input_search" ).on('keyup',function(e){
 		if($(e.target).val().length > 0)
@@ -494,16 +511,158 @@ function FilterModelList(str)
             }
 		}
 	});
-	
-	
 }
+
+function LoadBorder(viewer, condition)
+{
+	var cond = {'db':'kmgd', 'collection':'poi_border'};
+	for(var k in condition)
+	{
+		cond[k] = condition[k];
+	}
+	MongoFind( cond, 
+		function(data){
+			if(data.length>0)
+			{
+				for(var i in data)
+				{
+					g_geojsons[data[i]['_id']] = data[i];
+					//var dataSource = new Cesium.GeoJsonDataSource();
+					//dataSource.load(data[0]);
+					//dataSource.dsname = 'geojson';
+					//viewer.dataSources.add(dataSource);
+				}
+				ReloadBorders(viewer, false);
+			}
+			ShowProgressBar(false);
+	});
+}
+
+function RemoveBorders(viewer)
+{
+	var l = [];
+	for(var k in g_borders)
+	{
+		l.push(k);
+	}
+	for(var i in l)
+	{
+		viewer.scene.primitives.remove(g_borders[l[i]]);
+		delete g_borders[l[i]];
+	}
+}
+function ReloadBorders(viewer, forcereload)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	if(forcereload)
+	{
+		RemoveBorders(viewer);
+	}
+	var extent = {'west':179, 'east':-179, 'south':89, 'north':-89};
+	for(var k in g_geojsons)
+	{
+		if(!forcereload)
+		{
+			if(g_borders[k])
+			{
+				continue;
+			}
+		}
+		//console.log('load ' + k);
+		var g = g_geojsons[k];
+		if(g.properties.type && g.properties.type.indexOf('border')>-1)
+		{
+			var positions = [];
+			//console.log(g.geometry.type);
+			var arr;
+			if(g.geometry.type === 'MultiPolygon')
+				arr = g.geometry.coordinates[0][0];
+			if(g.geometry.type === 'Polygon')
+				arr = g.geometry.coordinates[0];
+			//console.log(arr);
+				
+			for(var i=0; i < arr.length; i=i+5)
+			{
+				var x = arr[i][0],
+					y = arr[i][1],
+					z = 6000;
+				//if(!g_zaware) z = 3000;
+				if(g.properties.type === 'provinceborder')
+				{
+					z = 8000;
+				}
+				if(g.properties.type === 'cityborder')
+				{
+					z = 6000;
+				}
+				if(g.properties.type === 'countyborder')
+				{
+					z = 4000;
+				}
+				positions.push(ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(x, y, z)) );
+				if (x < extent['west']) extent['west'] = x;
+				if (x > extent['east']) extent['east'] = x;
+				if (y < extent['south']) extent['south'] = y;
+				if (y > extent['north']) extent['north'] = y;
+				
+			}
+			//console.log(positions.length);
+			if(positions.length > 20)
+			{
+				var color = Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.7)');
+				if(g.properties.type === 'provinceborder')
+				{
+					color = Cesium.Color.fromCssColorString('rgba(255, 255, 0, 0.7)');
+				}
+				if(g.properties.type === 'cityborder')
+				{
+					color = Cesium.Color.fromCssColorString('rgba(255, 0, 0, 0.7)');
+				}
+				if(g.properties.type === 'countyborder')
+				{
+					color = Cesium.Color.fromCssColorString('rgba(0, 0, 255, 0.7)');
+				}
+				var wallInstance = new Cesium.GeometryInstance({
+					id:k,
+					geometry : new Cesium.WallGeometry({
+						positions : positions,
+					}),
+					attributes : {
+						//color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromRandom({alpha : 1.0}))
+						//color : Cesium.ColorGeometryInstanceAttribute.fromColor()
+						color : Cesium.ColorGeometryInstanceAttribute.fromColor(color)
+					}
+				});
+				
+				var primitive = new Cesium.Primitive({
+					geometryInstances : wallInstance,
+					appearance : new Cesium.PerInstanceColorAppearance({
+						flat:true,
+						//closed : true,
+						translucent : true,
+						renderState : {
+							depthTest : {
+								enabled : true
+							}
+						}
+					})
+				});
+				viewer.scene.primitives.add(primitive);
+				g_borders[k] = primitive;
+			}
+			
+		}
+	}
+	FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+}
+
 function LoadSegments(viewer)
 {
 	var segs_cond = {'db':'kmgd', 'collection':'segments'};
 	MongoFind( segs_cond, 
 		function(data){
 			g_segments = data;
-			//console.log(g_segments);
+			ShowProgressBar(false);
 	});
 }
 function LoadModelsList()
@@ -949,6 +1108,8 @@ function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotat
 
 function TowerInfoMixin(viewer) 
 {
+	var scene = viewer.scene;
+	var ellipsoid = scene.globe.ellipsoid;
 	if (!Cesium.defined(viewer)) {
 		throw new Cesium.DeveloperError('viewer is required.');
 	}
@@ -1058,8 +1219,27 @@ function TowerInfoMixin(viewer)
 	}
 	eventHelper.add(viewer.clock.onTick, onTick);
 
+//----test pick only-----
+	var labels = new Cesium.LabelCollection();
+	label = labels.add();
+	viewer.scene.primitives.add(labels);
+//------------------
 	function pickDynamicObject(e) {
 		var picked = viewer.scene.pick(e.position);
+		var ellipsoid = viewer.scene.globe.ellipsoid;
+		var cartesian = viewer.scene.camera.pickEllipsoid(e.position, ellipsoid);
+		if (cartesian) {
+			var cartographic = ellipsoid.cartesianToCartographic(cartesian);
+			var lng = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7),
+				lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
+			var text = '(' + lng + ',' + lat + ')';
+			label.show = true;
+			label.text = text;
+			label.position = cartesian;
+		}
+		
+		
+		
 		if (Cesium.defined(picked)) {
 			var id = Cesium.defaultValue(picked.id, picked.primitive.id);
 			if (id instanceof Cesium.DynamicObject) {
@@ -1225,7 +1405,7 @@ function TowerInfoMixin(viewer)
 					color = '#0000FF';
 				}
 				DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
-				DrawBufferOfLine(viewer, 'test', g_lines[k], 1500, 2300, '#00FF00', 0.3);
+				//DrawBufferOfLine(viewer, 'test', g_lines[k], 1500, 2300, '#00FF00', 0.3);
 			}
 		}
 	});
@@ -2048,7 +2228,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					var dynamicObject = viewer.selectedObject;
 					if(g_is_tower_focus)
 					{
-						$(e.target).css('background-color', '#007700');
+						$(e.target).css('background', '#00AA00 url(/css/black-green-theme/images/ui-bg_dots-medium_75_000000_4x4.png) 50% 50% repeat');
 						$(e.target).html('解除锁定');
 						
 						if (Cesium.defined(dynamicObject)) 
@@ -2061,7 +2241,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					}
 					else
 					{
-						$(e.target).css('background-color', '#000000');
+						$(e.target).css('background', '#000000 url(/css/black-green-theme/images/ui-bg_dots-medium_75_000000_4x4.png) 50% 50% repeat');
 						$(e.target).html('锁定视角');
 						
 						//var extent = GetExtentByCzml();

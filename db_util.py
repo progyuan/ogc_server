@@ -7189,6 +7189,65 @@ def copy_tiles_as_esri(area, minzoom, maxzoom):
  
 
 
+def convert_shp_to_geojson_feature(shp, piny):
+    def tuple_to_list(obj):
+        if isinstance(obj, tuple):
+            l = []
+            for i in obj:
+                if isinstance(i, tuple):
+                    l.append(tuple_to_list(i))
+                else:
+                    l.append(i)
+            obj = l
+        elif isinstance(obj, list):
+            l = []
+            for i in obj:
+                l.append(tuple_to_list(i))
+            obj = l
+        elif isinstance(obj, dict):
+            for k in obj.keys():
+                obj[k] = tuple_to_list(obj[k])
+        else:
+            pass
+        return obj
+                
+        
+        
+    ret = []
+    shpname = os.path.basename(shp)
+    shpname = shpname.replace('.shp','')
+    key = None
+    for k in GEOJSONSHAPEMAPPING.keys():
+        if shpname == GEOJSONSHAPEMAPPING[k] and not k in ['subway',]:
+            key = k
+            break
+    if key:
+        reader = shapefile.Reader(shp)
+        fields = reader.fields[1:]
+        field_names = [field[0] for field in fields]
+        for sr in reader.shapeRecords():
+            atr = {}
+            for i in range(len(field_names)):
+                #atr[enc(dec(field_names[i]))] = enc(dec(sr.record[i]))
+                kk = dec1(field_names[i])
+                if kk == u'KIND':
+                    continue
+                if kk == u'NAME':
+                    kk = u'name'
+                atr[kk] = dec1(sr.record[i])
+            atr['type'] = key
+            atr['description'] = ''
+            atr['py'] = ''
+            if atr.has_key(u'name') and len(atr[u'name'].strip())>0:
+                try:
+                    atr['py'] = piny.hanzi2pinyin_first_letter(atr[u'name'].strip().replace(u'银行',u'银哈').replace(u'工行',u'工哈').replace(u'农行',u'农哈').replace(u'建行',u'建哈').replace(u'中行',u'中哈').replace(u'交行',u'交哈').replace(u'招行',u'招哈').replace(u'支行',u'支哈').replace(u'分行',u'分哈'))
+                except:
+                    pass
+            geom = tuple_to_list(sr.shape.__geo_interface__)
+            #geom = chop(geom, bound)
+            if geom:
+                ret.append(dict(type="Feature",  geometry=geom, properties=atr)) 
+    return ret
 
     
 def convert_shp_to_geojson(area, bound, shp, piny):
@@ -7316,21 +7375,66 @@ def convert_shp_to_geojson(area, bound, shp, piny):
             
             
              
-def gen_geojson_by_shape(area):
+def gen_geojson_by_shape(area = None):
     from pinyin import PinYin
     pydatapath = os.path.join(module_path(), 'pinyin_word.data');
     piny =  PinYin(pydatapath)
     piny.load_word()
     bounds = None
-    p = os.path.abspath(SERVERJSONROOT)
-    p = os.path.join(p, 'yn_tiles_bounds_%s.json' % area)
-    with open(p,) as f:
-        bounds = json.loads(f.read())
+    if area:
+        p = os.path.abspath(SERVERJSONROOT)
+        p = os.path.join(p, 'yn_tiles_bounds_%s.json' % area)
+        with open(p,) as f:
+            bounds = json.loads(f.read())
     for i in os.listdir(SHAPEROOT):
         p = os.path.join(SHAPEROOT, i)
         if os.path.isfile(p) and i[-4:]=='.shp':
             #if i == u'村.shp':
             convert_shp_to_geojson(area, bounds,  p, piny)
+            
+def test_import_geojson_feature_by_shape():
+    global gClientMongo
+    from pinyin import PinYin
+    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
+    piny =  PinYin(pydatapath)
+    piny.load_word()
+    geojson = {}
+    for i in os.listdir(SHAPEROOT):
+        p = os.path.join(SHAPEROOT, i)
+        if os.path.isfile(p) and i[-4:]=='.shp':
+            if i in [u'省界.shp', u'市界.shp', u'县界.shp']:
+                if not geojson.has_key('poi_border'):
+                    geojson['poi_border'] = []
+                geojson['poi_border'].extend(convert_shp_to_geojson_feature(p, piny))
+            #if i in [u'国道.shp', u'省道.shp', u'铁路.shp', u'高速.shp',  u'城市快速路.shp', ]:#u'县道.shp',]:
+                #if not geojson.has_key('poi_road'):
+                    #geojson['poi_road'] = []
+                #geojson['poi_road'].extend(convert_shp_to_geojson_feature(p, piny))
+    for k in geojson.keys():
+        print('%s:%d' % (k, len(geojson[k])))
+        #if len(geojson[k]) > 0:
+            #for i in range(10):
+                #print(geojson[k][-i])
+                
+    ks = ['poi_border',]            
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+
+        for k in ks:
+            if k in db.collection_names(False):
+                db.drop_collection(k)
+            collection = db.create_collection(k)
+            for i in geojson[k]:
+                collection.save(i)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+
+            
 
 def gen_geojson_by_tunnel_devices(area, piny):
     ret = {}
@@ -8893,6 +8997,7 @@ if __name__=="__main__":
     #ret = mongo_find_one('kmgd', 'towers', {'properties.line_id':'AF77864E-B8D5-479F-896B-C5F5DFE3450F'})
     #print(ret)
     #test_find_by_string_id()
-    test_pinyin_search()
+    #test_pinyin_search()
+    test_import_geojson_feature_by_shape()
     
     

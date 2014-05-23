@@ -72,8 +72,13 @@ function ShowProgressBar(show, width, height, title, msg)
 	else{
 		//document.body.className = document.body.className.replace(/(?:\s|^)loading(?:\s|$)/, ' ');
 		clearInterval(g_progress_interval);
-		$('#div_progress_bar').progressbar('destroy');
-		$('#dlg_progress_bar').dialog('close');
+		try
+		{
+			$('#div_progress_bar').progressbar('destroy');
+			$('#dlg_progress_bar').dialog('close');
+		}catch(e)
+		{
+		}
 	}
 }
 

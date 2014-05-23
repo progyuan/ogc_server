@@ -1,0 +1,171 @@
+#control_toolpanel_kmgd_handle
+{
+	opacity:0.6;
+    position: absolute;
+    top: 40%;
+    width: 10px;
+	height:200px;
+	color:#00FF00;
+	background: #000000 url(black-green-theme/images/ui-bg_dots-medium_75_000000_4x4.png) 50% 50% repeat;
+	vertical-align:middle;
+	text-align: center;
+	line-height: 200px;
+	font-size: 1.2em;
+
+}
+#control_toolpanel_kmgd
+{
+	opacity:0.8;
+    position: absolute;
+    top: 60px;
+    width: 400px;
+    height: 90%;
+	z-index:8;
+	color:#00FF00;
+	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+	
+}
+
+
+#control_search{
+	opacity:0.6;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
+
+#input_search{
+	/*opacity:0.6;*/
+    position: absolute;
+    top: 0px;
+    left: 49px;
+	color:#00FF00;
+	background:#000000;
+    width: 400px;
+	height:48px;
+	display:none;
+	border:1px solid #00FF00;
+	font-size: 1.6em;
+	z-index:10;
+}
+
+#button_search{
+	opacity:0.6;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 48px;
+	height:48px;
+	border-right:1px solid #00FF00;
+	background:#FFFFFF url(/img/search.png)  center;
+	background-size:48px 48px;
+}
+#button_search:hover {
+    background-color: #00FFFF;
+}
+#button_search_clear{
+	opacity:0.3;
+    position: absolute;
+    top: 0px;
+    left: 421px;
+    width: 48px;
+	height:48px;
+	font-size: 2.5em;
+	display:none;
+	border:0px solid #00FF00;
+	z-index:20;
+}
+#text_search_waiting{
+	opacity:0.4;
+    position: absolute;
+    top: 10px;
+    left: 100px;
+    width: 400px;
+	display:none;
+	font-size: 1.4em;
+	border:0px;
+	z-index:30;
+}
+#dlg_tower_info{
+	display:none;
+}
+
+#tower_info_model_list_filter{
+	color:#00FF00;
+	background:#000000;
+}
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: #000000; 
+}
+::-webkit-scrollbar-track-piece {
+    background: #000000; 
+}
+::-webkit-scrollbar-thumb {
+	background: #00FF00; 
+}
+::-webkit-scrollbar-button{
+    width: 4px;
+	display:none;
+}
+#div_tower_info_model_list_selectable
+{
+	width:99%;
+	max-height: 420px;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+#tower_info_model_list_selectable
+{
+	margin:0px;
+	margin-right:5px;
+}
+#tower_info_model_list_selectable li
+{
+	margin:1px;
+}
+#tower_info_model_list_filter
+{
+	color: #00FF00;
+	border:1px solid #00FF00;
+	font-size: 1.2em;
+	background:#000000;
+	width:90%;
+}
+#tower_info_model_list_toggle :hover
+{
+	cursor:hand;
+}
+#tower_info_model_list_toggle
+{
+	height:16px;
+	font-size: 0.8em;
+	float:left;
+}
+#tower_info_title_model_code
+{
+	height:16px;
+	font-size: 0.8em;
+	float:right;
+}
+.ui-widget-content1
+{
+	border:1px solid #00FF00;
+	font-size: 0.8em;
+}
+#tower_info_model_list_selectable .ui-selecting
+{
+	background:#005500;
+}
+#tower_info_model_list_selectable .ui-selected
+{
+	background:#009900;
+}
+#tower_info_model_list
+{
+	width:20%;
+	float:left;
+}

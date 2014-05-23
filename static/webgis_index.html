@@ -12,6 +12,7 @@
 	<link rel="stylesheet" href="css/ligerui-skins/Aqua/css/ligerui-all.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
 	<link rel="stylesheet" href="css/DrawHelper.css" />
+	<link rel="stylesheet" href="css/kmgd-tools.css" />
 	<!--<link rel="stylesheet" href="css/nanoscroller.css" />-->
 	<!--<link rel="stylesheet" href="css/nanoscroller/style.css" />-->
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
@@ -37,139 +38,6 @@
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
 
-#input_search{
-	opacity:0.6;
-    position: absolute;
-    top: 10px;
-    left: 59px;
-	color:#00FF00;
-	background:#000000;
-    width: 400px;
-	height:48px;
-	display:none;
-	border:1px solid #00FF00;
-	font-size: 1.6em;
-	z-index:10;
-}
-
-#button_search{
-	opacity:0.6;
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 48px;
-	height:48px;
-	border-right:1px solid #00FF00;
-	background:#FFFFFF url(/img/search.png)  center;
-	background-size:48px 48px;
-}
-#button_search:hover {
-    background-color: #00FFFF;
-}
-#button_search_clear{
-	opacity:0.3;
-    position: absolute;
-    top: 10px;
-    left: 421px;
-    width: 48px;
-	height:48px;
-	font-size: 2.5em;
-	display:none;
-	border:0px solid #00FF00;
-	z-index:20;
-}
-#text_search_waiting{
-	opacity:0.4;
-    position: absolute;
-    top: 20px;
-    left: 100px;
-	display:none;
-	font-size: 1.4em;
-	border:0px;
-	z-index:30;
-}
-#dlg_tower_info{
-	display:none;
-}
-
-#tower_info_model_list_filter{
-	color:#00FF00;
-	background:#000000;
-}
-::-webkit-scrollbar {
-    width: 4px;
-}
-::-webkit-scrollbar-track {
-    background: #000000; 
-}
-::-webkit-scrollbar-track-piece {
-    background: #000000; 
-}
-::-webkit-scrollbar-thumb {
-	background: #00FF00; 
-}
-::-webkit-scrollbar-button{
-    width: 4px;
-	display:none;
-}
-#div_tower_info_model_list_selectable
-{
-	width:99%;
-	max-height: 420px;
-	overflow-y: auto;
-	overflow-x: hidden;
-}
-#tower_info_model_list_selectable
-{
-	margin:0px;
-	margin-right:5px;
-}
-#tower_info_model_list_selectable li
-{
-	margin:1px;
-}
-#tower_info_model_list_filter
-{
-	color: #00FF00;
-	border:1px solid #00FF00;
-	font-size: 1.2em;
-	background:#000000;
-	width:90%;
-}
-#tower_info_model_list_toggle :hover
-{
-	cursor:hand;
-}
-#tower_info_model_list_toggle
-{
-	height:16px;
-	font-size: 0.8em;
-	float:left;
-}
-#tower_info_title_model_code
-{
-	height:16px;
-	font-size: 0.8em;
-	float:right;
-}
-.ui-widget-content1
-{
-	border:1px solid #00FF00;
-	font-size: 0.8em;
-}
-#tower_info_model_list_selectable .ui-selecting
-{
-	background:#005500;
-}
-#tower_info_model_list_selectable .ui-selected
-{
-	background:#009900;
-}
-#tower_info_model_list
-{
-	width:20%;
-	float:left;
-}
 	</style>
 	
 </head>
@@ -181,9 +49,25 @@
 	<div id="div_progress_bar"><span class="progressbartext" style="width:95%;"></span></div>
 </div>
 <div id="cesiumContainer" class="fullSize"></div>
-<div id="button_search" ></div>
-<div id="text_search_waiting" >输入关键字拼音首字母</div>
-<input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
+
+<div id="control_search">
+	<div id="button_search" ></div>
+	<div id="text_search_waiting" >输入关键字拼音首字母</div>
+	<input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
+</div>
+
+
+<div id="control_toolpanel_kmgd_handle">&gt;
+</div>
+<div id="control_toolpanel_kmgd">
+	<div id="accordion_tools">
+	  <h3>地图图层</h3>
+	  <div>First content panel</div>
+	  <h3>POI设置</h3>
+	  <div>Second content panel</div>
+	</div>	
+</div>
+
 <div id="dlg_tower_info" >
 	<div id='dlg_confirm'><div></div>
 	</div>
