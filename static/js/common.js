@@ -16,7 +16,7 @@ var g_phase_color_mapping = {
 function MongoFind(data, success)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
-	$.post(g_host + 'post', JSON.stringify(data), function( data1 ){
+	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
 		ret = JSON.parse(decodeURIComponent(data1));
 		if(ret.result)
 		{

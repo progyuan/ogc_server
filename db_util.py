@@ -8466,6 +8466,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
         ret.append(tower_obj)
     return ret
 
+
 def find_extent(data):
     ret = {'west':None, 'south':None, 'east':None, 'north':None}
     xl = []
@@ -8600,8 +8601,9 @@ def mongo_find_one(dbname, collection_name, conditions):
     return ret
 
 def test_find_by_string_id():
-    ret = mongo_find('kmgd', 'segments', {'_id':[ObjectId('535a1560ca49c804e457446a'), ObjectId('535a1560ca49c804e457446b')]})
-    print(ret)
+    #ret = mongo_find('kmgd', 'segments', {'_id':[ObjectId('535a1560ca49c804e457446a'), ObjectId('535a1560ca49c804e457446b')]})
+    ret = mongo_find('kmgd', 'lines', )
+    print(map(lambda x:x['properties']['production_date'], ret))
     print(len(ret))
     
     
@@ -8621,6 +8623,20 @@ def add_mongo_id(obj):
             obj = ObjectId(obj)
         except:
             pass
+        
+        d = None
+        try:
+            d = datetime.datetime.strptime(obj, "%Y-%m-%d %H:%M:%S.%F")
+        except:
+            try:
+                d = datetime.datetime.strptime(obj, "%Y-%m-%d %H:%M:%S")
+            except:
+                try:
+                    d = datetime.datetime.strptime(obj, "%Y-%m-%d")
+                except:
+                    d = None
+        if d:
+            obj = d
         return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
@@ -8633,6 +8649,9 @@ def add_mongo_id(obj):
 def remove_mongo_id(obj):
     if isinstance(obj, ObjectId):
         obj = str(obj)
+        return obj
+    if isinstance(obj, datetime.datetime):
+        obj = obj.strftime("%Y-%m-%d %H:%M:%S")
         return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
@@ -8790,6 +8809,32 @@ def test_mongo_import_towers():
         err = sys.exc_info()[1].message
         print(err)
     
+def test_mongo_import_models():
+    global gClientMongo
+    area = 'km'
+    l = []
+    ll = []
+    li = mongo_find('kmgd', 'towers')
+    for i in li:
+        m = i['properties']['model']
+        if m and len(m.keys())>0:
+            if not m['model_code_height'] in l:
+                l.append(m['model_code_height'])
+                ll.append(m)
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        if 'models' in db.collection_names(False):
+            db.drop_collection('models')
+        collection = db.create_collection('models')
+        for i in ll:
+            collection.save(i)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
     
 def test_build_tower_odbc_mongo_id_mapping():
     global gClientMongo
@@ -8822,6 +8867,25 @@ def test_build_line_odbc_mongo_id_mapping():
         l = mongo_find('kmgd', 'lines')
         for i in l:
             collection.save({'uuid':i['id'], 'id':i['_id']})
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+        
+def test_build_model_odbc_mongo_id_mapping():
+    global gClientMongo
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo['kmgd']
+        if 'model_ids_mapping' in db.collection_names(False):
+            db.drop_collection('model_ids_mapping')
+        collection = db.create_collection('model_ids_mapping')
+        l = mongo_find('kmgd', 'models')
+        for i in l:
+            collection.save({'uuid':i['id'], 'id':i['_id']})
+            
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message
@@ -8879,6 +8943,23 @@ def test_mongo_import_line():
                     if tower_mapping.has_key(i['id']):
                         lineobj['properties']['towers'].append(tower_mapping[i['id']])
                 for k in line.keys():
+                    #d = None
+                    #if 'date' in k:
+                        #try:
+                            #d = datetime.datetime.strptime(line[k], "%Y-%m-%d %H:%M:%S.%F")
+                        #except:
+                            #try:
+                                #d = datetime.datetime.strptime(line[k], "%Y-%m-%d %H:%M:%S")
+                            #except:
+                                #try:
+                                    #d = datetime.datetime.strptime(line[k], "%Y-%m-%d")
+                                #except:
+                                    #pass
+                        #if d:
+                            #lineobj['properties'][k] = d
+                        #else:
+                            #lineobj['properties'][k] = line[k]
+                    #else:
                     lineobj['properties'][k] = line[k]
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                 collection.save(add_mongo_id(lineobj))
@@ -8988,6 +9069,7 @@ if __name__=="__main__":
     #test_build_line_odbc_mongo_id_mapping()
     #test_mongo_import_towers()
     #test_mongo_import_segments()
+    test_mongo_import_models()
     #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
     #print(ret)
     #print('count=%d' % len(ret))
@@ -8998,6 +9080,6 @@ if __name__=="__main__":
     #print(ret)
     #test_find_by_string_id()
     #test_pinyin_search()
-    test_import_geojson_feature_by_shape()
+    #test_import_geojson_feature_by_shape()
     
     

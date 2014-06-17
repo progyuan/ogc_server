@@ -1,8 +1,7 @@
-
+var g_drawhelper;
 var g_selected_obj_id;
 var g_prev_selected_id;
 var g_prev_selected_pos;
-var g_view_extent;
 var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
@@ -27,6 +26,9 @@ $(function() {
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
 	var viewer = InitCesiumViewer();
+	$.viewer = viewer;
+	InitWebGISFormDefinition();
+	InitDrawHelper(viewer);
 	InitTowerInfoDialog();
 	//$(window).on('message',function(e) {
 		////console.log('recv:' + text);
@@ -40,15 +42,303 @@ $(function() {
 	InitToolPanel(viewer);
 	InitModelList(viewer);
 	
-	//var line_name = '七罗I回';
-	//LoadTowerByLineName(viewer,  line_name);
+	var line_name = '七罗I回';
+	LoadTowerByLineName(viewer,  line_name);
 	LoadSegments(viewer);
 	LoadModelsList();
-	LoadBorder(viewer, {'properties.name':'云南省'});
-	LoadBorder(viewer, {'properties.type':'cityborder'});
+	//LoadBorder(viewer, {'properties.name':'云南省'});
+	//LoadBorder(viewer, {'properties.type':'cityborder'});
 	//LoadBorder(viewer, {'properties.type':'countyborder'});
 	
 });
+
+function InitWebGISFormDefinition()
+{
+	var methods = 
+	{
+		init : function(fields, options) 
+		{
+			if(!fields) return this;
+			this.fields = fields;
+			this.groups = [];
+			this.options = $.extend({}, $.fn.webgisform.defaults, options);
+			this.empty();
+			
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				if(fld.type == 'hidden')
+				{
+					this.append('<input type="hidden" id="' + fld.id + '">');
+				}
+				if(fld.group)
+				{
+					if(this.groups.indexOf(fld.group) < 0)
+					{
+						this.groups.push(fld.group);
+					}
+				}
+			}
+			
+			
+			for(var j in this.groups)
+			{
+				var group = this.groups[j];
+				var uid = $.uuid();
+				var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+				this.append('</fieldset>');
+				this.append('<p></p>');
+				
+				for(var i in fields)
+				{
+					var fld = fields[i];
+					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
+					var newline = "float:left;";
+					if(fld.newline == false) newline = "";
+					var validate = '';
+					if(fld.validate)
+					{
+						validate = '<span style="color:#FF0000">*</span>';
+					}
+					if(fld.type == 'spinner' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+						var spin = 	$('#' + fld.id).spinner({
+							step: fld.step,
+							max:fld.max,
+							min:fld.min,
+							change:fld.change,
+							spin:fld.spin
+						});
+					}
+					if(fld.type == 'geographic' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+						var spin = 	$('#' + fld.id).spinner({
+							step: 0.00001,
+							max:179.0,
+							min:-179.0,
+							change: fld.change,
+							spin: fld.spin
+						});
+					}
+					if(fld.type == 'text' && fld.group == group)
+					{
+						var readonly = '';
+						if(fld.editor && fld.editor.readonly == true)
+						{
+							readonly = ' readonly="readonly"';
+						}
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '" ' + readonly + '>' + validate + '</div>');
+					}
+					if(fld.type == 'select' && fld.group == group)
+					{
+						var source = [];
+						if(fld.editor && fld.editor.data) source = fld.editor.data;
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '"></select>' + validate + '</div>');
+						for(var ii in source)
+						{
+							$('#' + fld.id).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
+						}
+						//$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text"  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+						var auto = $('#' + fld.id).autocomplete({
+							//appendTo:'#' + fld.id,
+							//position: { my: "left top", at: "left bottom", collision: "none" },
+							autoFocus: false,
+							source:source
+						});
+						
+					}
+					
+				}
+			}
+			
+			var fields = this.fields;
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				if(fld.validate)
+				{
+					if($('input[name="' + fld.id + '"]').length>0)
+					{
+						$('input[name="' + fld.id + '"]').rules('add',fld.validate);
+					}
+					if($('select[name="' + fld.id + '"]').length>0)
+					{
+						$('select[name="' + fld.id + '"]').rules('add',fld.validate);
+					}
+				}
+			}
+			return this;
+		},
+		setdata : function(data, prefix)
+		{
+			for(var k in data)
+			{
+				if(prefix)
+				{
+					this.find('#' + prefix + k).val(data[k]);
+				}
+				else
+				{
+					this.find('#' + k).val(data[k]);
+				}
+			}
+			return this;
+		}
+    };	
+	$.fn.webgisform = function(fields, options) 
+	{
+		if ( methods[fields] ) {
+			return methods[ fields ].apply( this, Array.prototype.slice.call( arguments, 1 ));
+		} else if ( typeof fields === 'object' || ! fields ) {
+			return methods.init.apply( this, arguments );
+		} else {
+			$.error( 'Method ' +  fields + ' does not exist on $.webgisform');
+        }		
+		
+/*		
+		this.fields = fields;
+		this.groups = [];
+		this.options = $.extend({}, $.fn.webgisform.defaults, options);
+		this.empty();
+		
+		for(var i in fields)
+		{
+			var fld = fields[i];
+			if(fld.type == 'hidden')
+			{
+				this.append('<input type="hidden" id="' + fld.id + '">');
+			}
+			if(fld.group)
+			{
+				if(this.groups.indexOf(fld.group) < 0)
+				{
+					this.groups.push(fld.group);
+				}
+			}
+		}
+		
+		
+		for(var j in this.groups)
+		{
+			var group = this.groups[j];
+			var uid = $.uuid();
+			var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+			this.append('</fieldset>');
+			this.append('<p></p>');
+			
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
+				var newline = "float:left;";
+				if(fld.newline == false) newline = "";
+				var validate = '';
+				if(fld.validate)
+				{
+					validate = '<span style="color:#FF0000">*</span>';
+				}
+				if(fld.type == 'spinner' && fld.group == group)
+				{
+					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+					var spin = 	$('#' + fld.id).spinner({
+						step: fld.step,
+						max:fld.max,
+						min:fld.min,
+						change:fld.change,
+						spin:fld.spin
+					});
+				}
+				if(fld.type == 'geographic' && fld.group == group)
+				{
+					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+					var spin = 	$('#' + fld.id).spinner({
+						step: 0.00001,
+						max:179.0,
+						min:-179.0,
+						change: fld.change,
+						spin: fld.spin
+					});
+				}
+				if(fld.type == 'text' && fld.group == group)
+				{
+					var readonly = '';
+					if(fld.editor && fld.editor.readonly == true)
+					{
+						readonly = ' readonly="readonly"';
+					}
+					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '" ' + readonly + '>' + validate + '</div>');
+				}
+				if(fld.type == 'select' && fld.group == group)
+				{
+					var source = [];
+					if(fld.editor && fld.editor.data) source = fld.editor.data;
+					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '"></select>' + validate + '</div>');
+					for(var ii in source)
+					{
+						$('#' + fld.id).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
+					}
+					//$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text"  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
+					var auto = $('#' + fld.id).autocomplete({
+						//appendTo:'#' + fld.id,
+						//position: { my: "left top", at: "left bottom", collision: "none" },
+						autoFocus: false,
+						source:source
+					});
+					
+				}
+				
+			}
+		}
+		var _this = this;
+		$.fn.webgisform.ValidateForm = function()
+		{
+			var fields = this.fields;
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				if(fld.validate)
+				{
+					if($('input[name="' + fld.id + '"]').length>0)
+					{
+						$('input[name="' + fld.id + '"]').rules('add',fld.validate);
+					}
+					if($('select[name="' + fld.id + '"]').length>0)
+					{
+						$('select[name="' + fld.id + '"]').rules('add',fld.validate);
+					}
+				}
+			}
+			return _this;
+		};
+	
+		$.fn.webgisform.SetFormData = function(data, prefix)
+		{
+			for(var k in data)
+			{
+				if(prefix)
+				{
+					_this.find('#' + prefix + k).val(data[k]);
+				}
+				else
+				{
+					_this.find('#' + k).val(data[k]);
+				}
+			}
+			return _this;
+		};
+		
+		$.fn.webgisform.ValidateForm();
+		return this;
+*/	
+	};
+	$.fn.webgisform.defaults = {
+		labelwidth : 90,
+		margin : 10.0/2,
+		groupmargin : 18.0/2
+	};
+}
 
 function InitCesiumViewer()
 {
@@ -60,6 +350,17 @@ function InitCesiumViewer()
 				//creationFunction : function() {
 					//return new Cesium.OpenStreetMapImageryProvider({
 						////url :  g_host + 'wmts',
+					//});
+				//}
+			//}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : 'YNCFT',
+				//iconUrl : 'img/wmts-map.png',
+				//tooltip : 'YNCFT',
+				//creationFunction : function() {
+					//return new ArcgisTileImageryProvider({
+						//url : g_host + 'arcgistile',
+						//is_esri:true
 					//});
 				//}
 			//}));
@@ -86,16 +387,6 @@ function InitCesiumViewer()
 					});
 				}
 			}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'YNCFT',
-				//iconUrl : 'img/wmts.png',
-				//tooltip : 'YNCFT',
-				//creationFunction : function() {
-					//return new ArcgisTileImageryProvider({
-						//url : g_host + 'arcgistile',
-					//});
-				//}
-			//}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
 		//name : 'Bing Maps Aerial',
 		//iconUrl : 'img/bingAerial.png',
@@ -203,6 +494,107 @@ function InitCesiumViewer()
 		//Cesium.ScreenSpaceEventType.MOUSE_MOVE
 	//);
 	return viewer;
+}
+
+function InitDrawHelper(viewer)
+{
+	var g_drawhelper = new DrawHelper(viewer, 'drawhelpertoolbar');
+	var toolbar = g_drawhelper.addToolbar($('#' + g_drawhelper.toolbar_container_id)[0], {
+		buttons: ['marker', 'polyline', 'polygon', 'circle', 'extent']
+	});
+	
+	
+    var drawHelperCoverAreaMaterial = Cesium.Material.fromType('Color', {
+		color : new Cesium.Color(1.0, 1.0, 0.0, 0.5)
+	});
+	
+	
+	toolbar.addListener('markerCreated', function(event) {
+		console.log('Marker created at ' + event.position.toString());
+		// create one common billboard collection for all billboards
+		var b = new Cesium.BillboardCollection();
+		//var a = viewer.scene.context.createTextureAtlas();
+		var a = new Cesium.TextureAtlas({scene:viewer.scene});
+		b.textureAtlas = a;
+		viewer.scene.primitives.add(b);
+		g_drawhelper.addPrimitive(b);
+		var image = new Image();
+		image.onload = function() {
+			a.addImage(image);
+		};
+		image.src = 'img/location_marker.png';
+		var billboard = b.add({
+			show : true,
+			position : event.position,
+			pixelOffset : new Cesium.Cartesian2(0, 0),
+			eyeOffset : new Cesium.Cartesian3(0.0, 0.0, 0.0),
+			horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
+			verticalOrigin : Cesium.VerticalOrigin.CENTER,
+			scale : 0.15,
+			imageIndex : 0,
+			color : new Cesium.Color(1.0, 1.0, 1.0, 1.0)
+		});
+		//billboard.setEditable();
+		ShowPOIDialog(viewer, 'point', event.position);
+	});
+	toolbar.addListener('polylineCreated', function(event) {
+		console.log('Polyline created with ' + event.positions.length + ' points');
+		var polyline = new DrawHelper.PolylinePrimitive({
+			positions: event.positions,
+			width: 5,
+			geodesic: true
+		});
+		viewer.scene.primitives.add(polyline);
+		g_drawhelper.addPrimitive(polyline);
+		//polyline.setEditable();
+		//polyline.addListener('onEdited', function(event) {
+			//console.log('Polyline edited, ' + event.positions.length + ' points');
+		//});
+
+	});
+	toolbar.addListener('polygonCreated', function(event) {
+		console.log('Polygon created with ' + event.positions.length + ' points');
+		var polygon = new DrawHelper.PolygonPrimitive({
+			positions: event.positions,
+			material : drawHelperCoverAreaMaterial
+		});
+		viewer.scene.primitives.add(polygon);
+		g_drawhelper.addPrimitive(polygon);
+		//polygon.setEditable();
+		//polygon.addListener('onEdited', function(event) {
+			//console.log('Polygon edited, ' + event.positions.length + ' points');
+		//});
+
+	});
+	toolbar.addListener('circleCreated', function(event) {
+		console.log('Circle created: center is ' + event.center.toString() + ' and radius is ' + event.radius.toFixed(1) + ' meters');
+		var circle = new DrawHelper.CirclePrimitive({
+			center: event.center,
+			radius: event.radius,
+			material: drawHelperCoverAreaMaterial
+		});
+		viewer.scene.primitives.add(circle);
+		g_drawhelper.addPrimitive(circle);
+		//circle.setEditable();
+		//circle.addListener('onEdited', function(event) {
+			//console.log('Circle edited: radius is ' + event.radius.toFixed(1) + ' meters');
+		//});
+	});
+	toolbar.addListener('extentCreated', function(event) {
+		var extent = event.extent;
+		console.log('Extent created (N: ' + extent.north.toFixed(3) + ', E: ' + extent.east.toFixed(3) + ', S: ' + extent.south.toFixed(3) + ', W: ' + extent.west.toFixed(3) + ')');
+		var extentPrimitive = new DrawHelper.ExtentPrimitive({
+			extent: extent,
+			material: drawHelperCoverAreaMaterial
+		});
+		viewer.scene.primitives.add(extentPrimitive);
+		g_drawhelper.addPrimitive(extentPrimitive);
+		//extentPrimitive.setEditable();
+		//extentPrimitive.addListener('onEdited', function(event) {
+			//console.log('Extent edited: extent is (N: ' + event.extent.north.toFixed(3) + ', E: ' + event.extent.east.toFixed(3) + ', S: ' + event.extent.south.toFixed(3) + ', W: ' + event.extent.west.toFixed(3) + ')');
+		//});
+	});
+
 }
 
 function InitTowerInfoDialog()
@@ -349,7 +741,7 @@ function InitSearchBox(viewer)
 			//console.log(ui.item.geojson);
 			if(ui.item.geojson && ui.item.geojson.geometry && ui.item.geojson.geometry.type == 'Point')
 			{
-				FlyToPoint(viewer.scene, ui.item.pos[0], ui.item.pos[1], 2000, 1.05, 4000);
+				FlyToPoint(viewer, ui.item.pos[0], ui.item.pos[1], 2000, 1.05, 4000);
 				ShowSearchResult(viewer, ui.item.geojson);
 			}
 			else if(ui.item.geojson && ui.item.geojson.properties && ui.item.geojson.properties.category && ui.item.geojson.properties.category == '架空线')
@@ -413,6 +805,12 @@ function ShowSearchResult(viewer, geojson)
 		}
 	}
 }
+
+function ShowPOIDialog(viewer, type, positions)
+{
+	
+}
+
 function CreateTowerCzmlFromGeojson(tower)
 {
 	//var ret = [];
@@ -653,7 +1051,7 @@ function ReloadBorders(viewer, forcereload)
 			
 		}
 	}
-	FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+	FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 }
 
 function LoadSegments(viewer)
@@ -718,7 +1116,7 @@ function LoadTowerByLineName(viewer,  line_name)
 			ReloadCzmlDataSource(viewer, g_zaware);
 			var extent = GetExtentByCzml();
 			console.log(extent);
-			FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+			FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 			
 			MongoFind( line_cond, 
 				function(linedatas){
@@ -747,7 +1145,7 @@ function LoadTowerByLineName(viewer,  line_name)
 				//MongoFind( ext_cond, 
 					//function(data){
 						//g_view_extent = data;
-						//FlyToExtent(viewer.scene, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
+						//FlyToExtent(viewer, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
 						//console.log(g_view_extent);
 				//});
 }
@@ -841,8 +1239,9 @@ function ReloadCzmlDataSource(viewer, z_aware)
 		viewer.dataSources.add(dataSource);
 	}
 }
-function LookAtTarget(scene, id)
+function LookAtTarget(viewer, id, zoom_factor)
 {
+	var scene = viewer.scene;
 	//scene.camera.controller.lookAt(scene.camera.position, target, scene.camera.up);
 	var ellipsoid = scene.globe.ellipsoid;
 	
@@ -852,11 +1251,15 @@ function LookAtTarget(scene, id)
 		var x = tower['geometry']['coordinates'][0];
 		var y = tower['geometry']['coordinates'][1];
 		var z = tower['properties']['geo_z'];
-		FlyToPoint(scene, x, y, z, 1.09, 4000);
+		if(zoom_factor)
+			FlyToPoint(viewer, x, y, z, zoom_factor, 4000);
+		else
+			FlyToPoint(viewer, x, y, z, 1.09, 4000);
 	}
 }
-function LookAtTargetExtent(scene, id, dx, dy)
+function LookAtTargetExtent(viewer, id, dx, dy)
 {
+	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
 	if(g_geojsons[id])
 	{
@@ -869,11 +1272,12 @@ function LookAtTargetExtent(scene, id, dx, dy)
 		var north = Cesium.Math.toRadians(y + dy);
 		var extent = new Cesium.Extent(west, south, east, north);
 		//scene.camera.controller.viewExtent(extent, ellipsoid);
-		FlyToExtent(scene, west, south, east, north);
+		FlyToExtent(viewer, west, south, east, north);
 	}
 }
-function ViewExtentByPos(scene, lng, lat,  dx, dy)
+function ViewExtentByPos(viewer, lng, lat,  dx, dy)
 {
+	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
 	var west = Cesium.Math.toRadians(lng - dx);
 	var south = Cesium.Math.toRadians(lat - dy);
@@ -887,8 +1291,9 @@ function ViewExtentByPos(scene, lng, lat,  dx, dy)
 }
 
 
-function FlyToPoint(scene, x, y, z, factor, duration)
+function FlyToPoint(viewer, x, y, z, factor, duration)
 {
+	var scene = viewer.scene;
 	var destination = Cesium.Cartographic.fromDegrees(x,  y,  z * factor);
 	var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
 		destination : destination,
@@ -897,8 +1302,9 @@ function FlyToPoint(scene, x, y, z, factor, duration)
 	scene.animations.add(flight);
 }
 
-function FlyToPointCart3(scene, pos, duration)
+function FlyToPointCart3(viewer, pos, duration)
 {
+	var scene = viewer.scene;
 	//var destination = scene.globe.ellipsoid.cartesianToCartographic(cart3);
 	var flight = Cesium.CameraFlightPath.createAnimationCartographic(scene, {
 		destination	:	pos,
@@ -909,14 +1315,9 @@ function FlyToPointCart3(scene, pos, duration)
 	scene.animations.add(flight);
 }
 
-function FlyToExtent(scene, west, south, east, north)
+function FlyToExtent(viewer, west, south, east, north)
 {
-	//var west1 = Cesium.Math.toRadians(west);
-	//var south1 = Cesium.Math.toRadians(south);
-	//var east1 = Cesium.Math.toRadians(east);
-	//var north1 = Cesium.Math.toRadians(north);
-
-	//var extent = new Cesium.Extent(west1, south1, east1, north1);
+	var scene = viewer.scene;
 	var extent = Cesium.Rectangle.fromDegrees(west, south, east, north);
 	var flight = Cesium.CameraFlightPath.createAnimationRectangle(scene, {
 		destination : extent
@@ -955,8 +1356,7 @@ function LoadTowerModelByTower(viewer, tower)
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
 					var model = CreateTowerModel(
-						scene, 
-						ellipsoid, 
+						viewer, 
 						GetModelUrl(tower['properties']['model']['model_code_height']), 
 						lng,  
 						lat, 
@@ -998,10 +1398,10 @@ function LoadTowerModelByTower(viewer, tower)
 					//fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
 				//});
 				
-				//var model = CreateTowerModel(scene, ellipsoid, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
+				//var model = CreateTowerModel(viewer, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
 				//if(idx > 10)
 				//{
-					//FlyToPoint(scene, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
+					//FlyToPoint(viewer, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
 					//var controller = scene.screenSpaceCameraController;
 					////controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
 					////controller.enableTilt = true;
@@ -1062,8 +1462,10 @@ function GetModelUrl(model_code_height)
 	//return "http://localhost:88/gltf/test.json";//?random=" + $.uuid();
 }
 
-function CreateTowerModel(scene, ellipsoid, modelurl,  lng,  lat,  height, rotate, scale) 
+function CreateTowerModel(viewer, modelurl,  lng,  lat,  height, rotate, scale) 
 {
+	var scene = viewer.scene;
+	var ellipsoid = scene.globe.ellipsoid;
 	if(modelurl.length==0)
 	{
 		return null;
@@ -1134,7 +1536,7 @@ function TowerInfoMixin(viewer)
 		viewer.trackedObject = viewer.selectedObject;
 		var id = viewer.trackedObject.id;
 		//console.log('track id=' + id);
-		LookAtTarget(viewer.scene, id);
+		LookAtTarget(viewer, id);
 	}
 
 	function clearTrackedObject() {
@@ -1220,22 +1622,22 @@ function TowerInfoMixin(viewer)
 	eventHelper.add(viewer.clock.onTick, onTick);
 
 //----test pick only-----
-	var labels = new Cesium.LabelCollection();
-	label = labels.add();
-	viewer.scene.primitives.add(labels);
+	//var labels = new Cesium.LabelCollection();
+	//label = labels.add();
+	//viewer.scene.primitives.add(labels);
 //------------------
 	function pickDynamicObject(e) {
 		var picked = viewer.scene.pick(e.position);
 		var ellipsoid = viewer.scene.globe.ellipsoid;
 		var cartesian = viewer.scene.camera.pickEllipsoid(e.position, ellipsoid);
 		if (cartesian) {
-			var cartographic = ellipsoid.cartesianToCartographic(cartesian);
-			var lng = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7),
-				lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
-			var text = '(' + lng + ',' + lat + ')';
-			label.show = true;
-			label.text = text;
-			label.position = cartesian;
+			//var cartographic = ellipsoid.cartesianToCartographic(cartesian);
+			//var lng = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7),
+				//lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
+			//var text = '(' + lng + ',' + lat + ')';
+			//label.show = true;
+			//label.text = text;
+			//label.position = cartesian;
 		}
 		
 		
@@ -1269,7 +1671,7 @@ function TowerInfoMixin(viewer)
 			{
 				trackObject(dynamicObject);
 				var id = dynamicObject.id;
-				LookAtTarget(viewer.scene, id);
+				LookAtTarget(viewer, id);
 			}
 		}
 	}
@@ -1378,8 +1780,8 @@ function TowerInfoMixin(viewer)
 					var t = GetTowerInfoByTowerId(k);
 					if(t)
 					{
-						RemoveSegmentsTower(viewer.scene, t);
-						//DrawSegmentsByTower(viewer.scene, t);
+						RemoveSegmentsTower(viewer, t);
+						//DrawSegmentsByTower(viewer, t);
 						
 						var lng = t['geometry']['coordinates'][0],
 							lat = t['geometry']['coordinates'][1],
@@ -1421,7 +1823,7 @@ function TowerInfoMixin(viewer)
 		});
 		eventHelper.add(viewer.homeButton.viewModel.command.afterExecute, function(commandInfo){
 			var extent = GetExtentByCzml();
-			FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+			FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 			//if(g_prev_selected_pos)
 			//{
 				////var vm = viewer.homeButton.viewModel;
@@ -1430,7 +1832,7 @@ function TowerInfoMixin(viewer)
 				////ClearTrackedObj(viewer);
 				////ReloadCzmlDataSource(viewer);
 				//var pos = viewer.scene.globe.ellipsoid.cartesianToCartographic(g_prev_selected_pos._value);
-				//FlyToPoint(viewer.scene, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
+				//FlyToPoint(viewer, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
 				//g_prev_selected_pos = null;
 			//}
 			
@@ -1749,8 +2151,9 @@ function RemoveLineModel(viewer, line_id)
 
 
 
-function RemoveSegmentsBetweenTow(scene, tower0, tower1)
+function RemoveSegmentsBetweenTow(viewer, tower0, tower1)
 {
+	var scene = viewer.scene;
 	if(CheckSegmentsExist(tower0, tower1))
 	{
 		var seg = RemoveSegmentsFromArray(tower0, tower1);
@@ -1957,8 +2360,9 @@ function DrawLineModelByLine(viewer, line, width, color, alpha)
 		//g_geometry_segments.push({'line_id': line['_id'], 'model':polylines});
 	}
 }
-function DrawSegmentsBetweenTowTower(scene, tower0, tower1)
+function DrawSegmentsBetweenTowTower(viewer, tower0, tower1)
 {
+	var scene = viewer.scene;
 	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
 	{
 		var ellipsoid = scene.globe.ellipsoid;
@@ -2083,23 +2487,25 @@ function CalcCatenary(ellipsoid, p0, p1, segnum)
 }
 
 
-function RemoveSegmentsTower(scene, tower)
+function RemoveSegmentsTower(viewer, tower)
 {
+	var scene = viewer.scene;
 	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
 	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
-		RemoveSegmentsBetweenTow(scene, t, tower);
+		RemoveSegmentsBetweenTow(viewer, t, tower);
 	}
 	for(var i in next_towers)
 	{
 		var t = next_towers[i];
-		RemoveSegmentsBetweenTow(scene, tower, t);
+		RemoveSegmentsBetweenTow(viewer, tower, t);
 	}
 }
-function DrawSegmentsByTower(scene, tower)
+function DrawSegmentsByTower(viewer, tower)
 {
+	var scene = viewer.scene;
 	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
 	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
 	
@@ -2120,12 +2526,12 @@ function DrawSegmentsByTower(scene, tower)
 		for(var i in prev_towers)
 		{
 			var t = prev_towers[i];
-			DrawSegmentsBetweenTowTower(scene, t, tt);
+			DrawSegmentsBetweenTowTower(viewer, t, tt);
 		}
 		for(var i in next_towers)
 		{
 			var t = next_towers[i];
-			DrawSegmentsBetweenTowTower(scene, tt, t);
+			DrawSegmentsBetweenTowTower(viewer, tt, t);
 		}
 	}
 }
@@ -2187,7 +2593,7 @@ function ShowTowerInfo(viewer, id)
 		FilterModelList('');
 		ShowTowerInfoDialog(viewer, tower);
 		LoadTowerModelByTower(viewer, tower);
-		DrawSegmentsByTower(viewer.scene, tower);
+		DrawSegmentsByTower(viewer, tower);
 	}
 
 }
@@ -2214,10 +2620,10 @@ function ShowTowerInfoDialog(viewer, tower)
 			effect: "blind",
 			duration: 500
 		},
-		hide: {
-			effect: "blind",
-			duration: 500
-		},		
+		//hide: {
+			//effect: "blind",
+			//duration: 500
+		//},		
 		buttons:[
 			{ 	
 				//type: "checkbox",
@@ -2236,7 +2642,7 @@ function ShowTowerInfoDialog(viewer, tower)
 							viewer.trackedObject = dynamicObject;
 							var id = dynamicObject.id;
 							//console.log('track id=' + id);
-							LookAtTarget(viewer.scene, id);
+							LookAtTarget(viewer, id);
 						}				
 					}
 					else
@@ -2245,14 +2651,16 @@ function ShowTowerInfoDialog(viewer, tower)
 						$(e.target).html('锁定视角');
 						
 						//var extent = GetExtentByCzml();
-						//FlyToExtent(viewer.scene, extent['west'], extent['south'], extent['east'], extent['north']);
+						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 						if(dynamicObject)
 						{
 							var vm = viewer.homeButton.viewModel;
 							//vm.flightDuration = 1;
 							vm.command();
 							var pos = viewer.scene.globe.ellipsoid.cartesianToCartographic(dynamicObject.position._value);
-							FlyToPoint(viewer.scene, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
+							if(pos.height === 0.0) pos.height = 2000;
+							//console.log('pos.height=' + pos.height);
+							FlyToPoint(viewer, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
 						}
 						
 						
@@ -2363,7 +2771,9 @@ function ShowTowerInfoDialog(viewer, tower)
 		//threejs/editor/index.html
 	});
 		
-	BuildForm(viewer, 'form_tower_info_base', g_tower_baseinfo_fields);
+	//BuildForm(viewer, 'form_tower_info_base', g_tower_baseinfo_fields);
+	//console.log($.viewer);
+	var form = $('#form_tower_info_base').webgisform(g_tower_baseinfo_fields);
 	if(tower)
 	{
 		var data = {
@@ -2381,7 +2791,11 @@ function ShowTowerInfoDialog(viewer, tower)
 			'tower_baseinfo_vertical_span':tower['properties']['vertical_span'],
 			'tower_baseinfo_project':GetProjectNameByTowerId(tower['_id'])
 		};	
-		SetFormData('form_tower_info_base', data);
+		//SetFormData('form_tower_info_base', data);
+		//var SetFormData = $('#form_tower_info_base').webgisform.SetFormData;
+		//console.log(SetFormData);
+		//SetFormData(data);
+		$('#form_tower_info_base').webgisform('setdata', data);
 	}
 	if(tower)
 	{
@@ -2593,9 +3007,10 @@ function ShowTowerInfoDialog(viewer, tower)
 				//});
 				//form_tower_info_metal.setData(formdata);
 				
-				BuildForm(viewer, 'form_tower_info_metal', flds);
-				//console.log(formdata);
-				SetFormData('form_tower_info_metal', formdata, 'tower_metal_');
+				//BuildForm(viewer, 'form_tower_info_metal', flds);
+				//SetFormData('form_tower_info_metal', formdata, 'tower_metal_');
+				$('#form_tower_info_metal').webgisform(flds);
+				$('#form_tower_info_metal').webgisform('setdata', formdata, 'tower_metal_');
 			}
 		}
 	});

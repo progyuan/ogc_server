@@ -123,6 +123,7 @@ def handle_static(aUrl):
         ext = surl[surl.rindex('.'):]
     else:
         ext = os.path.splitext(p)[1]
+    print('handle_static p=%s' % p)
     if len(ext)>0:
         if gConfig['mime_type'].has_key(ext):
             if 'image/' in gConfig['mime_type'][ext]:
@@ -877,6 +878,28 @@ def handle_arcgistile(Env, Start_response):
                         gSatTileCache[key] = f1.read()
         
         ret = gSatTileCache[key]
+    elif d.has_key('is_esri') :
+        key = Env['PATH_INFO'].replace('/arcgistile/','')
+        if not gSatTileCache.has_key(key):
+            try:
+                #picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['wmts']['format']))
+                picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'],   key)
+                print('%s, %s' % (key, picpath))
+                with open(picpath, 'rb') as f:
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    gSatTileCache[key] = f1.read()
+                
+            except:
+                foundit = False
+                if not foundit:
+                    key = 'missing'
+                if not gSatTileCache.has_key(key):
+                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    with open(picpath, 'rb') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        gSatTileCache[key] = f1.read()
+        
+        ret = gSatTileCache[key]
     else:
         if not gSatTileCache.has_key('missing'):
             picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
@@ -1410,7 +1433,7 @@ def application(environ, start_response):
         return handle_post_method(environ, start_response)
     elif path_info == '/wmts':
         return handle_wmts(environ, start_response)
-    elif path_info == '/arcgistile':
+    elif '/arcgistile' in path_info:
         return handle_arcgistile(environ, start_response)
     #elif path_info == '/terrain':
     elif path_info[-8:] == '.terrain':
@@ -1928,9 +1951,43 @@ def create_self_signed_cert(cert_dir, year=10):
  
     
     
+def gen_model_app_cache():
+    global gConfig
+    s = 'CACHE MANIFEST\n'
+    s += '#' + gConfig['web_cache']['version'] + '\n'
+    
+    if gConfig['web_cache']['gltf_cache_enable'].lower() == u'true':
+        modelsdir = os.path.join(STATICRESOURCE_DIR, 'gltf')
+        l = os.listdir(modelsdir)
+        for i in l:
+            s += '/gltf/' + i + '\n'
+    file_or_dir_cache = gConfig['web_cache']['file_or_dir_cache']        
+    if len(file_or_dir_cache) > 0 :
+        for root, dirs, files  in os.walk(STATICRESOURCE_DIR, topdown=False):
+            for name in dirs:
+                if name in file_or_dir_cache:
+                    p = os.path.join(root, name)
+                    for root1, dirs1, files1  in os.walk(p, topdown=False):
+                        for name1 in files1:
+                            p1 = os.path.join(root1, name1)
+                            p1 = p1.replace(STATICRESOURCE_DIR, '').replace('\\', '/')
+                            s += p1 + '\n'
+            for name in files:
+                if name in file_or_dir_cache:
+                    p = os.path.join(root, name)
+                    p = p.replace(STATICRESOURCE_DIR, '').replace('\\', '/')
+                    s += p + '\n'
+                
+            
+    s += 'NETWORK:\n'
+    s += '*\n'
+    with open(os.path.join(STATICRESOURCE_DIR, 'kmgd.appcache'), 'w') as f:
+        f.write(s)
+   
 
 if __name__=="__main__":
     freeze_support()
+    gen_model_app_cache()
     if len(sys.argv) == 1:
         if gConfig['cluster']['enable_cluster'] in ['true','True']:
             mainloop_single(int(gConfig['cluster']['manager_port']), True, False)

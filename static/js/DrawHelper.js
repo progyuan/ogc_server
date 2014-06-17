@@ -14,13 +14,14 @@ var DrawHelper = (function() {
     var ellipsoid = Cesium.Ellipsoid.WGS84;
 
     // constructor
-    function _(cesiumWidget) {
+    function _(cesiumWidget, toolbar_id) {
         this._scene = cesiumWidget.scene;
         this._tooltip = createTooltip(cesiumWidget.container);
         this._surfaces = [];
-
+		this._primitives = [];
         this.initialiseHandlers();
-
+		this.toolbar_container_id = toolbar_id;
+		//this.save_callback = save_callback;
         this.enhancePrimitives();
 
     }
@@ -80,6 +81,30 @@ var DrawHelper = (function() {
 
     _.prototype.muteHandlers = function(muted) {
         this._handlersMuted = muted;
+    }
+    _.prototype.addPrimitive = function(primitive) {
+        this._primitives.push(primitive);
+    }
+    _.prototype.clearPrimitive = function() {
+		for(var i in this._primitives)
+		{
+			try
+			{
+				this._scene.primitives.remove(this._primitives[i]);
+			}catch(e){
+			}
+		}
+        this._primitives.length = 0;
+    }
+    _.prototype.close = function() {
+		this.stopDrawing();
+		this.disableAllEditMode();
+		this.disableAllHighlights();
+		this.clearPrimitive();
+		$('#' + this.toolbar_container_id).css('display','none');
+    }
+    _.prototype.show = function() {
+		$('#' + this.toolbar_container_id).css('display','block');
     }
 
     // register event handling for an editable shape
@@ -291,7 +316,8 @@ var DrawHelper = (function() {
                                 depthTest : {
                                     enabled : true
                                 },
-                                lineWidth : Math.min(this.strokeWidth || 4.0, context.getMaximumAliasedLineWidth())
+                                //lineWidth : Math.min(this.strokeWidth || 4.0, context.getMaximumAliasedLineWidth())
+                                lineWidth : Math.min(this.strokeWidth || 4.0, context.maximumAliasedLineWidth)
                             }
                         })
                     });
@@ -357,8 +383,8 @@ var DrawHelper = (function() {
                 return;
             }
 
-            return new Cesium.ExtentGeometry({
-                extent : this.extent,
+            return new Cesium.RectangleGeometry({
+                rectangle : this.extent,
                 height : this.height,
                 vertexFormat : Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT,
                 stRotation : this.textureRotationAngle,
@@ -368,8 +394,8 @@ var DrawHelper = (function() {
         };
 
         _.prototype.getOutlineGeometry = function() {
-            return new Cesium.ExtentOutlineGeometry({
-                extent: this.extent
+            return new Cesium.RectangleOutlineGeometry({
+                rectangle: this.extent
             });
         }
 
@@ -568,7 +594,8 @@ var DrawHelper = (function() {
         for(index = 0; index < cartographicPath.length - 1; index++) {
             geodesic = new Cesium.EllipsoidGeodesic(cartographicPath[index], cartographicPath[index + 1]);
             // add a point every granularity
-            var totalDistance = geodesic.getSurfaceDistance(),
+            //var totalDistance = geodesic.getSurfaceDistance(),
+            var totalDistance = geodesic.surfaceDistance,
                 distance = 0;
             for(; distance < totalDistance; distance += granularity) {
                 ellipsoidCartographicPath.push(geodesic.interpolateUsingSurfaceDistance(distance));
@@ -633,19 +660,19 @@ var DrawHelper = (function() {
     })();
 
     var defaultBillboard = {
-        iconUrl: "./img/dragIcon.png",
+        iconUrl: "img/dragIcon.png",
         shiftX: 0,
         shiftY: 0
     }
 
     var dragBillboard = {
-        iconUrl: "./img/dragIcon.png",
+        iconUrl: "img/dragIcon.png",
         shiftX: 0,
         shiftY: 0
     }
 
     var dragHalfBillboard = {
-        iconUrl: "./img/dragIconLight.png",
+        iconUrl: "img/dragIconLight.png",
         shiftX: 0,
         shiftY: 0
     }
@@ -665,9 +692,11 @@ var DrawHelper = (function() {
 
         // create one common billboard collection for all billboards
         var b = new Cesium.BillboardCollection();
-        var a = this._scene.context.createTextureAtlas();
+        //var a = this._scene.context.createTextureAtlas();
+        var a = new Cesium.TextureAtlas({scene:this._scene});
         b.textureAtlas = a;
         this._scene.primitives.add(b);
+		this._drawHelper.addPrimitive(b);
         this._billboards = b;
         this._textureAtlas = a;
         // keep an ordered list of billboards
@@ -683,7 +712,14 @@ var DrawHelper = (function() {
     }
 
     _.BillboardGroup.prototype.createBillboard = function(position, callbacks) {
-
+		if(this._billboards.isDestroyed())
+		{
+			var b = new Cesium.BillboardCollection();
+			b.textureAtlas = this._textureAtlas;
+			this._scene.primitives.add(b);
+			this._drawHelper.addPrimitive(b);
+			this._billboards = b;
+		}
         var billboard = this._billboards.add({
             show : true,
             position : position,
@@ -714,7 +750,8 @@ var DrawHelper = (function() {
                     // TODO - start the drag handlers here
                     // create handlers for mouseOut and leftUp for the billboard and a mouseMove
                     function onDrag(position) {
-                        billboard.setPosition(position);
+                        //billboard.setPosition(position);
+                        billboard.position = position;
                         // find index
                         for (var i = 0, I = _self._orderedBillboards.length; i < I && _self._orderedBillboards[i] != billboard; ++i);
                         callbacks.dragHandlers.onDrag && callbacks.dragHandlers.onDrag(getIndex(), position);
@@ -728,7 +765,7 @@ var DrawHelper = (function() {
                     var handler = new Cesium.ScreenSpaceEventHandler(_self._scene.canvas);
 
                     handler.setInputAction(function(movement) {
-                        var cartesian = _self._scene.camera.controller.pickEllipsoid(movement.endPosition, ellipsoid);
+                        var cartesian = _self._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
                         if (cartesian) {
                             onDrag(cartesian);
                         } else {
@@ -737,12 +774,12 @@ var DrawHelper = (function() {
                     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
                     handler.setInputAction(function(movement) {
-                        onDragEnd(_self._scene.camera.controller.pickEllipsoid(movement.position, ellipsoid));
+                        onDragEnd(_self._scene.camera.pickEllipsoid(movement.position, ellipsoid));
                     }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
                     enableRotation(false);
 
-                    callbacks.dragHandlers.onDragStart && callbacks.dragHandlers.onDragStart(getIndex(), _self._scene.camera.controller.pickEllipsoid(position, ellipsoid));
+                    callbacks.dragHandlers.onDragStart && callbacks.dragHandlers.onDragStart(getIndex(), _self._scene.camera.pickEllipsoid(position, ellipsoid));
                 });
             }
             if(callbacks.onDoubleClick) {
@@ -786,7 +823,8 @@ var DrawHelper = (function() {
     _.BillboardGroup.prototype.updateBillboardsPositions = function(positions) {
         var index =  0;
         for(; index < positions.length; index++) {
-            this.getBillboard(index).setPosition(positions[index]);
+            //this.getBillboard(index).setPosition(positions[index]);
+            this.getBillboard(index).position = positions[index];
         }
     }
 
@@ -804,7 +842,10 @@ var DrawHelper = (function() {
     }
 
     _.BillboardGroup.prototype.remove = function() {
-        this._billboards = this._billboards && this._billboards.removeAll() && this._billboards.destroy();
+		try
+		{
+			this._billboards = this._billboards && this._billboards.removeAll() && this._billboards.destroy();
+		}catch(e){}
     }
 
     _.BillboardGroup.prototype.setOnTop = function() {
@@ -835,7 +876,7 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.controller.pickEllipsoid(movement.position, ellipsoid);
+                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
                 if (cartesian) {
                     markers.addBillboard(cartesian);
                     _self.stopDrawing();
@@ -847,11 +888,14 @@ var DrawHelper = (function() {
         mouseHandler.setInputAction(function(movement) {
             var position = movement.endPosition;
             if(position != null) {
-                var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                //var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+				//console.log(cartesian);
+
                 if (cartesian) {
-                    tooltip.showAt(position, "<p>Click to add your marker. Position is: </p>" + getDisplayLatLngString(ellipsoid.cartesianToCartographic(cartesian)));
+                    tooltip.showAt(position, "<p>当前坐标: </p>" + getDisplayLatLngString(ellipsoid.cartesianToCartographic(cartesian), 7));
                 } else {
-                    tooltip.showAt(position, "<p>Click on the globe to add your marker.</p>");
+                    tooltip.showAt(position, "<p>单击添加地标.</p>");
                 }
             }
         }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
@@ -869,7 +913,6 @@ var DrawHelper = (function() {
     }
 
     _.prototype.startDrawingPolyshape = function(isPolygon, options) {
-
         this.startDrawing(
             function() {
                 primitives.remove(poly);
@@ -893,7 +936,7 @@ var DrawHelper = (function() {
         }
         poly.asynchronous = false;
         primitives.add(poly);
-
+		_self.addPrimitive(poly);
         var positions = [];
         var markers = new _.BillboardGroup(this, defaultBillboard);
 
@@ -902,7 +945,7 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.controller.pickEllipsoid(movement.position, ellipsoid);
+                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
                 if (cartesian) {
                     // first click
                     if(positions.length == 0) {
@@ -910,7 +953,8 @@ var DrawHelper = (function() {
                         markers.addBillboard(positions[0]);
                     }
                     if(positions.length >= minPoints) {
-                        poly.setPositions(positions);
+                        //poly.setPositions(positions);
+                        poly.positions = positions;
                     }
                     // add new point to polygon
                     // this one will move with the mouse
@@ -925,21 +969,23 @@ var DrawHelper = (function() {
             var position = movement.endPosition;
             if(position != null) {
                 if(positions.length == 0) {
-                    tooltip.showAt(position, "<p>Click to add first point</p>");
+                    tooltip.showAt(position, "<p>单击添加点</p>");
                 } else {
-                    var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
                     if (cartesian) {
                         positions.pop();
                         // make sure it is slightly different
                         cartesian.y += (1 + Math.random());
                         positions.push(cartesian);
                         if(positions.length >= minPoints) {
-                            poly.setPositions(positions);
+                            //poly.setPositions(positions);
+                            poly.positions = positions;
                         }
                         // update marker
-                        markers.getBillboard(positions.length - 1).setPosition(cartesian);
+                        //markers.getBillboard(positions.length - 1).setPosition(cartesian);
+                        markers.getBillboard(positions.length - 1).position = cartesian;
                         // show tooltip
-                        tooltip.showAt(position, "<p>Click to add new point (" + positions.length + ")</p>" + (positions.length > minPoints ? "<p>Double click to finish drawing</p>" : ""));
+                        tooltip.showAt(position, "<p>单击添加点 (" + positions.length + ")</p>" + (positions.length > minPoints ? "<p>双击结束添加</p>" : ""));
                     }
                 }
             }
@@ -951,7 +997,7 @@ var DrawHelper = (function() {
                 if(positions.length < minPoints + 2) {
                     return;
                 } else {
-                    var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
                     if (cartesian) {
                         _self.stopDrawing();
                         if(typeof options.callback == 'function') {
@@ -997,13 +1043,14 @@ var DrawHelper = (function() {
 
         function updateExtent(value) {
             if(extent == null) {
-                extent = new Cesium.ExtentPrimitive();
+                extent = new Cesium.RectanglePrimitive();
                 extent.asynchronous = false;
                 primitives.add(extent);
+				_self.addPrimitive(extent);
             }
-            extent.extent = value;
+            extent.rectangle = value;
             // update the markers
-            var corners = ellipsoid.cartographicArrayToCartesianArray([value.getNortheast(), value.getNorthwest(), value.getSoutheast(), value.getSouthwest()]);
+            var corners = ellipsoid.cartographicArrayToCartesianArray([Cesium.Rectangle.getNortheast(value), Cesium.Rectangle.getNorthwest(value), Cesium.Rectangle.getSoutheast(value), Cesium.Rectangle.getSouthwest(value)]);
             // create if they do not yet exist
             if(markers == null) {
                 markers = new _.BillboardGroup(_self, defaultBillboard);
@@ -1016,7 +1063,7 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.controller.pickEllipsoid(movement.position, ellipsoid);
+                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
                 if (cartesian) {
                     if(extent == null) {
                         // create the rectangle
@@ -1037,13 +1084,16 @@ var DrawHelper = (function() {
             var position = movement.endPosition;
             if(position != null) {
                 if(extent == null) {
-                    tooltip.showAt(position, "<p>Click to start drawing rectangle</p>");
+                    tooltip.showAt(position, "<p>点击鼠标设定矩形范围顶点</p>");
                 } else {
-                    var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
                     if (cartesian) {
                         var value = getExtent(firstPoint, ellipsoid.cartesianToCartographic(cartesian));
                         updateExtent(value);
-                        tooltip.showAt(position, "<p>Drag to change rectangle extent</p><p>Click again to finish drawing</p>");
+						var s = '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;北' + Cesium.Math.toDegrees(value.north).toFixed(5) + '°</p>';
+						s += '<p>西' + Cesium.Math.toDegrees(value.west).toFixed(5) + '°&nbsp;&nbsp;东' + Cesium.Math.toDegrees(value.east).toFixed(5) + '°</p>';
+						s += '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;南' + Cesium.Math.toDegrees(value.south).toFixed(5) + '°</p>';
+                        tooltip.showAt(position, s);
                     }
                 }
             }
@@ -1079,7 +1129,7 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.controller.pickEllipsoid(movement.position, ellipsoid);
+                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
                 if (cartesian) {
                     if(circle == null) {
                         // create the circle
@@ -1090,6 +1140,7 @@ var DrawHelper = (function() {
                             material : options.material
                         });
                         primitives.add(circle);
+						_self.addPrimitive(circle);
                         markers = new _.BillboardGroup(_self, defaultBillboard);
                         markers.addBillboards([cartesian]);
                     } else {
@@ -1106,13 +1157,17 @@ var DrawHelper = (function() {
             var position = movement.endPosition;
             if(position != null) {
                 if(circle == null) {
-                    tooltip.showAt(position, "<p>Click to start drawing the circle</p>");
+                    tooltip.showAt(position, "<p>点击鼠标设定圆心</p>");
                 } else {
-                    var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
+                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
                     if (cartesian) {
-                        circle.setRadius(Cesium.Cartesian3.distance(circle.getCenter(), cartesian));
+						var r = Cesium.Cartesian3.distance(circle.getCenter(), cartesian);
+                        circle.setRadius(r);
                         markers.updateBillboardsPositions(cartesian);
-                        tooltip.showAt(position, "<p>Move mouse to change circle radius</p><p>Click again to finish drawing</p>");
+						var carto = ellipsoid.cartesianToCartographic(circle.getCenter());
+						var s = '<p>圆心:(' + Cesium.Math.toDegrees(carto.longitude).toFixed(7) + ',' + Cesium.Math.toDegrees(carto.latitude).toFixed(7) + ')</p>';
+                        s += '<p>半径:' + r.toFixed(1) + '米</p>';
+                        tooltip.showAt(position, s);
                     }
                 }
             }
@@ -1144,7 +1199,8 @@ var DrawHelper = (function() {
                 // TODO - start the drag handlers here
                 // create handlers for mouseOut and leftUp for the billboard and a mouseMove
                 function onDrag(position) {
-                    billboard.setPosition(position);
+                    //billboard.setPosition(position);
+                    billboard.position = position;
                     _self.executeListeners({name: 'drag', positions: position});
                 }
                 function onDragEnd(position) {
@@ -1156,7 +1212,7 @@ var DrawHelper = (function() {
                 var handler = new Cesium.ScreenSpaceEventHandler(drawHelper._scene.canvas);
 
                 handler.setInputAction(function(movement) {
-                    var cartesian = drawHelper._scene.camera.controller.pickEllipsoid(movement.endPosition, ellipsoid);
+                    var cartesian = drawHelper._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
                     if (cartesian) {
                         onDrag(cartesian);
                     } else {
@@ -1165,7 +1221,7 @@ var DrawHelper = (function() {
                 }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
                 handler.setInputAction(function(movement) {
-                    onDragEnd(drawHelper._scene.camera.controller.pickEllipsoid(movement.position, ellipsoid));
+                    onDragEnd(drawHelper._scene.camera.pickEllipsoid(movement.position, ellipsoid));
                 }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
                 enableRotation(false);
@@ -1227,11 +1283,13 @@ var DrawHelper = (function() {
                             // update the half markers before and after the index
                             var editIndex = index - 1 < 0 ? positions.length - 1 : index - 1;
                             if(editIndex < editMarkers.countBillboards()) {
-                                editMarkers.getBillboard(editIndex).setPosition(calculateHalfMarkerPosition(editIndex));
+                                //editMarkers.getBillboard(editIndex).setPosition(calculateHalfMarkerPosition(editIndex));
+                                editMarkers.getBillboard(editIndex).position = calculateHalfMarkerPosition(editIndex);
                             }
                             editIndex = index;
                             if(editIndex < editMarkers.countBillboards()) {
-                                editMarkers.getBillboard(editIndex).setPosition(calculateHalfMarkerPosition(editIndex));
+                                //editMarkers.getBillboard(editIndex).setPosition(calculateHalfMarkerPosition(editIndex));
+                                editMarkers.getBillboard(editIndex).position = calculateHalfMarkerPosition(editIndex);
                             }
                         }
                         function onEdited() {
@@ -1298,7 +1356,8 @@ var DrawHelper = (function() {
                                 onDragEnd: function(index, position) {
                                     // create new sets of makers for editing
                                     markers.insertBillboard(this.index, position, handleMarkerChanges);
-                                    editMarkers.getBillboard(this.index - 1).setPosition(calculateHalfMarkerPosition(this.index - 1));
+                                    //editMarkers.getBillboard(this.index - 1).setPosition(calculateHalfMarkerPosition(this.index - 1));
+                                    editMarkers.getBillboard(this.index - 1).position = calculateHalfMarkerPosition(this.index - 1);
                                     editMarkers.insertBillboard(this.index, calculateHalfMarkerPosition(this.index), handleEditMarkerChanges);
                                     onEdited();
                                 }
@@ -1315,7 +1374,11 @@ var DrawHelper = (function() {
                             function (movement) {
                                 var pickedObject = scene.pick(movement.position);
                                 if(!(pickedObject && pickedObject.primitive)) {
-                                    _self.setEditMode(false);
+                                    try{
+										_self.setEditMode(false);
+									}catch(e)
+									{
+									}
                                 }
                             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1366,7 +1429,7 @@ var DrawHelper = (function() {
             }
 
             polyline.getExtent = function() {
-                return Cesium.Extent.fromCartographicArray(ellipsoid.cartesianArrayToCartographicArray(this.getPositions()));
+                return Cesium.Rectangle.fromCartographicArray(ellipsoid.cartesianArrayToCartographicArray(this.getPositions()));
             }
 
             enhanceWithListeners(polyline);
@@ -1417,7 +1480,7 @@ var DrawHelper = (function() {
                     // create the markers and handlers for the editing
                     if(this._markers == null) {
                         function getCorners(extent) {
-                            return ellipsoid.cartographicArrayToCartesianArray([extent.getNortheast(), extent.getNorthwest(), extent.getSouthwest(), extent.getSoutheast()]);
+                            return ellipsoid.cartographicArrayToCartesianArray([Cesium.Rectangle.getNortheast(extent), Cesium.Rectangle.getNorthwest(extent), Cesium.Rectangle.getSouthwest(extent), Cesium.Rectangle.getSoutheast(extent)]);
                         }
                         var markers = new _.BillboardGroup(drawHelper, dragBillboard);
                         function onEdited() {
@@ -1426,7 +1489,7 @@ var DrawHelper = (function() {
                         var handleMarkerChanges = {
                             dragHandlers: {
                                 onDrag: function(index, position) {
-                                    var corner = markers.getBillboard((index + 2) % 4).getPosition();
+                                    var corner = markers.getBillboard((index + 2) % 4).position;
                                     extent.setExtent(getExtent(ellipsoid.cartesianToCartographic(corner), ellipsoid.cartesianToCartographic(position)));
                                     markers.updateBillboardsPositions(getCorners(extent.extent));
                                 },
@@ -1446,7 +1509,10 @@ var DrawHelper = (function() {
                             function (movement) {
                                 var pickedObject = scene.pick(movement.position);
                                 if(!(pickedObject && pickedObject.primitive)) {
-                                    extent.setEditMode(false);
+                                    try{
+										extent.setEditMode(false);
+									}catch(e){
+									}
                                 }
                             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1532,7 +1598,10 @@ var DrawHelper = (function() {
                             function (movement) {
                                 var pickedObject = scene.pick(movement.position);
                                 if(!(pickedObject && pickedObject.primitive)) {
-                                    _self.setEditMode(false);
+                                    try{
+										_self.setEditMode(false);
+									}catch(e){
+									}
                                 }
                             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1585,7 +1654,16 @@ var DrawHelper = (function() {
                     if(this._markers == null) {
                         var markers = new _.BillboardGroup(drawHelper, dragBillboard);
                         function getMarkerPositions() {
-                            return Cesium.Shapes.computeCircleBoundary(ellipsoid, circle.getCenter(), circle.getRadius(), Math.PI / 2.0).splice(0, 4);
+                            //return Cesium.Shapes.computeCircleBoundary(ellipsoid, circle.getCenter(), circle.getRadius(), Math.PI / 2.0).splice(0, 4);
+							var cg = new Cesium.CircleOutlineGeometry({
+							   center : circle.getCenter(),
+							   radius : circle.getRadius(),
+							   granularity : Math.PI / 4
+							});
+							var geometry = Cesium.CircleOutlineGeometry.createGeometry(cg);
+							var float64ArrayPositions = geometry.attributes.position.values;
+							var positions = [].slice.call(float64ArrayPositions);                            
+                            return positions;
                         }
                         function onEdited() {
                             circle.executeListeners({name: 'onEdited', center: circle.getCenter(), radius: circle.getRadius()});
@@ -1611,8 +1689,14 @@ var DrawHelper = (function() {
                         this._globeClickhandler.setInputAction(
                             function (movement) {
                                 var pickedObject = scene.pick(movement.position);
-                                if(!(pickedObject && pickedObject.primitive)) {
-                                    _self.setEditMode(false);
+                                if(!(pickedObject && pickedObject.primitive)) 
+								{
+                                    try{
+										_self.setEditMode(false);
+									}catch(e)
+									{
+										//console.log(e);
+									}
                                 }
                             }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -1656,7 +1740,9 @@ var DrawHelper = (function() {
                 polygonIcon: "./img/glyphicons_096_vector_path_polygon.png",
                 circleIcon: "./img/glyphicons_095_vector_path_circle.png",
                 extentIcon: "./img/glyphicons_094_vector_path_square.png",
+                saveIcon: "./img/glyphicons_save.png",
                 clearIcon: "./img/glyphicons_067_cleaning.png",
+                closeIcon: "./img/glyphicons_close.png",
                 polylineDrawingOptions: defaultPolylineOptions,
                 polygonDrawingOptions: defaultPolygonOptions,
                 extentDrawingOptions: defaultExtentOptions,
@@ -1696,22 +1782,32 @@ var DrawHelper = (function() {
             var div = document.createElement('DIV');
             div.className = 'divider';
             toolbar.appendChild(div);
-            addIcon('clear', options.clearIcon, 'Remove all primitives', function() {
-                scene.primitives.removeAll();
+            //addIcon('save', options.saveIcon, '保存', function() {
+            //});
+            addIcon('clear', options.clearIcon, '清除', function() {
+                
+                //scene.primitives.removeAll();
+				drawHelper.clearPrimitive();
+            });
+            addIcon('close', options.closeIcon, '关闭', function() {
+                //scene.primitives.removeAll();
+				drawHelper.close();
             });
 
             function addButton(button) {
 
                 if(button == 'marker') {
-                    addIcon('marker', options.markerIcon, 'Click to start drawing a 2D marker', function() {
+                    addIcon('marker', options.markerIcon, '地标', function() {
+                        
                         drawHelper.startDrawingMarker({
                             callback: function(position) {
+								
                                 _self.executeListeners({name: 'markerCreated', position: position});
                             }
                         });
                     });
                 } else if(button == 'polyline') {
-                    addIcon('polyline', options.polylineIcon, 'Click to start drawing a 2D polyline', function() {
+                    addIcon('polyline', options.polylineIcon, '折线', function() {
                         drawHelper.startDrawingPolyline({
                             callback: function(positions) {
                                 _self.executeListeners({name: 'polylineCreated', positions: positions});
@@ -1719,7 +1815,7 @@ var DrawHelper = (function() {
                         });
                     });
                 } else if(button == 'polygon') {
-                    addIcon('polygon', options.polygonIcon, 'Click to start drawing a 2D polygon', function() {
+                    addIcon('polygon', options.polygonIcon, '多边形', function() {
                         drawHelper.startDrawingPolygon({
                             callback: function(positions) {
                                 _self.executeListeners({name: 'polygonCreated', positions: positions});
@@ -1727,7 +1823,7 @@ var DrawHelper = (function() {
                         });
                     });
                 } else if(button == 'extent') {
-                    addIcon('extent', options.extentIcon, 'Click to start drawing an Extent', function() {
+                    addIcon('extent', options.extentIcon, '矩形范围', function() {
                         drawHelper.startDrawingExtent({
                             callback: function(extent) {
                                 _self.executeListeners({name: 'extentCreated', extent: extent});
@@ -1735,7 +1831,7 @@ var DrawHelper = (function() {
                         });
                     });
                 } else if(button == 'circle') {
-                    addIcon('circle', options.circleIcon, 'Click to start drawing a Circle', function() {
+                    addIcon('circle', options.circleIcon, '圆', function() {
                         drawHelper.startDrawingCircle({
                             callback: function(center, radius) {
                                 _self.executeListeners({name: 'circleCreated', center: center, radius: radius});
@@ -1760,8 +1856,8 @@ var DrawHelper = (function() {
     }
 
     function getExtent(mn, mx) {
-        var e = new Cesium.Extent();
-
+        var e = new Cesium.Rectangle();
+		
         // Re-order so west < east and south < north
         e.west = Math.min(mn.longitude, mx.longitude);
         e.east = Math.max(mn.longitude, mx.longitude);
@@ -1821,7 +1917,13 @@ var DrawHelper = (function() {
     }
 
     function getDisplayLatLngString(cartographic, precision) {
-        return cartographic.longitude.toFixed(precision || 3) + ", " + cartographic.latitude.toFixed(precision || 3);
+		if(cartographic.longitude &&  cartographic.latitude)
+		{
+			return "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ")";
+		}else
+		{
+			return "";
+		}
     }
 
     function clone(from, to) {

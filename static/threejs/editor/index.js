@@ -1089,6 +1089,6 @@ function GetParamsFromUrl() {
 		var data = decodeURIComponent(location.search.substr(1));
 		ret = JSON.parse(decodeURIComponent(data));
 	}
-	console.log(ret);
+	//console.log(ret);
 	return ret;
 }

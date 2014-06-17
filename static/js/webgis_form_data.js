@@ -80,10 +80,190 @@ var g_base_flds_5 = [ //雷电计数器
 var g_tower_baseinfo_fields = [
 	{ id: "tower_baseinfo_id", type: "hidden" },
 	//地理信息
-	{ display: "经度", id: "tower_baseinfo_lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true, number: true}},
-	{ display: "纬度", id: "tower_baseinfo_lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true, number: true}},
-	{ display: "海拔(米)", id: "tower_baseinfo_alt", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true}},
-	{ display: "旋转角度", id: "tower_baseinfo_rotate", newline: true, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:300 , validate:{required:true, number: true}},
+	{ display: "经度", id: "tower_baseinfo_lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true, number: true}, 
+		change:function( event, ui ) {
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			if(g_gltf_models[id])
+			{
+				if(event.currentTarget)
+				{
+					var lng = $('input[id="tower_baseinfo_lng"]').val(),
+						lat = $('input[id="tower_baseinfo_lat"]').val(),
+						height = $('input[id="tower_baseinfo_alt"]').val(),
+						rotate = $('input[id="tower_baseinfo_rotate"]').val();
+					if(!g_zaware) height = 0;
+					lng = event.currentTarget.value;
+					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+					var tower = GetTowerInfoByTowerId(id);
+					if(tower)
+					{
+						RemoveSegmentsTower(viewer, tower);
+						DrawSegmentsByTower(viewer, tower);
+						RePositionPoint(viewer, id, lng, lat, height, rotate);
+					}
+				}
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			if(g_gltf_models[id])
+			{
+				var lng = $('input[id="tower_baseinfo_lng"]').val(),
+					lat = $('input[id="tower_baseinfo_lat"]').val(),
+					height = $('input[id="tower_baseinfo_alt"]').val(),
+					rotate = $('input[id="tower_baseinfo_rotate"]').val();
+				if(!g_zaware) height = 0;
+				lng = ui.value;
+				//RePositionPoint(viewer, id, lng, lat, height, rotate);
+				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+			}
+		}
+	},
+	{ display: "纬度", id: "tower_baseinfo_lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true, number: true},
+		change:function( event, ui ) {
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			if(g_gltf_models[id])
+			{
+				if(event.currentTarget)
+				{
+					var lng = $('input[id="tower_baseinfo_lng"]').val(),
+						lat = $('input[id="tower_baseinfo_lat"]').val(),
+						height = $('input[id="tower_baseinfo_alt"]').val(),
+						rotate = $('input[id="tower_baseinfo_rotate"]').val();
+					if(!g_zaware) height = 0;
+					lat = event.currentTarget.value;
+					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+					var tower = GetTowerInfoByTowerId(id);
+					if(tower)
+					{
+						RemoveSegmentsTower(viewer, tower);
+						DrawSegmentsByTower(viewer, tower);
+						RePositionPoint(viewer, id, lng, lat, height, rotate);
+					}
+				}
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			if(g_gltf_models[id])
+			{
+				var lng = $('input[id="tower_baseinfo_lng"]').val(),
+					lat = $('input[id="tower_baseinfo_lat"]').val(),
+					height = $('input[id="tower_baseinfo_alt"]').val(),
+					rotate = $('input[id="tower_baseinfo_rotate"]').val();
+				if(!g_zaware) height = 0;
+				lat = ui.value;
+				//RePositionPoint(viewer, id, lng, lat, height, rotate);
+				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+			}
+		}
+	},
+	{ display: "海拔(米)", id: "tower_baseinfo_alt", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true},
+		change:function( event, ui ) {
+			if(event.currentTarget)
+			{
+				var viewer = $.viewer;
+				var ellipsoid = viewer.scene.globe.ellipsoid;
+				var fid = $(event.target).attr('id');
+				var id = $('input[id="tower_baseinfo_id"]').val();
+				var lng = $('input[id="tower_baseinfo_lng"]').val(),
+					lat = $('input[id="tower_baseinfo_lat"]').val(),
+					height = $('input[id="tower_baseinfo_alt"]').val(),
+					rotate = $('input[id="tower_baseinfo_rotate"]').val();
+				if(!g_zaware) height = 0;
+				if(g_gltf_models[id])
+				{
+					height = event.currentTarget.value;
+					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+					var tower = GetTowerInfoByTowerId(id);
+					if(tower)
+					{
+						RemoveSegmentsTower(viewer, tower);
+						DrawSegmentsByTower(viewer, tower);
+						RePositionPoint(viewer, id, lng, lat, height, rotate);
+					}
+				}
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			var lng = $('input[id="tower_baseinfo_lng"]').val(),
+				lat = $('input[id="tower_baseinfo_lat"]').val(),
+				height = $('input[id="tower_baseinfo_alt"]').val(),
+				rotate = $('input[id="tower_baseinfo_rotate"]').val();
+			if(!g_zaware) height = 0;
+			if(g_gltf_models[id]) 
+			{
+				height = ui.value;
+				//RePositionPoint(viewer, id, lng, lat, height, rotate);
+				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
+			}
+		}
+	},
+	{ display: "旋转角度", id: "tower_baseinfo_rotate", newline: true, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:300 , validate:{required:true, number: true},
+		change:function( event, ui ) {
+			if(event.currentTarget)
+			{
+				var viewer = $.viewer;
+				var ellipsoid = viewer.scene.globe.ellipsoid;
+				var fid = $(event.target).attr('id');
+				var id = $('input[id="tower_baseinfo_id"]').val();
+				var lng = $('input[id="tower_baseinfo_lng"]').val(),
+					lat = $('input[id="tower_baseinfo_lat"]').val(),
+					height = $('input[id="tower_baseinfo_alt"]').val(),
+					rotate = $('input[id="tower_baseinfo_rotate"]').val();
+				if(!g_zaware) height = 0;
+				if(g_gltf_models[id])
+				{
+					rotate = event.currentTarget.value;
+					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+					var tower = GetTowerInfoByTowerId(id);
+					if(tower)
+					{
+						RemoveSegmentsTower(viewer, tower);
+						DrawSegmentsByTower(viewer, tower);
+						RePositionPoint(viewer, id, lng, lat, height, rotate);
+					}
+				}
+			}
+			event.preventDefault();
+		},
+		spin:function( event, ui ) {
+			var viewer = $.viewer;
+			var ellipsoid = viewer.scene.globe.ellipsoid;
+			var fid = $(event.target).attr('id');
+			var id = $('input[id="tower_baseinfo_id"]').val();
+			var lng = $('input[id="tower_baseinfo_lng"]').val(),
+				lat = $('input[id="tower_baseinfo_lat"]').val(),
+				height = $('input[id="tower_baseinfo_alt"]').val(),
+				rotate = $('input[id="tower_baseinfo_rotate"]').val();
+			if(!g_zaware) height = 0;
+			if(g_gltf_models[id]) 
+			{
+				rotate = ui.value;
+				//RePositionPoint(viewer, id, lng, lat, height, rotate);
+				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
+			}
+		}
+	},
 	//信息
 	{ display: "名称", id: "tower_baseinfo_tower_name", newline: true,  type: "text", group:'信息', width:330, validate:{required:true}},
 	{ display: "代码", id: "tower_baseinfo_tower_code", newline: true,  type: "text", group:'信息', width:330 },
@@ -98,7 +278,7 @@ var g_tower_baseinfo_fields = [
 	{ display: "所属工程", id: "tower_baseinfo_project", newline: true,  type: "text", group:'工程', width:330 }
 ];
 
-
+/*
 function BuildForm(viewer, id, fields)
 {
 	var scene = viewer.scene;
@@ -172,8 +352,8 @@ function BuildForm(viewer, id, fields)
 									var tower = GetTowerInfoByTowerId(id);
 									if(tower)
 									{
-										RemoveSegmentsTower(scene, tower);
-										DrawSegmentsByTower(scene, tower);
+										RemoveSegmentsTower(viewer, tower);
+										DrawSegmentsByTower(viewer, tower);
 										RePositionPoint(viewer, id, lng, lat, height, rotate);
 									}
 								}
@@ -229,8 +409,8 @@ function BuildForm(viewer, id, fields)
 									var tower = GetTowerInfoByTowerId(id);
 									if(tower)
 									{
-										RemoveSegmentsTower(scene, tower);
-										DrawSegmentsByTower(scene, tower);
+										RemoveSegmentsTower(viewer, tower);
+										DrawSegmentsByTower(viewer, tower);
 										RePositionPoint(viewer, id, lng, lat, height, rotate);
 									}
 								}
@@ -326,4 +506,4 @@ function SetFormData(id, data, prefix)
 		}
 	}
 }
-
+*/

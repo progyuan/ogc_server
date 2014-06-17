@@ -8,17 +8,26 @@ var ArcgisTileImageryProvider = function ArcgisTileImageryProvider(description) 
     if (!trailingSlashRegex.test(url)) {
         //url = url + '/';
     }
+    var is_esri = Cesium.defaultValue(description.is_esri, false);
 
+    this._is_esri = is_esri;
     this._url = url;
-    this._fileExtension = Cesium.defaultValue(description.fileExtension, 'png');
+    this._fileExtension = Cesium.defaultValue(description.fileExtension, 'jpg');
     this._proxy = description.proxy;
     this._tileDiscardPolicy = description.tileDiscardPolicy;
 
     
     this._tilingScheme = new Cesium.WebMercatorTilingScheme({
         numberOfLevelZeroTilesX : 1,
-        numberOfLevelZeroTilesY : 1
+        numberOfLevelZeroTilesY : 1,
+		//rectangleSouthwestInMeters:,
+		//rectangleNortheastInMeters:,
+		ellipsoid:Cesium.Ellipsoid.WGS84
     });
+    //this._tilingScheme = new Cesium.GeographicTilingScheme({
+        //numberOfLevelZeroTilesX : 1,
+        //numberOfLevelZeroTilesY : 1
+    //});
 
     this._tileWidth = 256;
     this._tileHeight = 256;
@@ -52,9 +61,39 @@ var ArcgisTileImageryProvider = function ArcgisTileImageryProvider(description) 
 function buildImageUrlArcgisTile(imageryProvider, x, y, level) {
     //var url = imageryProvider._url + level + '/' + x + '/' + y + '.' + imageryProvider._fileExtension;
     var url = imageryProvider._url ;
-    url += '?zoom=' + level;
-    url += '&row=' + y ;
-    url += '&col=' + x ;
+    var is_esri = imageryProvider._is_esri;
+    if(is_esri)
+    {
+		var zoom = (level ).toString();
+		while(zoom.length<2)
+		{
+			zoom = '0' + zoom;
+		}
+		zoom = 'L' + zoom;
+		var column = (x-0).toString(16);
+		while(column.length<8)
+		{
+			column = '0' + column;
+		}
+		column = 'C' + column;
+		var row = (y-0).toString(16);
+		while(row.length<8)
+		{
+			row = '0' + row;
+		}
+		row = 'R' + row;
+		url +=  '/{z}/{y}/{x}.' + imageryProvider._fileExtension + '?is_esri=true';
+		url = url.replace('{z}', zoom);
+		url = url.replace('{y}', row);
+		url = url.replace('{x}', column);
+        
+    }
+    else
+    {
+        url += '?zoom=' + level;
+        url += '&row=' + y ;
+        url += '&col=' + x ;
+    }
     console.log("url=" + url);
     var proxy = imageryProvider._proxy;
     if (Cesium.defined(proxy)) {
@@ -130,6 +169,14 @@ Cesium.defineProperties(ArcgisTileImageryProvider.prototype, {
                 throw new Cesium.DeveloperError('extent must not be called before the imagery provider is ready.');
             }
             return this._extent;
+        }
+    },
+    rectangle : {
+        get : function() {
+            if (!this._ready) {
+                throw new DeveloperError('rectangle must not be called before the imagery provider is ready.');
+            }
+            return this._rectangle;
         }
     },
 
