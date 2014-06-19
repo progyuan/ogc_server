@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" manifest="/kmgd.appcache">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> 
@@ -65,11 +65,25 @@
 <div id="control_toolpanel_kmgd">
 	<div id="accordion_tools">
 	  <h3>地图图层</h3>
-	  <div>First content panel</div>
+	  <div style="min-height:100px;">
+			<input id='chb_show_label' type='checkbox'><label for='chb_show_label'>显示标签文字</label>
+	  </div>
 	  <h3>POI设置</h3>
-	  <div>Second content panel</div>
+	  <div style="min-height:100px;">
+		 <div id='but_add_poi'></div>
+	  </div>
 	</div>	
 </div>
+
+<div id="dlg_poi_info" >
+	<div id='dlg_confirm_poi'><div></div>
+	</div>
+	<div id='dlg_message_poi'><div></div>
+	</div>
+	<form id="form_poi_info">
+	</form>
+</div>
+
 
 <div id="dlg_tower_info" >
 	<div id='dlg_confirm'><div></div>

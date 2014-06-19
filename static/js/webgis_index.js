@@ -29,6 +29,8 @@ $(function() {
 	$.viewer = viewer;
 	InitWebGISFormDefinition();
 	InitDrawHelper(viewer);
+	g_drawhelper.close();
+	InitPoiInfoDialog();
 	InitTowerInfoDialog();
 	//$(window).on('message',function(e) {
 		////console.log('recv:' + text);
@@ -197,141 +199,6 @@ function InitWebGISFormDefinition()
 			$.error( 'Method ' +  fields + ' does not exist on $.webgisform');
         }		
 		
-/*		
-		this.fields = fields;
-		this.groups = [];
-		this.options = $.extend({}, $.fn.webgisform.defaults, options);
-		this.empty();
-		
-		for(var i in fields)
-		{
-			var fld = fields[i];
-			if(fld.type == 'hidden')
-			{
-				this.append('<input type="hidden" id="' + fld.id + '">');
-			}
-			if(fld.group)
-			{
-				if(this.groups.indexOf(fld.group) < 0)
-				{
-					this.groups.push(fld.group);
-				}
-			}
-		}
-		
-		
-		for(var j in this.groups)
-		{
-			var group = this.groups[j];
-			var uid = $.uuid();
-			var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
-			this.append('</fieldset>');
-			this.append('<p></p>');
-			
-			for(var i in fields)
-			{
-				var fld = fields[i];
-				if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
-				var newline = "float:left;";
-				if(fld.newline == false) newline = "";
-				var validate = '';
-				if(fld.validate)
-				{
-					validate = '<span style="color:#FF0000">*</span>';
-				}
-				if(fld.type == 'spinner' && fld.group == group)
-				{
-					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-					var spin = 	$('#' + fld.id).spinner({
-						step: fld.step,
-						max:fld.max,
-						min:fld.min,
-						change:fld.change,
-						spin:fld.spin
-					});
-				}
-				if(fld.type == 'geographic' && fld.group == group)
-				{
-					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-					var spin = 	$('#' + fld.id).spinner({
-						step: 0.00001,
-						max:179.0,
-						min:-179.0,
-						change: fld.change,
-						spin: fld.spin
-					});
-				}
-				if(fld.type == 'text' && fld.group == group)
-				{
-					var readonly = '';
-					if(fld.editor && fld.editor.readonly == true)
-					{
-						readonly = ' readonly="readonly"';
-					}
-					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '" ' + readonly + '>' + validate + '</div>');
-				}
-				if(fld.type == 'select' && fld.group == group)
-				{
-					var source = [];
-					if(fld.editor && fld.editor.data) source = fld.editor.data;
-					$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '"></select>' + validate + '</div>');
-					for(var ii in source)
-					{
-						$('#' + fld.id).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
-					}
-					//$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text"  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-					var auto = $('#' + fld.id).autocomplete({
-						//appendTo:'#' + fld.id,
-						//position: { my: "left top", at: "left bottom", collision: "none" },
-						autoFocus: false,
-						source:source
-					});
-					
-				}
-				
-			}
-		}
-		var _this = this;
-		$.fn.webgisform.ValidateForm = function()
-		{
-			var fields = this.fields;
-			for(var i in fields)
-			{
-				var fld = fields[i];
-				if(fld.validate)
-				{
-					if($('input[name="' + fld.id + '"]').length>0)
-					{
-						$('input[name="' + fld.id + '"]').rules('add',fld.validate);
-					}
-					if($('select[name="' + fld.id + '"]').length>0)
-					{
-						$('select[name="' + fld.id + '"]').rules('add',fld.validate);
-					}
-				}
-			}
-			return _this;
-		};
-	
-		$.fn.webgisform.SetFormData = function(data, prefix)
-		{
-			for(var k in data)
-			{
-				if(prefix)
-				{
-					_this.find('#' + prefix + k).val(data[k]);
-				}
-				else
-				{
-					_this.find('#' + k).val(data[k]);
-				}
-			}
-			return _this;
-		};
-		
-		$.fn.webgisform.ValidateForm();
-		return this;
-*/	
 	};
 	$.fn.webgisform.defaults = {
 		labelwidth : 90,
@@ -371,7 +238,7 @@ function InitCesiumViewer()
 				creationFunction : function() {
 					return new WMTSImageryProvider({
 						url :  g_host + 'wmts',
-						imageType:'google_sat',
+						imageType:'google_sat'
 					});
 				}
 			}));
@@ -381,9 +248,9 @@ function InitCesiumViewer()
 				tooltip : '地图',
 				creationFunction : function() {
 					return new WMTSImageryProvider({
-						//url :  g_host + 'wmts',
-						url :  "http://cf-storage:88/" + 'wmts',
-						imageType:'google_map',
+						url :  g_host + 'wmts',
+						//url :  "http://cf-storage:88/" + 'wmts',
+						imageType:'google_map'
 					});
 				}
 			}));
@@ -498,7 +365,7 @@ function InitCesiumViewer()
 
 function InitDrawHelper(viewer)
 {
-	var g_drawhelper = new DrawHelper(viewer, 'drawhelpertoolbar');
+	g_drawhelper = new DrawHelper(viewer, 'drawhelpertoolbar');
 	var toolbar = g_drawhelper.addToolbar($('#' + g_drawhelper.toolbar_container_id)[0], {
 		buttons: ['marker', 'polyline', 'polygon', 'circle', 'extent']
 	});
@@ -596,7 +463,14 @@ function InitDrawHelper(viewer)
 	});
 
 }
+function InitPoiInfoDialog()
+{
+	g_validates['form_poi_info'] = $('#form_poi_info' ).validate({
+		debug:true,
+		errorElement:'div'
+	});
 
+}
 function InitTowerInfoDialog()
 {
 	var iframe = $('#tower_info_model').find('iframe');
@@ -624,16 +498,40 @@ function InitToolPanel(viewer)
 {
 	$('#control_toolpanel_kmgd').css('display', 'none');
 	$('#control_toolpanel_kmgd_handle').on( 'mouseenter', function(e){
-		$('#control_toolpanel_kmgd').show('slide',{}, 800, function(){
+		$('#control_toolpanel_kmgd').show('slide',{}, 400, function(){
 			$(e.target).css('display','none');
 		});
 	});
 	$('#control_toolpanel_kmgd').on( 'mouseleave', function(e){
-		$('#control_toolpanel_kmgd').hide('slide',{}, 800, function(){
+		$('#control_toolpanel_kmgd').hide('slide',{}, 400, function(){
 			$('#control_toolpanel_kmgd_handle').css('display','block');
 		});
 	});
 	$( "#accordion_tools" ).accordion({ active: 0 });
+	
+	$('#chb_show_label').on('click', function(){
+		if($(this).is(':checked'))
+		{
+			console.log('turn on label');
+			ReloadCzmlDataSource(viewer, g_zaware, true);
+		}else
+		{
+			console.log('turn off label');
+			ReloadCzmlDataSource(viewer, g_zaware, false);
+		}
+	});
+	
+	$('#but_add_poi').button({label:'添加兴趣点'});
+	$('#but_add_poi').on('click', function(){
+		if(g_drawhelper.isVisible())
+		{
+			g_drawhelper.close();
+		}
+		else
+		{
+			g_drawhelper.show();
+		}
+	});
 }
 function TranslateToCN()
 {
@@ -1181,7 +1079,7 @@ function GetCzmlDataSources(viewer)
 	}
 	return ret;
 }
-function ReloadCzmlDataSource(viewer, z_aware)
+function ReloadCzmlDataSource(viewer, z_aware, show_label)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	//var idx = GetIndexCzmlDataSources(viewer);
@@ -1199,6 +1097,10 @@ function ReloadCzmlDataSource(viewer, z_aware)
 		if(!z_aware)
 		{
 			obj['position']['cartographicDegrees'] = [g_czmls[k]['position']['cartographicDegrees'][0],  g_czmls[k]['position']['cartographicDegrees'][1], 0];
+		}
+		if(!show_label)
+		{
+			delete obj['label'];
 		}
 		arr.push(obj);
 		if(viewer.selectedObject)
@@ -1725,7 +1627,7 @@ function TowerInfoMixin(viewer)
 						if(CheckTowerInfoModified())
 						{
 							
-							ShowConfirm(500, 200,
+							ShowConfirm('dlg_confirm',500, 200,
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
@@ -2585,6 +2487,20 @@ function SaveTower(id)
 		console.log('save form tower ' + id);
 	}
 }
+function SavePoi(id)
+{
+	if(id)
+	{
+		console.log('save poi ' + id);
+	}else
+	{
+		var id = $('input[id="poi_info_id"]').val();
+		console.log('save form poi ' + id);
+	}
+}
+
+
+
 function ShowTowerInfo(viewer, id)
 {
 	var tower = GetTowerInfoByTowerId(id);
@@ -2675,7 +2591,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					{
 						if(CheckTowerInfoModified())
 						{
-							ShowConfirm(500, 200,
+							ShowConfirm('dlg_confirm', 500, 200,
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
@@ -3015,6 +2931,140 @@ function ShowTowerInfoDialog(viewer, tower)
 		}
 	});
 	
+}
+
+
+
+
+function ShowPoiInfoDialog(viewer, title, poi)
+{
+	$('#dlg_poi_info').dialog({
+		width: 500,
+		height: 600,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		position:{at: "right center"},
+		title:title,
+		
+		show: {
+			effect: "blind",
+			duration: 400
+		},
+		hide: {
+			effect: "blind",
+			duration: 400
+		},		
+		buttons:[
+			{ 	text: "保存", 
+				click: function(){ 
+					if($('#form_poi_info').valid())
+					{
+						if(CheckPoiInfoModified())
+						{
+							ShowConfirm('dlg_confirm_poi', 500, 200,
+								'保存确认',
+								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+								function(){
+									SavePoi();
+								},
+								function(){
+								
+								}
+							);
+						}
+						else{
+							//$( this ).dialog( "close" );
+						}
+					}
+				}
+			},
+			{ 	text: "关闭", 
+				click: function(){ 
+					$( this ).dialog( "close" );
+				}
+			}
+		
+		]
+	});
+	
+	var form;
+	if(title == 'marker')
+		form = $('#form_poi_info').webgisform(g_poi_info_fields);
+	if(title == 'marker')
+		form = $('#form_poi_info').webgisform(g_poi_info_fields);
+	if(tower)
+	{
+		var data = {
+			'tower_baseinfo_id':tower['_id'], 
+			'tower_baseinfo_lng':tower['geometry']['coordinates'][0],
+			'tower_baseinfo_lat':tower['geometry']['coordinates'][1],
+			'tower_baseinfo_alt':tower['properties']['geo_z'],
+			'tower_baseinfo_rotate':tower['properties']['rotate'],
+			'tower_baseinfo_tower_name':tower['properties']['tower_name'],
+			'tower_baseinfo_tower_code':tower['properties']['tower_code'],
+			'tower_baseinfo_model_code':tower['properties']['model']['model_code'],
+			'tower_baseinfo_denomi_height':tower['properties']['denomi_height'],
+			'tower_baseinfo_grnd_resistance':tower['properties']['grnd_resistance'],
+			'tower_baseinfo_horizontal_span':tower['properties']['horizontal_span'],
+			'tower_baseinfo_vertical_span':tower['properties']['vertical_span'],
+			'tower_baseinfo_project':GetProjectNameByTowerId(tower['_id'])
+		};	
+		//SetFormData('form_tower_info_base', data);
+		//var SetFormData = $('#form_tower_info_base').webgisform.SetFormData;
+		//console.log(SetFormData);
+		//SetFormData(data);
+		$('#form_tower_info_base').webgisform('setdata', data);
+	}
+	
+	
+	
+}
+
+function GetPoiInfoById(id)
+{
+}
+function CheckPoiInfoModified()
+{
+	var id = $('input[id="poi_info_id"]').val();
+	console.log('poi_info_id=' + id);
+	if(id && id.length>0)
+	{
+		var poi = GetPoiInfoById(id);
+		if(poi)
+		{
+			var lng = $('input[id="tower_baseinfo_lng"]').val(),
+				lat = $('input[id="tower_baseinfo_lat"]').val(),
+				height = $('input[id="tower_baseinfo_alt"]').val(),
+				rotate = $('input[id="tower_baseinfo_rotate"]').val();
+			var mc = $('input[id="tower_baseinfo_model_code"]').val();
+			if(lng != tower['geometry']['coordinates'][0] 
+			|| lat != tower['geometry']['coordinates'][1]
+			|| height != tower['properties']['geo_z']
+			|| rotate != tower['properties']['rotate']
+			|| mc != tower['properties']['model']['model_code']
+			)
+			{
+				return true;
+			}
+			for(var k in tower['properties'])
+			{
+				var kk = 'tower_baseinfo_' + k;
+				if($('input[id="' + kk + '"]').length)
+				{
+					var v = $('input[id="' + kk + '"]').val();
+					if(v.length>0 && v != tower['properties'][k] )
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+
 }
 
 function GetSegmentsByTowerStartEnd(start_id, end_ids)

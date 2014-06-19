@@ -82,10 +82,10 @@ function ShowProgressBar(show, width, height, title, msg)
 	}
 }
 
-function ShowConfirm(width, height, title, msg, ok, cancel)
+function ShowConfirm(id, width, height, title, msg, ok, cancel)
 {
-	$('#dlg_confirm div').html(msg);
-	$('#dlg_confirm').dialog({
+	$('#' + id + ' div').html(msg);
+	$('#' + id).dialog({
 		title:title,
 		closeOnEscape: false,
 		modal:true,
@@ -108,12 +108,12 @@ function ShowConfirm(width, height, title, msg, ok, cancel)
 	});
 }
 
-function ShowMessage(width, height, title, msg, ok)
+function ShowMessage(id, width, height, title, msg, ok)
 {
-	$('#dlg_message div').html(msg);
+	$('#' + id + ' div').html(msg);
 	console.log(msg);
 
-	$('#dlg_message').dialog({
+	$('#' + id).dialog({
 		title:title,
 		closeOnEscape: false,
 		modal:true,

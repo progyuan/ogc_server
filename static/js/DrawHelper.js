@@ -106,6 +106,11 @@ var DrawHelper = (function() {
     _.prototype.show = function() {
 		$('#' + this.toolbar_container_id).css('display','block');
     }
+    _.prototype.isVisible = function() {
+		if($('#' + this.toolbar_container_id).css('display') == 'block') 
+			return true;
+		return false;
+    }
 
     // register event handling for an editable shape
     // shape should implement setEditMode and setHighlighted
