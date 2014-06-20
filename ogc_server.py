@@ -39,7 +39,7 @@ import gmapcatcher.mapUtils as mapUtils
 import gmapcatcher.mapConf as mapConf
 import gmapcatcher.mapConst as mapConst
 from gmapcatcher.mapServices import MapServ
-from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent
+from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent, MapDownloaderSocks5
 
 import pypyodbc
 import uuid
@@ -77,14 +77,22 @@ gTerrainCache = {}
 gGreenlets = {}
 gClusterProcess = {}
 
-
+gMapDownloader = None
 try:
     #gWFSService = WFSServer(CONFIGFILE)
     #gWFSService.load()
     gMapConf = mapConf.MapConf()
     gCtxMap = MapServ(gMapConf)
     #gMapDownloader = MapDownloader(gCtxMap, 1)
-    gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+    #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+    proxy, port = None, None
+    try:
+        proxy = str(gConfig['proxy']['host'])
+        port = int(gConfig['proxy']['port'])
+        gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
+    except:
+        gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+        
 except:
     pass
 
@@ -671,7 +679,7 @@ def download_callback(*args, **kwargs):
                     str(row / 1024),
                     str(row % 1024) + gConfig['wmts']['format']
                     )
-    print('Not exist %s, downloading...' % p)
+    #print('Not exist %s, downloading...' % p)
     #p = os.path.abspath(p)
     if os.path.exists(p):
         key = '%d-%d-%d' % (zoom, col, row)

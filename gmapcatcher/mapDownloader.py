@@ -7,6 +7,9 @@ from mapConst import TILES_HEIGHT
 from threading import Thread, Timer, Lock, RLock
 from traceback import print_exc
 
+import urllib2
+import socks
+from sockshandler import SocksiPyHandler
 import Queue
 import mapUtils
 from mapConst import *
@@ -383,6 +386,163 @@ class MapDownloaderGevent:
         if zoomlevels[0] > zoomlevels[1]:
             zoomlevels = (zoomlevels[1], zoomlevels[0])
 
+class MapDownloaderSocks5:
+    def __init__(self, ctx_map, proxy_host, proxy_port):
+        self.ctx_map = ctx_map
+        self.bulk_all_placed = False
+        self.proxy_host = proxy_host
+        self.proxy_port = proxy_port
+        self.socks5_opener = None
+
+    def coord_to_path(self, tile_coord, layer, conf):
+        ret =  os.path.abspath(os.path.join(os.path.dirname(conf.get_configpath()),conf.get_layer_dir(layer)))
+        if not os.path.exists(ret):
+            os.mkdir(ret)
+        ret =  os.path.join(ret, str(tile_coord[2]))
+        if not os.path.exists(ret):
+            os.mkdir(ret)
+        ret =  os.path.join(ret, str(int(tile_coord[0] / 1024)))
+        if not os.path.exists(ret):
+            os.mkdir(ret)
+        ret =  os.path.join(ret, str(tile_coord[0] % 1024))
+        if not os.path.exists(ret):
+            os.mkdir(ret)
+        
+        ret =  os.path.join(ret,  str(int(tile_coord[1] / 1024)))
+        if not os.path.exists(ret):
+            os.mkdir(ret)
+        ret =  os.path.join(ret, str(tile_coord[1] % 1024) + ".png")
+        return ret
+
+    # @return number of tiles queued for download
+    def query_tile(self, coord, layer, callback,
+                    online=True, force_update=False,
+                    conf=None, hybrid_background=LAYER_SAT):
+        ret = 0
+        if layer == LAYER_HYB or layer == LAYER_CHA:
+            ret += self.query_tile(coord, hybrid_background, callback,
+                    online, force_update, conf)
+
+        world_tiles = mapUtils.tiles_on_level(coord[2])
+        coord = (mapUtils.mod(coord[0], world_tiles),
+                 mapUtils.mod(coord[1], world_tiles), coord[2])
+        if self.ctx_map.is_tile_in_local_repos(coord, layer) or (not online):
+            if not (force_update and online):
+                callback(True, coord, layer)
+                return ret
+        else:
+            #href = self.ctx_map.get_url_from_coord(coord, layer, conf)
+            map_server_query = ["m", "s", "p", "h"]
+            href = gConfig['googlemap']['server'] + '/vt?lyrs=' + map_server_query[layer] + '&hl=' + gConfig['googlemap']['language'] + '&x=%i&y=%i&z=%i' % (coord[0], coord[1], 17 - coord[2])
+            #http://mts0.googleapis.com/vt?lyrs=m&x=6354&y=3436&z=13
+            if href:
+                print('socks5 url=%s' % href)
+                url = URL(href)
+                if self.proxy_host:
+                    if self.socks5_opener is None:
+                        self.socks5_opener = urllib2.build_opener(SocksiPyHandler(socks.PROXY_TYPE_SOCKS5, self.proxy_host, self.proxy_port))
+                    try:
+                        response = self.socks5_opener.open(str(href), timeout=3.0)
+                        #print(dir(response))
+                        if response.code == 200:
+                            filename = self.coord_to_path(coord, layer, conf)
+                            print('downloaded filename=%s' % filename)
+                            with open(filename, 'wb') as f:
+                                f.write(response.read())
+                            callback(True, coord, layer)
+                    except:
+                        ret = 0
+                        callback(False, coord, layer)
+                else:
+                    http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
+                    try:
+                        response = http.get(url.request_uri)
+                        if response.status_code == 200:
+                            #CHUNK_SIZE = 1024 * 16 # 16KB
+                            filename = self.coord_to_path(coord, layer, conf)
+                            print('downloaded filename=%s' % filename)
+                            with open(filename, 'wb') as f:
+                                f.write(response.read())
+                            callback(True, coord, layer)
+                    except:
+                        ret = 0
+                        callback(False, coord, layer)
+                    finally:
+                        if http:
+                            http.close()
+            else:
+                callback(False, coord, layer)
+            
+            
+            #if not (coord, layer) in self.queued:
+                #self.queued.append((coord, layer))
+                #self.taskq.put(
+                    #DownloadTask(
+                        #coord, layer, callback, force_update, conf
+                    #)
+                #)
+        return ret + 1
+
+    # @return number of tiles queued for download
+    def query_region(self, xmin, xmax, ymin, ymax, zoom, *args, **kwargs):
+        ret = 0
+        world_tiles = mapUtils.tiles_on_level(zoom)
+        if xmax - xmin >= world_tiles:
+            xmin, xmax = 0, world_tiles - 1
+        if ymax - ymin >= world_tiles:
+            ymin, ymax = 0, world_tiles - 1
+        #print "Query region",xmin,xmax,ymin,ymax,zoom
+        for i in xrange((xmax - xmin + world_tiles) % world_tiles + 1):
+            x = (xmin + i) % world_tiles
+            for j in xrange((ymax - ymin + world_tiles) % world_tiles + 1):
+                y = (ymin + j) % world_tiles
+                ret += self.query_tile((x, y, zoom), *args, **kwargs)
+        return ret
+
+    # @return number of tiles queued for download
+    def query_region_around_point(self, center, size, zoom, *args, **kwargs):
+        x0, y0 = center[0][0], center[0][1]
+        dx0, dy0 = int(center[1][0] - size[0] / 2), int(center[1][1] - size[1] / 2)
+        dx1, dy1 = dx0 + size[0], dy0 + size[1]
+        xmin = int(x0 + floor(dx0 / TILES_WIDTH))
+        xmax = int(x0 + ceil(dx1 / TILES_WIDTH)) - 1
+        ymin = int(y0 + floor(dy0 / TILES_HEIGHT))
+        ymax = int(y0 + ceil(dy1 / TILES_HEIGHT)) - 1
+        return self.query_region(xmin, xmax, ymin, ymax, zoom, *args, **kwargs)
+
+    def query_region_around_location(self, lat0, lon0, dlat, dlon, zoom,
+                                        *args, **kwargs):
+        if dlat > 170:
+            lat0 = 0
+            dlat = 170
+        if dlon > 358:
+            lon0 = 0
+            dlon = 358
+        #zoom = 18 - zoom
+        top_left = mapUtils.coord_to_tile1(
+            (lat0 + dlat / 2, lon0 - dlon / 2, zoom)
+        )
+        bottom_right = mapUtils.coord_to_tile1(
+            (lat0 - dlat / 2, lon0 + dlon / 2, zoom)
+        )
+        self.query_region(top_left[0][0], bottom_right[0][0],
+                          top_left[0][1], bottom_right[0][1],
+                          zoom, *args, **kwargs)
+
+    # @return number of tiles queued for download
+    def query_coordpath(self, coords, zoom, arround, *args, **kwargs):
+        ret = 0
+        for (x, y) in mapUtils.tilepath_bulk(mapUtils.coords_to_tilepath(coords, zoom), arround):
+            ret += self.query_tile((x, y, zoom), *args, **kwargs)
+        return ret
+
+    def bulk_download(self, coord, zoomlevels, kmx, kmy, layer, tile_callback,
+                      completion_callback, force_update=False, conf=None,
+                      nodups=True):
+        dlon = mapUtils.km_to_lon(mapUtils.nice_round(kmx), coord[0])
+        dlat = mapUtils.km_to_lat(mapUtils.nice_round(kmy))
+        if zoomlevels[0] > zoomlevels[1]:
+            zoomlevels = (zoomlevels[1], zoomlevels[0])
 
 class MapQueue:
 

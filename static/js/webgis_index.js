@@ -232,6 +232,17 @@ function InitCesiumViewer()
 				//}
 			//}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
+				name : 'YN_SAT',
+				iconUrl : 'img/wmts-sat.png',
+				tooltip : 'YN_SAT',
+				creationFunction : function() {
+					return new Cesium.ArcGisMapServerImageryProvider({
+						url : 'http://localhost:6080/arcgis/rest/services/YN_SAT/ImageServer'
+						//usePreCachedTilesIfAvailable:false
+					});
+				}
+			}));
+	providerViewModels.push(new Cesium.ProviderViewModel({
 				name : '卫星图',
 				iconUrl : 'img/wmts-sat.png',
 				tooltip : '卫星图',
