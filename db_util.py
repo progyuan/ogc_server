@@ -4156,6 +4156,8 @@ def odbc_execute_sqls(sqls, area):
 
     except:
         print(sys.exc_info()[1])
+        if cur:
+            cur.rollback()
         raise
     finally:
         if cur:
@@ -4259,7 +4261,7 @@ def odbc_get_exist_record(table, value1, value2, area=''):
         ret = odbc_get_records(table, "start_tower=%s and end_tower=%s" % (value1,value2), area)
     return ret
     
-def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, end_tower_id=None, area=''):
+def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, end_tower_id=None, area='', only_sql=False):
     tower_id = start_tower_id
     ret = {}
     sqls = []
@@ -5150,6 +5152,31 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                             )
             if len(sql)>0:
                 sqls.append(sql)
+                
+    if table=='TABLE_STRAIN_SECTION' and not line_id:
+        if op=='save':
+            for ss in data:
+                sql = ''
+                obj = sqlize_data(ss) 
+                sql = '''
+                     INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''' % (
+                        table,
+                        obj['id'],
+                        obj['line_id'],
+                        obj['start_tower'],
+                        obj['end_tower'],
+                        obj['total_length'],
+                        obj['typical_span'],
+                        obj['k_value'],
+                        obj['conductor_type'],
+                        obj['ground_type_left'],
+                        obj['ground_type_right']
+                        )
+                sqls.append(sql)
+                
+                
+                
     if table=='TABLE_WEATHER_SECTION' and line_id and len(line_id)>0:
         for ss in data:
             sql = ''
@@ -5270,11 +5297,69 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                    line_id
                    )
             sqls.append(sql)
+    if table=='TABLE_LINE' and not line_id:
+        if len(data)>0:
+            obj = sqlize_data(data[0])
+            sql = ''' INSERT INTO %s VALUES( 
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s)
+            ''' % (table, 
+                   obj['id'],
+                   obj['line_code'],
+                   obj['line_name'],
+                   obj['voltage'],
+                   obj['category'],
+                   obj['length'],
+                   obj['manage_length'],
+                   obj['start_point'],
+                   obj['end_point'],
+                   obj['start_tower'],
+                   obj['end_tower'],
+                   obj['status'],
+                   obj['maintenace'],
+                   obj['management'],
+                   obj['owner'],
+                   obj['team'],
+                   obj['responsible'],
+                   obj['investor'],
+                   obj['designer'],
+                   obj['supervisor'],
+                   obj['constructor'],
+                   obj['operator'],
+                   obj['finish_date'],
+                   obj['production_date'],
+                   obj['decease_date']
+                   )
+            sqls.append(sql)
         
     if table=='TABLE_TOWER' and line_id and len(line_id)>0 and tower_id and len(tower_id)>0:
         if len(data)>0:
             obj = sqlize_data(data[0])
             sql = ''' UPDATE %s SET 
+                           line_id=%s,
                            tower_code=%s,
                            tower_name=%s,
                            same_tower=%s,
@@ -5284,6 +5369,7 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                            geo_z=%s,
                            rotate=%s,
                            model_code=%s,
+                           model_code_height=%s,
                            denomi_height=%s,
                            horizontal_span=%s,
                            vertical_span=%s,
@@ -5292,6 +5378,7 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                            line_rotate=%s
                     WHERE id='%s'
             ''' % (table, 
+                   obj['line_id'],
                    obj['tower_code'],
                    obj['tower_name'],
                    obj['same_tower'],
@@ -5301,6 +5388,7 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                    obj['geo_z'],
                    obj['rotate'],
                    obj['model_code'],
+                   obj['model_code_height'],
                    obj['denomi_height'],
                    obj['horizontal_span'],
                    obj['vertical_span'],
@@ -5310,6 +5398,50 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                    tower_id
                    )
             sqls.append(sql)
+    if table=='TABLE_TOWER' and not line_id:
+        if op == 'save':
+            for i in data:
+                obj = sqlize_data(i)
+                sql = ''' INSERT INTO %s VALUES( 
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s,
+                               %s)
+                ''' % (table, 
+                       obj['id'],
+                       obj['line_id'],
+                       obj['tower_code'],
+                       obj['tower_name'],
+                       obj['same_tower'],
+                       obj['line_position'],
+                       obj['geo_x'],
+                       obj['geo_y'],
+                       obj['geo_z'],
+                       obj['rotate'],
+                       obj['model_code'],
+                       obj['model_code_height'],
+                       obj['denomi_height'],
+                       obj['horizontal_span'],
+                       obj['vertical_span'],
+                       obj['grnd_resistance'],
+                       obj['building_level'],
+                       obj['line_rotate']
+                       )
+                sqls.append(sql)
             
     if table=='TABLE_TOWER_METALS' and tower_id and len(tower_id)>0:
         sql = ''' DELETE FROM %s WHERE tower_id='%s' ''' % (table, tower_id)
@@ -5331,6 +5463,25 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                     )
             sqls.append(sql)
             
+    if table=='TABLE_TOWER_METALS' and not line_id:
+        if op == 'save':
+            for ss in data:
+                obj = sqlize_data(ss)
+                sql = '''
+                     INSERT INTO %s VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                ''' % (
+                        table,
+                        obj['id'],
+                        obj['tower_id'],
+                        obj['attach_type'],
+                        obj['attach_subtype'],
+                        obj['specification'],
+                        obj['material'],
+                        obj['strand'],
+                        obj['slice'],
+                        obj['value1']
+                        )
+                sqls.append(sql)
     
     if table=='TABLE_SEGMENT' and line_id and len(line_id)>0 and end_tower_id and len(end_tower_id)>0:
         if len(data)>0:
@@ -5384,6 +5535,37 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                    )
             sqls.append(sql)
             
+    if table=='TABLE_SEGMENT' and not line_id :
+        if op == 'save':
+            for i in data:
+                obj = sqlize_data(i)
+                sql = ''' INSERT INTO %s VALUES( 
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s)
+                ''' % (table, 
+                       obj['id'],
+                       obj['line_id'],
+                       obj['small_tower'],
+                       obj['big_tower'],
+                       obj['splitting'],
+                       obj['conductor_count'],
+                       obj['crosspoint_count'],
+                       obj['length'],
+                       obj['seperator_bar'],
+                       obj['connector_count'],
+                       obj['connector_type']
+                       )
+                sqls.append(sql)
+            
     
     if table=='TABLE_CROSS_POINT' and tower_id and len(tower_id)>0:
         if op=='save':
@@ -5420,7 +5602,8 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                             )
                     sqls.append(sql)
 
-    
+    if only_sql:
+        return sqls
     try:
         odbc_execute_sqls(sqls, area)
     except:
@@ -9017,9 +9200,339 @@ def test_pinyin_search():
     
             
             
+def import_tower_xls_file(line_name,voltage, category, xls_file):
+    
+    #TABLE_LINE
+    def extract_line(sheet, line_id, line_name, voltage, category):
+        line = {}
+        line['id'] = line_id
+        line['line_code'] = ''
+        line['line_name'] = line_name
+        line['box_north'] = 0.0
+        line['box_south'] = 0.0
+        line['box_east'] = 0.0
+        line['box_west'] = 0.0
+        line['voltage'] = voltage
+        line['category'] = category
+        line['length'] = 0.0
+        line['manage_length'] = 0.0
+        line['start_point'] = None
+        line['end_point'] = None
+        line['start_tower'] = None
+        line['end_tower'] = None
+        line['status'] = None
+        line['maintenace'] = None
+        line['management'] = None
+        line['owner'] = None
+        line['team'] = None
+        line['responsible'] = None
+        line['investor'] = None
+        line['designer'] = None
+        line['supervisor'] = None
+        line['constructor'] = None
+        line['operator'] = None
+        line['finish_date'] = None
+        line['production_date'] = None
+        line['decease_date'] = None
+        return line
     
     
+    #TABLE_TOWER
+    def extract_tower(sheet, line_id):
+        towers = []
+        towers_id_name_mapping = {}
+        for i in range(sheet.nrows):
+            if i >= 7:
+                tower_id = str(uuid.uuid4())
+                tower = {'id':tower_id, 'line_id':line_id}
+                for j in range(sheet.ncols):
+                    v = sheet.cell_value(i,j)
+                    if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                        if '\n' in v:
+                            arr = v.split('\n')
+                            s = ''
+                            for k in arr:
+                                s += k + ','
+                            if len(s)>0:
+                                s = s[:-1]
+                            v = s
+                        #print('(%d,%d)=%s' % (i, j, v))
+                        if j == 2:
+                            tower['tower_name'] = line_name + v
+                            towers_id_name_mapping[v] = tower['id']
+                        elif j == 4:
+                            arr = v.split(' - ')
+                            tower['model_code'] = arr[0]
+                            tower['denomi_height'] = int(arr[1])
+                        elif j == 7:
+                            tower['model_code'] = arr[0]
+                    elif isinstance(v, int):
+                        #print('(%d,%d)=%d' % (i, j, v))
+                        pass
+                    elif isinstance(v, float):
+                        #print('(%d,%d)=%f' % (i, j, v))
+                        if j == 7:
+                            tower['horizontal_span'] = v
+                        elif j == 8:
+                            tower['vertical_span'] = v
+                        elif j == 9:
+                            tower['building_level'] = v
+                        elif j == 10:
+                            tower['line_rotate'] = v
+                        elif j == 42:
+                            tower['geo_x'] = v
+                        elif j == 43:
+                            tower['geo_y'] = v
+                if tower.has_key('tower_name'):
+                    
+                    
+                    #tower['id'],
+                    #tower['line_id'],
+                    tower['tower_code'] = ''
+                    #tower['tower_name'],
+                    tower['same_tower'] = '00000000-0000-0000-0000-000000000000'
+                    tower['line_position'] = u'单回'
+                    #tower['geo_x'],
+                    #tower['geo_y'],
+                    tower['geo_z'] = 0.0
+                    tower['rotate'] = 0.0
+                    #tower['model_code'],
+                    tower['model_code_height'] = ''
+                    #tower['denomi_height'],
+                    #tower['horizontal_span'],
+                    #tower['vertical_span'],
+                    tower['grnd_resistance'] = None
+                    #tower['building_level'],
+                    #tower['line_rotate']
+                    
+                    towers.append(tower)
+        return towers, towers_id_name_mapping
     
+    #TABLE_STRAIN_SECTION
+    def extract_strain(sheet, line_id, id_mapping):
+        l = []
+        lastrow = 0
+        for i in range(sheet.nrows):
+            if i >= 7:
+                for j in range(sheet.ncols):
+                    if j == 1:
+                        v = sheet.cell_value(i,j)
+                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                            if '/' in v:
+                                arr = v.split('/')
+                                #print('(%d,%d)=%f, %f, %f' % (i, j, float(arr[0]), float(arr[1]), float(arr[2])))
+                                l.append({'row':i, 'total_length':float(arr[0]), 'typical_span':float(arr[1]), 'k_value':float(arr[2])})
+                    if j == 2:
+                        v = sheet.cell_value(i,j)
+                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                            lastrow = i
+                                
+        #print('lastrow = %d' % lastrow)
+        strains = []
+        for i in l:
+            strain_id = str(uuid.uuid4())
+            strain = {'id':strain_id, 'line_id':line_id}
+            
+            idx = l.index(i)
+            v1 = sheet.cell_value(i['row']-1,2)
+            if idx+1 < len(l):
+                v2 = sheet.cell_value(l[idx+1]['row']-1,2)
+            else:
+                v2 = sheet.cell_value(lastrow,2)
+            #print('start=%s, end=%s, total_length=%f, typical_span=%f, k_value=%f' % (v1, v2, i['total_length'], i['typical_span'], i['k_value']))
+            strain['start_tower'] = id_mapping[v1]
+            strain['end_tower'] = id_mapping[v2]
+            strain['total_length'] = i['total_length']
+            strain['typical_span'] = i['typical_span']
+            strain['k_value'] = i['k_value']
+            strain['conductor_type'] = ''
+            strain['ground_type_left'] = ''
+            strain['ground_type_right'] = ''
+            strains.append(strain)
+        return strains
+    
+    #TABLE_SEGMENT
+    def extract_segment(sheet, line_id, id_mapping):
+        l = []
+        m = {}
+        lastrow = 0
+        for i in range(sheet.nrows):
+            if i >= 7:
+                for j in range(sheet.ncols):
+                    if j == 6:
+                        v = sheet.cell_value(i,j)
+                        if isinstance(v, float) :
+                            l.append({'row':i, 'length':v,})
+                    if j == 2:
+                        v = sheet.cell_value(i,j)
+                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                            lastrow = i
+                                
+        segs = []
+        for i in l:
+            seg_id = str(uuid.uuid4())
+            seg = {'id':seg_id, 'line_id':line_id}
+            
+            idx = l.index(i)
+            v1 = sheet.cell_value(i['row']-1,2)
+            if idx+1 < len(l):
+                v2 = sheet.cell_value(l[idx+1]['row']-1,2)
+            else:
+                v2 = sheet.cell_value(lastrow,2)
+            #print('small=%s, big=%s, length=%f' % (v1, v2, i['length']))
+            m[v1+v2] = seg_id
+            seg['small_tower'] = id_mapping[v1]
+            seg['big_tower'] = id_mapping[v2]
+            seg['splitting'] = 2
+            seg['conductor_count'] = 0
+            seg['crosspoint_count'] = 0
+            seg['length'] = i['length']
+            seg['seperator_bar'] = 0
+            seg['connector_count'] = 0
+            seg['connector_type'] = ''
+            segs.append(seg)
+        return segs, m
+    
+    
+    #TABLE_CROSS_POINT
+    def extract_crosspoint(sheet, line_id, id_mapping, seg_mapping):
+        l = []
+        lastrow = 0
+        for i in range(sheet.nrows):
+            if i >= 7:
+                for j in range(sheet.ncols):
+                    if j >= 30 and j<=41:
+                        v = sheet.cell_value(i,j)
+                        if isinstance(v, float) :
+                            cp_type = ''
+                            if j == 30:
+                                cp_type = u'低压线'
+                            if j == 31:
+                                cp_type = u'通讯线'
+                            if j == 32:
+                                cp_type = u'电力线'
+                            if j == 33:
+                                cp_type = u'铁路'
+                            if j == 34:
+                                cp_type = u'公路'
+                            if j == 35:
+                                cp_type = u'电车道'
+                            if j == 36:
+                                cp_type = u'通航河流'
+                            if j == 37:
+                                cp_type = u'不通航河流'
+                            if j == 38:
+                                cp_type = u'管道'
+                            if j == 39:
+                                cp_type = u'索道'
+                            if j == 40:
+                                cp_type = u'房屋'
+                            if j == 41:
+                                cp_type = u'林木'
+                            if len(cp_type)>0:
+                                l.append({'row':i, 'col':j, 'cp_type':cp_type})
+                    if j == 2:
+                        v = sheet.cell_value(i,j)
+                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                            lastrow = i
+                                
+        return []
+    
+    
+    #TABLE_TOWER_METALS
+    def extract_metals(sheet, line_id, id_mapping):
+        l = []
+        lastrow = 0
+        for i in range(sheet.nrows):
+            if i >= 7:
+                metal_id = str(uuid.uuid4())
+                metal = {'id':metal_id}
+                for j in range(sheet.ncols):
+                    tower_name = sheet.cell_value(i,2)
+                    if len(tower_name)>0:
+                        metal['tower_id'] = id_mapping[str(tower_name)]
+                        if j >= 19 and j<=24:
+                            v = sheet.cell_value(i,j)
+                            karr, varr = [], []
+                            if j in [19, 21, 23]:
+                                if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                                    karr = v.strip().split('\n')
+                                    vv = sheet.cell_value(i, j+1)
+                                    if len(karr)==1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
+                                        metal['attach_type'] = u'绝缘子串'
+                                        if j == 19:
+                                            metal['attach_subtype'] = u'导线绝缘子'
+                                        elif j == 21:
+                                            metal['attach_subtype'] = u'跳线绝缘子'
+                                        elif j == 23:
+                                            metal['attach_subtype'] = u'地线绝缘子'
+                                        metal['specification'] = karr[0]
+                                        metal['material'] = u''
+                                        metal['strand'] = int(vv.strip())
+                                        metal['slice'] = 0
+                                        metal['value1'] = 0
+                                        print('%s %s %d' % (tower_name, karr[0], int(vv)))
+                                        l.append(metal)
+                                    elif len(karr)>1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
+                                        varr = vv.strip().split('\n')
+                                        if len(karr) == len(varr):
+                                            for k in karr:
+                                                metal['id'] = str(uuid.uuid4())
+                                                metal['attach_type'] = u'绝缘子串'
+                                                if j == 19:
+                                                    metal['attach_subtype'] = u'导线绝缘子'
+                                                elif j == 21:
+                                                    metal['attach_subtype'] = u'跳线绝缘子'
+                                                elif j == 23:
+                                                    metal['attach_subtype'] = u'地线绝缘子'
+                                                metal['specification'] = k
+                                                metal['material'] = u''
+                                                metal['strand'] = int(varr[karr.index(k)])
+                                                metal['slice'] = 0
+                                                metal['value1'] = 0
+                                                print('%s %s %d' % (tower_name, k, int(varr[karr.index(k)])))
+                                                l.append(metal)
+                                            
+                                            
+                                
+                                
+        return l
+    
+    
+    book = xlrd.open_workbook(xls_file)
+    sheet = book.sheet_by_index(0)
+    line_id = str(uuid.uuid4())
+    print('line_id=%s' % line_id)
+    line = extract_line(sheet, line_id, line_name, voltage, category)
+    towers, towers_id_name_mapping = extract_tower(sheet, line_id)
+    strains = extract_strain(sheet, line_id, towers_id_name_mapping)
+    segs, seg_mapping = extract_segment(sheet, line_id, towers_id_name_mapping)
+    #metals = extract_metals(sheet, line_id, towers_id_name_mapping)
+            
+    area = 'zt'
+    sqls = []
+    sqls.append(odbc_save_data_to_table('TABLE_LINE', 'save', [line,], None, None, None, area, True))
+    sqls.append(odbc_save_data_to_table('TABLE_TOWER', 'save', towers, None, None, None, area, True))
+    sqls.append(odbc_save_data_to_table('TABLE_STRAIN_SECTION', 'save', strains, None, None, None, area, True))
+    sqls.append(odbc_save_data_to_table('TABLE_SEGMENT', 'save', segs, None, None, None, area, True))
+    print(len(sqls))
+    for sql in sqls:
+        print(sql)
+    ret = {}
+    ret['line_id'] = line_id
+    ret['result'] = ''
+    try:
+        odbc_execute_sqls(sqls, area)
+    except:
+        ret['result'] = sys.exc_info()[1]
+    return ret
+
+def test_delete_import_xlsdata(line_id):
+    sqls = []
+    sqls.append('''delete from TABLE_LINE where line_id='%s' ''' % line_id)
+    sqls.append('''delete from TABLE_TOWER where line_id='%s' ''' % line_id)
+    sqls.append('''delete from TABLE_STRAIN_SECTION where line_id='%s' ''' % line_id)
+    sqls.append('''delete from TABLE_SEGMENT where line_id='%s' ''' % line_id)
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -9069,7 +9582,7 @@ if __name__=="__main__":
     #test_build_line_odbc_mongo_id_mapping()
     #test_mongo_import_towers()
     #test_mongo_import_segments()
-    test_mongo_import_models()
+    #test_mongo_import_models()
     #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
     #print(ret)
     #print('count=%d' % len(ret))
@@ -9081,5 +9594,9 @@ if __name__=="__main__":
     #test_find_by_string_id()
     #test_pinyin_search()
     #test_import_geojson_feature_by_shape()
+    XLS_FILE = ur'F:\work\csharp\kmgdnew10.2-2014-1-17\交流220kV永发II回线杆塔明细表.xls'
+    ret = import_tower_xls_file(u'测试线路基于永发II回线', '13', u'架空线', XLS_FILE)
+    print(ret)
+    print(ret['line_id'])
     
     
