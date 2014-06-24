@@ -6,7 +6,7 @@ import shutil
 
 COLLADA2GLTF = ur'F:\work\cpp\glTF\converter\COLLADA2GLTF\vcbuild\bin\Release\collada2gltf.exe'
 #COLLADA2GLTF = ur'F:\work\cpp\glTF\converter\COLLADA2GLTF\vcbuild\bin\Debug\collada2gltf.exe'
-DAEDIR = ur'F:\work\kmdae0.4'
+DAEDIR = ur'F:\work\kmdae0.51'
 DESTDIR = ur'F:\work\python\ogc_server\static\gltf'
 def collada2gltf(input_path):
     os.chdir(DAEDIR)
@@ -21,16 +21,27 @@ def collada2gltf(input_path):
 
 
 if __name__=="__main__":
-    if os.path.exists(DESTDIR):
-        shutil.rmtree(DESTDIR)
-    os.mkdir(DESTDIR)
-    for i in os.listdir(DAEDIR):
-        p = os.path.join(DAEDIR, i)
-        if os.path.isfile(p) and p[-4:] == '.dae':
-            collada2gltf(p)
+    #if os.path.exists(DESTDIR):
+        #shutil.rmtree(DESTDIR)
+    if not os.path.exists(DESTDIR):
+        os.mkdir(DESTDIR)
+    #for i in os.listdir(DAEDIR):
+        #if '.dae' in i:
+            #ii = i.replace('.dae', '_0.dae')
+            #p = os.path.join(DAEDIR, i)
+            #p1 = os.path.join(DAEDIR, ii)
+            #os.rename(p, p1)
+    #for i in os.listdir(DAEDIR):
+        #p = os.path.join(DAEDIR, i)
+        #if os.path.isfile(p) and p[-4:] == '.dae':
+            #print('converting %s to gltf...' % p)
+            #collada2gltf(p)
+            #print('convert done')
     for i in os.listdir(DAEDIR):
         p = os.path.join(DAEDIR, i)
         if os.path.isfile(p) and (p[-5:] == '.json' or p[-5:] == '.glsl' or p[-4:] == '.bin'):
-            shutil.move(p, DESTDIR)
-    #collada2gltf(ur'H:\kmmodel_dae\BJ1_25_0.dae')
+            p1 = os.path.join(DESTDIR, i)
+            if not os.path.exists(p1):
+                print('moving %s to %s' % (p, DESTDIR))
+                shutil.move(p, DESTDIR)
 

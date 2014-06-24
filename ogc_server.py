@@ -1146,6 +1146,15 @@ def handle_get_method(Env, Start_response):
     #print(s)
     return [s]
 
+def create_upload_xls_dir():
+    p = os.path.join(STATICRESOURCE_DIR, 'upload')
+    if not os.path.exists(p):
+        os.mkdir(p)
+    p = os.path.join(p, 'xls')
+    if not os.path.exists(p):
+        os.mkdir(p)
+    return p
+        
 def create_voice_dir():
     if not os.path.exists(UPLOAD_VOICE_DIR):
         os.mkdir(UPLOAD_VOICE_DIR)
@@ -1224,9 +1233,26 @@ def handle_upload_file(fileobj, qsdict):
                 os.mkdir(p)
             save_file_to(UPLOAD_VOICE_DIR, None, fn, fileobj)
             ret = True
+        if qsdict.has_key('import_xls'):
+            root = create_upload_xls_dir()
+            area = urllib.unquote_plus( qsdict['area'][0])
+            line_name = urllib.unquote_plus( qsdict['line_name'][0])
+            voltage = urllib.unquote_plus( qsdict['voltage'][0])
+            category = urllib.unquote_plus( qsdict['category'][0])
+            fn = str(uuid.uuid4()) + '.xls'
+            import_xls(os.path.join(root, fn), fileobj, dec(area), dec(line_name), dec(voltage),  dec(category))
+            ret = True
     except:
-        print(sys.exc_info()[1])
+        #print(sys.exc_info()[1])
+        raise
     return ret
+
+
+def import_xls(path, fileobj, area, line_name, voltage,  category):
+    with open(path, 'wb') as f:
+        f.write(fileobj)
+    return db_util.import_tower_xls_file(area, line_name, voltage,  category, path)
+
     
 def save_file_to(category, dir_id, filename, fileobj):
     root = os.path.abspath(category)
@@ -1348,7 +1374,11 @@ def handle_post_method(Env, Start_response):
         
     except:
         if len(querydict.keys())>0:
-            is_upload = handle_upload_file(buf, querydict)
+            try:
+                is_upload = handle_upload_file(buf, querydict)
+                ret['result'] = ''
+            except:
+                ret['result'] = sys.exc_info()[1]
         obj = {}
     if not is_mongo:
         if obj.has_key('thunder_counter'):
@@ -1357,13 +1387,10 @@ def handle_post_method(Env, Start_response):
             except:
                 e = sys.exc_info()[1]
                 if hasattr(e, 'message'):
-                    ret['err'] = e.message
+                    ret['result'] = e.message
                 else:
-                    ret['err'] = str(e)
+                    ret['result'] = str(e)
                 
-        #elif obj.has_key('arcpy') \
-           #or obj.has_key('odbc') :
-            #ret = handle_requset_sync(obj)
         elif obj.has_key('op'):
             if obj.has_key('area') and obj['area'] and len(obj['area'])>0:
                 if obj['op'] in ['save','delete','update']:
@@ -1375,8 +1402,13 @@ def handle_post_method(Env, Start_response):
         elif obj.has_key('tracks') and obj.has_key('area'):
             ret = db_util.save_tracks(obj['tracks'], obj['area'])
         else:
-            if is_upload:
-                ret["result"] = "ok"
+            if ret.has_key('result') and isinstance(ret['result'], exceptions.Exception):
+                if hasattr(ret['result'], 'message'):
+                    ret['result'] = ret['result'].message
+                else:
+                    ret['result'] = str(ret['result'])
+            elif ret.has_key('result') and (isinstance(ret['result'], str) or isinstance(ret['result'], unicode)):
+                pass
             else:    
                 ret["result"] = "unknown operation"
     if (isinstance(ret, list) and len(ret)==0) or (isinstance(ret, dict) and len(ret.keys())==0):

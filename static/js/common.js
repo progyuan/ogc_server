@@ -1,5 +1,7 @@
 //var g_host = "http://localhost:88/";
 var g_host = "";
+//var g_db_name = 'kmgd';
+var g_db_name = 'ztgd';
 var g_progress_interval;
 var g_progress_value;
 var g_phase_color_mapping = {

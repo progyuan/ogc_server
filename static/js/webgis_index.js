@@ -44,13 +44,16 @@ $(function() {
 	InitToolPanel(viewer);
 	InitModelList(viewer);
 	
-	var line_name = '七罗I回';
-	LoadTowerByLineName(viewer,  line_name);
-	LoadSegments(viewer);
-	LoadModelsList();
-	//LoadBorder(viewer, {'properties.name':'云南省'});
-	//LoadBorder(viewer, {'properties.type':'cityborder'});
-	//LoadBorder(viewer, {'properties.type':'countyborder'});
+	//var line_name = '七罗I回';
+	var line_name = '永发I回线';
+	LoadTowerByLineName(viewer, g_db_name,  line_name);
+	line_name = '永发II回线';
+	LoadTowerByLineName(viewer, g_db_name,  line_name);
+	LoadSegments(viewer, g_db_name);
+	LoadModelsList(g_db_name);
+	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
+	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
+	//LoadBorder(viewer, g_db_name, {'properties.type':'countyborder'});
 	
 });
 
@@ -612,7 +615,7 @@ function InitSearchBox(viewer)
 		},		
 		source:function(request,  response)
 		{
-			var py_cond = {'db':'kmgd', 'collection':'*', 'action':'pinyinsearch', 'data':{'py':request.term}};
+			var py_cond = {'db':g_db_name, 'collection':'*', 'action':'pinyinsearch', 'data':{'py':request.term}};
 			$('#text_search_waiting').css('display','block');
 			$('#text_search_waiting').html('正在查询，请稍候...');
 			MongoFind( py_cond, 
@@ -655,11 +658,11 @@ function InitSearchBox(viewer)
 			}
 			else if(ui.item.geojson && ui.item.geojson.properties && ui.item.geojson.properties.category && ui.item.geojson.properties.category == '架空线')
 			{
-				//var line_cond = {'db':'kmgd', 'collection':'lines', 'properties.line_name':line_name};
+				//var line_cond = {'db':g_db_name, 'collection':'lines', 'properties.line_name':line_name};
 				if(ui.item.geojson.properties.line_name)
 				{
 					ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
-					LoadTowerByLineName(viewer, ui.item.geojson.properties.line_name);
+					LoadTowerByLineName(viewer, g_db_name, ui.item.geojson.properties.line_name);
 				}
 			}
 		}
@@ -820,9 +823,9 @@ function FilterModelList(str)
 	});
 }
 
-function LoadBorder(viewer, condition)
+function LoadBorder(viewer, db_name, condition)
 {
-	var cond = {'db':'kmgd', 'collection':'poi_border'};
+	var cond = {'db':db_name, 'collection':'poi_border'};
 	for(var k in condition)
 	{
 		cond[k] = condition[k];
@@ -963,18 +966,18 @@ function ReloadBorders(viewer, forcereload)
 	FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 }
 
-function LoadSegments(viewer)
+function LoadSegments(viewer, db_name)
 {
-	var segs_cond = {'db':'kmgd', 'collection':'segments'};
+	var segs_cond = {'db':db_name, 'collection':'segments'};
 	MongoFind( segs_cond, 
 		function(data){
 			g_segments = data;
 			ShowProgressBar(false);
 	});
 }
-function LoadModelsList()
+function LoadModelsList(db_name)
 {
-	var cond = {'db':'kmgd', 'collection':'-', 'action':'modelslist', 'data':{}};
+	var cond = {'db':db_name, 'collection':'-', 'action':'modelslist', 'data':{}};
 	MongoFind( cond, 
 		function(data){
 			g_models = data;
@@ -998,11 +1001,11 @@ function GetExtentByCzml()
 	}
 	return ret;
 }
-function LoadTowerByLineName(viewer,  line_name)
+function LoadTowerByLineName(viewer, db_name,  line_name)
 {
-	var geo_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name', 'properties.line_name':line_name};
-	var line_cond = {'db':'kmgd', 'collection':'lines', 'properties.line_name':line_name};
-	//var ext_cond = {'db':'kmgd', 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'properties.line_name':line_name};
+	var geo_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name', 'properties.line_name':line_name};
+	var line_cond = {'db':db_name, 'collection':'lines', 'properties.line_name':line_name};
+	//var ext_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'properties.line_name':line_name};
 	
 	MongoFind( geo_cond, 
 		function(data){

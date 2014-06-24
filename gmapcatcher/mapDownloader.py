@@ -436,9 +436,9 @@ class MapDownloaderSocks5:
             href = gConfig['googlemap']['server'] + '/vt?lyrs=' + map_server_query[layer] + '&hl=' + gConfig['googlemap']['language'] + '&x=%i&y=%i&z=%i' % (coord[0], coord[1], 17 - coord[2])
             #http://mts0.googleapis.com/vt?lyrs=m&x=6354&y=3436&z=13
             if href:
-                print('socks5 url=%s' % href)
                 url = URL(href)
-                if self.proxy_host:
+                if self.proxy_host and len(self.proxy_host)>0:
+                    print('socks5 url=%s' % href)
                     if self.socks5_opener is None:
                         self.socks5_opener = urllib2.build_opener(SocksiPyHandler(socks.PROXY_TYPE_SOCKS5, self.proxy_host, self.proxy_port))
                     try:
@@ -454,6 +454,7 @@ class MapDownloaderSocks5:
                         ret = 0
                         callback(False, coord, layer)
                 else:
+                    print('gevent url=%s' % href)
                     http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
                     try:
                         response = http.get(url.request_uri)

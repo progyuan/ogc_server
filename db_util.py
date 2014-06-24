@@ -5325,11 +5325,19 @@ def odbc_save_data_to_table(table, op, data, line_id=None, start_tower_id=None, 
                            %s,
                            %s,
                            %s,
+                           %s,
+                           %s,
+                           %s,
+                           %s,
                            %s)
             ''' % (table, 
                    obj['id'],
                    obj['line_code'],
                    obj['line_name'],
+                   obj['box_north'],
+                   obj['box_south'],
+                   obj['box_east'],
+                   obj['box_west'],
                    obj['voltage'],
                    obj['category'],
                    obj['length'],
@@ -8477,7 +8485,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 #continue
             elif k=='same_tower':
                 #if not tower[k] == '00000000-0000-0000-0000-000000000000':
-                    #st = odbc_get_records('TABLE_TOWER', "id='%s'" % tower[k], 'km')
+                    #st = odbc_get_records('TABLE_TOWER', "id='%s'" % tower[k], area)
                     #if len(st)>0:
                         #lindid = st[0]['line_id']
                         #if not tower_obj['properties'].has_key('line_id'):
@@ -8500,7 +8508,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 if not tower_obj['properties']['model'].has_key('contact_points'):
                     tower_obj['properties']['model']['contact_points'] = []
                 if k == 'model_code_height':
-                    pts = odbc_get_records('TABLE_CONTACT_POINT', "model_code='%s'" % tower[k], 'km')
+                    pts = odbc_get_records('TABLE_CONTACT_POINT', "model_code='%s'" % tower[k], area)
                     if len(pts)>0:
                         for pt in pts:
                             o = {}
@@ -8555,7 +8563,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
             
         if not tower_obj['properties'].has_key('metals'):
             tower_obj['properties']['metals'] = []
-        attachs = odbc_get_records('TABLE_TOWER_METALS', "tower_id='%s'" % tower['id'], 'km')
+        attachs = odbc_get_records('TABLE_TOWER_METALS', "tower_id='%s'" % tower['id'], area)
         if len(attachs)>0:
             for attach in attachs:
                 o = {}
@@ -8600,7 +8608,7 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 tower_obj['properties']['metals'].append(o)
         #if not tower_obj['properties'].has_key('attachments'):
             #tower_obj['properties']['attachments'] = []
-        attachs = odbc_get_records('TABLE_TOWER_ATTACH', "tower_id='%s'" % tower['id'], 'km')
+        attachs = odbc_get_records('TABLE_TOWER_ATTACH', "tower_id='%s'" % tower['id'], area)
         if len(attachs)>0:
             for attach in attachs:
                 o = {}
@@ -8845,12 +8853,11 @@ def remove_mongo_id(obj):
     return obj
 
 
-def test_mongo_import_segments():
+def test_mongo_import_segments(db_name, area):
     global gClientMongo
-    area = 'km'
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
-    mapping = get_tower_id_mapping()
+    mapping = get_tower_id_mapping(db_name)
     for line in lines:
         segs = gen_mongo_segments_by_line_id(line['id'], area,  mapping)
         l.extend(segs)
@@ -8858,7 +8865,7 @@ def test_mongo_import_segments():
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         if 'segments' in db.collection_names(False):
             db.drop_collection('segments')
         collection = db.create_collection('segments')
@@ -8885,7 +8892,7 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
         else:    
             prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
         if tower and nextt:
-            segs = odbc_get_records('VIEW_CONTACT_SEGMENT', "start_tower_id='%s' AND end_tower_id='%s'" % (tower['id'],  nextt['id']), 'km')
+            segs = odbc_get_records('VIEW_CONTACT_SEGMENT', "start_tower_id='%s' AND end_tower_id='%s'" % (tower['id'],  nextt['id']), area)
             obj = {}
             for seg in segs:
                 if mapping.has_key(seg['start_tower_id']) and mapping.has_key(seg['end_tower_id']):
@@ -8963,16 +8970,15 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
     return ret           
             
     
-def test_mongo_import_towers():
+def test_mongo_import_towers(db_name, area):
     global gClientMongo
-    area = 'km'
     from pinyin import PinYin
     pydatapath = os.path.join(module_path(), 'pinyin_word.data');
     piny =  PinYin(pydatapath)
     piny.load_word()
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
-    mapping = get_tower_id_mapping()
+    mapping = get_tower_id_mapping(db_name)
     for line in lines:
         towers = gen_mongo_geojson_by_line_id(line['id'], area, piny, mapping)
         l.extend(towers)
@@ -8981,7 +8987,7 @@ def test_mongo_import_towers():
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         if 'towers' in db.collection_names(False):
             db.drop_collection('towers')
         collection = db.create_collection('towers')
@@ -8992,12 +8998,11 @@ def test_mongo_import_towers():
         err = sys.exc_info()[1].message
         print(err)
     
-def test_mongo_import_models():
+def test_mongo_import_models(db_name, area):
     global gClientMongo
-    area = 'km'
     l = []
     ll = []
-    li = mongo_find('kmgd', 'towers')
+    li = mongo_find(db_name, 'towers')
     for i in li:
         m = i['properties']['model']
         if m and len(m.keys())>0:
@@ -9008,7 +9013,7 @@ def test_mongo_import_models():
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         if 'models' in db.collection_names(False):
             db.drop_collection('models')
         collection = db.create_collection('models')
@@ -9018,18 +9023,61 @@ def test_mongo_import_models():
         traceback.print_exc()
         err = sys.exc_info()[1].message
         print(err)
-    
-def test_build_tower_odbc_mongo_id_mapping():
+
+def create_id_mapping(db_name, area):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
+        if 'tower_ids_mapping' in db.collection_names(False):
+            print('tower_ids_mapping exist in %s' % db_name)
+        else:
+            collection = db.create_collection('tower_ids_mapping')
+            l = odbc_get_records('TABLE_TOWER', '1=1', area)
+            for i in l:
+                collection.save({'uuid':i['id'], 'id':ObjectId()})
+            print('tower_ids_mapping created, total %d' % len(l))
+            
+        if 'line_ids_mapping' in db.collection_names(False):
+            print('line_ids_mapping exist in %s' % db_name)
+        else:
+            collection = db.create_collection('line_ids_mapping')
+            l = odbc_get_records('TABLE_LINE', '1=1', area)
+            for i in l:
+                collection.save({'uuid':i['id'], 'id':ObjectId()})
+            print('line_ids_mapping created, total %d' % len(l))
+            
+        if 'model_ids_mapping' in db.collection_names(False):
+            print('model_ids_mapping exist in %s' % db_name)
+        else:
+            collection = db.create_collection('model_ids_mapping')
+            l = odbc_get_records('TABLE_TOWER_MODEL', '1=1', area)
+            for i in l:
+                collection.save({'model_code_height':i['model_code'], 'id':ObjectId()})
+            print('model_ids_mapping created, total %d' % len(l))
+        
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
+    
+    
+    
+    
+    
+def test_build_tower_odbc_mongo_id_mapping(db_name):
+    global gClientMongo
+    host, port = 'localhost', 27017
+    try:
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+        db = gClientMongo[db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             db.drop_collection('tower_ids_mapping')
         collection = db.create_collection('tower_ids_mapping')
-        l = mongo_find('kmgd', 'towers')
+        l = mongo_find(db_name, 'towers')
         for i in l:
             collection.save({'uuid':i['properties']['id'], 'id':i['_id']})
     except:
@@ -9037,17 +9085,17 @@ def test_build_tower_odbc_mongo_id_mapping():
         err = sys.exc_info()[1].message
         print(err)
      
-def test_build_line_odbc_mongo_id_mapping():
+def test_build_line_odbc_mongo_id_mapping(db_name):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         if 'line_ids_mapping' in db.collection_names(False):
             db.drop_collection('line_ids_mapping')
         collection = db.create_collection('line_ids_mapping')
-        l = mongo_find('kmgd', 'lines')
+        l = mongo_find(db_name, 'lines')
         for i in l:
             collection.save({'uuid':i['id'], 'id':i['_id']})
     except:
@@ -9055,45 +9103,43 @@ def test_build_line_odbc_mongo_id_mapping():
         err = sys.exc_info()[1].message
         print(err)
         
-def test_build_model_odbc_mongo_id_mapping():
+def test_build_model_odbc_mongo_id_mapping(db_name):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         if 'model_ids_mapping' in db.collection_names(False):
             db.drop_collection('model_ids_mapping')
         collection = db.create_collection('model_ids_mapping')
-        l = mongo_find('kmgd', 'models')
+        l = mongo_find(db_name, 'models')
         for i in l:
-            collection.save({'uuid':i['id'], 'id':i['_id']})
+            if i['model_code_height'] and len(i['model_code_height'])>0:
+                collection.save({'model_code_height':i['model_code_height'], 'id':i['_id']})
             
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message
         print(err)
     
-def get_tower_id_mapping():
+def get_tower_id_mapping(db_name):
     mapping = {}
-    #tower_ids_mapping = db['tower_ids_mapping']
-    tower_ids_mapping = mongo_find('kmgd', 'tower_ids_mapping')
+    tower_ids_mapping = mongo_find(db_name, 'tower_ids_mapping')
     for i in tower_ids_mapping:
         mapping[i['uuid']] = i['id']
     return mapping
-def get_line_id_mapping():
+def get_line_id_mapping(db_name):
     mapping = {}
-    #tower_ids_mapping = db['tower_ids_mapping']
-    line_ids_mapping = mongo_find('kmgd', 'line_ids_mapping')
+    line_ids_mapping = mongo_find(db_name, 'line_ids_mapping')
     for i in line_ids_mapping:
         mapping[i['uuid']] = i['id']
     return mapping
     
     
-def test_mongo_import_line():
+def test_mongo_import_line(db_name, area):
     global gClientMongo
     host, port = 'localhost', 27017
-    area = 'km'
     from pinyin import PinYin
     pydatapath = os.path.join(module_path(), 'pinyin_word.data');
     piny =  PinYin(pydatapath)
@@ -9101,13 +9147,13 @@ def test_mongo_import_line():
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         
         if 'lines' in db.collection_names(False):
             db.drop_collection('lines')
         collection = db.create_collection('lines')
-        line_mapping = get_line_id_mapping()
-        tower_mapping = get_tower_id_mapping()
+        line_mapping = get_line_id_mapping(db_name)
+        tower_mapping = get_tower_id_mapping(db_name)
         #collection_lines = db['lines']
         odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
@@ -9126,23 +9172,6 @@ def test_mongo_import_line():
                     if tower_mapping.has_key(i['id']):
                         lineobj['properties']['towers'].append(tower_mapping[i['id']])
                 for k in line.keys():
-                    #d = None
-                    #if 'date' in k:
-                        #try:
-                            #d = datetime.datetime.strptime(line[k], "%Y-%m-%d %H:%M:%S.%F")
-                        #except:
-                            #try:
-                                #d = datetime.datetime.strptime(line[k], "%Y-%m-%d %H:%M:%S")
-                            #except:
-                                #try:
-                                    #d = datetime.datetime.strptime(line[k], "%Y-%m-%d")
-                                #except:
-                                    #pass
-                        #if d:
-                            #lineobj['properties'][k] = d
-                        #else:
-                            #lineobj['properties'][k] = line[k]
-                    #else:
                     lineobj['properties'][k] = line[k]
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                 collection.save(add_mongo_id(lineobj))
@@ -9151,13 +9180,13 @@ def test_mongo_import_line():
         err = sys.exc_info()[1].message
         print(err)
     
-def test_mongo_import_code():
+def test_mongo_import_code(db_name, area):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
         if gClientMongo is None:
             gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
+        db = gClientMongo[db_name]
         cods = {
             'equipment_class':'TABLE_COD_EQU_CLASS',
             'equipment_container':'TABLE_COD_EQU_CONT',
@@ -9172,7 +9201,7 @@ def test_mongo_import_code():
         obj = {}
         for k in cods.keys():
             obj[k] = {}
-            odbc = odbc_get_records(cods[k], '1=1', 'km')
+            odbc = odbc_get_records(cods[k], '1=1', area)
             for i in odbc:
                 obj[k][i['code']] = i['name']
         collection.save(obj)
@@ -9200,18 +9229,18 @@ def test_pinyin_search():
     
             
             
-def import_tower_xls_file(line_name,voltage, category, xls_file):
+def import_tower_xls_file(area, line_name,voltage, category, xls_file):
     
     #TABLE_LINE
-    def extract_line(sheet, line_id, line_name, voltage, category):
+    def extract_line(area, sheet, line_id, line_name, voltage, category):
         line = {}
         line['id'] = line_id
         line['line_code'] = ''
         line['line_name'] = line_name
-        line['box_north'] = 0.0
-        line['box_south'] = 0.0
-        line['box_east'] = 0.0
-        line['box_west'] = 0.0
+        line['box_north'] = None
+        line['box_south'] = None
+        line['box_east'] = None
+        line['box_west'] = None
         line['voltage'] = voltage
         line['category'] = category
         line['length'] = 0.0
@@ -9220,7 +9249,7 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
         line['end_point'] = None
         line['start_tower'] = None
         line['end_tower'] = None
-        line['status'] = None
+        line['status'] = u'运行中'
         line['maintenace'] = None
         line['management'] = None
         line['owner'] = None
@@ -9234,6 +9263,11 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
         line['finish_date'] = None
         line['production_date'] = None
         line['decease_date'] = None
+        l = odbc_get_records('TABLE_LINE', u"line_name='%s'" % line_name, area)
+        if len(l)>0:
+            errmsg = u'已存在相同线路名[%s]' % line_name
+            raise Exception(errmsg)
+            
         return line
     
     
@@ -9246,46 +9280,58 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
                 tower_id = str(uuid.uuid4())
                 tower = {'id':tower_id, 'line_id':line_id}
                 for j in range(sheet.ncols):
-                    v = sheet.cell_value(i,j)
-                    if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
-                        if '\n' in v:
-                            arr = v.split('\n')
-                            s = ''
-                            for k in arr:
-                                s += k + ','
-                            if len(s)>0:
-                                s = s[:-1]
-                            v = s
-                        #print('(%d,%d)=%s' % (i, j, v))
-                        if j == 2:
-                            tower['tower_name'] = line_name + v
-                            towers_id_name_mapping[v] = tower['id']
-                        elif j == 4:
-                            arr = v.split(' - ')
-                            tower['model_code'] = arr[0]
-                            tower['denomi_height'] = int(arr[1])
-                        elif j == 7:
-                            tower['model_code'] = arr[0]
-                    elif isinstance(v, int):
-                        #print('(%d,%d)=%d' % (i, j, v))
-                        pass
-                    elif isinstance(v, float):
-                        #print('(%d,%d)=%f' % (i, j, v))
-                        if j == 7:
-                            tower['horizontal_span'] = v
-                        elif j == 8:
-                            tower['vertical_span'] = v
-                        elif j == 9:
-                            tower['building_level'] = v
-                        elif j == 10:
-                            tower['line_rotate'] = v
-                        elif j == 42:
-                            tower['geo_x'] = v
-                        elif j == 43:
-                            tower['geo_y'] = v
+                    try:
+                        v = sheet.cell_value(i,j)
+                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                            if '\n' in v:
+                                arr = v.split('\n')
+                                s = ''
+                                for k in arr:
+                                    s += k + ','
+                                if len(s)>0:
+                                    s = s[:-1]
+                                v = s
+                            #print('(%d,%d)=%s' % (i, j, v))
+                            if j == 2:
+                                tower['tower_name'] = line_name + v
+                                towers_id_name_mapping[v] = tower['id']
+                            elif j == 4:
+                                arr = v.split(' - ')
+                                tower['model_code'] = arr[0]
+                                tower['denomi_height'] = int(arr[1])
+                            #elif j == 7:
+                                #tower['model_code'] = arr[0]
+                            elif j in [7, 8, 9, 10, 42, 43]:
+                                errmsg = u'解析单元格(%d,%d)出错,请检查, should be float' % (i+1, j+1)
+                                raise Exception(errmsg)
+                                
+                        elif isinstance(v, int):
+                            #print('(%d,%d)=%d' % (i, j, v))
+                            pass
+                        elif isinstance(v, float):
+                            #print('(%d,%d)=%f' % (i, j, v))
+                            if j == 7:
+                                tower['horizontal_span'] = v
+                            elif j == 8:
+                                tower['vertical_span'] = v
+                            elif j == 9:
+                                tower['building_level'] = v
+                            elif j == 10:
+                                tower['line_rotate'] = v
+                            elif j == 42:
+                                tower['geo_x'] = v
+                            elif j == 43:
+                                tower['geo_y'] = v
+                            elif j in [2, 4]:
+                                errmsg = u'解析单元格(%d,%d)出错,请检查, should be string' % (i+1, j+1)
+                                raise Exception(errmsg)
+                                
+                                
+                                
+                    except:
+                        errmsg = u'解析单元格(%d,%d)出错,请检查' % (i+1, j+1)
+                        raise Exception(errmsg)
                 if tower.has_key('tower_name'):
-                    
-                    
                     #tower['id'],
                     #tower['line_id'],
                     tower['tower_code'] = ''
@@ -9306,6 +9352,7 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
                     #tower['line_rotate']
                     
                     towers.append(tower)
+        
         return towers, towers_id_name_mapping
     
     #TABLE_STRAIN_SECTION
@@ -9315,40 +9362,56 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
         for i in range(sheet.nrows):
             if i >= 7:
                 for j in range(sheet.ncols):
-                    if j == 1:
-                        v = sheet.cell_value(i,j)
-                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
-                            if '/' in v:
-                                arr = v.split('/')
-                                #print('(%d,%d)=%f, %f, %f' % (i, j, float(arr[0]), float(arr[1]), float(arr[2])))
-                                l.append({'row':i, 'total_length':float(arr[0]), 'typical_span':float(arr[1]), 'k_value':float(arr[2])})
-                    if j == 2:
-                        v = sheet.cell_value(i,j)
-                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                    try:
+                        if j == 1:
+                            v = sheet.cell_value(i,j)
+                            if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                                if '/' in v:
+                                    arr = v.split('/')
+                                    #print('(%d,%d)=%f, %f, %f' % (i, j, float(arr[0]), float(arr[1]), float(arr[2])))
+                                    l.append({'row':i, 'total_length':float(arr[0].strip()), 'typical_span':float(arr[1].strip()), 'k_value':float(arr[2].strip())})
+                            #else:
+                                #errmsg = u'error occur when parsing tower in cell(%d,%d), should be string' % (i+1, j+1)
+                                #raise Exception(errmsg)
+                        if j == 2:
+                            v = sheet.cell_value(i,j)
+                            #if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
                             lastrow = i
+                            #else:
+                                #errmsg = u'error occur when parsing tower in cell(%d,%d), should be string' % (i+1, j+1)
+                                #raise Exception(errmsg)
+                                
+                    except:
+                        errmsg = u'解析单元格(%d,%d)出错,请检查' % (i+1, j+1)
+                        raise Exception(errmsg)
                                 
         #print('lastrow = %d' % lastrow)
         strains = []
         for i in l:
-            strain_id = str(uuid.uuid4())
-            strain = {'id':strain_id, 'line_id':line_id}
-            
-            idx = l.index(i)
-            v1 = sheet.cell_value(i['row']-1,2)
-            if idx+1 < len(l):
-                v2 = sheet.cell_value(l[idx+1]['row']-1,2)
-            else:
-                v2 = sheet.cell_value(lastrow,2)
-            #print('start=%s, end=%s, total_length=%f, typical_span=%f, k_value=%f' % (v1, v2, i['total_length'], i['typical_span'], i['k_value']))
-            strain['start_tower'] = id_mapping[v1]
-            strain['end_tower'] = id_mapping[v2]
-            strain['total_length'] = i['total_length']
-            strain['typical_span'] = i['typical_span']
-            strain['k_value'] = i['k_value']
-            strain['conductor_type'] = ''
-            strain['ground_type_left'] = ''
-            strain['ground_type_right'] = ''
-            strains.append(strain)
+            try:
+                strain_id = str(uuid.uuid4())
+                strain = {'id':strain_id, 'line_id':line_id}
+                
+                idx = l.index(i)
+                v1 = sheet.cell_value(i['row']-1,2)
+                if idx+1 < len(l):
+                    v2 = sheet.cell_value(l[idx+1]['row']-1,2)
+                else:
+                    v2 = sheet.cell_value(lastrow,2)
+                #print('start=%s, end=%s, total_length=%f, typical_span=%f, k_value=%f' % (v1, v2, i['total_length'], i['typical_span'], i['k_value']))
+                strain['start_tower'] = id_mapping[v1]
+                strain['end_tower'] = id_mapping[v2]
+                strain['total_length'] = i['total_length']
+                strain['typical_span'] = i['typical_span']
+                strain['k_value'] = i['k_value']
+                strain['conductor_type'] = ''
+                strain['ground_type_left'] = ''
+                strain['ground_type_right'] = ''
+                strains.append(strain)
+            except:
+                errmsg = u'解析单元行[%d]出错,请检查' % i['row'] + 1
+                raise Exception(errmsg)
+                
         return strains
     
     #TABLE_SEGMENT
@@ -9359,38 +9422,53 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
         for i in range(sheet.nrows):
             if i >= 7:
                 for j in range(sheet.ncols):
-                    if j == 6:
-                        v = sheet.cell_value(i,j)
-                        if isinstance(v, float) :
-                            l.append({'row':i, 'length':v,})
-                    if j == 2:
-                        v = sheet.cell_value(i,j)
-                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                    try:
+                        if j == 6:
+                            v = sheet.cell_value(i,j)
+                            if isinstance(v, float) :
+                                l.append({'row':i, 'length':v,})
+                            elif (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                                errmsg = u'解析单元格(%d,%d)出错,请检查 should be float' % (i+1, j+1)
+                                raise Exception(errmsg)
+                            
+                        if j == 2:
+                            v = sheet.cell_value(i,j)
+                            #if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
                             lastrow = i
+                            #else:
+                                #errmsg = u'error occur when parsing tower in cell(%d,%d), should be string' % (i+1, j+1)
+                                #raise Exception(errmsg)
+                    except:
+                        errmsg = u'解析单元格(%d,%d)出错,请检查' % (i+1, j+1)
+                        raise Exception(errmsg)
                                 
         segs = []
         for i in l:
-            seg_id = str(uuid.uuid4())
-            seg = {'id':seg_id, 'line_id':line_id}
-            
-            idx = l.index(i)
-            v1 = sheet.cell_value(i['row']-1,2)
-            if idx+1 < len(l):
-                v2 = sheet.cell_value(l[idx+1]['row']-1,2)
-            else:
-                v2 = sheet.cell_value(lastrow,2)
-            #print('small=%s, big=%s, length=%f' % (v1, v2, i['length']))
-            m[v1+v2] = seg_id
-            seg['small_tower'] = id_mapping[v1]
-            seg['big_tower'] = id_mapping[v2]
-            seg['splitting'] = 2
-            seg['conductor_count'] = 0
-            seg['crosspoint_count'] = 0
-            seg['length'] = i['length']
-            seg['seperator_bar'] = 0
-            seg['connector_count'] = 0
-            seg['connector_type'] = ''
-            segs.append(seg)
+            try:
+                seg_id = str(uuid.uuid4())
+                seg = {'id':seg_id, 'line_id':line_id}
+                
+                idx = l.index(i)
+                v1 = sheet.cell_value(i['row']-1,2)
+                if idx+1 < len(l):
+                    v2 = sheet.cell_value(l[idx+1]['row']-1,2)
+                else:
+                    v2 = sheet.cell_value(lastrow,2)
+                #print('small=%s, big=%s, length=%f' % (v1, v2, i['length']))
+                m[v1+v2] = seg_id
+                seg['small_tower'] = id_mapping[v1]
+                seg['big_tower'] = id_mapping[v2]
+                seg['splitting'] = 2
+                seg['conductor_count'] = 0
+                seg['crosspoint_count'] = 0
+                seg['length'] = i['length']
+                seg['seperator_bar'] = 0
+                seg['connector_count'] = 0
+                seg['connector_type'] = ''
+                segs.append(seg)
+            except:
+                errmsg = u'解析单元格行[%d]出错,请检查' % i['row'] + 1
+                raise Exception(errmsg)
         return segs, m
     
     
@@ -9401,40 +9479,44 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
         for i in range(sheet.nrows):
             if i >= 7:
                 for j in range(sheet.ncols):
-                    if j >= 30 and j<=41:
-                        v = sheet.cell_value(i,j)
-                        if isinstance(v, float) :
-                            cp_type = ''
-                            if j == 30:
-                                cp_type = u'低压线'
-                            if j == 31:
-                                cp_type = u'通讯线'
-                            if j == 32:
-                                cp_type = u'电力线'
-                            if j == 33:
-                                cp_type = u'铁路'
-                            if j == 34:
-                                cp_type = u'公路'
-                            if j == 35:
-                                cp_type = u'电车道'
-                            if j == 36:
-                                cp_type = u'通航河流'
-                            if j == 37:
-                                cp_type = u'不通航河流'
-                            if j == 38:
-                                cp_type = u'管道'
-                            if j == 39:
-                                cp_type = u'索道'
-                            if j == 40:
-                                cp_type = u'房屋'
-                            if j == 41:
-                                cp_type = u'林木'
-                            if len(cp_type)>0:
-                                l.append({'row':i, 'col':j, 'cp_type':cp_type})
-                    if j == 2:
-                        v = sheet.cell_value(i,j)
-                        if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
-                            lastrow = i
+                    try:
+                        if j >= 30 and j<=41:
+                            v = sheet.cell_value(i,j)
+                            if isinstance(v, float) :
+                                cp_type = ''
+                                if j == 30:
+                                    cp_type = u'低压线'
+                                if j == 31:
+                                    cp_type = u'通讯线'
+                                if j == 32:
+                                    cp_type = u'电力线'
+                                if j == 33:
+                                    cp_type = u'铁路'
+                                if j == 34:
+                                    cp_type = u'公路'
+                                if j == 35:
+                                    cp_type = u'电车道'
+                                if j == 36:
+                                    cp_type = u'通航河流'
+                                if j == 37:
+                                    cp_type = u'不通航河流'
+                                if j == 38:
+                                    cp_type = u'管道'
+                                if j == 39:
+                                    cp_type = u'索道'
+                                if j == 40:
+                                    cp_type = u'房屋'
+                                if j == 41:
+                                    cp_type = u'林木'
+                                if len(cp_type)>0:
+                                    l.append({'row':i, 'col':j, 'cp_type':cp_type})
+                        if j == 2:
+                            v = sheet.cell_value(i,j)
+                            if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                                lastrow = i
+                    except:
+                        errmsg = u'解析单元格(%d,%d)出错,请检查' % (i+1, j+1)
+                        raise Exception(errmsg)
                                 
         return []
     
@@ -9448,91 +9530,112 @@ def import_tower_xls_file(line_name,voltage, category, xls_file):
                 metal_id = str(uuid.uuid4())
                 metal = {'id':metal_id}
                 for j in range(sheet.ncols):
-                    tower_name = sheet.cell_value(i,2)
-                    if len(tower_name)>0:
-                        metal['tower_id'] = id_mapping[str(tower_name)]
-                        if j >= 19 and j<=24:
-                            v = sheet.cell_value(i,j)
-                            karr, varr = [], []
-                            if j in [19, 21, 23]:
-                                if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
-                                    karr = v.strip().split('\n')
-                                    vv = sheet.cell_value(i, j+1)
-                                    if len(karr)==1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
-                                        metal['attach_type'] = u'绝缘子串'
-                                        if j == 19:
-                                            metal['attach_subtype'] = u'导线绝缘子'
-                                        elif j == 21:
-                                            metal['attach_subtype'] = u'跳线绝缘子'
-                                        elif j == 23:
-                                            metal['attach_subtype'] = u'地线绝缘子'
-                                        metal['specification'] = karr[0]
-                                        metal['material'] = u''
-                                        metal['strand'] = int(vv.strip())
-                                        metal['slice'] = 0
-                                        metal['value1'] = 0
-                                        print('%s %s %d' % (tower_name, karr[0], int(vv)))
-                                        l.append(metal)
-                                    elif len(karr)>1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
-                                        varr = vv.strip().split('\n')
-                                        if len(karr) == len(varr):
-                                            for k in karr:
-                                                metal['id'] = str(uuid.uuid4())
-                                                metal['attach_type'] = u'绝缘子串'
-                                                if j == 19:
-                                                    metal['attach_subtype'] = u'导线绝缘子'
-                                                elif j == 21:
-                                                    metal['attach_subtype'] = u'跳线绝缘子'
-                                                elif j == 23:
-                                                    metal['attach_subtype'] = u'地线绝缘子'
-                                                metal['specification'] = k
-                                                metal['material'] = u''
-                                                metal['strand'] = int(varr[karr.index(k)])
-                                                metal['slice'] = 0
-                                                metal['value1'] = 0
-                                                print('%s %s %d' % (tower_name, k, int(varr[karr.index(k)])))
-                                                l.append(metal)
-                                            
-                                            
-                                
-                                
+                    try:
+                        tower_name = sheet.cell_value(i,2)
+                        if len(tower_name)>0:
+                            metal['tower_id'] = id_mapping[str(tower_name)]
+                            if j >= 19 and j<=24:
+                                v = sheet.cell_value(i,j)
+                                karr, varr = [], []
+                                if j in [19, 21, 23]:
+                                    if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0:
+                                        karr = v.strip().split('\n')
+                                        vv = sheet.cell_value(i, j+1)
+                                        if len(karr)==1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
+                                            metal['attach_type'] = u'绝缘子串'
+                                            if j == 19:
+                                                metal['attach_subtype'] = u'导线绝缘子'
+                                            elif j == 21:
+                                                metal['attach_subtype'] = u'跳线绝缘子'
+                                            elif j == 23:
+                                                metal['attach_subtype'] = u'地线绝缘子'
+                                            metal['specification'] = karr[0]
+                                            metal['material'] = u''
+                                            metal['strand'] = int(vv.strip())
+                                            metal['slice'] = 0
+                                            metal['value1'] = 0
+                                            print('%s %s %d' % (tower_name, karr[0], int(vv)))
+                                            l.append(metal)
+                                        elif len(karr)>1 and (isinstance(vv, str) or isinstance(vv, unicode)) and len(vv)>0:
+                                            varr = vv.strip().split('\n')
+                                            if len(karr) == len(varr):
+                                                for k in karr:
+                                                    metal['id'] = str(uuid.uuid4())
+                                                    metal['attach_type'] = u'绝缘子串'
+                                                    if j == 19:
+                                                        metal['attach_subtype'] = u'导线绝缘子'
+                                                    elif j == 21:
+                                                        metal['attach_subtype'] = u'跳线绝缘子'
+                                                    elif j == 23:
+                                                        metal['attach_subtype'] = u'地线绝缘子'
+                                                    metal['specification'] = k
+                                                    metal['material'] = u''
+                                                    metal['strand'] = int(varr[karr.index(k)])
+                                                    metal['slice'] = 0
+                                                    metal['value1'] = 0
+                                                    print('%s %s %d' % (tower_name, k, int(varr[karr.index(k)])))
+                                                    l.append(metal)
+                                                
+                    except:
+                        errmsg = u'解析单元格(%d,%d)出错,请检查' % (i+1, j+1)
+                        raise Exception(errmsg)
         return l
     
     
-    book = xlrd.open_workbook(xls_file)
-    sheet = book.sheet_by_index(0)
     line_id = str(uuid.uuid4())
-    print('line_id=%s' % line_id)
-    line = extract_line(sheet, line_id, line_name, voltage, category)
-    towers, towers_id_name_mapping = extract_tower(sheet, line_id)
-    strains = extract_strain(sheet, line_id, towers_id_name_mapping)
-    segs, seg_mapping = extract_segment(sheet, line_id, towers_id_name_mapping)
-    #metals = extract_metals(sheet, line_id, towers_id_name_mapping)
-            
-    area = 'zt'
-    sqls = []
-    sqls.append(odbc_save_data_to_table('TABLE_LINE', 'save', [line,], None, None, None, area, True))
-    sqls.append(odbc_save_data_to_table('TABLE_TOWER', 'save', towers, None, None, None, area, True))
-    sqls.append(odbc_save_data_to_table('TABLE_STRAIN_SECTION', 'save', strains, None, None, None, area, True))
-    sqls.append(odbc_save_data_to_table('TABLE_SEGMENT', 'save', segs, None, None, None, area, True))
-    print(len(sqls))
-    for sql in sqls:
-        print(sql)
     ret = {}
     ret['line_id'] = line_id
     ret['result'] = ''
+    area = 'zt'
+    sqls = []
+    
+    try:
+        book = xlrd.open_workbook(xls_file)
+        sheet = book.sheet_by_index(0)
+        line = extract_line(area, sheet, line_id, line_name, voltage, category)
+        towers, towers_id_name_mapping = extract_tower(sheet, line_id)
+        strains = extract_strain(sheet, line_id, towers_id_name_mapping)
+        segs, seg_mapping = extract_segment(sheet, line_id, towers_id_name_mapping)
+        #metals = extract_metals(sheet, line_id, towers_id_name_mapping)
+            
+        sqls.extend(odbc_save_data_to_table('TABLE_LINE', 'save', [line,], None, None, None, area, True))
+        sqls.extend(odbc_save_data_to_table('TABLE_TOWER', 'save', towers, None, None, None, area, True))
+        sqls.extend(odbc_save_data_to_table('TABLE_STRAIN_SECTION', 'save', strains, None, None, None, area, True))
+        sqls.extend(odbc_save_data_to_table('TABLE_SEGMENT', 'save', segs, None, None, None, area, True))
+    except:
+        ret['result'] = sys.exc_info()[1]
+        raise
+        
+    print(len(sqls))
+    for sql in sqls:
+        print(sql)
     try:
         odbc_execute_sqls(sqls, area)
     except:
         ret['result'] = sys.exc_info()[1]
+        raise
     return ret
+
+
+def test_import_xlsdata():
+    #XLS_FILE = ur'F:\work\csharp\kmgdnew10.2-2014-1-17\交流220kV永发II回线杆塔明细表.xls'
+    #ret = import_tower_xls_file('zt',u'测试线路基于永发II回线', '13', u'架空线', XLS_FILE)
+    #print('line_id=%s' % ret['line_id'])
+    #print(ret['result'])
+    test_delete_import_xlsdata('f1992b07-41b9-4fda-b802-15bdf4054f09')
+
 
 def test_delete_import_xlsdata(line_id):
     sqls = []
-    sqls.append('''delete from TABLE_LINE where line_id='%s' ''' % line_id)
+    sqls.append('''delete from TABLE_LINE where id='%s' ''' % line_id)
     sqls.append('''delete from TABLE_TOWER where line_id='%s' ''' % line_id)
     sqls.append('''delete from TABLE_STRAIN_SECTION where line_id='%s' ''' % line_id)
     sqls.append('''delete from TABLE_SEGMENT where line_id='%s' ''' % line_id)
+    try:
+        odbc_execute_sqls(sqls, 'zt')
+    except:
+        print(sys.exc_info()[1])
+    
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -9573,16 +9676,19 @@ if __name__=="__main__":
     
     #gen_geojson_by_lines('km')
     
-    
+    db_name, area = 'kmgd', 'km'
+    db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
-    #test_mongo_import_line()
-    #test_mongo_import_code()
+    #create_id_mapping(db_name, area)
+    #test_mongo_import_code(db_name, area)
+    #test_mongo_import_line(db_name, area)
+    #test_mongo_import_towers(db_name, area)
+    test_mongo_import_segments(db_name, area)
+    #test_mongo_import_models(db_name, area)
     #test_build_tower_odbc_mongo_id_mapping()
     #test_build_line_odbc_mongo_id_mapping()
-    #test_mongo_import_towers()
-    #test_mongo_import_segments()
-    #test_mongo_import_models()
+    #test_build_model_odbc_mongo_id_mapping()
     #ret = mongo_find('kmgd', 'mongo_get_towers_by_line_name', {'line_name':u'七罗I回'})
     #print(ret)
     #print('count=%d' % len(ret))
@@ -9594,9 +9700,6 @@ if __name__=="__main__":
     #test_find_by_string_id()
     #test_pinyin_search()
     #test_import_geojson_feature_by_shape()
-    XLS_FILE = ur'F:\work\csharp\kmgdnew10.2-2014-1-17\交流220kV永发II回线杆塔明细表.xls'
-    ret = import_tower_xls_file(u'测试线路基于永发II回线', '13', u'架空线', XLS_FILE)
-    print(ret)
-    print(ret['line_id'])
+    #test_import_xlsdata()
     
     

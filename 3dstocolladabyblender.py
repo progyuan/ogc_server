@@ -15,7 +15,7 @@ def reduce_one(src, dst, ratio, angle, exportformat = '3ds'):
     print('delete existing object...')
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
-    #print('import %s...' % src)
+    print('---------------------import %s...' % src)
     bpy.ops.import_scene.autodesk_3ds(filepath=src, constrain_size=0)
     select_by_name(name = "Camera", extend = False)
     bpy.ops.object.delete()
@@ -111,6 +111,7 @@ def reduce_many(src_dir, dst_dir, ratio=0.1, angle=90,  recursive=5, exportforma
                 if exportformat=='dae':
                     dst = dst.replace('.3ds', '.dae')
                 filelist.append((src, dst))
+                print('src=%s,dst=%s' % (src, dst))
                     
         
                 
@@ -201,7 +202,7 @@ def batch_export_obj(srcdir, dstdir, ratio=1.0, scale=0.001):
             
 if __name__=="__main__":
     #reduce_many(r'F:\work\csharp\kmgdmodel_xly',u'F:\work\csharp\kmgdmodel_dae', 0.1, 90, 1, 'dae')
-    reduce_many(r'H:\kmmodel',r'f:\work\kmdae0.4', 0.4, 0, 1, 'dae')
+    reduce_many(r'F:\work\csharp\kmgdmodel_xly',r'F:\work\kmdae0.5', 0.5, 0, 1, 'dae')
     #reduce_one_recusive(r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18.3ds', r'F:\work\csharp\kmgdmodel_xly\YF_SZF241A\SZF241A_18_0.1_90.dae', 0.1, 90, 1, 'dae')
     #batch_export_obj(r'F:\work\csharp\kmgdmodel_xly', r'F:\work\csharp\obj')
     #test()
