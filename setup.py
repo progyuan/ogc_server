@@ -24,7 +24,7 @@ from cx_Freeze import setup, Executable
         
 
 
-def build():
+def build(is_include_web=False):
     base = None
     base_gui = None
     base_services = None
@@ -33,6 +33,35 @@ def build():
         base_gui = 'Win32GUI'
         base_services = 'Win32Service'
     
+    include_files = [
+                    'ogc-config.ini', 
+                    'ogc_service_install.bat', 
+                    'ogc_service_uninstall.bat', 
+                    'pinyin_word.data',
+                    'static/img',
+                    'static/geojson',
+                    'gdal-bin',
+                    ]
+    
+    if is_include_web:
+        include_files.extend(
+            [
+                'static/api',
+                'static/css',
+                'static/gltf',
+                'static/img',
+                'static/js',
+                'static/lab',
+                'static/lib',
+                'static/demos',
+                'static/theme',
+                'static/threejs',
+                'static/indexdata.js',
+                'static/webgis_index.html',
+                'static/webgis_login.html',
+            ]
+        )
+    
     setup(
             name = "ogc_server",
             version = "1.0",
@@ -40,25 +69,7 @@ def build():
             options = {"build_exe" : {
                 #"packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
                 "includes": ['lxml._elementpath', 'greenlet','gevent', 'cx_Logging', 'ogc_server'],
-                "include_files" : [
-                    'ogc-config.ini', 
-                    'ogc_service_install.bat', 
-                    'ogc_service_uninstall.bat', 
-                    'pinyin_word.data',
-                    'static/img',
-                    'static/geojson',
-                    #'static/css',
-                    #'static/js',
-                    #'static/lib',
-                    #'static/lab',
-                    #'static/api',
-                    #'static/demos',
-                    #'static/theme',
-                    #'static/indexdata.js',
-                    #'static/index_pymongoadmin.html',
-                    #'static/welcome_pymongoadmin.html',
-                    #'static/dishen_test.html',
-                    ],
+                "include_files" : include_files,
                 "include_msvcr": True
             }
                     },
@@ -83,6 +94,6 @@ def build():
     
 
 if __name__ == '__main__':
-    build()
+    build(False)
     
     

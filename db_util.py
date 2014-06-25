@@ -23,7 +23,7 @@ import re
 import configobj
 import psycopg2 as psycopg
 from psycopg2 import errorcodes
-import gdal, osr
+#import gdal, osr
 import shapefile
 import sqlite3
 import base64
@@ -216,20 +216,6 @@ class DemExtrctor(object):
         return self.arr[ylin,xpix]
 
 
-def init_python_lib_path():
-    currdir = os.path.dirname(__file__)
-    for d in ARCGIS_PYTHON_SITE_PACKAGES_DIR:
-        for i in ['server10.1.pth', 'Desktop10.1.pth', 'Engine10.1.pth']:
-            p = os.path.join(d, i)
-            if os.path.exists(p):
-                with open(p, 'a+') as f:
-                    l = f.readlines()
-                    ll = [ii.strip().lower() for ii in l]
-                    if currdir in ll:
-                        print('"%s" already exist in [%s]' % (currdir, p))
-                    else:
-                        f.write('\n' + currdir + '\n')
-                        print('add "%s" to [%s]' % (currdir, p))
                         
                         
                 

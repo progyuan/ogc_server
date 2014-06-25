@@ -47,13 +47,22 @@ $(function() {
 	//var line_name = '七罗I回';
 	var line_name = '永发I回线';
 	LoadTowerByLineName(viewer, g_db_name,  line_name);
-	line_name = '永发II回线';
-	LoadTowerByLineName(viewer, g_db_name,  line_name);
+	//line_name = '永发II回线';
+	//LoadTowerByLineName(viewer, g_db_name,  line_name);
 	LoadSegments(viewer, g_db_name);
 	LoadModelsList(g_db_name);
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'countyborder'});
+	//GetZfromXY(103.036471, 25.599314, function(alt){
+		//console.log('103.036471, 25.599314 alt=' + alt);
+	//});
+	//GetZfromXY(102.803284, 26.555857, function(alt){
+		//console.log('102.803284, 26.555857 alt=' + alt);
+	//});
+	//GetZListfromXYList([{lng:103.036471, lat:25.599314},{lng:102.803284, lat:26.555857}], function(list){
+		//console.log(list);
+	//});	
 	
 });
 
@@ -1010,6 +1019,7 @@ function LoadTowerByLineName(viewer, db_name,  line_name)
 	MongoFind( geo_cond, 
 		function(data){
 			ShowProgressBar(false);
+			//var ddd = [];
 			for(var i in data)
 			{
 				if(!g_geojsons[data[i]['_id']])
@@ -1022,8 +1032,11 @@ function LoadTowerByLineName(viewer, db_name,  line_name)
 					g_czmls[data[i]['_id']] = CreateTowerCzmlFromGeojson(data[i]);
 					//arr.push(cz);
 				}
-				
+				//ddd.push({lng:data[i]['geometry']['coordinates'][0], lat:data[i]['geometry']['coordinates'][1]});
 			}
+			//GetZListfromXYList(ddd,function(dd){
+				//console.log(dd);
+			//});
 			//viewer.dataSources.removeAll();
 			ReloadCzmlDataSource(viewer, g_zaware);
 			var extent = GetExtentByCzml();

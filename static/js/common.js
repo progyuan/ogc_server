@@ -132,3 +132,22 @@ function ShowMessage(id, width, height, title, msg, ok)
 	});
 }
 
+function GetZfromXY(lng, lat, callback)
+{
+	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
+	var data = {op:'alt', lng:lng, lat:lat};
+	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+		ret = JSON.parse(decodeURIComponent(data1));
+		callback(ret);
+	}, 'text');
+}
+
+function GetZListfromXYList(list, callback)
+{
+	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
+	var data = {op:'alt', data:list};
+	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+		ret = JSON.parse(decodeURIComponent(data1));
+		callback(ret);
+	}, 'text');
+}

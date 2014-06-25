@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import codecs
 import os, sys
 import random
@@ -132,6 +133,7 @@ def handle_static(aUrl):
     else:
         ext = os.path.splitext(p)[1]
     print('handle_static p=%s' % p)
+    
     if len(ext)>0:
         if gConfig['mime_type'].has_key(ext):
             if 'image/' in gConfig['mime_type'][ext]:
@@ -1397,6 +1399,11 @@ def handle_post_method(Env, Start_response):
                     ret = db_util.odbc_save_data_to_table(obj['table'], obj['op'], obj['data'], obj['line_id'], obj['start_tower_id'], obj['end_tower_id'], obj['area'])
                 else:
                     ret = handle_requset_sync(obj)
+            elif obj['op'] in ['alt','height'] :
+                if obj.has_key('lng') and obj.has_key('lat') and isinstance(obj['lng'], float) and isinstance(obj['lat'], float):
+                    ret = extract_one_altitude(obj['lng'], obj['lat'])
+                if obj.has_key('data')  and isinstance(obj['data'], list):
+                    ret = extract_many_altitudes(obj['data'])
             else:
                 ret["result"] = "unknown area"
         elif obj.has_key('tracks') and obj.has_key('area'):
@@ -1407,11 +1414,13 @@ def handle_post_method(Env, Start_response):
                     ret['result'] = ret['result'].message
                 else:
                     ret['result'] = str(ret['result'])
-            elif ret.has_key('result') and (isinstance(ret['result'], str) or isinstance(ret['result'], unicode)):
+            elif ret.has_key('result') and (isinstance(ret['result'], str) or isinstance(ret['result'], unicode) or isinstance(ret['result'], int) or isinstance(ret['result'], float)):
                 pass
             else:    
                 ret["result"] = "unknown operation"
-    if (isinstance(ret, list) and len(ret)==0) or (isinstance(ret, dict) and len(ret.keys())==0):
+    if isinstance(ret, list) and len(ret)==0: 
+        ret["result"] = "no record"
+    if isinstance(ret, dict) and len(ret.keys())==0:
         ret["result"] = "ok"
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
     #time.sleep(6)
@@ -2024,6 +2033,28 @@ def gen_model_app_cache():
     with open(os.path.join(STATICRESOURCE_DIR, 'kmgd.appcache'), 'w') as f:
         f.write(s)
    
+
+def extract_one_altitude(lng, lat):
+    global gConfig
+    ret = None
+    exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
+    dem_path = gConfig['terrain']['dem_file']
+    out = subprocess.check_output([exe_path, '-wgs84', "%s" % dem_path, "%f" % lng, "%f" % lat])
+    t = 'Value:'
+    if t in out:
+        idx = out.index(t) + len(t)
+        ret = float(out[idx:].strip())
+    else:
+        print('extract_altitude_from_dem:out of range!')
+    return ret
+
+def extract_many_altitudes(lnglatlist):
+    ret = []
+    for i in lnglatlist:
+        if isinstance(i, dict) and i.has_key('lng') and i.has_key('lat'):
+            ret.append({'lng':i['lng'], 'lat':i['lat'], 'alt':extract_one_altitude(i['lng'], i['lat'])})
+    return ret
+
 
 if __name__=="__main__":
     freeze_support()
