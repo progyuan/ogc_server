@@ -34,7 +34,6 @@ import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
 import czml
-
 #from wfs_server import WFSServer
 import gmapcatcher.mapUtils as mapUtils
 import gmapcatcher.mapConf as mapConf
@@ -46,79 +45,85 @@ import pypyodbc
 import uuid
 import db_util
 from module_locator import module_path, dec, dec1, enc, enc1
+from geventhttpclient import HTTPClient, URL
 
-try:
-    from geventhttpclient import HTTPClient, URL
-except ImportError:
-    pass
 
-ENCODING = 'utf-8'
-ENCODING1 = 'gb18030'
 
-STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
 
-CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
-gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
-if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
-    if os.path.exists(gConfig['web']['webroot']):
-        STATICRESOURCE_DIR = gConfig['web']['webroot']
+
+ENCODING = None
+ENCODING1 = None
+STATICRESOURCE_DIR = None
+CONFIGFILE = None
+
     
 
-STATICRESOURCE_CSS_DIR = os.path.join(STATICRESOURCE_DIR, 'css')
-STATICRESOURCE_JS_DIR = os.path.join(STATICRESOURCE_DIR, 'js')
-STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
-UPLOAD_PHOTOS_DIR = os.path.join(STATICRESOURCE_DIR,'photos', 'upload')
-UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
+STATICRESOURCE_CSS_DIR = None
+STATICRESOURCE_JS_DIR = None
+STATICRESOURCE_IMG_DIR = None
+UPLOAD_PHOTOS_DIR = None
+UPLOAD_VOICE_DIR = None
 
-
+gConfig = None
 gStaticCache = {}
 gSatTileCache = {}
 gMapTileCache = {}
 gTerrainCache = {}
 gGreenlets = {}
 gClusterProcess = {}
-
 gMapDownloader = None
-try:
-    #gWFSService = WFSServer(CONFIGFILE)
-    #gWFSService.load()
-    gMapConf = mapConf.MapConf()
-    gCtxMap = MapServ(gMapConf)
-    #gMapDownloader = MapDownloader(gCtxMap, 1)
-    #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-    proxy, port = None, None
-    try:
-        proxy = str(gConfig['proxy']['host'])
-        port = int(gConfig['proxy']['port'])
-        gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
-    except:
-        gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+gCtxMap = None
+
+
+
+def init_global():
+    global ENCODING, ENCODING1, STATICRESOURCE_DIR, CONFIGFILE, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
+    global gConfig, gStaticCache, gSatTileCache, gMapTileCache, gTerrainCache, gGreenlets, gClusterProcess, gMapDownloader, gCtxMap
+    ENCODING = 'utf-8'
+    ENCODING1 = 'gb18030'
+    
+    STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
+    
+    CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
+    gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+    if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+        if os.path.exists(gConfig['web']['webroot']):
+            STATICRESOURCE_DIR = gConfig['web']['webroot']
         
-except:
-    pass
-
-#def dec(aStr):
-    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    #text, length = gb18030_decode(aStr, 'replace')
-    #return text
-#def enc(aStr):
-    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    #text, length = gb18030_encode(aStr, 'replace')
-    #return text
-#def dec1(aStr):
-    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    #text, length = gb18030_decode(aStr, 'replace')
-    #return text
-#def enc1(aStr):
-    #gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    #text, length = gb18030_encode(aStr, 'replace')
-    #return text
-
-
+    
+    STATICRESOURCE_CSS_DIR = os.path.join(STATICRESOURCE_DIR, 'css')
+    STATICRESOURCE_JS_DIR = os.path.join(STATICRESOURCE_DIR, 'js')
+    STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
+    UPLOAD_PHOTOS_DIR = os.path.join(STATICRESOURCE_DIR,'photos', 'upload')
+    UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
+    
+    
+    try:
+        #gWFSService = WFSServer(CONFIGFILE)
+        #gWFSService.load()
+        gCtxMap = MapServ()
+        #gMapDownloader = MapDownloader(gCtxMap, 1)
+        #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+        proxy, port = None, None
+        try:
+            proxy = str(gConfig['proxy']['host'])
+            port = int(gConfig['proxy']['port'])
+            if len(proxy)>0:
+                gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
+            else:
+                gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+        except:
+            gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+            
+    except:
+        print(sys.exc_info()[1])
+        pass
+    
 
 
 def handle_static(aUrl):
-    global gConfig
+    global ENCODING, gConfig
+    global STATICRESOURCE_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_CSS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_VOICE_DIR
     statuscode, contenttype, body = '404 Not Found', 'text/plain;charset=' + ENCODING, '404 Not Found'
     surl = dec(aUrl)#.replace('//', '').replace('/', os.path.sep)
     if surl[0:2] == '//':
@@ -664,6 +669,8 @@ def create_terrain_GetCapabilities():
     
  
 def download_callback(*args, **kwargs):
+    global gConfig, gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global STATICRESOURCE_IMG_DIR
     #print(kwargs)
     #print(args)
     zoom, col, row = args[1][2], args[1][0], args[1][1]
@@ -696,6 +703,7 @@ def download_callback(*args, **kwargs):
     #print(kwargs)
     
 def handle_terrain_GetTile(params, Start_response):
+    global gConfig
     zoomlevel, row, col = None, None, None
     if params.has_key('level'):
         zoomlevel = int(params['level'])
@@ -708,9 +716,11 @@ def handle_terrain_GetTile(params, Start_response):
     return ['']
     
 def handle_wmts_GetTile(params, Start_response):
+    global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global STATICRESOURCE_IMG_DIR
     picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
     root = gConfig['wmts']['tiles_sat_root']
-    gMapConf.map_service = 'Google'
+    #gMapConf.map_service = 'Google'
     lyrtype = mapConst.LAYER_SAT
     if params.has_key('TILEMATRIXSET'):
         if 'google_sat' in params['TILEMATRIXSET']:
@@ -721,7 +731,7 @@ def handle_wmts_GetTile(params, Start_response):
             lyrtype = mapConst.LAYER_MAP
         elif 'osm_map' in params['TILEMATRIXSET']:
             root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
-            gMapConf.map_service = 'OpenStreetMap'
+            #gMapConf.map_service = 'OpenStreetMap'
             lyrtype = mapConst.LAYER_MAP
         if not os.path.exists(os.path.abspath(gConfig['wmts']['tiles_root'])):
             os.mkdir(gConfig['wmts']['tiles_root'])
@@ -772,8 +782,19 @@ def handle_wmts_GetTile(params, Start_response):
         #urlobj = URL(url)
         #http = HTTPClient.from_url(urlobj)
         #y = http.get(urlobj.request_uri)
-        gMapConf.language = 'zh_CN'
-        gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback, conf=gMapConf)
+        #gMapConf.language = 'zh_CN'
+        #if gMapDownloader is None:
+            #try:
+                #proxy = str(gConfig['proxy']['host'])
+                #port = int(gConfig['proxy']['port'])
+                #if len(proxy)>0:
+                    #gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
+                #else:
+                    #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+            #except:
+                #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+            
+        gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback)
         
         
     
@@ -824,6 +845,8 @@ def handle_wmts_GetTile(params, Start_response):
     return [ret,]
 
 def handle_terrain(Env, Start_response):
+    global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global STATICRESOURCE_IMG_DIR
     path_info = Env['PATH_INFO']
     #print(path_info)
     key = path_info.replace('/terrain/','')
@@ -858,6 +881,8 @@ def handle_terrain(Env, Start_response):
     
     
 def handle_arcgistile(Env, Start_response):
+    global gConfig, gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global STATICRESOURCE_IMG_DIR
     ret = None
     dd = cgi.parse(None, Env)
     d = {}
@@ -953,6 +978,7 @@ def handle_wfs(Env, Start_response):
     return gWFSService.dispatchRequest(Env, Start_response)
     
 def handle_cluster(Env, Start_response):
+    global gConfig
     Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
     if int(Env['SERVER_PORT'])==int(gConfig['cluster']['manager_port']) and gConfig['cluster']['enable_cluster'] in ['true','True']:
         op = ''
@@ -1003,6 +1029,9 @@ def mongo_get_condition_from_dict(dct):
     return ret
     
 def handle_get_method(Env, Start_response):
+    global ENCODING
+    global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
+    global gConfig
     ret = {}
     s = ''
     d = cgi.parse(None, Env)
@@ -1149,6 +1178,7 @@ def handle_get_method(Env, Start_response):
     return [s]
 
 def create_upload_xls_dir():
+    global STATICRESOURCE_DIR
     p = os.path.join(STATICRESOURCE_DIR, 'upload')
     if not os.path.exists(p):
         os.mkdir(p)
@@ -1158,10 +1188,12 @@ def create_upload_xls_dir():
     return p
         
 def create_voice_dir():
+    global STATICRESOURCE_DIR, UPLOAD_VOICE_DIR
     if not os.path.exists(UPLOAD_VOICE_DIR):
         os.mkdir(UPLOAD_VOICE_DIR)
 
 def check_voice_file_by_fault(id):
+    global STATICRESOURCE_DIR, UPLOAD_VOICE_DIR
     create_voice_dir()
     ret = False
     for fn in os.listdir(UPLOAD_VOICE_DIR):
@@ -1171,6 +1203,7 @@ def check_voice_file_by_fault(id):
     return ret
 
 def get_voice_file_latest(id):
+    global STATICRESOURCE_DIR, UPLOAD_VOICE_DIR
     create_voice_dir()
     l = []
     for fn in os.listdir(UPLOAD_VOICE_DIR):
@@ -1183,6 +1216,7 @@ def get_voice_file_latest(id):
     return ret
 
 def get_voice_file_by(id):
+    global STATICRESOURCE_DIR, UPLOAD_VOICE_DIR
     create_voice_dir()
     l = []
     for fn in os.listdir(UPLOAD_VOICE_DIR):
@@ -1191,6 +1225,7 @@ def get_voice_file_by(id):
     return l
 
 def get_voice_file_all():
+    global STATICRESOURCE_DIR, UPLOAD_VOICE_DIR
     s = set()
     for fn in os.listdir(UPLOAD_VOICE_DIR):
         p = os.path.join(UPLOAD_VOICE_DIR, fn)
@@ -1204,12 +1239,14 @@ def get_voice_file_all():
 
 
 def create_pic_dir():
+    global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR
     if not os.path.exists(os.path.join(STATICRESOURCE_DIR,'photos')):
         os.mkdir(os.path.join(STATICRESOURCE_DIR,'photos'))
     if not os.path.exists(UPLOAD_PHOTOS_DIR):
         os.mkdir(UPLOAD_PHOTOS_DIR)
 
 def handle_upload_file(fileobj, qsdict):
+    global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
     ret = False
     root = os.path.abspath(STATICRESOURCE_DIR)
     create_pic_dir()
@@ -1315,6 +1352,7 @@ def geojson_to_czml(aList):
         
     
 def handle_post_method(Env, Start_response):
+    global ENCODING
     buf = Env['wsgi.input'].read()
     #forms, files = multipart.parse_form_data(Env)
     querydict = {}
@@ -1784,6 +1822,7 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
+    gen_model_app_cache()
     server = None
     if port and not enable_cluster:
         if enable_ssl:
@@ -2058,7 +2097,7 @@ def extract_many_altitudes(lnglatlist):
 
 if __name__=="__main__":
     freeze_support()
-    gen_model_app_cache()
+    init_global()
     if len(sys.argv) == 1:
         if gConfig['cluster']['enable_cluster'] in ['true','True']:
             mainloop_single(int(gConfig['cluster']['manager_port']), True, False)
@@ -2092,14 +2131,13 @@ class Win32ServiceHandler(object):
     # no parameters are permitted; all configuration should be placed in the
     # configuration file and handled in the Initialize() method
     def __init__(self):
-        #freeze_support()
-        self.server = None
-        self.stopEvent = threading.Event()
-        self.stopRequestedEvent = threading.Event()
+        pass
 
     # called when the service is starting
     def Initialize(self, configFileName):
-        pass
+        self.server = None
+        self.stopEvent = threading.Event()
+        self.stopRequestedEvent = threading.Event()
 
     # called when the service is starting immediately after Initialize()
     # use this to perform the work of the service; don't forget to set or check
@@ -2108,6 +2146,7 @@ class Win32ServiceHandler(object):
     def Run(self):
         #self.stopRequestedEvent.wait()
         self.stopEvent.set()
+        init_global()
         self.server = mainloop_single()
 
     # called when the service is being stopped by the service manager GUI

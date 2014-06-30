@@ -6,17 +6,18 @@
 from gmapcatcher.mapConst import *
 from os.path import join, dirname, abspath, exists, isfile
 from PIL import Image
+from module_locator import module_path
 
 
-## Absolute Path to the images directory
-if 'library.zip' in __file__:
-    _prefix = abspath(join(dirname(__file__), "../../../images"))
-    _prefix = abspath( "static/img")
-else:
-    _prefix = abspath(join(dirname(__file__), "../../images"))
+### Absolute Path to the images directory
+#if 'library.zip' in __file__:
+    #_prefix = abspath(join(dirname(__file__), "../../../images"))
+    #_prefix = abspath( "static/img")
+#else:
+    #_prefix = abspath(join(dirname(__file__), "../../images"))
 
-if not isfile(join(_prefix, 'missing.png')):
-    _prefix = '/usr/share/pixmaps/gmapcatcher'
+#if not isfile(join(_prefix, 'missing.png')):
+    #_prefix = '/usr/share/pixmaps/gmapcatcher'
 
 
 def ico():
@@ -32,7 +33,7 @@ def ico():
 def missing():
     pix_missing = False
     try:
-        pix_missing = image_data_fs(join(_prefix, 'missing.png'))
+        pix_missing = image_data_fs(join(module_path(), 'static', 'img',  'missing.png'))
     except Exception:
         pix_missing = image_data_direct("missing")
     return pix_missing

@@ -37,6 +37,9 @@ def build(is_include_web=False):
                     'ogc-config.ini', 
                     'ogc_service_install.bat', 
                     'ogc_service_uninstall.bat', 
+                    #'ogc_service2_install.bat', 
+                    #'ogc_service2_uninstall.bat', 
+                    'ogc_server_task_schedule.xml', 
                     'pinyin_word.data',
                     'static/img',
                     'static/geojson',
@@ -65,12 +68,12 @@ def build(is_include_web=False):
     setup(
             name = "ogc_server",
             version = "1.0",
-            description = "昭通供电局服务器端应用程序",
+            description = u"OGC Server服务器端应用程序",
             options = {"build_exe" : {
-                #"packages": ["lxml._elementpath", "greenlet", "gevent.fileobject"],
-                "includes": ['lxml._elementpath', 'greenlet','gevent', 'cx_Logging', 'ogc_server'],
-                "include_files" : include_files,
-                "include_msvcr": True
+                'packages': ['win32serviceutil','win32service','win32event','servicemanager','socket','win32timezone','cx_Logging',],
+                'includes': ['lxml._elementpath', 'greenlet','gevent', 'cx_Logging', 'ogc_server'],
+                'include_files' : include_files,
+                'include_msvcr': True,
             }
                     },
             executables = [
@@ -79,16 +82,21 @@ def build(is_include_web=False):
                                       targetName = "ogc_server.exe",
                                       #icon ='res/nfdw_gui.ico'
                                       ),
-                Executable("ogc_server_services.py",
+                Executable("ogc_server_services_config.py",
                                       base = base_services,
                                       targetName = "ogc_server_services.exe",
                                       #icon ='res/nfdw_gui.ico'
                                       ),
-                Executable("download.py",
-                         base = base,
-                         targetName = "download.exe",
-                         #icon ='res/nfdw.ico'
-                         ),                       
+                #Executable("ogc_server_services_win32.py",
+                                      #base = base,
+                                      #targetName = "ogc_server_services_win32.exe",
+                                      ##icon ='res/nfdw_gui.ico'
+                                      #),
+                #Executable("download.py",
+                         #base = base,
+                         #targetName = "download.exe",
+                         ##icon ='res/nfdw.ico'
+                         #),                       
             ]
     )
     

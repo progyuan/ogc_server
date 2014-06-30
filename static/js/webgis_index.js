@@ -333,7 +333,8 @@ function InitCesiumViewer()
 		tooltip : 'ASTER - 30 中国云南',
 		creationFunction : function() {
 			return new Cesium.CesiumTerrainProvider({
-				url : "http://cf-storage:88/" + "terrain",
+				//url : "http://cf-storage:88/" + "terrain",
+				url : g_host + "terrain",
 				credit : ''
 			});
 		}

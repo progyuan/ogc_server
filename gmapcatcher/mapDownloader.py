@@ -248,8 +248,8 @@ class MapDownloaderGevent:
         self.proxy_port = proxy_port
 
 
-    def coord_to_path(self, tile_coord, layer, conf):
-        ret =  os.path.abspath(os.path.join(os.path.dirname(conf.get_configpath()),conf.get_layer_dir(layer)))
+    def coord_to_path(self, tile_coord, layer):
+        ret =  os.path.abspath(os.path.join(DEFAULT_PATH,  LAYER_DIRS[layer]))
         if not os.path.exists(ret):
             os.mkdir(ret)
         ret =  os.path.join(ret, str(tile_coord[2]))
@@ -271,11 +271,11 @@ class MapDownloaderGevent:
     # @return number of tiles queued for download
     def query_tile(self, coord, layer, callback,
                     online=True, force_update=False,
-                    conf=None, hybrid_background=LAYER_SAT):
+                    hybrid_background=LAYER_SAT):
         ret = 0
         if layer == LAYER_HYB or layer == LAYER_CHA:
             ret += self.query_tile(coord, hybrid_background, callback,
-                    online, force_update, conf)
+                    online, force_update)
 
         world_tiles = mapUtils.tiles_on_level(coord[2])
         coord = (mapUtils.mod(coord[0], world_tiles),
@@ -301,7 +301,7 @@ class MapDownloaderGevent:
                     response = http.get(url.request_uri)
                     if response.status_code == 200:
                         #CHUNK_SIZE = 1024 * 16 # 16KB
-                        filename = self.coord_to_path(coord, layer, conf)
+                        filename = self.coord_to_path(coord, layer)
                         print('downloaded filename=%s' % filename)
                         with open(filename, 'wb') as f:
                             f.write(response.read())
@@ -379,7 +379,7 @@ class MapDownloaderGevent:
         return ret
 
     def bulk_download(self, coord, zoomlevels, kmx, kmy, layer, tile_callback,
-                      completion_callback, force_update=False, conf=None,
+                      completion_callback, force_update=False, 
                       nodups=True):
         dlon = mapUtils.km_to_lon(mapUtils.nice_round(kmx), coord[0])
         dlat = mapUtils.km_to_lat(mapUtils.nice_round(kmy))
@@ -394,8 +394,8 @@ class MapDownloaderSocks5:
         self.proxy_port = proxy_port
         self.socks5_opener = None
 
-    def coord_to_path(self, tile_coord, layer, conf):
-        ret =  os.path.abspath(os.path.join(os.path.dirname(conf.get_configpath()),conf.get_layer_dir(layer)))
+    def coord_to_path(self, tile_coord, layer):
+        ret =  os.path.abspath(os.path.join(DEFAULT_PATH,  LAYER_DIRS[layer]))
         if not os.path.exists(ret):
             os.mkdir(ret)
         ret =  os.path.join(ret, str(tile_coord[2]))
@@ -417,11 +417,11 @@ class MapDownloaderSocks5:
     # @return number of tiles queued for download
     def query_tile(self, coord, layer, callback,
                     online=True, force_update=False,
-                    conf=None, hybrid_background=LAYER_SAT):
+                    hybrid_background=LAYER_SAT):
         ret = 0
         if layer == LAYER_HYB or layer == LAYER_CHA:
             ret += self.query_tile(coord, hybrid_background, callback,
-                    online, force_update, conf)
+                    online, force_update)
 
         world_tiles = mapUtils.tiles_on_level(coord[2])
         coord = (mapUtils.mod(coord[0], world_tiles),
@@ -445,7 +445,7 @@ class MapDownloaderSocks5:
                         response = self.socks5_opener.open(str(href), timeout=3.0)
                         #print(dir(response))
                         if response.code == 200:
-                            filename = self.coord_to_path(coord, layer, conf)
+                            filename = self.coord_to_path(coord, layer)
                             print('downloaded filename=%s' % filename)
                             with open(filename, 'wb') as f:
                                 f.write(response.read())
@@ -460,7 +460,7 @@ class MapDownloaderSocks5:
                         response = http.get(url.request_uri)
                         if response.status_code == 200:
                             #CHUNK_SIZE = 1024 * 16 # 16KB
-                            filename = self.coord_to_path(coord, layer, conf)
+                            filename = self.coord_to_path(coord, layer)
                             print('downloaded filename=%s' % filename)
                             with open(filename, 'wb') as f:
                                 f.write(response.read())

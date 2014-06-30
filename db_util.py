@@ -8663,7 +8663,7 @@ def find_extent(data):
     return ret
 
 def mongo_action(dbname, collection_name, action, data, conditions={}):
-    global gClientMongo
+    global gClientMongo, gConfig
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
     try:
@@ -8712,7 +8712,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
     
     
 def mongo_find(dbname, collection_name, conditions={}, limit=0):
-    global gClientMongo
+    global gClientMongo, gConfig
     host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
     try:

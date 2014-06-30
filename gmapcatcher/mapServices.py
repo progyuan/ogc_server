@@ -26,30 +26,31 @@ class MapServ:
     def write_locations(self):
         fileUtils.write_file('location', self.locationpath, self.locations)
 
-    def initLocations(self, conf):
-        configpath = os.path.expanduser(conf.init_path or DEFAULT_PATH)
+    def initLocations(self):
+        configpath = os.path.expanduser(DEFAULT_PATH)
         self.mt_counter = 0
         self.configpath = fileUtils.check_dir(configpath)
         self.locationpath = os.path.join(self.configpath, 'locations')
         self.locations = {}
 
-        if conf.repository_type is None:
-            conf.repository_type = DEFAULT_REPOS_TYPE
+        #if conf.repository_type is None:
+            #conf.repository_type = DEFAULT_REPOS_TYPE
+        repository_type = DEFAULT_REPOS_TYPE
 
         if self.tile_repository is not None:
             self.tile_repository.finish()
             self.tile_repository = None
 
-        self.tile_repository = trFactory.get_tile_repository(self, conf)
+        self.tile_repository = trFactory.get_tile_repository(self, configpath, repository_type)
 
-    def __init__(self, conf):
+    def __init__(self):
         self.tile_repository = None
-        self.initLocations(conf)
+        self.initLocations()
 
-        if (os.path.exists(self.locationpath)):
-            self.read_locations()
-        else:
-            self.write_locations()
+        #if (os.path.exists(self.locationpath)):
+            #self.read_locations()
+        #else:
+            #self.write_locations()
 
     def finish(self):
         self.tile_repository.finish()

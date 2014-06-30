@@ -15,22 +15,22 @@ repositories = []
 
 # creates new repository with given path and type
 # public static
-def get_tile_repository(mapservice, conf):
-    repos = pick_repository_from_list(conf)
+def get_tile_repository(mapservice, init_path, repository_type):
+    repos = pick_repository_from_list(init_path, repository_type)
     if repos is None:
-        repos = create_repos_inst(mapservice, conf)
-        append_repository_to_list(repos, conf)
+        repos = create_repos_inst(mapservice, init_path, repository_type)
+        append_repository_to_list(repos, init_path, repository_type)
     return repos
 
 
-def append_repository_to_list(repos, conf):
+def append_repository_to_list(repos, init_path, repository_type):
     global repositories
-    repos_entry = {"repos": repos, "configpath": conf.init_path, "type": conf.repository_type}
+    repos_entry = {"repos": repos, "configpath": init_path, "type": repository_type}
     repositories.append(repos_entry)
     return True
 
 
-def pick_repository_from_list(conf):
+def pick_repository_from_list(init_path, repository_type):
     """returns instance of repository from list or None"""
     global repositories
     found_repos = None
@@ -41,7 +41,7 @@ def pick_repository_from_list(conf):
             # we are removing repository, so what was rep[idx+2] before deleting rep[idx], is rep[idx+1] after deleting.
             idx = idx - 1
         else:
-            if rep["configpath"] == conf.init_path and rep["type"] == conf.repository_type:
+            if rep["configpath"] == init_path and rep["type"] == repository_type:
                 found_repos = rep["repos"]
                 # we don't exit here, because we want to walk over all repository entries in list
                 # to remove finished
@@ -50,18 +50,18 @@ def pick_repository_from_list(conf):
 
 
 # private static
-def create_repos_inst(mapservice, conf):
-    if conf.repository_type == REPOS_TYPE_SQLITE3:
+def create_repos_inst(mapservice, init_path, repository_type):
+    if repository_type == REPOS_TYPE_SQLITE3:
         return tilesRepoSQLite3.TilesRepositorySQLite3(mapservice, conf)
 
-    elif conf.repository_type == REPOS_TYPE_MGMAPS:
+    elif repository_type == REPOS_TYPE_MGMAPS:
         return tilesRepoMGMaps.TilesRepositoryMGMaps(mapservice, conf)
 
-    elif conf.repository_type == REPOS_TYPE_OSM:
+    elif repository_type == REPOS_TYPE_OSM:
         return tilesRepoOSM.TilesRepositoryOSM(mapservice, conf)
 
-    elif conf.repository_type == REPOS_TYPE_RMAPS:
+    elif repository_type == REPOS_TYPE_RMAPS:
         return tilesRepoRMaps.TilesRepositoryRMaps(mapservice, conf)
 
     else:  # conf.repository_type == REPOS_TYPE_FILES
-        return tilesRepoFS.TilesRepositoryFS(mapservice, conf)
+        return tilesRepoFS.TilesRepositoryFS(mapservice, init_path)

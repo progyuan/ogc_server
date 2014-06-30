@@ -262,8 +262,8 @@ class TilesRepositorySQLite3(TilesRepository):
         TilesRepository.__init__(self, MapServ_inst, conf)
         self.tile_cache = lrucache.LRUCache(1000)
         self.mapServ_inst = MapServ_inst
-        self.conf = conf
-        self.configpath = conf.init_path
+        #self.conf = conf
+        self.configpath = init_path
         self.lock = Lock()
         self.missingPixbuf = mapPixbuf.missing()
         self.sqlite3func = SQLite3Funcs(self.configpath, self.get_db_filename())
