@@ -29,28 +29,16 @@ import sqlite3
 import base64
 import random
 from PIL import Image
-from module_locator import module_path
+from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc1
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-
-#try:
-    #import arcpy
-    #from arcpy import env
-    #from arcpy.sa import ExtractValuesToPoints
-    #import arcpy.da as da
-#except ImportError:
-    #print('import arcpy error:%s' % sys.exc_info()[1])
-#except RuntimeError:
-    #print('import arcpy error:%s' % sys.exc_info()[1])
+import gridfs
 
 
-ENCODING = 'utf-8'
-ENCODING1 = 'gb18030'
+
 
 CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
 
-#if not os.path.exists(CONFIGFILE):
-    #CONFIGFILE = 'config.ini'
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
 gClientMongo = None
@@ -75,19 +63,6 @@ gTowerDict = {}
 AREA_DATA = {'zt':[u'永甘甲线',u'永发II回线', u'镇永甲线', u'永发I回线',u'甘大线',u'永甘乙线',u'甘镇线'],
              'km':[u'厂口曲靖I回', u'和平厂口I回', u'草和乙线', u'厂口七甸I回',u'七罗II回', u'厂口曲靖II回',u'草和甲线',u'草宝乙线',u'和平厂口II回', u'草宝甲线', u'七罗I回',u'大宝I回',u'宝七I回',u'宝七II回']
              }
-
-
-GP_STATUS = ['New',
-             'Submitted',
-             'Waiting',
-             'Executing',
-             'Succeeded',
-             'Failed',
-             'Timed Out',
-             'Canceling',
-             'Canceled',
-             'Deleting',
-             'Deleted',]
 
 
 
@@ -146,26 +121,8 @@ GEOJSONSHAPEMAPPING = {'hotel':u'宾馆酒店',
                        }
 
 
-def dec(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_decode(aStr, 'replace') 
-    return text
-def enc(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
-def dec1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_decode(aStr, 'replace')
-    return text
-def enc1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
 
 CODE_XLS_FILE=dec1(r'G:\work\csharp\kmgdgis\doc\电网设备信息分类与编码.xls')
-XLS_FILE=dec(r'G:\work\csharp\kmgdgis\doc\线路杆塔代码.xls')
-KUNMING_TOWER_KML = ur'D:\gis\昆明\sdxl - 副本.kml'
 
 
 
@@ -542,30 +499,6 @@ def get_latest_stamp(stamp_format, area=''):
             conn.close()
     return ret
  
-#def odbc_get_line_seg_count():
-    #segs = odbc_get_records('TABLE_LINE_SEG', '1=1')
-    #print(len(segs))
-    #segs = odbc_get_records('VIEW_ATTACH_LINE_SEG', '1=1')
-    #print(len(segs))
-    
-    
-#def odbc_insert_line_seg():
-    #lines = odbc_get_records('TABLE_LINE', '1=1')
-    #conn = None
-    #cur = None
-    #try:
-        #conn = pypyodbc.connect(ODBC_STRING)
-        #cur = conn.cursor()
-    #except:
-        #print(sys.exc_info()[1])
-        #return 
-    ##print(len(lines))
-    #for line in lines:
-        #attas = get_records('VIEW_ATTACH_LINE_SEG', "line_id='%s'" % line['id'])
-        #print('attachpoint rec=%d' % len(attas))
-        #for atta in attas:
-            #id = str(uuid.uuid4()).upper()
-            #cur.execute('''INSERT INTO TABLE_LINE_SEG VALUES(?, ?, ?, ?, ?, ?)''',(id, line['id'], atta['start_point_id'],atta['end_point_id'], 0.9, '' ))
 
 
 def odbc_insert_line_seg():
@@ -662,12 +595,6 @@ def odbc_get_sorted_tower_by_line(line_id, area):
     towers = resort_towers_by_list(towers, towers_relation)
     return towers
 
-def sde_get_sorted_tower_by_line(rdb_conn_path, database, line_id):
-    towers = get_data_from_rdbms(rdb_conn_path, database, 'TABLE_TOWER', "line_id='%s'" % line_id)
-    if len(towers.keys())>1:
-        towers_relation = get_data_from_rdbms(rdb_conn_path, database, 'VIEW_TOWER_RELATIONS', "line_id='%s'" % line_id)
-        towers = resort_towers_by_dict(towers, towers_relation)
-    return towers
     
     
     
@@ -1001,13 +928,6 @@ class Vector(object):
         return Vector(self._ar)    
 
 
-def test():
-    v1 = Vector(1, 0, 0)
-    v2 = Vector(1, -1, 0)
-    a = np.cross(v1.get_array(), v2.get_array())
-    print(a[2])
-    d = np.rad2deg(v1.angle(v2))
-    print(d)
     
 
 
@@ -1058,411 +978,9 @@ def resort_towers_by_list(towers, towers_relation):
 
     
     
-def odbc_update_tower_rotate_by_line_id(line_id, is_update_feature=False, area=''):
-    #kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    towers = odbc_get_sorted_tower_by_line(line_id, area)
-    if is_update_feature:
-        env.workspace = kmgdgeo
-        fc = arcpy.ListFeatureClasses('*towers_%s' % line_id.replace('-',''))
-        if fc and len(fc)>0:
-            tfc = fc[0]
-            arcpy.Delete_management(tfc)
-            print('delete exist towers : towers_%s' % line_id.replace('-',''))
     
-    linespoints = ''
-    for tower in towers:
-        idx = towers.index(tower)
-        lgt, lat = tower['geo_x'], tower['geo_y']
-        if lgt is None or lat is None or lgt==0. or lat==0.:
-            lgt,lat = 0.,0.
-        if idx == len(towers)-1:
-            linespoints += '(%.8f,%.8f)' % (lgt, lat)
-        else:
-            linespoints += '(%.8f,%.8f);' % (lgt, lat)
-    s = subprocess.check_output([SERVER_UTIL , '-o', 'angle', '-m', 'linepoints', '-e', '0.0', '-l', linespoints])
-    angs = s.split('\r\n')
-    sqls = []
-    for tower in towers:
-        ang = 0.
-        try:
-            ang = float(angs[towers.index(tower)])
-        except:
-            ang = 0.
-        print('%s=%f' % (tower['tower_name'], ang))
-        #if not (tower['geo_x'] is None or tower['geo_y'] is None or tower['geo_x']==0.0 or tower['geo_y']==0.0):
-        sql = """ UPDATE  TABLE_TOWER SET 
-        rotate=%f 
-        WHERE 
-        id='%s'""" % ( 
-        ang,
-        tower['id']
-        ) 
-        sqls.append(sql)
-    odbc_execute_sqls(sqls, area)    
-    
-    if is_update_feature:
-        dem_raster = 'sde.DBO.%s' % DEM_NAME
-        create_towers_layer(kmgd, kmgdgeo, 'kmgd', line_id, dem_raster)
-    
-    
-def odbc_update_towers_rotate(is_update_feature=False, area=''):
-    lines = odbc_get_records('TABLE_LINE', '1=1', area)
-    for line in lines:
-        odbc_update_tower_rotate_by_line_id(line['id'], is_update_feature, area)
         
         
-    
-    
-#def update_rotate4():
-    #def GetAzimuthPolyline((lgt1, lat1),(lgt2, lat2)):
-        #if lat2 - lat1 == 0:
-            #return 90.
-        #radian = math.atan((lgt2 - lgt1)/(lat2 - lat1))
-        #degrees = radian * 180 / np.pi
-        ##degrees = (degrees + 360) % 360
-        #return -degrees    
-    
-    #lines = get_records('TABLE_LINE', '1=1')
-    #d_towers_relation = {}
-    #d_towers = {}
-    #for line in lines:
-        #towers = get_records('TABLE_TOWER', "line_id='%s'" % line['id'])
-        #towers_relation = get_records('VIEW_TOWER_RELATIONS', "line_id='%s'" % line['id'])
-        #d_towers[line['id']] = towers
-        #d_towers_relation[line['id']] = towers_relation
-        
-    ##conn = None
-    ##cur = None
-    ##try:
-        ##conn = pypyodbc.connect(ODBC_STRING)
-        ##cur = conn.cursor()
-    ##except:
-        ##print(sys.exc_info()[1])
-        ##return
-    #linespoints = ''
-    #for line in lines:
-        #towers = resort_towers(d_towers[line['id']], d_towers_relation[line['id']])
-        #linespoints += line['id'] + '@'
-        #linespoints = ''
-        #print(line['line_name'] + "(" + str(len(towers)) + ')')
-        #for tower in towers:
-            #idx = towers.index(tower)
-            #lgt, lat = tower['geo_x'], tower['geo_y']
-            #if idx == len(towers)-1:
-                #linespoints += '(%.6f,%.6f)' % (lgt, lat)
-            #else:
-                #linespoints += '(%.6f,%.6f);' % (lgt, lat)
-        #s = subprocess.check_output(SERVER_UTIL + ' -o angle -m linepoints -g ' +  CONFIG_PATH + ' -l ' +  linespoints)
-        #angs = s.split(',')
-        #print('%s:%d' % (line['id'], len(angs)))
-    
-        #for tower in towers:
-            #ang = float(angs[towers.index(tower)])
-            #idx = towers.index(tower)
-            #ang_ = 0
-            #if idx==0:
-                #lgt1, lat1 = towers[idx]['geo_x'], towers[idx]['geo_y']
-                #lgt2, lat2 = towers[idx+1]['geo_x'], towers[idx+1]['geo_y']
-                #ang_ = GetAzimuthPolyline((lgt1, lat1), (lgt2, lat2))
-                
-            #elif idx>0 and idx<len(towers)-1:
-                #lgt1, lat1 = towers[idx-1]['geo_x'], towers[idx-1]['geo_y']
-                #lgt2, lat2 = towers[idx]['geo_x'], towers[idx]['geo_y']
-                #lgt3, lat3 = towers[idx+1]['geo_x'], towers[idx+1]['geo_y']
-                ##print('lgt1=%f, lat1=%f, lgt2=%f, lat2=%f, lgt3=%f, lat3=%f' % (lgt1, lat1, lgt2, lat2, lgt3, lat3))
-                ##rotate = get_ab2((lgt1, lat1), (lgt2, lat2), (lgt3, lat3))
-                #ang1 = GetAzimuthPolyline((lgt1, lat1), (lgt2, lat2))
-                #ang2 = GetAzimuthPolyline((lgt2, lat2), (lgt3, lat3))
-                #ang_ = (ang1+ang2)/2.0
-                ##towerAngle = 0
-                #sita1 = ang1
-                #sita2 = ang2
-                #print('sita1=%f, sita2=%f' % (sita1, sita2))
-                #if  sita1*sita2<0:
-                    #ang_ += 90.
-                ##if sita > 90:
-                    ##towerAngle = (ang_ - 90) % 360
-                
-                ##else:
-                    ##towerAngle = (ang_ + 90) % 360
-                
-                ##towerAngleProject = (180 - towerAngle + 360) % 360
-                ##ang_ = towerAngleProject
-            #elif idx==len(towers)-1:
-                #lgt1, lat1 = towers[idx-1]['geo_x'], towers[idx-1]['geo_y']
-                #lgt2, lat2 = towers[idx]['geo_x'], towers[idx]['geo_y']
-                #ang_ = GetAzimuthPolyline((lgt1, lat1), (lgt2, lat2))
-            ##if ang_<90.:
-                ##ang_ = 90. - ang_
-            ##else:
-                ##ang_ = ang_ - 90.
-            ##ang_ = 90-ang_
-            
-            #if abs(ang-ang_)>0.00001:
-                #print('%s=%f,%f' % (tower['tower_name'], ang, ang_))
-        
-    ##cur.commit()
-    ##cur.close()
-    ##conn.close()
-   
-    
-#def get_angle_from_two_points((x1,y1), (x2, y2)):
-    #p1 = arcpy.Point(x1,y1)
-    #p2 = arcpy.Point(x2,y2)
-    #arr = arcpy.Array()
-    #arr.add(p1)
-    #arr.add(p2)
-    ##fl = []
-    ##fl.append(arr)
-    #line =  arcpy.Polyline(arr, arcpy.SpatialReference(text='WGS 1984 World Mercator'))
-    ##fl.append(line)
-    ##polyline = arcpy.CreateFeatureclass_management(out_path='in_memory',out_name='testline',geometry_type='POLYLINE',has_z='DISABLED',spatial_reference= arcpy.SpatialReference(text='WGS 1984 World Mercator'))
-    #polyline = arcpy.CreateFeatureclass_management(out_path='temp.gdb',out_name='tmp_testline',geometry_type='POLYLINE',has_z='DISABLED',spatial_reference= arcpy.SpatialReference(text='WGS 1984 World Mercator'))
-    ##polyline1 = arcpy.Project_management(in_dataset='testline', out_dataset='testline1', out_coor_system=arcpy.SpatialReference(text='WGS 1984 World Mercator'))
-    #arcpy.AddField_management(polyline, 'rotate', 'DOUBLE')
-    #with arcpy.da.InsertCursor('tmp_testline',("SHAPE@", 'rotate')) as cursor:
-        #cursor.insertRow((line, 0))
-    ##arcpy.CopyFeatures_management(in_features=fl, out_feature_class='testline')
-    ##arcpy.PointsToLine_management(Input_Features=fl, Output_Feature_Class=polyline, Line_Field='SHAPE@')
-    #arcpy.CalculateGridConvergenceAngle_cartography(in_features=polyline, angle_field='rotate',  rotation_method='GEOGRAPHIC',)# coordinate_sys_field='UTM')
-    ##for i in arcpy.ListFields(polyline):
-        ##print(i.name)
-    #ret = 0
-    #with arcpy.da.SearchCursor(polyline, ("OID@", "SHAPE@", 'rotate')) as cursor:
-        #for row in cursor:
-            ##print("{0}, {1}".format(row[0],   row[2]))
-            #ret = row[2]
-    #return ret
-
-
-    
-def create_line_polyline_shape(towersdictlist,  out_path, out_name, area):
-    ret = False
-    #tmp = '_' + out_name
-    #tmp1 = '_1_' + out_name
-    arcpy.CheckOutExtension("Spatial")
-    if len(towersdictlist)>0:
-        env.workspace = out_path
-        if arcpy.Exists(out_name):
-            arcpy.Delete_management(out_name)
-            
-        input_feature = []    
-        for towersdict in  towersdictlist:
-            line_name = towersdict['line_name']
-            print(line_name)
-            voltage = towersdict['voltage']
-            towers = towersdict['towers']
-            tower0 = towers[0]
-            tmp = '_%s_%s' % ( out_name , tower0['line_id'].replace('-',''))
-            tmp1 = '_1_%s_%s' % ( out_name , tower0['line_id'].replace('-',''))
-            ptobj = None
-            ptobj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=tmp, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED')
-            arcpy.AddMessage(arcpy.GetMessages())
-            
-            cur = arcpy.InsertCursor(tmp)
-            p = arcpy.Point()
-            id = 1
-            for tower in towers:
-                if tower['geo_x'] is None or tower['geo_y'] is None:
-                    continue
-                p.X, p.Y = tower['geo_x'], tower['geo_y']
-                    
-                id += 1
-                feat = cur.newRow()
-                feat.shape = p
-                cur.insertRow(feat)
-            del cur
-        
-            lobj = arcpy.PointsToLine_management(Input_Features=tmp, Output_Feature_Class=tmp1)
-            arcpy.AddMessage(arcpy.GetMessages())
-            arcpy.AddField_management(lobj, 'line_name', 'TEXT')
-            arcpy.AddField_management(lobj, 'line_id', 'TEXT')
-            arcpy.AddField_management(lobj, 'voltage', 'TEXT')
-            cur = arcpy.UpdateCursor(tmp1)
-            row = cur.next()
-            if row:
-                row.line_name = line_name
-                row.line_id = tower0['line_id']
-                row.voltage = voltage
-                cur.updateRow(row)
-                row = cur.next()
-            del cur
-            input_feature.append(tmp1)
-            
-        arcpy.Merge_management(inputs=input_feature, output=out_name)
-        arcpy.AddMessage(arcpy.GetMessages())
-        for towersdict in  towersdictlist:
-            tower0 = towers[0]
-            tmp = '_%s_%s' % ( out_name , tower0['line_id'].replace('-',''))
-            tmp1 = '_1_%s_%s' % ( out_name , tower0['line_id'].replace('-',''))
-            if arcpy.Exists(tmp):
-                arcpy.Delete_management(tmp)
-            if arcpy.Exists(tmp1):
-                arcpy.Delete_management(tmp1)
-
-    return ret            
-    
-
-    
-def create_tower_point_shape(towersdictlist,  out_path, out_name, out_3D_name, dem_raster, area):
-    ret = False
-    tmp = '_%s_' % out_name 
-    tmp3d = '_%s_3d' %  out_3D_name 
-    #center_feature_name = '_center_%s' % out_name
-    tower_info_list = odbc_get_records('TABLE_TOWER_MODEL', '1=1', area)
-    arcpy.CheckOutExtension("Spatial")
-    if len(towersdictlist)>0:
-        env.workspace = out_path
-        if arcpy.Exists(out_name):
-            arcpy.Delete_management(out_name)
-        if arcpy.Exists(out_3D_name):
-            arcpy.Delete_management(out_3D_name)
-        if arcpy.Exists(tmp):
-            arcpy.Delete_management(tmp)
-        if arcpy.Exists(tmp3d):
-            arcpy.Delete_management(tmp3d)
-        
-        ptobj_3d = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=out_3D_name, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='ENABLED', has_m='DISABLED')
-        arcpy.AddMessage(arcpy.GetMessages())
-        
-        ptobj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=out_name, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED', has_m='DISABLED')
-        arcpy.AddMessage(arcpy.GetMessages())
-        
-        #ptobj_center = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=tmp1, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED', has_m='DISABLED')
-        
-        arcpy.AddField_management(ptobj, 'tower_id', 'TEXT')
-        arcpy.AddField_management(ptobj, 'tower_name', 'TEXT')
-        arcpy.AddField_management(ptobj, 'model_code', 'TEXT')
-        arcpy.AddField_management(ptobj, 'rotate', 'DOUBLE')
-        arcpy.AddField_management(ptobj, 'line_id', 'TEXT')
-        
-        
-        arcpy.AddField_management(ptobj_3d, 'tower_id', 'TEXT')
-        arcpy.AddField_management(ptobj_3d, 'tower_name', 'TEXT')
-        arcpy.AddField_management(ptobj_3d, 'model_code', 'TEXT')
-        arcpy.AddField_management(ptobj_3d, 'rotate', 'DOUBLE')
-        arcpy.AddField_management(ptobj_3d, 'line_id', 'TEXT')
-        
-        
-
-        for towersdict in towersdictlist:
-            line_name = towersdict['line_name']
-            towers = towersdict['towers']
-            
-            
-            cur = arcpy.InsertCursor(out_name)
-            p = arcpy.Point()
-            id = 1
-            for tower in towers:
-                if tower['geo_x'] is None or tower['geo_y'] is None:
-                    continue
-                if not tower['same_tower'] == ZEROID:
-                    continue
-                p.X, p.Y = tower['geo_x'], tower['geo_y']
-                
-                id += 1
-                feat = cur.newRow()
-                feat.shape = p
-                feat.tower_id = tower['id']
-                if tower.has_key('tower_name'):
-                    feat.tower_name = tower['tower_name']
-                if tower.has_key('model_code_height'):
-                    #if tower['model_code'] is None or len(tower['model_code'])==0:
-                        #feat.model_code = 'test2'
-                    #else:
-                        ##denomi_height = '0_0'
-                        ##if tower['denomi_height']:
-                            ##denomi_height = '%.1f' % tower['denomi_height']
-                            ##if denomi_height[-2:]=='.0':
-                                ##denomi_height = denomi_height[:-2]
-                            ##else:
-                                ##arr = denomi_height.split('.')
-                                ##denomi_height = arr[0] + '_' + arr[1]
-                        ##feat.model_code = tower['model_code']+'_'+denomi_height
-                    feat.model_code = tower['model_code_height']
-                if tower.has_key('rotate'):
-                    feat.rotate = tower['rotate']
-                if tower.has_key('line_id'):
-                    feat.line_id = tower['line_id']
-                cur.insertRow(feat)
-            del cur
-            
-            
-            cur = arcpy.InsertCursor(out_3D_name)
-            p_3d = arcpy.Point()
-            id = 1
-            for tower in towers:
-                if tower['geo_x'] is None or tower['geo_y'] is None:
-                    continue
-                if not tower['same_tower'] == ZEROID:
-                    continue
-                p_3d.X, p_3d.Y, p_3d.Z = tower['geo_x'], tower['geo_y'], tower['geo_z']
-                
-                id += 1
-                feat = cur.newRow()
-                feat.shape = p_3d
-                feat.tower_id = tower['id']
-                if tower.has_key('tower_name'):
-                    feat.tower_name = tower['tower_name']
-                if tower.has_key('model_code_height'):
-                    #feat.model_code = get_suitable_model_code(tower_info_list, tower['model_code_height'], tower['line_position'], area)
-                    feat.model_code = tower['model_code_height']
-                if tower.has_key('rotate'):
-                    feat.rotate = tower['rotate']
-                if tower.has_key('line_id'):
-                    feat.line_id = tower['line_id']
-                cur.insertRow(feat)
-            del cur
-            
-            
-            ##arcpy.AddField_management(ptobj_center, 'center_id', 'TEXT')
-            ##arcpy.AddField_management(ptobj_center, 'start_id', 'TEXT')
-            ##arcpy.AddField_management(ptobj_center, 'end_id', 'TEXT')
-            ##cur_cent = arcpy.InsertCursor(tmp1)
-            ##keys = towers.keys()
-            ##for i in range(len(keys)):
-                ##if i<len(keys)-1:
-                    ##start_tower, end_tower = towers[keys[i]], towers[keys[i+1]]
-                    ##if start_tower['geo_x'] is None or start_tower['geo_y'] is None or end_tower['geo_x'] is None or end_tower['geo_y'] is None :
-                        ##continue
-                    
-                    ##p.X, p.Y = (start_tower['geo_x'] + end_tower['geo_x'])/2.0, (start_tower['geo_y'] + end_tower['geo_y'])/2.0
-                    ##feat = cur_cent.newRow()
-                    ##feat.shape = p
-                    ##feat.center_id = str(uuid.uuid4()).upper()
-                    ##feat.start_id = start_tower['id']
-                    ##feat.end_id = end_tower['id']
-                    ##cur_cent.insertRow(feat)
-            ##del cur_cent
-            
-            ##ExtractValuesToPoints(in_point_features=tmp, in_raster=dem_raster, out_point_features=out_name,)
-            ##arcpy.AddMessage(arcpy.GetMessages())
-            
-        #20131123   
-        #ExtractValuesToPoints(in_point_features=tmp3d, in_raster=dem_raster, out_point_features=out_3D_name,)
-        #arcpy.AddMessage(arcpy.GetMessages())
-        
-        #sqls = []
-        #cur_update = arcpy.UpdateCursor(out_3D_name)
-        
-        #for row in cur_update:
-            #tower_id = row.getValue('tower_id')
-            #p = row.getValue('Shape').firstPoint
-            #p.Z = row.RASTERVALU
-            #row.setValue('Shape', p)
-            #cur_update.updateRow(row)
-            #sql = """ UPDATE  TABLE_TOWER SET geo_z=%f WHERE id='%s'""" % (float(row.getValue('RASTERVALU')), tower_id)
-            #sqls.append(sql)
-        #del cur_update
-        
-        #odbc_execute_sqls(sqls, area)
-        
-        if arcpy.Exists(tmp):
-            arcpy.Delete_management(tmp)
-        if arcpy.Exists(tmp3d):
-            arcpy.Delete_management(tmp3d)
-
-    return ret            
     
 def get_suitable_model_code(tower_info_list, model_code, line_position, area):
     ret = ''
@@ -1494,127 +1012,9 @@ def get_suitable_model_code(tower_info_list, model_code, line_position, area):
     return ret
 
     
-def create_tower_multipatch_shape(towers,  out_path, out_name, dem_raster):
-    ret = False
-    tmp = '_'+out_name
-    arcpy.CheckOutExtension("Spatial")
-    if len(towers.keys())>0:
-        env.workspace = out_path
-        if arcpy.Exists(out_name):
-            arcpy.Delete_management(out_name)
-        if arcpy.Exists(tmp):
-            arcpy.Delete_management(tmp)
-        ptobj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=tmp, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='ENABLED')
-        #print(arcpy.GetMessages())
-        
-        arcpy.AddField_management(ptobj, 'tower_id', 'TEXT')
-        arcpy.AddField_management(ptobj, 'tower_name', 'TEXT')
-        arcpy.AddField_management(ptobj, 'tower_code', 'TEXT')
-        arcpy.AddField_management(ptobj, 'model_code', 'TEXT')
-        arcpy.AddField_management(ptobj, 'height', 'DOUBLE')
-        arcpy.AddField_management(ptobj, 'rotate', 'DOUBLE')
-        arcpy.AddField_management(ptobj, 'line_name', 'TEXT')
-        arcpy.AddField_management(ptobj, 'line_code', 'TEXT')
-        arcpy.AddField_management(ptobj, 'line_id', 'TEXT')
-        cur = arcpy.InsertCursor(tmp)
-        p = arcpy.Point()
-        id = 1
-        for key in towers.keys():
-            p.X, p.Y, p.Z = towers[key]['geo_x'], towers[key]['geo_y'], towers[key]['geo_z']
-            id += 1
-            feat = cur.newRow()
-            feat.shape = p
-            feat.tower_id = key
-            if towers[key].has_key('tower_name'):
-                feat.tower_name = towers[key]['tower_name']
-            if towers[key].has_key('tower_code'):
-                feat.tower_code = towers[key]['tower_code']
-            if towers[key].has_key('model_code'):
-                feat.model_code = towers[key]['model_code']
-            if towers[key].has_key('height'):
-                feat.height = towers[key]['height']
-            if towers[key].has_key('rotate'):
-                feat.rotate = towers[key]['rotate']
-            if towers[key].has_key('line_name'):
-                feat.line_name = towers[key]['line_name']
-            if towers[key].has_key('line_code'):
-                feat.line_code = towers[key]['line_code']
-            if towers[key].has_key('line_id'):
-                feat.line_id = towers[key]['line_id']
-            cur.insertRow(feat)
-        del cur
-        
-        
-        ExtractValuesToPoints(in_point_features=tmp, in_raster=dem_raster, out_point_features=out_name,)
-        print(arcpy.GetMessages())
-        cur = arcpy.UpdateCursor(out_name)
-        for row in cur:
-            #row.Shape.firstPoint.Z = row.Shape.firstPoint.Z + row.RASTERVALU
-            p = row.getValue('Shape').firstPoint
-            p.Z = p.Z + row.RASTERVALU
-            row.setValue('Shape', p)
-            cur.updateRow(row)
-        del cur
-        
-        if arcpy.Exists(tmp):
-            arcpy.Delete_management(tmp)
-
-    return ret            
-
-def create_lines_layers(area):
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    #lines = get_data_from_rdbms(rdb_conn_path, database, 'TABLE_LINE', ' 1=1')
-    lines = odbc_get_records( 'TABLE_LINE', '1=1', area)
-    #dem_raster = 'sde.DBO.%s' % DEM_NAME
-    dem_raster = DEM_NAME
-    l = []
-    for line in lines:
-        if line['line_name'] in AREA_DATA[area]:
-            #create_lines_layer(area, kmgdgeo, line['line_name'],  line['id'])
-            towers = odbc_get_sorted_tower_by_line(line['id'], area)
-            d = {}
-            d['line_name'] = line['line_name']
-            d['voltage'] = line['voltage']
-            d['towers'] = towers
-            l.append(d)
-    create_line_polyline_shape(l, kmgdgeo, 'line_%s' % area, area)
-
-        
-    
-def create_towers_layers(area):
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    #lines = get_data_from_rdbms(rdb_conn_path, database, 'TABLE_LINE', ' 1=1')
-    lines = odbc_get_records('TABLE_LINE', '1=1', area)
-    #dem_raster = 'sde.DBO.%s' % DEM_NAME
-    env.workspace = kmgdgeo
-    dem_raster = DEM_NAME
-    #for line in lines:
-        #print(line['line_name'])
-        #create_towers_layer(kmgdgeo, line['id'], dem_raster)
-    l = []    
-    for line in lines:
-        if line['line_name'] in AREA_DATA[area]:
-            #create_lines_layer(area, kmgdgeo, line['line_name'],  line['id'])
-            towers = odbc_get_sorted_tower_by_line(line['id'], area)
-            d = {}
-            d['line_name'] = line['line_name']
-            d['towers'] = towers
-            l.append(d)
-    create_tower_point_shape(l, kmgdgeo, 'towers_%s' % area, 'towers3D_%s' % area,  dem_raster, area)
-        
         
         
     
-def create_towers_layer(geo_conn_path,  line_id, dem_raster):
-    #towers = sde_get_sorted_tower_by_line(rdb_conn_path,  database,  line_id)
-    towers = odbc_get_sorted_tower_by_line(line_id)
-    #create_tower_point_shape(towers, geo_conn_path, 'towers_' + line_id.replace('-',''), 'towers3D_' + line_id.replace('-',''),  dem_raster, )
-    create_tower_point_shape(towers, geo_conn_path, 'towers_%s' % area, 'towers3D_%s' % area,  dem_raster, )
-    
-def create_lines_layer(area, geo_conn_path,  line_name, line_id):
-    towers = odbc_get_sorted_tower_by_line(line_id, area)   
-    #create_line_polyline_shape(area, line_name, towers, geo_conn_path, 'line_' + line_id.replace('-',''))
-    create_line_polyline_shape(line_name, towers, geo_conn_path, 'line_%s' % area)
 
 def resort_towers_by_dict(towers, towers_relation):
     ret = []
@@ -1694,382 +1094,7 @@ def resort_towers_to_groups(towers, towers_relation,  exclude=[]):
                 
         
         
-def clear_towers(geo_conn_path, area=None):
-    env.workspace = geo_conn_path
-    if area:
-        towers = arcpy.ListFeatureClasses('*towers_%s' % area)
-    else:
-        towers = arcpy.ListFeatureClasses('*towers_*')
-    for i in towers:
-        arcpy.Delete_management(i)
-    if area:
-        towers3d = arcpy.ListFeatureClasses('*towers3D_%s' % area)
-    else:
-        towers3d = arcpy.ListFeatureClasses('*towers3D_*' )
-    for i in towers3d:
-        arcpy.Delete_management(i)
-        
-def clear_lines(geo_conn_path, area=None):
-    env.workspace = geo_conn_path
-    if area:
-        lines = arcpy.ListFeatureClasses('*line_%s' % area)
-    else:
-        lines = arcpy.ListFeatureClasses('*line_*' )
-    for i in lines:
-        arcpy.Delete_management(i)
-    #print(lines)
     
-def clear_segments(geo_conn_path, area=None):
-    env.workspace = geo_conn_path
-    if area:
-        lines = arcpy.ListFeatureClasses('*segment_%s' % area)
-    else:
-        lines = arcpy.ListFeatureClasses('*segment_*' )
-    for i in lines:
-        arcpy.Delete_management(i)
-    
-def test_update_rotate_null():
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    env.workspace = kmgdgeo
-    lines = arcpy.ListFeatureClasses('*towers_*')
-    for line in lines:
-        cur = arcpy.UpdateCursor(line)
-        for row in cur:
-            #print(row.rotate)
-            if row.rotate is None:
-                print(row.tower_name)
-                row.rotate = 0.0
-                cur.updateRow(row)
-        del cur
-    
-    
-def admin_create_towers_layers(area):
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    #geo_conn_path = r'G:\work\csharp\kmgdgis\data\local_workspace\local.gdb'
-    clear_towers(kmgdgeo, area)
-    create_towers_layers(area)
-    #odbc_update_towers_rotate()
-
-
-def admin_create_lines_layers(area):
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    clear_lines(kmgdgeo, area)
-    create_lines_layers(area)
-
-def calc_one_attach_point(point, adder_x=0, adder_y=0, adder_z=0, degree_offset = 90):
-    pt = point.copy()
-    #point['offset_y'] *= -1
-    adder_x = abs(adder_x) 
-    
-    if point['offset_x']>0:
-        point['offset_x'] += adder_x
-    else:
-        point['offset_x'] -= adder_x
-    point['offset_y'] += adder_y
-    point['offset_z'] += adder_z
-    a = 1./(3600.0*30.887)
-    one_meter_of_lat_deg = a * np.cos(np.deg2rad(point['geo_y']))
-    
-    #pt['geo_x'] = point['geo_x'] + point['offset_x'] * (1./(3600*30.887)) * np.cos(np.deg2rad(point['rotate'] + degree_offset)) + point['offset_y'] * (1./(3600*30.887)) * np.sin(np.deg2rad(point['rotate'] + degree_offset))
-    #pt['geo_y'] = point['geo_y'] + point['offset_x'] * (1./(3600*30.887)) * np.sin(np.deg2rad(point['rotate'] + degree_offset)) / np.cos(np.deg2rad(point['geo_y'])) - point['offset_y'] * (1./(3600*30.887)) * np.cos(np.deg2rad(point['rotate'] + degree_offset)) / np.cos(np.deg2rad(point['geo_y']))
-    #pt['geo_z'] = point['geo_z'] + point['offset_z']
-    point['offset_x'] *= -1
-    pt['geo_x'] = point['geo_x'] + point['offset_x'] * one_meter_of_lat_deg * np.cos(np.deg2rad(point['rotate'] + degree_offset)) + point['offset_y'] * one_meter_of_lat_deg * np.sin(np.deg2rad(point['rotate'] + degree_offset))
-    pt['geo_y'] = point['geo_y'] + point['offset_x'] * a * np.sin(np.deg2rad(point['rotate'] + degree_offset))  - point['offset_y'] * a * np.cos(np.deg2rad(point['rotate'] + degree_offset)) 
-    pt['geo_z'] = point['geo_z'] + point['offset_z']
-    
-    
-    
-    
-    return pt
-
-def calc_point_pair_segment(row,  interp_num=15, is_use_catenary=True):
-    ret = []
-    start , end = {}, {}
-    start['geo_x'] = float(row['start_geo_x'])
-    start['geo_y'] = float(row['start_geo_y'])
-    start['geo_z'] = float(row['start_geo_z'])
-    start['offset_x'] = row['start_offset_x']
-    start['offset_y'] = row['start_offset_y']
-    start['offset_z'] = row['start_offset_z']
-    
-    end['geo_x'] = float(row['end_geo_x'])
-    end['geo_y'] = float(row['end_geo_y'])
-    end['geo_z'] = float(row['end_geo_z'])
-    end['offset_x'] = row['end_offset_x']
-    end['offset_y'] = row['end_offset_y']
-    end['offset_z'] = row['end_offset_z']
-    r1 = float(row['start_rotate'])
-    r2 = float(row['end_rotate'])
-    start['rotate'] = r1
-    end['rotate'] = r2
-    start , end = calc_one_attach_point(start), calc_one_attach_point(end)
-    dx = (end['geo_x']-start['geo_x'])/(interp_num+1)
-    dy = (end['geo_y']-start['geo_y'])/(interp_num+1)
-    dz = (end['geo_z']-start['geo_z'])/(interp_num+1)
-    l, h, cdx = 0.,  0.,  0.
-    if is_use_catenary:
-        l = catenary.distance((start['geo_y'],start['geo_x']), (end['geo_y'],end['geo_x']) )
-        h = end['geo_z'] - start['geo_z']
-        cdx = l/(interp_num+1)
-        
-            
-    
-    for i in range(interp_num+1):
-        if is_use_catenary:
-            #20131125
-            if l <= 100:
-                row['tensor_T0'],  row['w'] = 0.5, 0.001
-            elif l>100 and l <= 200:
-                row['tensor_T0'],  row['w'] = 0.6, 0.001
-            elif l > 200 and l<=300:
-                row['tensor_T0'],  row['w'] = 0.7, 0.001
-            elif l > 300 and l<=400:
-                row['tensor_T0'],  row['w'] = 1.1, 0.001
-            elif l > 400 and l<=500:
-                row['tensor_T0'],  row['w'] = 1.2, 0.001
-            elif l > 500:
-                row['tensor_T0'],  row['w'] = 1.4, 0.001
-            #print('l=%f, tensor_T0=%f, w=%f' % (l, row['tensor_T0'],  row['w']))
-            x = i * cdx
-            y = catenary.f( l,  h,  start['geo_z'],  x,  row['tensor_T0'],  row['w'] )
-            X, Y, Z = start['geo_x']+i*dx,   start['geo_y']+i*dy,  y
-            #print('y=%f' % y)
-        else:
-            X, Y, Z = start['geo_x']+i*dx,   start['geo_y']+i*dy,  start['geo_z']+i*dz
-        ret.append((X, Y, Z))
-    X, Y, Z = end['geo_x'],   end['geo_y'],  end['geo_z']
-    ret.append((X, Y, Z))
-    
-    return ret
-
-    
-    
-def create_segments(line_name=None, max_tower=0):
-    print('Generate segments...')
-    kmgd, kmgdgeo, kmgdgeotmp  = create_sde_conn()
-    database = DATABASE_RDBMS
-    if line_name:
-        lines = odbc_get_records('TABLE_LINE' ,"line_name='%s'" % line_name)
-    else:   
-        lines = odbc_get_records('TABLE_LINE' )
-    for line in lines:
-        print(line['line_name'])
-        create_segment_by_line(kmgd, kmgdgeo,  database, line['id'], max_tower)
-
-
-def get_single_side_contact(tower_id, side, contact_index, position, area):
-    #env.workspace = rdb_conn_path
-    whereclause = " tower_id='%s' and side='%s' and contact_index='%s' and position='%s'" % (tower_id, side, contact_index, position)
-    #tbname = r'%s.dbo.%s' % (database, 'VIEW_SINGLE_SIDE_CONTACT')
-    rows = odbc_get_records('VIEW_SINGLE_SIDE_CONTACT',whereclause, area)
-    return rows
-    #rows = arcpy.SearchCursor(tbname, whereclause)
-    #contacts = []
-    #for row in rows:
-        #contact = {}
-        #contact['tower_id'] = row.getValue('tower_id')
-        #contact['geo_x'] = row.getValue('geo_x')
-        #contact['geo_y'] = row.getValue('geo_y')
-        #contact['geo_z'] = row.getValue('geo_z')
-        #contact['offset_x'] = row.getValue('offset_x')
-        #contact['offset_y'] = row.getValue('offset_y')
-        #contact['offset_z'] = row.getValue('offset_z')
-        #contact['rotate'] = row.getValue('rotate')
-        #contact['contact_index'] = row.getValue('contact_index')
-        #contact['side'] = row.getValue('side')
-        #contacts.append(contact)
-    #del rows
-    #return contacts
-    
-    
-    
-def create_segments_by_line_id(area, line_id, min_tower=0, max_tower=0):
-    model_code_list = []
-    towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
-    tower_info_list = odbc_get_records('TABLE_TOWER_MODEL', '1=1', area)
-    
-    for i in range(len(towers_sort)):
-        #if i>20:
-            #break
-        if i<len(towers_sort)-1:
-            if i<min_tower:
-                continue
-            if max_tower>0:
-                if i+1>max_tower:
-                    break
-            start_tower_id, end_tower_id = towers_sort[i]['id'], towers_sort[i+1]['id']
-            #start_model_code = get_suitable_model_code(tower_info_list, towers_sort[i]['model_code'], towers_sort[i]['line_position'], area)
-            #end_model_code = get_suitable_model_code(tower_info_list, towers_sort[i+1]['model_code'], towers_sort[i+1]['line_position'], area)
-            start_model_code = towers_sort[i]['model_code_height']
-            end_model_code   = towers_sort[i+1]['model_code_height']
-            
-                
-                
-            
-            l_1, l_2 = [], []
-            start_position,end_position = towers_sort[i]['line_position'], towers_sort[i+1]['line_position']
-            l_1 = odbc_get_records('TABLE_CONTACT_POINT', " model_code='%s' AND side='%s' " % (start_model_code, u'反' ), area)
-            l_2 = odbc_get_records('TABLE_CONTACT_POINT', " model_code='%s' AND side='%s' " % (end_model_code, u'正' ), area)
-                
-            if len(l_1)==0:
-                print(u"前一杆塔 model_code='%s' and side='%s' and position='%s' 未找到挂线点" % (start_model_code, u'反', start_position))
-                continue
-            if len(l_2)==0:
-                print(u"后一杆塔  model_code='%s' and side='%s' and position='%s' 未找到挂线点" % (end_model_code, u'正', end_position))
-                continue
-            
-            contact_id_list = []
-            for i1 in l_1:
-                for i2 in l_2:
-                    #if i1['side']== u'正' and i2['side']==u'反' and i1['position']==i2['position'] and i1['contact_index']==i2['contact_index']:
-                    if i1['side']== u'反' and i2['side']==u'正':
-                        phase = 'D'
-                        if i1['contact_index'] == 0 and i2['contact_index'] == 0 and i1['position'] in [ u'地左', ]:
-                            phase = 'N'
-                        if i1['contact_index'] == 0 and i2['contact_index'] == 0 and i1['position'] in [u'地右',u'地单']:
-                            phase = 'K'
-                        if i1['contact_index'] == 0 and i2['contact_index'] == 0 and i1['position'] in [u'通左',u'通右',u'通单']:
-                            phase = 'O'
-                        if i1['contact_index'] == 1 and i2['contact_index'] == 1:
-                            phase = 'A'
-                        if i1['contact_index'] == 2 and i2['contact_index'] == 2:
-                            phase = 'B'
-                        if i1['contact_index'] == 3 and i2['contact_index'] == 3:
-                            phase = 'C'
-                        if  i1['contact_index'] ==  i2['contact_index'] and i1['position']==i2['position']:
-                            contact_id_list.append((i1['id'], i2['id'], phase))
-                    
-            print(u'[%s]-[%s]segs=%d' % (gTowerDict[start_tower_id]['tower_name'], gTowerDict[end_tower_id]['tower_name'], len(contact_id_list)))
-            update_segment_by_start_end(area, towers_sort, line_id, start_tower_id, end_tower_id, contact_id_list)
-    
-    
-def test_create_segments_by_line_id(line_name, area):
-    #line_name = u'永发I回线'
-    #line_name = u'永甘乙线'
-    #max_tower = 37
-    #min_tower = 35
-    max_tower = 54
-    min_tower = 53
-    if line_name:
-        lines = odbc_get_records('TABLE_LINE' ,"line_name='%s'" % line_name, area)
-    else:   
-        lines = odbc_get_records('TABLE_LINE','1=1', area )
-    for line in lines:
-        print(line['line_name'])
-        create_segments_by_line_id(area, line['id'], min_tower, max_tower)
-    
-def create_segments_by_area(area):
-    global gTowerDict
-    if len(gTowerDict.keys())==0:
-        ts = odbc_get_records('TABLE_TOWER', '1=1', area)
-        for t in ts:
-            gTowerDict[t['id']] = t
-    
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    clear_segments(kmgdgeo)
-    max_tower = 0
-    min_tower = 0
-    #if line_name:
-        #lines = odbc_get_records('TABLE_LINE' ,"line_name='%s'" % line_name)
-    #else:   
-    lines = odbc_get_records('TABLE_LINE', '1=1', area)
-    for line in lines:
-        if line['line_name'] in AREA_DATA[area]:
-            if line['line_name'] in [u'永发II回线',u'永发I回线']:
-            #if line['line_name'] in [u'永发II回线']:
-                print(line['line_name'])
-                create_segments_by_line_id(area, line['id'], min_tower, max_tower)
-    
-    
-    
-    
-    
-    
-def update_segment_by_start_end(area, towers_sort, line_id, start_tower_id, end_tower_id, contact_id_list):
-    global gTowerDict
-    if len(gTowerDict.keys())==0:
-        ts = odbc_get_records('TABLE_TOWER', '1=1', area)
-        for t in ts:
-            gTowerDict[t['id']] = t
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    ret = 'ok'
-    whereclause = "start_tower_id='%s' AND end_tower_id='%s'" % (start_tower_id, end_tower_id)
-    #20131123
-    ##sql = """DELETE FROM  TABLE_WIRE_SEGMENT WHERE %s""" % whereclause
-    ##odbc_execute_sqls([sql], area)
-    
-    env.workspace = kmgdgeo
-    out_name = 'segment_' + area
-    
-    
-    try:
-        if not arcpy.Exists(out_name):
-            segobj = arcpy.CreateFeatureclass_management(out_path=kmgdgeo, out_name=out_name , geometry_type='POLYLINE',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='ENABLED')
-            arcpy.AddField_management(segobj, 'segid', 'TEXT')
-            arcpy.AddField_management(segobj, 'start_tower_id', 'TEXT')
-            arcpy.AddField_management(segobj, 'end_tower_id', 'TEXT')
-            arcpy.AddField_management(segobj, 'start_contact_id', 'TEXT')
-            arcpy.AddField_management(segobj, 'end_contact_id', 'TEXT')
-            arcpy.AddField_management(segobj, 'phase', 'TEXT')
-            arcpy.AddField_management(segobj, 'line_id', 'TEXT')
-    
-        cur = arcpy.UpdateCursor(out_name, whereclause)
-        for row in cur:
-            cur.deleteRow(row)
-        del cur
-    except:
-        print(sys.exc_info()[1])
-        
-        
-    wiresegs = []
-    for t in contact_id_list:
-        start_contact_id = t[0]
-        end_contact_id = t[1]
-        phase = 'D'
-        if len(t)>2:
-            phase = t[2]
-        seg = {}
-        seg['start_tower_id'] = start_tower_id
-        seg['end_tower_id'] = end_tower_id
-        seg['start_contact_id'] = start_contact_id
-        seg['end_contact_id'] = end_contact_id
-        seg['phase'] = phase
-        wiresegs.append(seg)
-        
-            
-    if len(wiresegs)>0:
-        #20131123
-        #odbc_update_segment_by_start_end(wiresegs, area)
-        env.workspace = kmgdgeo
-        cur = arcpy.InsertCursor(out_name)
-        
-        polylines = create_polyline_by_endpoint( towers_sort, line_id, start_tower_id, end_tower_id, area)
-        for polyline in polylines:
-            feat = cur.newRow()
-            pointlist = polyline['pointlist']
-            arr = arcpy.Array()
-            for pt in pointlist:
-                p = arcpy.Point(X=pt[0], Y=pt[1], Z=pt[2])
-                arr.add(p)
-            line =  arcpy.Polyline(arr, arcpy.SpatialReference(text='WGS 1984'),)
-            try:
-                feat.shape = line
-            except:
-                print(sys.exc_info()[1])
-            feat.segid = polyline['segid']
-            feat.start_tower_id = polyline['start_tower_id']
-            feat.end_tower_id = polyline['end_tower_id']
-            feat.phase = polyline['phase']
-            feat.start_contact_id = polyline['start_contact_id']
-            feat.end_contact_id = polyline['end_contact_id']
-            feat.line_id = line_id
-            cur.insertRow(feat)
-        del cur
-    else:
-        ret = 'no segment added'
-    return ret        
-            
     
     
 def odbc_update_segment_by_start_end(segs, area):
@@ -2095,127 +1120,6 @@ def odbc_update_segment_by_start_end(segs, area):
     
     odbc_execute_sqls(sqls, area)
     
-    
-    
-    
-    
-def create_segment_by_line(rdb_conn_path, geo_conn_path,  database, line_id, max_tower=0):
-    towers = odbc_get_sorted_tower_by_line(line_id)
-    
-    out_name = 'segment_' + line_id.replace('-','').upper()
-    env.workspace = geo_conn_path
-    if arcpy.Exists(out_name):
-        arcpy.Delete_management(out_name)
-    segobj = arcpy.CreateFeatureclass_management(out_path=geo_conn_path, out_name=out_name , geometry_type='POLYLINE',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='ENABLED')
-    arcpy.AddField_management(segobj, 'segid', 'TEXT')
-    arcpy.AddField_management(segobj, 'start_tower_id', 'TEXT')
-    arcpy.AddField_management(segobj, 'end_tower_id', 'TEXT')
-    arcpy.AddField_management(segobj, 'start_contact_index', 'SHORT')
-    arcpy.AddField_management(segobj, 'end_contact_index', 'SHORT')
-    arcpy.AddField_management(segobj, 'phase', 'TEXT')
-    cur = arcpy.InsertCursor(out_name)
-    
-    
-    
-    
-    start_tower, end_tower = None, None
-    for tower in towers:
-        if max_tower>0:
-            if towers.index(tower)==max_tower:
-                break
-        end_tower = tower
-        if start_tower and end_tower:
-            print(u'起始[%s]-终止[%s]' % (start_tower['tower_name'], end_tower['tower_name']))
-            polylines = create_polyline_by_endpoint(rdb_conn_path, geo_conn_path,  database,  None, towers, line_id, start_tower['id'], end_tower['id'] )
-            for polyline in polylines:
-                feat = cur.newRow()
-                pointlist = polyline['pointlist']
-                arr = arcpy.Array()
-                for pt in pointlist:
-                    p = arcpy.Point(X=pt[0], Y=pt[1], Z=pt[2])
-                    arr.add(p)
-                line =  arcpy.Polyline(arr, arcpy.SpatialReference(text='WGS 1984'),)
-                feat.shape = line
-                feat.segid = polyline['segid']
-                feat.start_tower_id = polyline['start_tower_id']
-                feat.end_tower_id = polyline['end_tower_id']
-                feat.start_contact_index = polyline['start_contact_index']
-                feat.end_contact_index = polyline['end_contact_index']
-                feat.phase = polyline['phase']
-                cur.insertRow(feat)
-            
-        start_tower = end_tower
-        if end_tower == towers[len(towers)-1]:
-            break
-    
-    del cur
-    
-    
-        
-def create_polyline_by_endpoint( towers_sort, line_id, start_tower_id, end_tower_id,  area):
-    def is_same_sign(a1, a2):
-        ret = False
-        if a1>0 and a2>0:
-            ret = True
-        elif a1<0 and a2<0:
-            ret = True
-        elif a1 == a2:
-            ret = True
-        return ret
-        
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn(area)
-    env.workspace = kmgdgeo
-    #center_altitude = get_center_altitude()
-    ret = []
-    
-    T0, w = get_conductor_T0_w_by_segment(towers_sort, line_id, start_tower_id, end_tower_id, area)
-    if T0==0 and w==0:
-        T0, w = get_ground_left_T0_w_by_segment(towers_sort, line_id, start_tower_id, end_tower_id, area)
-    if T0==0 and w==0:
-        T0, w = get_ground_right_T0_w_by_segment(towers_sort, line_id, start_tower_id, end_tower_id, area)
-    #if T0==0 and w==0:
-        #T0, w = 1.1, 0.001
-    if T0 < 1.0:
-        T0, w = 0.9, 0.001
-        
-        
-    print('tensor_T0=%f, w=%f' % (T0, w))
-    #if segs:
-        #wiresegs = segs
-    #else:
-        ##wiresegs = get_data_from_rdbms(rdb_conn_path, database,'VIEW_CONTACT_POINT', "start_tower_id='%s' AND end_tower_id='%s' AND start_side='%s' AND end_side='%s'" % (start_tower_id, end_tower_id, u'正', u'反')) 
-    #wiresegs = odbc_get_records('VIEW_CONTACT_POINT', "start_tower_id='%s' AND end_tower_id='%s' AND start_side='%s' AND end_side='%s' AND start_contact_id='%s' AND end_contact_id='%s'" % (start_tower_id, end_tower_id, u'正', u'反', start_contact_id, end_contact_id), area)
-    cond = "start_tower_id='%s' AND end_tower_id='%s' AND start_side='%s' AND end_side='%s'" % (start_tower_id, end_tower_id, u'反', u'正')
-    #print('select from VIEW_CONTACT_POINT where %s' % cond)
-    wiresegs = odbc_get_records('VIEW_CONTACT_POINT', cond, area)
-        
-    for seg in wiresegs:
-        #if is_same_sign(seg['start_offset_x'], seg['end_offset_x']):
-        d = {}
-        d['segid'] = seg['id']
-        d['start_tower_id'] = seg['start_tower_id']
-        d['end_tower_id'] = seg['end_tower_id']
-        d['start_contact_id'] = seg['start_contact_id']
-        d['end_contact_id'] = seg['end_contact_id']
-        d['phase'] = seg['phase']
-        seg['tensor_T0'] = T0
-        seg['w'] = w
-        pts = calc_point_pair_segment(seg)
-        #isok = check_geo_z(center_altitude, pts, seg)
-        #while not isok:
-            #print('If tensor_T0=%f, w=%f, lowest point is less than %f and may be underground.' % (seg['tensor_T0'], seg['w'], center_altitude))
-            #seg['tensor_T0'] *= 1.1
-            #seg['w'] *= 1.1
-            #print('Take tensor_T0=%f and recalculating...' % seg['tensor_T0'])
-            #pts = calc_point_pair_segment(seg)
-            #isok = check_geo_z(center_altitude, pts, seg)
-        
-        d['pointlist'] = pts
-        ret.append(d)
-    return ret        
-
-
-        
     
     
 
@@ -2247,133 +1151,7 @@ def odbc_update_line_seg_color():
     cur.close()
     conn.close()
 
-def create_sde_conn(area):
-    global gConfig
-    d = os.path.dirname(SDE_DIR)
-    if not os.path.exists(d):
-        os.mkdir(d)
-    if not os.path.exists(SDE_DIR):
-        os.mkdir(SDE_DIR)
-    kmgd = None #os.path.join(SDE_DIR, SDE_FILE_KMGD)
-    kmgdgeo = os.path.join(SDE_DIR, gConfig['odbc'][area]['sde_file'])
-    kmgdgeotmp = None #os.path.join(SDE_DIR, SDE_FILE_KMGDGEO_TMP)
-    #if not os.path.exists(kmgd):
-        #if len(DATABASE_INSTANCE)>0:
-            #arcpy.CreateDatabaseConnection_management(out_folder_path=SDE_DIR, out_name=SDE_FILE_KMGD, database_platform='SQL_SERVER', instance='%s\\%s' % (DATABASE_SERVER, DATABASE_INSTANCE),account_authentication='DATABASE_AUTH',username=DATABASE_USERNAME, password=DATABASE_PASSWORD,  database=DATABASE_RDBMS)
-        #else:
-            #arcpy.CreateDatabaseConnection_management(out_folder_path=SDE_DIR, out_name=SDE_FILE_KMGD, database_platform='SQL_SERVER', instance='%s' % DATABASE_SERVER,account_authentication='DATABASE_AUTH',username=DATABASE_USERNAME, password=DATABASE_PASSWORD,  database=DATABASE_RDBMS)
-    #if not os.path.exists(kmgdgeo):
-        ##arcpy.CreateDatabaseConnection_management(out_folder_path=SDE_DIR, out_name=SDE_FILE_KMGDGEO, database_platform='SQL_SERVER', instance=r'XIEJUN-DESKTOP\SQLEXPRESS',account_authentication='DATABASE_AUTH',username='sa', password='sa', database='sde')
-        #arcpy.CreateArcSDEConnectionFile_management(out_folder_path=SDE_DIR, out_name=SDE_FILE_KMGDGEO, server=DATABASE_SERVER, service=DATABASE_GEO_PORT,  account_authentication='DATABASE_AUTH',username=DATABASE_USERNAME, password=DATABASE_PASSWORD, save_username_password='SAVE_USERNAME', database=DATABASE_GEO)
-    #if not os.path.exists(kmgdgeotmp):
-        #arcpy.CreateArcSDEConnectionFile_management(out_folder_path=SDE_DIR, out_name=SDE_FILE_KMGDGEO_TMP, server=DATABASE_SERVER, service=DATABASE_GEO_TMP_PORT,  account_authentication='DATABASE_AUTH',username=DATABASE_USERNAME, password=DATABASE_PASSWORD, save_username_password='SAVE_USERNAME', database=DATABASE_GEO_TMP)
-        ##arcpy.CreateDatabaseUser_management
-    
-    if not os.path.exists(kmgdgeo):
-        if len(gConfig['odbc'][area]['db_instance'])>0:
-            #arcpy.CreateArcSDEConnectionFile_management(out_folder_path=SDE_DIR, out_name=gConfig['odbc'][area]['sde_file'], server='%s\\%s' % (gConfig['odbc'][area]['db_server'], gConfig['odbc'][area]['db_instance']), service=gConfig['odbc'][area]['sde_port'],  account_authentication='DATABASE_AUTH',username=gConfig['odbc'][area]['db_username'], password=gConfig['odbc'][area]['db_password'], save_username_password='SAVE_USERNAME', database=gConfig['odbc'][area]['sde_name'])
-            arcpy.CreateDatabaseConnection_management(out_folder_path=SDE_DIR, out_name=gConfig['odbc'][area]['sde_file'], database_platform='SQL_SERVER',  instance='%s\\%s' % (gConfig['odbc'][area]['db_server'], gConfig['odbc'][area]['db_instance']),   account_authentication='DATABASE_AUTH',username=gConfig['odbc'][area]['db_username'], password=gConfig['odbc'][area]['db_password'],  database=gConfig['odbc'][area]['sde_name'])
-        else:
-            #arcpy.CreateArcSDEConnectionFile_management(out_folder_path=SDE_DIR, out_name=gConfig['odbc'][area]['sde_file'], server=gConfig['odbc'][area]['db_server'], service=gConfig['odbc'][area]['sde_port'],  account_authentication='DATABASE_AUTH',username=gConfig['odbc'][area]['db_username'], password=gConfig['odbc'][area]['db_password'], save_username_password='SAVE_USERNAME', database=gConfig['odbc'][area]['sde_name'])
-            arcpy.CreateDatabaseConnection_management(out_folder_path=SDE_DIR, out_name=gConfig['odbc'][area]['sde_file'], database_platform='SQL_SERVER',  instance='%s' % gConfig['odbc'][area]['db_server'],   account_authentication='DATABASE_AUTH',username=gConfig['odbc'][area]['db_username'], password=gConfig['odbc'][area]['db_password'],  database=gConfig['odbc'][area]['sde_name'])
-    return kmgd, kmgdgeo, kmgdgeotmp
 
-
-def get_data_from_rdbms(rdb_conn_path, database, table, where_clause, flds=None):
-    ret = {}
-    root = ''
-    tbname = '%s.dbo.%s' % (database, table)
-    env.workspace = rdb_conn_path
-    if arcpy.Exists(tbname):
-        fc = tbname
-        rows = arcpy.SearchCursor(fc, where_clause=where_clause)
-        fields = arcpy.ListFields(fc, '', '')
-        if flds:
-            for row in rows:
-                #print(dir(row))
-                d = {}
-                id = None
-                for fld in fields:
-                    if fld.name in flds:
-                        if isinstance(row.getValue(fld.name), str) or isinstance(row.getValue(fld.name), unicode):
-                            relist = re.findall(r'\w{8}-\w{4}-\w{4}-\w{4}-\w{12}', row.getValue(fld.name))
-                            if len(relist)>0:
-                                d[fld.name] = row.getValue(fld.name).upper().replace('{','').replace('}','')
-                                if fld.name in ['id']:
-                                    id = d[fld.name]
-                            else:
-                                d[fld.name] = row.getValue(fld.name)
-                        else:
-                            d[fld.name] = row.getValue(fld.name)
-                if id:
-                    ret[id] = d
-        else:
-            for row in rows:
-                #print(dir(row))
-                d = {}
-                id = None
-                for fld in fields:
-                    v = row.getValue(fld.name)
-                    if (isinstance(v, str) or isinstance(v, unicode)) and len(v)>0 and v[0]=='{' and v[-1]=='}':
-                        v = v.upper().replace('{','').replace('}','')
-                        if fld.name in ['id']:
-                            id = v
-                    d[fld.name] = v
-                if id:
-                    ret[id] = d
-                else:
-                    id = str(uuid.uuid4()).upper()
-                    ret[id] = d
-            
-            
-    else:
-        arcpy.AddMessage('no table [%s] exist' % tbname)
-        arcpy.AddMessage(arcpy.ListTables())
-        
-    return ret
-
-
-def copy_sde_to_sdetmp():
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    env.workspace = kmgdgeo
-    fs = []
-    l = arcpy.ListFeatureClasses()
-    for i in l:
-        if 'towers_' in i or 'line_' in i or 'segment_' in i:
-            fs.append(i.replace('sde.DBO.', ''))
-    env.workspace = kmgdgeotmp
-    for i in fs:
-        #n = i.replace('sde.DBO.', '')
-        #name = 'sde_tmp.DBO.' + n
-        if arcpy.Exists(i):
-            print('delete exist %s ...' % i)
-            arcpy.Delete_management(i)
-        print('copying %s ...' % i)
-        arcpy.CopyFeatures_management(os.path.join(kmgdgeo, i), os.path.join(kmgdgeotmp, i))
-        print(arcpy.GetMessages())
-
-
-def copy_sde_to_sde(src, dest):
-    srcsde = os.path.join(SDE_DIR, src)
-    destsde = os.path.join(SDE_DIR, dest)
-    env.workspace = srcsde
-    fs = []
-    l = arcpy.ListFeatureClasses()
-    for i in l:
-        if 'towers_' in i or 'line_' in i or 'segment_' in i or 'towers3D_' in i or 'segment3D_' in i:
-            fs.append(i.replace('sde.DBO.', ''))
-    env.workspace = destsde
-    for i in fs:
-        #n = i.replace('sde.DBO.', '')
-        #name = 'sde_tmp.DBO.' + n
-        if arcpy.Exists(i):
-            print('delete exist %s ...' % i)
-            arcpy.Delete_management(i)
-        print('copying %s ...' % i)
-        arcpy.CopyFeatures_management(os.path.join(srcsde, i), os.path.join(destsde, i))
-        arcpy.AddMessage(arcpy.GetMessages())
-    
-    
     
     
 
@@ -2406,286 +1184,10 @@ def ToWebMercator(lon, lat):
     mercatorY_lat = 3189068.5 * math.log((1.0 + math.sin(a)) / (1.0 - math.sin(a)))
     return mercatorX_lon, mercatorY_lat
 
-def copy_features(src_ws,  dest_ws,  obj):
-    tmp = '_tmp_%s' % str(uuid.uuid4()).upper().replace('-','')
-    env.workspace = src_ws
-    fs = []
-    if obj['type']=='line':
-        for line in obj['lines']:
-            fc = 'line_%s' % line['id'].replace('-','')
-            if arcpy.Exists(fc.lower()) or arcpy.Exists(fc) or arcpy.Exists(fc.upper()):
-                cur = arcpy.SearchCursor(fc)
-                for row in cur:
-                    p = row.getValue('Shape')
-                    if not p in fs:
-                        fs.append(p)
-                del cur
-            
-        if len(fs)>0:
-            env.workspace = dest_ws
-            lineobj = arcpy.CreateFeatureclass_management(out_path=dest_ws, out_name=tmp, geometry_type='POLYLINE',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED')
-            #cur = arcpy.InsertCursor(tmp)
-            cur = arcpy.da.InsertCursor(tmp, ("SHAPE@"))
-            for polyline in fs:
-                #row = cur.newRow()
-                #lineobj.shape = polyline
-                #cur.insertRow(row)
-                cur.insertRow((polyline,))
-            del cur
-            
-    elif obj['type']=='tower':
-        env.workspace = src_ws
-        for tower in obj['towers']:
-            fc = 'towers_%s' % tower['line_id'].replace('-','')
-            if arcpy.Exists(fc.lower()) or arcpy.Exists(fc) or arcpy.Exists(fc.upper()):
-                where_clause = "tower_id='%s'" % tower['id']
-                cur = arcpy.SearchCursor(fc, where_clause)
-                for row in cur:
-                    p = row.getValue('Shape')
-                    if not p in fs:
-                        fs.append(p)
-                del cur
-        
-        if len(fs)>0:
-            env.workspace = dest_ws
-            ptobj = arcpy.CreateFeatureclass_management(out_path=dest_ws, out_name=tmp, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='ENABLED')
-            #cur = arcpy.InsertCursor(tmp)
-            cur = arcpy.da.InsertCursor(tmp, ("SHAPE@"))
-            for pt in fs:
-                #row = cur.newRow()
-                #lineobj.shape = polyline
-                #cur.insertRow(row)
-                cur.insertRow((pt,))
-            del cur
-    return tmp                
                 
 
 
-def test_GP():
-    ret = None
-    p = r"C:\Users\Jeffrey\AppData\Roaming\ESRI\Desktop10.1\ArcToolbox\My Toolboxes\kmgdgis.pyt"
-    #if os.path.exists(p):
-        #print('ok')
-    #arcpy.ImportToolbox(r"C:\Users\Jeffrey\AppData\Roaming\ESRI\Desktop10.1\ArcToolbox\My Toolboxes\kmgdgis.pyt", "kmgdgis")
-    arcpy.ImportToolbox(r"C:\Users\Jeffrey\AppData\Roaming\ESRI\Desktop10.1\ArcToolbox\My Toolboxes\kmgdgis.pyt", "kmgdgis")
-    try:
-        #ret = arcpy.Dispatch_kmgdgis('query_lines_layers', 'client', 'admin', 'admin', '')
-        ret = arcpy.Dispatch_kmgdgis('query_towers_layers', 'client', 'admin', 'admin', '')
-        #ret = arcpy.Dispatch_kmgdgis('update_line', 'client', 'admin', 'admin', test_json_line())
-        #ret = arcpy.Dispatch_kmgdgis('update_tower', 'client', 'admin', 'admin', test_json_tower())
-        #ret = arcpy.Dispatch_kmgdgis('update_segment', 'client', 'admin', 'admin', test_json_seg())
-        #ret = arcpy.Dispatch_kmgdgis('analyse_buffer', 'client', 'admin', 'admin', test_json_buff())
-    except:
-        print(sys.exc_info()[1])
-        #print(arcpy.GetMessages() )   
-    if ret:
-        #print(dir(ret))
-        print('status=%s' % GP_STATUS[ret.status] )
-        for i in range(ret.inputCount):
-            print(ret.getInput(i))
-    for i in range(ret.outputCount):
-        ##print('%s=%s' % (p.name , p.value))
-        ##print('Output%d=%s' % (i, type(ret[i])))
-        print('Output%d=%s' % (i, ret.getOutput(i)))
-
-def test_json_line():
-    line = {'id':None,'line_code':'0501S15026847LAB847', 'line_name':'testline','box_north':0,'box_south':0,'box_east':0,'box_west':0,}
-    obj = {'lines':[line,], 'is_delete':False}
-    s = json.dumps(obj)
-    #print(s)
-    return s
     
-def test_delete_tower():
-    #delete
-      #FROM [kmgd].[dbo].[TABLE_TOWER_ATTACH_POINT]
-      #where tower_id not in (select id from TABLE_TOWER)
-    #GO    
-    ids = []
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    table = 'TABLE_TOWER'
-    sdeConn = arcpy.ArcSDESQLExecute(kmgd)
-    sql = """select convert(nvarchar(50), id) from  %s where line_id='%s'""" % (table, '2d38f0e2-3218-4562-80d1-2d38f9fa6d15')
-    sdeReturn = sdeConn.execute(sql)
-    if sdeReturn and not isinstance(sdeReturn, bool) and len(sdeReturn)>0:
-        if isinstance(sdeReturn, unicode) or isinstance(sdeReturn, str):
-            ids.append(sdeReturn)
-        elif isinstance(sdeReturn, list):
-            for i in sdeReturn:
-                ids.append(i[0])
-    del sdeConn
-    
-    arcpy.ImportToolbox(r"C:\Users\XIEJUN\AppData\Roaming\ESRI\Desktop10.1\ArcToolbox\My Toolboxes\kmgdgis.pyt", "kmgdgis")
-    for id in ids:
-        tower = {'id':id, 'line_id':'2D38F0E2-3218-4562-80D1-2D38F9FA6D15','tower_code':None, 'tower_name':None,'geo_x':102.4907,'geo_y':25.2245,'geo_z':0,'height':0, 'rotate':0, 'model_code':''}
-        obj = {}
-        obj['tower'] = tower
-        obj['prev_tower_id'] = None
-        obj['next_tower_id'] = None
-        obj['is_delete'] = True
-        obj['is_recalc_line'] = True
-        obj['is_recalc_segment'] = True
-        s = json.dumps(obj)
-        ret = None
-        try:
-            ret = arcpy.Dispatch_kmgdgis('update_tower', 'client', 'admin', 'admin', s)
-        except:
-            print(sys.exc_info()[1])
-        if ret:
-            print('status=%s' % GP_STATUS[ret.status] )
-        
-    
-    
-def test_json_seg():
-    obj = {}
-    obj['line_id'] = 'FDB76D30-639E-40B9-B3F9-82975644EFAD'
-    obj['start_point_index'] = 0
-    obj['end_point_index'] = 0
-    obj['prev_tower_id'] = '46A2EF51-67B1-48D5-9CBB-77ABE807984B'
-    obj['next_tower_id'] = 'A3CD0892-3B20-4BD3-AA08-C99B06D2CE4D'
-    obj['prev_tower_id'] = 'A3CD0892-3B20-4BD3-AA08-C99B06D2CE4D'
-    obj['next_tower_id'] = '2823ACD4-E885-4CF2-A002-863B286E41B2'
-    obj['tensor'] = 1.0
-    obj['w'] = 0.001
-    obj['is_delete'] = False
-    s = json.dumps(obj)
-    #print(s)
-    return s
-    
-def merge_kunming_towers():
-    lines = ['926bcabe-f750-400a-b002-25986be66c6b',
-             '207a1bf8-cfc6-4b22-b6c0-2f99f1398a65',
-             '60b49830-d957-463b-bb1a-68a579fcfafb',
-             'dfcbd4d4-5a05-4ea6-8220-7205c48bb240',
-             '446e8088-acb5-4d33-b49a-78555c897a56',
-             '771ebb8c-d6a1-43f3-a066-89524478ab62',
-             '8e3c440d-208c-419b-9e64-897d2a4c0a54',
-             '9ac72590-4a3e-4a40-a052-918d0ab45059',
-             'f4ebb144-67b1-4ea7-9965-a19e19f848d2',
-             '295b2f26-4863-4f87-8de1-b1998a85aff9',
-             'af77864e-b8d5-479f-896b-c5f5dfe3450f',
-             'ca2b1c8c-b5a0-4686-9162-ea6feae3c091',
-             'cfb25596-40a1-4a0c-84a8-eea9b8b50fd5',
-             'b6926c06-354d-466d-9d22-fa970c503a94']
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    env.workspace = kmgdgeo
-    inputs = []
-    for line in lines:
-        inputs.append('towers_%s' % line.replace('-',''))
-    output = 'km_merged_tower'
-    arcpy.Merge_management(inputs=inputs, output=output)
-    arcpy.AddMessage(arcpy.GetMessages())
-    
-
-def make_km_tower_kml():
-    lines = ['926bcabe-f750-400a-b002-25986be66c6b',
-             '207a1bf8-cfc6-4b22-b6c0-2f99f1398a65',
-             '60b49830-d957-463b-bb1a-68a579fcfafb',
-             'dfcbd4d4-5a05-4ea6-8220-7205c48bb240',
-             '446e8088-acb5-4d33-b49a-78555c897a56',
-             '771ebb8c-d6a1-43f3-a066-89524478ab62',
-             '8e3c440d-208c-419b-9e64-897d2a4c0a54',
-             '9ac72590-4a3e-4a40-a052-918d0ab45059',
-             'f4ebb144-67b1-4ea7-9965-a19e19f848d2',
-             '295b2f26-4863-4f87-8de1-b1998a85aff9',
-             'af77864e-b8d5-479f-896b-c5f5dfe3450f',
-             'ca2b1c8c-b5a0-4686-9162-ea6feae3c091',
-             'cfb25596-40a1-4a0c-84a8-eea9b8b50fd5',
-             'b6926c06-354d-466d-9d22-fa970c503a94']
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn('km')
-    env.workspace = kmgdgeo
-    
-    inputs = []
-    for line in lines:
-        inputs.append('towers_%s' % line.replace('-',''))
-    output = 'km_merged_tower_layer'
-    #if arcpy.Exists(output):
-        #arcpy.Delete_management(output)
-    #arcpy.MakeFeatureLayer_management(in_features='km_merged_tower', out_layer=output, workspace=kmgdgeo)
-    arcpy.SaveToLayerFile_management()
-    arcpy.AddMessage(arcpy.GetMessages())
-    
-    
-    
-    
-def test_json_tower():
-    id = None #str(uuid.uuid4())
-    #id = 'F605BFE5-2217-4469-A562-5F134F308045' # 2D38F0E2-3218-4562-80D1-2D38F9FA6D15
-    isdelete = False
-    #isdelete = True
-    if isdelete:
-        kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn('km')
-        table = 'TABLE_TOWER'
-        sdeConn = arcpy.ArcSDESQLExecute(kmgd)
-        sql = """select convert(nvarchar(50), id) from  %s where line_id='%s'""" % (table, 'F605BFE5-2217-4469-A562-5F134F308045')
-        sdeReturn = sdeConn.execute(sql)
-        if sdeReturn and len(sdeReturn)>0:
-            id = sdeReturn
-        del sdeConn
-        
-    #tower = {'id':id, 'line_id':'F605BFE5-2217-4469-A562-5F134F308045','tower_code':'0501S15026847LAD001', 'tower_name':'bbb0','geo_x':102.4907,'geo_y':25.2245,'geo_z':0,'height':0, 'rotate':0, 'model_code':'test2'}
-    #tower = {'id':id, 'line_id':'F605BFE5-2217-4469-A562-5F134F308045','tower_code':'0501S15026847LAD002', 'tower_name':'bbb1','geo_x':102.4827,'geo_y':25.2305,'geo_z':0,'height':0, 'rotate':0, 'model_code':'test2'}
-    tower = {'id':id, 'line_id':'F605BFE5-2217-4469-A562-5F134F308045','tower_code':'0501S15026847LAD003', 'tower_name':'bbb2','geo_x':102.4807,'geo_y':25.2325,'geo_z':0,'height':0, 'rotate':0, 'model_code':'test2'}
-    obj = {}
-    obj['tower'] = tower
-    obj['prev_tower_id'] = None
-    #obj['prev_tower_id'] = '46A2EF51-67B1-48D5-9CBB-77ABE807984B'
-    #obj['prev_tower_id'] = 'A3CD0892-3B20-4BD3-AA08-C99B06D2CE4D'
-    
-    obj['next_tower_id'] = None
-    #obj['is_delete'] = True
-    obj['is_delete'] = False
-    obj['is_recalc_line'] = True
-    
-    if isdelete:
-        obj['is_delete'] = True
-    #attachs = []
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':0, 'offset_x':-65, 'offset_y':145}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':1, 'offset_x':-65, 'offset_y':125}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':2, 'offset_x':-65, 'offset_y':105}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':3, 'offset_x':-65, 'offset_y':85}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':4, 'offset_x':65, 'offset_y':145}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':5, 'offset_x':65, 'offset_y':125}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':6, 'offset_x':65, 'offset_y':105}
-    #attachs.append(attach)
-    #attach = {'id':None, 'model_code':tower['model_code'], 'point_index':7, 'offset_x':65, 'offset_y':85}
-    #attachs.append(attach)
-    #obj['attachs'] = attachs
-    s = json.dumps(obj)
-    #print(s)
-    return s
-    
-def test_sql():
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    table = 'towers_0168908B83414C7C9B1D81049780639D'
-    sdeConn = arcpy.ArcSDESQLExecute(kmgdgeotmp)
-    sql = """select SHAPE, tower_name from  %s""" % table
-    sdeReturn = sdeConn.execute(sql)
-    print(sdeReturn)
-    del sdeConn
-    
-
-def test_toolbox():
-    #arcpy.ImportToolbox(r"e:\program files (x86)\arcgis\desktop10.1\ArcToolbox\Toolboxes\3D Analyst Tools.tbx", "3d")
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    arcpy.CheckOutExtension('3D')
-    env.workspace = kmgdgeotmp
-    in_features = 'line_2d38f0e23218456280d12d38f9fa6d15'
-    out_feature_class = 'tmp__buff3d_line_2d38f0e23218456280d12d38f9fa6d15'
-    if arcpy.Exists(out_feature_class):
-        arcpy.Delete_management(out_feature_class)
-    buffer_distance_or_field = '150 Meters'
-    buffer_joint_type = 'STRAIGHT' 
-    buffer_joint_type = 'ROUND'
-    buffer_quality = 20
-    arcpy.Buffer3D_3d(in_features=in_features, out_feature_class=out_feature_class,buffer_distance_or_field=buffer_distance_or_field, buffer_joint_type=buffer_joint_type, buffer_quality=buffer_quality)
-    arcpy.AddMessage(arcpy.GetMessages())
-
 
 
 def import_tower_model_code():
@@ -2754,110 +1256,6 @@ def import_tower_attach_points():
     cur.close()
     conn.close()
 
-def deploy_GP():
-    def gentoken(url, username, password, expiration=60):
-        query_dict = {'username':   username,
-                      'password':   password,
-                      'expiration': str(expiration),
-                      'client':     'requestip'}
-        query_string = urllib.urlencode(query_dict)
-        return json.loads(urllib.urlopen(url + "?f=json", query_string).read())['token']
-    
-    def deleteservice(server, servicename, username, password, token=None, port=6080):
-        if token is None:
-            token_url = "http://{}:{}/arcgis/admin/generateToken".format(server, port)
-            token = gentoken(token_url, username, password)
-        delete_service_url = "http://{}:{}/arcgis/admin/services/{}.GPServer/delete?token={}".format(server, port, servicename, token)
-        return urllib2.urlopen(delete_service_url, ' ').read() # The ' ' forces POST
-    
-    arcpy.ImportToolbox(r"C:\Users\XIEJUN\AppData\Roaming\ESRI\Desktop10.1\ArcToolbox\My Toolboxes\kmgdgis.pyt", "kmgdgis")
-    try:
-        ret = arcpy.Dispatch_kmgdgis('', 'client', 'admin', 'admin', '')
-    except:
-        print(sys.exc_info()[1])
-        #print(arcpy.GetMessages() )   
-    if ret:
-        #print(dir(ret))
-        print('status=%s' % GP_STATUS[ret.status] )
-        #for i in range(ret.inputCount):
-            #print(ret.getInput(i))
-        d = os.path.dirname(SERVICE_DEFINITION_DRAFT)
-        if not os.path.exists(d):
-            os.mkdir(d)
-        #if not os.path.exists(SERVER_CONNECTION_FILE):
-        arcpy.mapping.CreateGISServerConnectionFile(
-            connection_type='PUBLISH_GIS_SERVICES',
-            out_folder_path=os.path.dirname(SERVER_CONNECTION_FILE),
-            out_name=os.path.basename(SERVER_CONNECTION_FILE),
-            server_url=SERVER_URL,
-            server_type='ARCGIS_SERVER',
-            use_arcgis_desktop_staging_folder=True,
-            staging_folder_path=d,
-            username=SERVER_USERNAME,
-            password=SERVER_PASSWORD,
-            save_username_password=True,
-            )
-            
-            
-        #if not os.path.exists(SERVICE_DEFINITION_DRAFT):
-        arcpy.CreateGPSDDraft(
-            result=ret,
-            out_sddraft = SERVICE_DEFINITION_DRAFT, 
-            service_name = 'Dispatch', 
-            server_type="ARCGIS_SERVER",
-            connection_file_path=SERVER_CONNECTION_FILE,
-            copy_data_to_server=False, 
-            folder_name='kmgdgis', 
-            summary='Dispatch', 
-            tags='Dispatch',
-            executionType='Asynchronous',
-            resultMapServer=False,
-            showMessages='None',
-            maximumRecords=100000,
-            minInstances=1,
-            maxInstances=20,
-            maxUsageTime=600,
-            maxWaitTime=60,
-            maxIdleTime=1800
-        )  
-        
-        tree = etree.parse(SERVICE_DEFINITION_DRAFT)
-        root = tree.getroot()
-        r = root.xpath('//Description')
-        #print(r)
-        for i in r:
-            i.text = 'DispatchDispatchDispatch'
-        #r = root.xpath('//Name')
-        ##print(r)
-        #for i in r:
-            #i.text = 'Dispatch'
-        print(etree.tostring(root, pretty_print=True))
-        s = etree.tostring(root)
-        with open(SERVICE_DEFINITION_DRAFT, 'w') as f:
-            f.write(s)
-        
-        
-        #analyzeMessages = arcpy.mapping.AnalyzeForSD(SERVICE_DEFINITION_DRAFT)
-        #if analyzeMessages['errors'] == {}:
-            #ret = arcpy.StageService_server(SERVICE_DEFINITION_DRAFT, SERVICE_DEFINITION)
-            #print("ret=" + str(ret))
-            ##upStatus = arcpy.UploadServiceDefinition_server(SERVICE_DEFINITION, SERVER_CONNECTION_FILE)
-            ##print("Completed upload=" + str(upStatus))
-        #else: 
-            ## if the sddraft analysis contained errors, display them
-            #print(analyzeMessages['errors'])
-        
-        
-        env.workspace = d
-        f1 = os.path.basename(SERVICE_DEFINITION_DRAFT)
-        f2 = os.path.basename( SERVICE_DEFINITION)
-        #ret = arcpy.StageService_server(SERVICE_DEFINITION_DRAFT, SERVICE_DEFINITION)
-        ret = arcpy.StageService_server(f1, f2)
-        print("ret=" + str(ret))
-            
-        #ret = deleteservice(SERVER_NAME, 'kmgdgis/Dispatch',SERVER_USERNAME, SERVER_PASSWORD, None, SERVER_PORT)
-        #upStatus = arcpy.UploadServiceDefinition_server(SERVICE_DEFINITION, SERVER_CONNECTION_FILE, in_folder_type=)
-        #print("upStatus=" + str(upStatus))
             
 def test_xml():
     r1 = etree.parse(r'D:\arcgisserver\sd\kmgdgis.xml')
@@ -2865,76 +1263,6 @@ def test_xml():
     print(etree.tostring(r2.getroot(), pretty_print=True))
 
 
-def insert_action_log(conn, user, action):
-    #kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    table = 'TABLE_ACTION_LOG'
-    st =  datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')
-    #st =  time.time()
-    sql = """ insert into %s values('%s',  '%s',  '%s') """ % (table,  user, action, st)
-    #print(sql)
-    sdeConn = arcpy.ArcSDESQLExecute(conn)
-    ret = sdeConn.execute(sql)
-    del sdeConn
-    return st
-
-
-def get_latest_action_log(conn):
-    #kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    table = 'TABLE_ACTION_LOG'
-    sql = """ select top 1 time_stamp from  %s order by id desc """ % table
-    #print(sql)
-    sdeConn = arcpy.ArcSDESQLExecute(conn)
-    ret = sdeConn.execute(sql)
-    del sdeConn
-    return ret
-    
-def test_group():
-    ext = ['53629C78-78DD-4761-90FC-027504B7F5E3', '798DEB82-055A-4261-A229-C22ECA3D1FC4','F4A47635-2376-4D58-872D-6F0DB8B924F0' ]
-    #ext = ['BB35BD60-01A1-44ED-9B4D-527834A711BF', '529EFBD8-69E3-4DE3-9C99-DA6735263D7B', '146C24F4-C84B-4AD0-AC8B-ED12AC810231']
-    ext = ['6513923A-BDE9-4845-8E47-C88FEB18ADB8','0E641E3C-037B-46FE-A2A8-22D119EB1645', '3CFC8F44-24A2-4E75-B470-DE0A37C0351E']
-    ext = []
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    towers = get_data_from_rdbms(kmgd, 'kmgd', 'VIEW_TOWER_LINE', "line_id='%s'" % '0168908b-8341-4c7c-9b1d-81049780639d')
-    print(len(towers.keys()))
-    towers_relation = get_data_from_rdbms(kmgd, 'kmgd', 'VIEW_TOWER_RELATIONS', "line_id='%s'" % '0168908b-8341-4c7c-9b1d-81049780639d')
-    towers = resort_towers_to_groups(towers, towers_relation, ext)
-    print('group count=%d' % len(towers))
-    for g in towers:
-        print('group(%d)=%d' % ( towers.index(g), len(g.keys())))
-        for k in g.keys():
-            if k in ext:
-                print('idx(%d)=%d' % ( towers.index(g), g.keys().index(k)))
-        print(g)
-
-#def test_update_model_code():
-    ##kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    #kmgdgeotmp = r'G:\work\csharp\kmgdgis\data\local_workspace\local.gdb'
-    #env.workspace = kmgdgeotmp
-    #lines = odbc_get_records('TABLE_LINE', "1=1" )
-    #cur = None
-    #for line in lines:
-        ##if line['id'].lower() in ['7ba9b56f-d940-4ad0-b0bb-0abd677f78d6','d1b2bf5c-fd3f-4e2b-917d-28def43d3b1f', '44aeb7fb-71e9-4559-97c3-52301e007b42', '46da1ec5-9717-473f-a918-5eceffc21308','48e1c59f-6778-46f5-b930-79cb9272a1b1','c94c0b57-9930-4fe5-8b38-7b181f7dab72','0168908b-8341-4c7c-9b1d-81049780639d']:
-        ##if line['id'].lower() in ['7ba9b56f-d940-4ad0-b0bb-0abd677f78d6','d1b2bf5c-fd3f-4e2b-917d-28def43d3b1f', '44aeb7fb-71e9-4559-97c3-52301e007b42','0168908b-8341-4c7c-9b1d-81049780639d']:
-        ##if line['id'].lower() in ['46da1ec5-9717-473f-a918-5eceffc21308','48e1c59f-6778-46f5-b930-79cb9272a1b1','c94c0b57-9930-4fe5-8b38-7b181f7dab72']:
-        #if True:
-            #out_name = 'towers_%s' % line['id'].replace('-', '').upper()
-            #i = 0
-            #cur = arcpy.UpdateCursor(out_name)
-            #for row in cur:
-                ##if row.model_code == '500kv1':
-                #row.model_code='test2'
-                #i += 1
-                #cur.updateRow(row)
-            #print('%s updated %d' % (out_name, i))
-            #del cur 
-            
-def test_list():
-    ws = r'G:\work\csharp\kmgdgis\data\local_workspace\local.gdb'
-    env.workspace = ws
-    lines = arcpy.ListFeatureClasses('line_*')
-    for i in lines:
-        if not i in ['line_all','towers_all']:
-            print('wildCard + "%s",' % i[i.index('_')+1:])
 
 
 def gen_xls_report(line_names=[]):
@@ -5810,78 +4138,6 @@ def MeterToDecimalDegree(distance,  lat):
     a = 1./(3600.0*30.887)
     return distance * a * np.cos(np.deg2rad(lat))
     
-    
-    
-def analyse_buffer3d(workspace, featureclass, obj):
-    if obj['type']=='line':
-        if obj['buffer_distance']>500:
-            ret = 'err', '缓冲区距离必须小于500米'
-            return ret
-    
-    #tmp = copy_features(workspace, workspacetmp, obj)
-    arcpy.CheckOutExtension('3D')
-    env.workspace = workspace
-    uid = str(uuid.uuid4()).upper().replace('-','')
-    in_features = 'sde.DBO.' + featureclass
-    out_feature_class = 'buffer3d_%s' % uid
-    buffer_quality = 20
-    buffer_joint_type = 'STRAIGHT'
-    m = MeterToDecimalDegree(obj['buffer_distance'], 25)
-    print('MeterToDecimalDegree = %f' % m)
-    buffer_distance_or_field = str(m)
-    if obj['type']=='line':
-        buffer_quality = 6
-    ret = '', ''
-    try:    
-        arcpy.Buffer3D_3d(in_features=in_features, out_feature_class=out_feature_class, buffer_distance_or_field=buffer_distance_or_field,buffer_joint_type=buffer_joint_type, buffer_quality=buffer_quality)
-        arcpy.AddMessage(arcpy.GetMessages())
-        err = arcpy.GetMessage(2)
-        ret =  'ok', out_feature_class
-        #if 'warning'.upper() in err:
-            #ret = 'err', err
-    except:
-        ret = 'err', sys.exc_info()[1]
-    #if arcpy.Exists(tmp):
-        #arcpy.Delete_management(tmp)
-    return ret
-
-def analyse_buffer2d(workspace, featureclass, cfg={}):
-    env.workspace = workspace
-    uid = str(uuid.uuid4()).upper().replace('-','')
-    in_features = 'sde.DBO.' + featureclass
-    out_feature_class = '_tmp_buffer2d_%s' % uid
-    #buffer_quality = 20
-    #buffer_joint_type = 'STRAIGHT'
-    #m = MeterToDecimalDegree(obj['buffer_distance'], 25)
-    #print('MeterToDecimalDegree = %f' % m)
-    buffer_distance_or_field = '100 Meter'
-    if cfg.has_key('buffer_distance_or_field'):
-        buffer_distance_or_field = '%f Meter' % cfg['buffer_distance_or_field']
-    line_side = 'FULL'
-    if cfg.has_key('line_side'):
-        line_side = cfg['line_side']
-    line_end_type = 'FLAT'    
-    if cfg.has_key('line_end_type'):
-        line_end_type = cfg['line_end_type']
-        
-        
-    ret = '', ''
-    try:    
-        arcpy.Buffer_analysis(in_features=in_features, 
-                              out_feature_class=out_feature_class, 
-                              buffer_distance_or_field=buffer_distance_or_field,
-                              line_side=line_side, 
-                              line_end_type=line_end_type)
-        arcpy.AddMessage(arcpy.GetMessages())
-        err = arcpy.GetMessage(2)
-        ret =  'ok', out_feature_class
-        
-    except:
-        ret = 'err', sys.exc_info()[1]
-    #if arcpy.Exists(tmp):
-        #arcpy.Delete_management(tmp)
-    return ret
-
 
 def move_files():
     src_dir = r'F:\work\python\ogc_server\tilesCache\sat_tiles'
@@ -5903,21 +4159,6 @@ def move_files():
             shutil.copy(absp, dest_absp)
             print(dest_absp)
     
-def update_model_code(model_code, line_id, where_clause=None):
-    out_name = 'towers_' + line_id.replace('-','')
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    env.workspace = kmgdgeo
-    if arcpy.Exists(out_name):
-        if where_clause:
-            cur = arcpy.UpdateCursor(out_name, where_clause=where_clause)
-        else:
-            cur = arcpy.UpdateCursor(out_name)
-        for row in cur:
-            row.setValue('model_code', model_code)
-            cur.updateRow(row)
-        del cur
-    else:
-        print('%s not exist' % out_name)
     
 def test_update_denomi_height_and_mode_code():
     towers = odbc_get_records('TABLE_TOWER', " model_code like '%-%'")
@@ -6304,28 +4545,7 @@ def webgis_get_tower_data(line_id, area):
         
     
 
-def test_buff2d():
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    cfg = {}
-    cfg['buffer_distance_or_field'] = 100
-    analyse_buffer2d(kmgdgeo, 'line_BAE4121F69614B939819AC2D00E92D9A', cfg)
-    cfg['buffer_distance_or_field'] = 200
-    analyse_buffer2d(kmgdgeo, 'towers_BAE4121F69614B939819AC2D00E92D9A', cfg)
 
-def feature_to_json():
-    fc = r"c:\temp\myData.shp"
-    featurSet = arcpy.FeatureSet()
-    featureSet.load(fc)
-    desc = arcpy.Describe(featureSet)
-    print desc.pjson # so we can read it
-    #### desc.json also works. ####
-    del desc
-    del fc
-    del featureSet
-
-def test_3dd_stamp():
-    print(get_latest_stamp('%Y-%m-%d %H:%M:%S'))
-    print(get_latest_3dd_stamp('%Y-%m-%d %H:%M:%S'))
 
 
 def test_merge_tif():
@@ -6486,39 +4706,6 @@ def test_identify_strain_info():
     print(sql)
     odbc_execute_sqls([sql,])
     
-def test_create_potential_hazard_feature():
-    kmgd, kmgdgeo, kmgdgeotmp = create_sde_conn()
-    env.workspace = kmgdgeo
-    out_path = kmgdgeo
-    out_name = 'point_potential_hazard'
-    if arcpy.Exists(out_name):
-        arcpy.Delete_management(out_name)
-    
-    obj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=out_name, geometry_type='POINT',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED', has_m='DISABLED')
-    arcpy.AddMessage(arcpy.GetMessages())
-    arcpy.AddField_management(obj, 'id', 'TEXT')
-    arcpy.AddField_management(obj, 'type', 'TEXT')
-    arcpy.AddField_management(obj, 'description', 'TEXT')
-    
-    out_name = 'polyline_potential_hazard'
-    if arcpy.Exists(out_name):
-        arcpy.Delete_management(out_name)
-    print('create polyline...')
-    obj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=out_name, geometry_type='POLYLINE',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED', has_m='DISABLED')
-    arcpy.AddMessage(arcpy.GetMessages())
-    arcpy.AddField_management(obj, 'id', 'TEXT')
-    arcpy.AddField_management(obj, 'type', 'TEXT')
-    arcpy.AddField_management(obj, 'description', 'TEXT')
-    
-    out_name = 'polygon_potential_hazard'
-    if arcpy.Exists(out_name):
-        arcpy.Delete_management(out_name)
-    print('create polyline...')
-    obj = arcpy.CreateFeatureclass_management(out_path=out_path, out_name=out_name, geometry_type='POLYGON',spatial_reference= arcpy.SpatialReference(text='WGS 1984'), has_z='DISABLED', has_m='DISABLED')
-    arcpy.AddMessage(arcpy.GetMessages())
-    arcpy.AddField_management(obj, 'id', 'TEXT')
-    arcpy.AddField_management(obj, 'type', 'TEXT')
-    arcpy.AddField_management(obj, 'description', 'TEXT')
     
     
 def test_threejs():
@@ -9621,6 +7808,252 @@ def test_delete_import_xlsdata(line_id):
         odbc_execute_sqls(sqls, 'zt')
     except:
         print(sys.exc_info()[1])
+
+ 
+def gridfs_save(qsdict, filename, data):
+    global gClientMongo, gConfig
+    
+    if not qsdict.has_key('db'):
+        raise Exception('db not specified in parameter')
+    dbname = qsdict['db'][0]
+    
+    if qsdict.has_key('collection'):
+        collection = qsdict['collection'][0]
+    else:
+        collection = 'fs'
+        
+    if not qsdict.has_key('bindcollection'):
+        raise Exception('bindcollection not specified in parameter')
+    bindcollection = qsdict['bindcollection'][0]
+    
+    
+    if not qsdict.has_key('key'):
+        raise Exception('key not specified in parameter')
+    key = qsdict['key'][0]
+    
+    if not qsdict.has_key('category'):
+        raise Exception('category not specified in parameter')
+    category = qsdict['category'][0]
+    
+    
+    if not qsdict.has_key('mimetype'):
+        raise Exception('mimetype not specified in parameter')
+    mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
+    
+    description = u''
+    if qsdict.has_key('description'):
+        description = dec(urllib.unquote_plus(qsdict['description'][0]))
+    
+    
+    #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
+    #size = int(qsdict['size'][0])
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        fs.put(data, bindcollection=bindcollection, key=ObjectId(key), mimetype=mimetype, filename=filename, category=category, description=description)
+    except:
+        traceback.print_exc()
+        #err = sys.exc_info()[1].message
+        #print(err)
+        
+def gridfs_delete(qsdict):
+    global gClientMongo, gConfig
+    if not qsdict.has_key('db'):
+        raise Exception('db not specified in parameter')
+    dbname = qsdict['db'][0]
+    
+    if qsdict.has_key('collection'):
+        collection = qsdict['collection'][0]
+    else:
+        collection = 'fs'
+    _id, bindcollection, key, category = None, None, None, None
+    if qsdict.has_key('_id'):
+        _id = qsdict['_id'][0]
+    else:
+        if not qsdict.has_key('bindcollection'):
+            raise Exception('bindcollection not specified in parameter')
+        bindcollection = qsdict['bindcollection'][0]
+        
+        if not qsdict.has_key('key'):
+            raise Exception('key not specified in parameter')
+        key = qsdict['key'][0]
+        
+        if not qsdict.has_key('category'):
+            raise Exception('category not specified in parameter')
+        category = qsdict['category'][0]
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        if _id:
+            fs.delete(ObjectId(_id))
+        else:
+            if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
+                l = []
+                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
+                    l.append(i._id)
+                for i in l:
+                    fs.delete(i)
+    except:
+        traceback.print_exc()
+        raise
+
+
+
+
+    
+    
+def gridfs_find(qsdict):
+    global gClientMongo, gConfig
+    
+    def thumbnail(fp, size, use_base64=False):
+        im = Image.open(i)
+        im.thumbnail(size)
+        buf= StringIO.StringIO()
+        #print(im.format)
+        im.save(buf, im.format)
+        ret = buf.getvalue()
+        if use_base64:
+            ret = base64.b64encode(ret)
+        return ret
+        
+        
+    if not qsdict.has_key('db'):
+        raise Exception('db not specified in parameter')
+    dbname = qsdict['db'][0]
+    
+    if qsdict.has_key('collection'):
+        collection = qsdict['collection'][0]
+    else:
+        collection = 'fs'
+        
+    width, height = 128, 128
+    try:
+        if qsdict.has_key('width'):
+            width = int(qsdict['width'][0])
+        if qsdict.has_key('height'):
+            height = int(qsdict['height'][0])
+    except:
+        raise
+    
+    _id, bindcollection, key, category = None, None, None, None
+    if qsdict.has_key('_id'):
+        _id = qsdict['_id'][0]
+    else:
+        if not qsdict.has_key('bindcollection'):
+            raise Exception('bindcollection not specified in parameter')
+        bindcollection = qsdict['bindcollection'][0]
+        
+        if not qsdict.has_key('key'):
+            raise Exception('key not specified in parameter')
+        key = qsdict['key'][0]
+        
+        if not qsdict.has_key('category'):
+            raise Exception('category not specified in parameter')
+        category = qsdict['category'][0]
+    
+    
+    mimetype, ret = None, None
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        if _id:
+            if fs.exists({'_id': ObjectId(_id)}):
+                for i in fs.find({'_id':ObjectId(_id)}):
+                    mimetype = i.mimetype
+                    ret = i.read()
+                    break
+            return mimetype, ret
+        else:
+            ret = []
+            if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
+                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
+                    size = (width , height)
+                    t = thumbnail(i, size, True)
+                    ret.append({'_id':str(i._id), 'filename':i.filename, 'description':i.description, 'mimetype':i.mimetype, 'data':t})
+            return ret
+    except:
+        traceback.print_exc()
+        raise
+        #err = sys.exc_info()[1].message
+        #print(err)
+    
+    
+def test_clear_gridfs(dbname):
+    global gClientMongo, gConfig
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        fs = gridfs.GridFS(db)
+        l = fs.list()
+        idlist = []
+        for i in fs.find():
+            idlist.append(i._id)
+            print(i.filename)
+            #print(i.bindcollection)
+            #print(i.key)
+        for i in idlist:
+            fs.delete(i)
+    except:
+        traceback.print_exc()
+    
+def test_resize_image(dbname):
+    global gClientMongo, gConfig 
+    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    size = (100, 100)
+    try:
+        if gClientMongo is not None and not gClientMongo.alive():
+            gClientMongo.close()
+            gClientMongo = None
+        if gClientMongo is None:
+            gClientMongo = MongoClient(host, port)
+                
+        db = gClientMongo[dbname]
+        fs = gridfs.GridFS(db)
+        for i in fs.find():
+            mimetype = i.mimetype
+            print(mimetype)
+            #ret = i.read()
+            im = Image.open(i)
+            im.thumbnail(size)
+            buf= StringIO.StringIO()
+            print(im.format)
+            im.save(buf, im.format)
+            print(base64.b64encode(buf.getvalue()))
+            break
+            
+        
+    except:
+        traceback.print_exc()
+        raise
+    
+    
     
     
 if __name__=="__main__":
@@ -9670,7 +8103,7 @@ if __name__=="__main__":
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
     #test_mongo_import_towers(db_name, area)
-    test_mongo_import_segments(db_name, area)
+    #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
     #test_build_tower_odbc_mongo_id_mapping()
     #test_build_line_odbc_mongo_id_mapping()
@@ -9687,5 +8120,7 @@ if __name__=="__main__":
     #test_pinyin_search()
     #test_import_geojson_feature_by_shape()
     #test_import_xlsdata()
+    #test_clear_gridfs(db_name)
+    #test_resize_image(db_name)
     
     

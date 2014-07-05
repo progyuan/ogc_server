@@ -29,7 +29,7 @@ import shutil
 import re
 #from PIL import Image
 import StringIO
-import cgi
+import cgi, multipart
 import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
@@ -74,6 +74,12 @@ gClusterProcess = {}
 gMapDownloader = None
 gCtxMap = None
 
+_SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
+_RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
+_QSTR = '"(?:\\\\.|[^"])*"' # Quoted string
+_VALUE = '(?:[^%s]+|%s)' % (_SPECIAL, _QSTR) # Save or quoted string
+_OPTION = '(?:;|^)\s*([^%s]+)\s*=\s*(%s)' % (_SPECIAL, _VALUE)
+_RE_OPTION = re.compile(_OPTION) # key=value part of an Content-Type like header
 
 
 def init_global():
@@ -471,13 +477,13 @@ def create_wfs_GetCapabilities():
     return ret
 
 def handle_terrain_GetCapabilities(params, Start_response):
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),])
     s = create_terrain_GetCapabilities()
     return [s]
 
 def handle_wmts_GetCapabilities(params, Start_response):
     #clear_tmp()
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),])
     s = create_wmts_GetCapabilities()
     #s = ''
     #with open(gConfig['wmts']['GetCapabilities']) as f:
@@ -712,7 +718,7 @@ def handle_terrain_GetTile(params, Start_response):
     if params.has_key('x'):
         x = int(params['x'])
     print('level=%d, x=%d, y=%d' % (zoomlevel, x, y))
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type']['.'+gConfig['terrain']['TileFormat']['extension']])), ('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type']['.'+gConfig['terrain']['TileFormat']['extension']])), ])
     return ['']
     
 def handle_wmts_GetTile(params, Start_response):
@@ -798,7 +804,7 @@ def handle_wmts_GetTile(params, Start_response):
         
         
     
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
     
     
     if lyrtype == mapConst.LAYER_SAT:    
@@ -876,7 +882,7 @@ def handle_terrain(Env, Start_response):
                 gTerrainCache['missing'] = ret
         
     
-    Start_response('200 OK', [('Content-Type', 'application/octet-stream'),('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type', 'application/octet-stream'),])
     return [ret]
     
     
@@ -943,7 +949,7 @@ def handle_arcgistile(Env, Start_response):
                 gSatTileCache['missing'] = f1.read()
         ret = gSatTileCache['missing']
         
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
     return [ret]    
         
 def handle_wmts(Env, Start_response):
@@ -979,7 +985,7 @@ def handle_wfs(Env, Start_response):
     
 def handle_cluster(Env, Start_response):
     global gConfig
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
     if int(Env['SERVER_PORT'])==int(gConfig['cluster']['manager_port']) and gConfig['cluster']['enable_cluster'] in ['true','True']:
         op = ''
         if Env['PATH_INFO']=='/create_cluster':
@@ -1000,7 +1006,7 @@ def handle_test(Env, Start_response):
     s = '测试OK'
     d = cgi.parse(None, Env)
     print(d)
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
+    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
     print(s)
     return [s]
     
@@ -1164,17 +1170,28 @@ def handle_get_method(Env, Start_response):
             del d['port']
             ret["result"] = {}
             ret["result"]["data"] = db_util.mongodb_get_server_tree(host, port)
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
+            s = json.dumps(ret, ensure_ascii=True, indent=4)
+        elif op == "gridfs":
+            ret = db_util.gridfs_find(d)
+            if isinstance(ret, tuple) and ret[0] and ret[1]:
+                Start_response('200 OK', [('Content-Type', str(ret[0])),])
+                s = ret[1]
+                return [s]
+            if isinstance(ret, list):
+                s = json.dumps(ret, ensure_ascii=True, indent=4)
+        elif op == "gridfs_delete":
+            try:
+                db_util.gridfs_delete(d)
+                s = ''
+            except:
+                ret["result"] = sys.exc_info()[1].message
+                s = json.dumps(ret, ensure_ascii=True, indent=4)
         
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),('Access-Control-Allow-Origin', '*')])
-    if len(ret.keys())==0:
+    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
+    if isinstance(ret, dict) and len(ret.keys())==0:
         ret["result"] = "ok"
-    if len(s)==0:
+    if isinstance(s, list) and len(s)==0:
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    #return [str(current_process().pid) + '_' + s]
-    #time.sleep(5.5)
-    #return [urllib.quote(enc(s))]
-    #print(s)
     return [s]
 
 def create_upload_xls_dir():
@@ -1245,8 +1262,67 @@ def create_pic_dir():
     if not os.path.exists(UPLOAD_PHOTOS_DIR):
         os.mkdir(UPLOAD_PHOTOS_DIR)
 
-def handle_upload_file(fileobj, qsdict):
+def handle_upload_file(Env, qsdict, filedata):
     global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
+    
+    def parse_options_header(header, options=None):
+        if ';' not in header:
+            return header.lower().strip(), {}
+        ctype, tail = header.split(';', 1)
+        options = options or {}
+        for match in _RE_OPTION.finditer(tail):
+            key = match.group(1).lower()
+            value = header_unquote(match.group(2), key=='filename')
+            options[key] = value
+        return ctype, options
+    def header_quote(val):
+        if not _RE_SPECIAL.search(val):
+            return val
+        return '"' + val.replace('\\','\\\\').replace('"','\\"') + '"'
+    
+    def header_unquote(val, filename=False):
+        if val[0] == val[-1] == '"':
+            val = val[1:-1]
+            if val[1:3] == ':\\' or val[:2] == '\\\\': 
+                val = val.split('\\')[-1] # fix ie6 bug: full path --> filename
+            return val.replace('\\\\','\\').replace('\\"','"')
+        return val
+    
+    def tob(data, encode='utf8'): # Convert strings to bytes (py2 and py3)
+        return data.encode(encode) if isinstance(data, unicode) else data
+    def parse_form_data(environ, mimetype, filedata):
+        filename, ret = None, None
+        try:
+            if environ.get('REQUEST_METHOD','GET').upper() not in ('POST', 'PUT'):
+                raise Exception("Request method other than POST or PUT.")
+            content_length = int(environ.get('CONTENT_LENGTH', '-1'))
+            content_type = environ.get('CONTENT_TYPE', '')
+            if not content_type:
+                raise Exception("Missing Content-Type header.")
+            content_type, options = parse_options_header(content_type)
+            if content_type == 'multipart/form-data':
+                boundary = options.get('boundary','')
+            content_type_token = tob('Content-Type: ' + mimetype)
+            if boundary:
+                _bcrnl = tob('\r\n')
+                s = content_type_token + _bcrnl * 2
+                s1 = _bcrnl + tob('--') + boundary + tob('--') + _bcrnl
+                ret = filedata[filedata.index(s)+len(s):-len(s1)]
+                head = filedata[:filedata.index(s)]
+                arr = head.split(_bcrnl)
+                for i in arr:
+                    if 'Content-Disposition' in i:
+                        arr1 = i.split(';')
+                        for ii in arr1:
+                            if 'filename=' in ii:
+                                arr2 = ii.split('=')
+                                filename = dec(arr2[1].strip().replace('"',''))
+                                break
+                        break
+        except:
+            raise
+        return filename, ret
+    
     ret = False
     root = os.path.abspath(STATICRESOURCE_DIR)
     create_pic_dir()
@@ -1263,14 +1339,14 @@ def handle_upload_file(fileobj, qsdict):
             p = os.path.join(root, 'photos', 'upload')
             if not os.path.exists(p):
                 os.mkdir(p)
-            save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, fileobj)
+            save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, filedata)
             ret = True
         if qsdict.has_key('voice_file_name'):
             fn = qsdict['voice_file_name'][0]
             p = os.path.join(root, 'voice')
             if not os.path.exists(p):
                 os.mkdir(p)
-            save_file_to(UPLOAD_VOICE_DIR, None, fn, fileobj)
+            save_file_to(UPLOAD_VOICE_DIR, None, fn, filedata)
             ret = True
         if qsdict.has_key('import_xls'):
             root = create_upload_xls_dir()
@@ -1279,7 +1355,14 @@ def handle_upload_file(fileobj, qsdict):
             voltage = urllib.unquote_plus( qsdict['voltage'][0])
             category = urllib.unquote_plus( qsdict['category'][0])
             fn = str(uuid.uuid4()) + '.xls'
-            import_xls(os.path.join(root, fn), fileobj, dec(area), dec(line_name), dec(voltage),  dec(category))
+            import_xls(os.path.join(root, fn), filedata, dec(area), dec(line_name), dec(voltage),  dec(category))
+            ret = True
+        if qsdict.has_key('db'):
+            mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
+            filename, filedata1 = parse_form_data(Env, mimetype, filedata)
+            #with open(ur'd:\aaa.png','wb') as f:
+                #f.write(filedata)
+            db_util.gridfs_save(qsdict, filename, filedata1)
             ret = True
     except:
         #print(sys.exc_info()[1])
@@ -1354,7 +1437,7 @@ def geojson_to_czml(aList):
 def handle_post_method(Env, Start_response):
     global ENCODING
     buf = Env['wsgi.input'].read()
-    #forms, files = multipart.parse_form_data(Env)
+    
     querydict = {}
     if Env.has_key('QUERY_STRING'):
         querydict = urlparse.parse_qs(Env['QUERY_STRING'])
@@ -1405,7 +1488,7 @@ def handle_post_method(Env, Start_response):
             elif isinstance(l, dict) and len(l.keys()) > 0:
                 ret = l
             elif isinstance(l, czml.CZML):
-                Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
+                Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ])
                 return [enc(l.dumps()),]
             else:
                 ret["result"] = "%s.%s return 0 record" % (dbname, collection)
@@ -1415,7 +1498,10 @@ def handle_post_method(Env, Start_response):
     except:
         if len(querydict.keys())>0:
             try:
-                is_upload = handle_upload_file(buf, querydict)
+                #forms, files = multipart.parse_form_data(Env)
+                #with open(ur'd:\aaa.png','wb') as f:
+                    #f.write(buf)
+                is_upload = handle_upload_file(Env, querydict, buf)
                 ret['result'] = ''
             except:
                 ret['result'] = sys.exc_info()[1]
@@ -1446,21 +1532,29 @@ def handle_post_method(Env, Start_response):
                 ret["result"] = "unknown area"
         elif obj.has_key('tracks') and obj.has_key('area'):
             ret = db_util.save_tracks(obj['tracks'], obj['area'])
-        else:
-            if ret.has_key('result') and isinstance(ret['result'], exceptions.Exception):
+        
+    if isinstance(ret, list): 
+        pass
+    elif isinstance(ret, str) or isinstance(ret, unicode) or isinstance(ret, int) or isinstance(ret, float):
+        pass
+    elif isinstance(ret, dict):
+        if len(ret.keys())==0:
+            pass
+        elif ret.has_key('result'):
+            if isinstance(ret['result'], exceptions.Exception):
                 if hasattr(ret['result'], 'message'):
                     ret['result'] = ret['result'].message
                 else:
                     ret['result'] = str(ret['result'])
-            elif ret.has_key('result') and (isinstance(ret['result'], str) or isinstance(ret['result'], unicode) or isinstance(ret['result'], int) or isinstance(ret['result'], float)):
+            elif isinstance(ret['result'], str) or isinstance(ret['result'], unicode) or isinstance(ret['result'], int) or isinstance(ret['result'], float):
                 pass
-            else:    
-                ret["result"] = "unknown operation"
-    if isinstance(ret, list) and len(ret)==0: 
-        ret["result"] = "no record"
-    if isinstance(ret, dict) and len(ret.keys())==0:
-        ret["result"] = "ok"
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ('Access-Control-Allow-Origin', '*')])
+            elif isinstance(ret['result'], list) or isinstance(ret['result'], dict):
+                pass
+        else:    
+            ret["result"] = "unknown operation"
+    else:    
+        ret["result"] = "unknown operation"
+    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ])
     #time.sleep(6)
     #print(ret)
     #return [urllib.quote(enc(json.dumps(ret)))]
@@ -1541,7 +1635,7 @@ def application(environ, start_response):
             path_info += gConfig['web']['indexpage']
         statuscode, contenttype, body =  handle_static(path_info)
         if start_response:
-            start_response(statuscode, [('Content-Type', contenttype), ('Access-Control-Allow-Origin', '*')])
+            start_response(statuscode, [('Content-Type', contenttype), ])
             return [body]
         
 def handle_proxy_cgi(environ, start_response):
@@ -1831,6 +1925,7 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
         else:    
             print('listening at host 127.0.0.1, port %d' % port)
             server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = WebSocketHandler)
+            #server = pywsgi.WSGIServer(('127.0.0.1', port), application)
         server.start()
         server.serve_forever()
     else:
@@ -1879,6 +1974,7 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                         server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
                     else:
                         server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler)
+                        #server = pywsgi.WSGIServer((i, int(pport)), application)
                     servers.append(server)
                     if idx < len(host_list)-1:
                         server.start()

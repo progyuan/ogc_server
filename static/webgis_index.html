@@ -13,8 +13,11 @@
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
 	<link rel="stylesheet" href="css/DrawHelper.css" />
 	<link rel="stylesheet" href="css/kmgd-tools.css" />
-	<!--<link rel="stylesheet" href="css/nanoscroller.css" />-->
-	<!--<link rel="stylesheet" href="css/nanoscroller/style.css" />-->
+	<!--<link rel="stylesheet" href="css/bootstrap.min.css" />-->
+	<!--<link rel="stylesheet" href="css/blueimp-gallery.min.css">-->
+	<!-- CSS to style the file input field as button and adjust the Bootstrap progress bars -->
+	<link rel="stylesheet" href="css/jquery.fileupload.css">
+	<link rel="stylesheet" href="css/jquery.fileupload-ui.css">
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>
     <script type="text/javascript" src="js/WMTSImageryProvider.js"></script>
@@ -25,7 +28,7 @@
     <script type="text/javascript" src="js/jquery/jquery-ui-1.10.4.custom.js"></script>
     <!--<script type="text/javascript" src="js/jquery/jquery.mousewheel.js"></script>-->
     <!--<script type="text/javascript" src="js/jquery/jquery.mCustomScrollbar.js"></script>-->
-    <script type="text/javascript" src="js/iscroll.js"></script>
+    <!--<script type="text/javascript" src="js/iscroll.js"></script>-->
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.validate.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.metadata.js"></script>
@@ -35,6 +38,11 @@
     <script type="text/javascript" src="js/tinycolor-min.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/common.js"></script>
+    <script type="text/javascript" src="js/jssor.core.js"></script>
+    <script type="text/javascript" src="js/jssor.utils.js"></script>
+    <script type="text/javascript" src="js/jssor.slider.js"></script>
+	<!--<script type="text/javascript" src="js/jquery/jquery.ui.widget.js"></script>-->
+	
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
 
@@ -134,12 +142,131 @@
 			<form id="form_tower_info_metal">
 			</form>
 		</div>
-		<div id="tower_info_photo">
-			tower_info_photo
+		<div id="tower_info_photo" style="width:520px;height:480px;">
+			<!--<h3>照片浏览</h3>-->
+			<div id="tower_info_photo_toolbar">
+				<span  class="phototoolbar-edit" style="z-index:9;width: 24px; height: 27px; top: 80px; right: 80px;" data-tower-photo="">
+				</span>
+				<span  class="phototoolbar-delete" style="z-index:9;width: 24px; height: 24px; top: 80px; right: 50px;">
+				</span>
+			</div>
+			
+			<div id="tower_info_photo_container" style="opacity:1.0;position: relative; width: 520px;
+				height: 400px; overflow: hidden;">
+		
+			</div>
+			<!-- Jssor Slider End -->
+			<div id='div_toggle_view_upload' class="btn-primary" style='width:90%;margin:10px;text-align:center;cursor:default;'>上传照片</div>
+			<div id='div_tower_photouploader' style='display:none'>
+			</div>
+			<div id="div_upload_desciption" style="display:none;margin:10px;">
+				<textarea id="upload_desciption" style="width:480px;height:100px;color:white;background-color:black;border:1px green solid" rows="5" placeholder="在此输入备注..."></textarea>
+			</div>
+			
+			
 		</div>
 	</div>
 </div>
-<script id="cesium_sandcastle_script" src="js/webgis_index.js">
+
+<!-- The template to display files available for upload -->
+<script id="template-upload" type="text/x-tmpl">
+{% for (var i=0, file; file=o.files[i]; i++) { %}
+	<tr class="template-upload fade">
+		<td>
+			<span class="preview"></span>
+		</td>
+		<td>
+			<p class="name" data-filename="{%=file.name%}">{%=file.name.substr(0,18)%}</p>
+			<strong class="error text-danger"></strong>
+		</td>
+		<td>
+			<p class="size">正在上传，请稍候...</p>
+			<div class="progress progress-striped active" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="border:2px green solid;height:5px;margin:2px;">
+				<div class="progress-bar progress-bar-success" style="width:0%;"></div>
+			</div>
+		</td>
+		<td>
+			{% if (!i && !o.options.autoUpload) { %}
+				<button class="btn-primary start" disabled>
+					<span>上传</span>
+				</button>
+			{% } %}
+			{% if (!i) { %}
+				<button class="btn-warning cancel">
+					<span>取消</span>
+				</button>
+			{% } %}
+		</td>
+	</tr>
+{% } %}
 </script>
+<!-- The template to display files available for download -->
+<script id="template-download" type="text/x-tmpl">
+{% for (var i=0, file; file=o.files[i]; i++) { %}
+	<tr class="template-download fade">
+		<td>
+			<span class="preview">
+				{% if (file.thumbnailUrl) { %}
+					<a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" data-gallery><img src="{%=file.thumbnailUrl%}"></a>
+				{% } %}
+			</span>
+		</td>
+		<td>
+			<p class="name">
+				{% if (file.url) { %}
+					<a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" {%=file.thumbnailUrl?'data-gallery':''%}>{%=file.name%}</a>
+				{% } else { %}
+					<span>{%=file.name%}</span>
+				{% } %}
+			</p>
+			{% if (file.error) { %}
+				<div><span class="label label-danger">Error</span> {%=file.error%}</div>
+			{% } %}
+		</td>
+		<td>
+			<span class="size">{%=o.formatFileSize(file.size)%}</span>
+		</td>
+		<td>
+			{% if (file.deleteUrl) { %}
+				<button class="btn btn-danger delete" data-type="{%=file.deleteType%}" data-url="{%=file.deleteUrl%}"{% if (file.deleteWithCredentials) { %} data-xhr-fields='{"withCredentials":true}'{% } %}>
+					<i class="glyphicon glyphicon-trash"></i>
+					<span>Delete</span>
+				</button>
+				<input type="checkbox" name="delete" value="1" class="toggle">
+			{% } else { %}
+				<button class="btn btn-warning cancel">
+					<i class="glyphicon glyphicon-ban-circle"></i>
+					<span>Cancel</span>
+				</button>
+			{% } %}
+		</td>
+	</tr>
+{% } %}
+</script>
+
+<script type="text/javascript" src="js/jquery/tmpl.min.js"></script>
+<!-- The Load Image plugin is included for the preview images and image resizing functionality -->
+<script type="text/javascript" src="js/jquery/load-image.min.js"></script>
+<!-- The Canvas to Blob plugin is included for image resizing functionality -->
+<script type="text/javascript" src="js/jquery/canvas-to-blob.min.js"></script>
+<!-- blueimp Gallery script -->
+<!--<script src="js/jquery/jquery.blueimp-gallery.min.js"></script>-->
+<script type="text/javascript" src="js/jquery/jquery.fileupload.js"></script>
+<!-- The File Upload processing plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-process.js"></script>
+<!-- The File Upload image preview & resize plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-image.js"></script>
+<!-- The File Upload audio preview plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-audio.js"></script>
+<!-- The File Upload video preview plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-video.js"></script>
+<!-- The File Upload validation plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-validate.js"></script>
+<!-- The File Upload user interface plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-ui.js"></script>
+<!-- The File Upload jQuery UI plugin -->
+<script type="text/javascript" src="js/jquery/jquery.fileupload-jquery-ui.js"></script>
+<script type="text/javascript" src="js/webgis_index.js"></script>
+
 </body>
 </html>

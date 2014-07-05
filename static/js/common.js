@@ -31,6 +31,13 @@ function MongoFind(data, success)
 		}
 	}, 'text');
 }
+function GridFsFind(data, success)
+{
+	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
+	$.getJSON(g_host + 'get', data, function( data1 ){
+		success(data1);
+	});
+}
 
 function ReadTable(url, success, failed)
 {
@@ -84,9 +91,16 @@ function ShowProgressBar(show, width, height, title, msg)
 	}
 }
 
-function ShowConfirm(id, width, height, title, msg, ok, cancel)
+function ShowConfirm(id, width, height, title, msg, ok, cancel, thumbnail)
 {
-	$('#' + id + ' div').html(msg);
+	if(thumbnail)
+	{
+		var s = '<div style="vertical-align: middle;line-height: ' + 40 + 'px;">' + msg  + '</div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<img  src="data:' + thumbnail.mimetype + ';base64,' + thumbnail.data + '" />';
+		$('#' + id + ' div').html(s);
+	}else
+	{
+		$('#' + id + ' div').html(msg);
+	}
 	$('#' + id).dialog({
 		title:title,
 		closeOnEscape: false,

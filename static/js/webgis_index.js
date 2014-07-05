@@ -20,7 +20,9 @@ var g_is_tower_focus = false;
 var g_primitive_appearance;
 var g_buffers = {};
 var g_borders = {};
-
+var g_image_slider_tower_info;
+var g_image_thumbnail_tower_info = [];
+g_max_file_size = 5000000;
 
 $(function() {
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
@@ -43,6 +45,8 @@ $(function() {
 	InitSearchBox(viewer);
 	InitToolPanel(viewer);
 	InitModelList(viewer);
+	
+	
 	
 	//var line_name = '七罗I回';
 	var line_name = '永发I回线';
@@ -487,6 +491,133 @@ function InitDrawHelper(viewer)
 	});
 
 }
+
+function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, toolbar_id,  bindcollection, key, category) 
+{
+	$('#' + toggle_id).off();
+	$('#' + toggle_id).on('click', function(){
+		$('#div_upload_desciption').css('display','none');
+		if($('#' + uploader_container_id).css('display') === 'none')
+		{
+			$('#' + uploader_container_id).css('display', 'block');
+			$('#' + photo_container_id).css('display', 'none');
+			$('#' + toolbar_id).css('display', 'none');
+			if(category === 'photo')
+				$('#' + toggle_id).html('照片浏览');
+			else
+				$('#' + toggle_id).html('文件浏览');
+		}
+		else
+		{
+			$('#' + uploader_container_id).css('display', 'none');
+			$('#' + photo_container_id).css('display', 'block');
+			$('#' + toolbar_id).css('display', 'block');
+			if(category === 'photo')
+				$('#' + toggle_id).html('上传照片');
+			else
+				$('#' + toggle_id).html('上传文件');
+		}
+	});
+
+    // Initialize the jQuery File Upload widget:
+    $('#' + uploader_container_id + '_form').fileupload({
+        // Uncomment the following to send cross-domain cookies:
+        //xhrFields: {withCredentials: true},
+        url: g_host + 'post',
+		multipart:true,
+		autoUpload: false,
+		sequentialUploads:true,
+		submit: function(e, data){
+			console.log('submit key=' +  key);
+			console.log(data);
+			//$(this).fileupload('option', 'formData', {db:g_db_name, collection:'documents', type:'photo', bind:'towers._id', key: $('input[id="tower_baseinfo_id"]').val()});
+			$(this).fileupload('option', 'url', g_host + 'post' + '?' 
+			+ 'db=' + g_db_name 
+			//+ '&collection=fs'
+			+ '&bindcollection=towers' 
+			+ '&key=' + key 
+			+ '&category=' + 'photo' 
+			+ '&mimetype=' + encodeURIComponent(data.files[0].type) 
+			//+ '&filename=' + encodeURIComponent(data.files[0].name)
+			//+ '&size=' + data.files[0].size
+			+ '&description=' + encodeURIComponent($('#upload_desciption').val())
+			);
+		},
+		change:function(){
+			$('#div_upload_desciption').css('display','block');
+		},
+		done:function(e, data){
+			console.log('done');
+			if(data.result)
+			{
+				console.log(data.result);
+				UpdateJssorSlider(photo_container_id, toggle_id, 520,400, bindcollection, key, category);
+				$('#upload_desciption').val('');
+			}
+		},
+		fail:function(e, data){
+			console.log('fail');
+			console.log(data);
+		}
+    });
+
+    // Enable iframe cross-domain access via redirect option:
+    $('#' + uploader_container_id + '_form').fileupload(
+        'option',
+        'redirect',
+        window.location.href.replace(
+            /\/[^\/]*$/,
+            '/cors/result.html?%s'
+        )
+    );
+
+
+    if (g_max_file_size > 0) {
+        // Demo settings:
+        $('#' + uploader_container_id + '_form').fileupload('option', {
+            url: '/post',
+            // Enable image resizing, except for Android and Opera,
+            // which actually support image resizing, but fail to
+            // send Blob objects via XHR requests:
+            disableImageResize: /Android(?!.*Chrome)|Opera/
+                .test(window.navigator.userAgent),
+            maxFileSize: g_max_file_size,
+            acceptFileTypes: /(\.|\/)(gif|jpe?g|png)$/i
+        });
+        // Upload server status check for browsers with CORS support:
+        if ($.support.cors) {
+            $.ajax({
+                url: 'post',
+                type: 'HEAD'
+            }).fail(function () {
+                $('<div class="alert alert-danger"/>')
+                    .text('文件上传服务不可用 ' +
+                            new Date())
+                    .appendTo('#' + uploader_container_id + '_form');
+            });
+        }
+    } else {
+        // Load existing files:
+        $('#' + uploader_container_id +  '_form').addClass('fileupload-processing');
+        $.ajax({
+            // Uncomment the following to send cross-domain cookies:
+            //xhrFields: {withCredentials: true},
+            url: $('#' + uploader_container_id + '_form').fileupload('option', 'url'),
+            dataType: 'json',
+            context: $('#' + uploader_container_id + '_form')[0]
+        }).always(function () {
+            $(this).removeClass('fileupload-processing');
+        }).done(function (result) {
+            $(this).fileupload('option', 'done')
+                .call(this, $.Event('done'), {result: result});
+        });
+    }
+
+}
+
+
+
+
 function InitPoiInfoDialog()
 {
 	g_validates['form_poi_info'] = $('#form_poi_info' ).validate({
@@ -515,6 +646,63 @@ function InitTowerInfoDialog()
 	g_validates['form_tower_info_metal'] = $('#form_tower_info_metal' ).validate({
 		debug:true,
 		errorElement:'div'
+	});
+	$('#upload_desciption').resizable({
+		minHeight:100,
+		minWidth:450
+	});
+	
+	$(document).tooltip({
+		items: "[data-tower-photo], [data-filename]",
+		show: {
+		  effect: "slideDown",
+		  delay: 300
+		},
+		content: function()
+		{
+			var element = $( this );
+			var s = '';
+			if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-tower-photo]" ))
+			{
+				var idx = g_image_slider_tower_info.$CurrentIndex();
+				var img = g_image_thumbnail_tower_info[idx];
+				s = '<div class="tower-photo-tip">';
+				s += '<p>文件名称:' + img.filename + '</p>';
+				s += '<p>备注:' + img.description + '</p>';
+				s += '</div>';
+			}
+			if ( element.is( "[data-filename]" ) ) {
+				s = element.attr( "data-filename" );
+			}
+			return s;
+		}
+	});
+	
+	$('#tower_info_photo_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
+		
+	});
+	$('#tower_info_photo_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
+		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
+		{
+			var idx = g_image_slider_tower_info.$CurrentIndex();
+			var img = g_image_thumbnail_tower_info[idx];
+			//console.log(img._id + ' ' + img.filename);
+			
+			ShowConfirm('dlg_confirm',500, 300,
+				'删除确认',
+				'确认要删除文件[' + img.filename + ']吗?',
+				function(){
+					var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
+					GridFsFind(data, function(){
+						UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload', 500, 400, 'towers', img.key, 'photo');
+					});
+				},
+				function(){
+				},
+				img
+			);
+		}
+		
 	});
 
 }
@@ -2541,6 +2729,195 @@ function ShowTowerInfo(viewer, id)
 	}
 
 }
+
+function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollection, key, category)
+{
+	var data = {op:'gridfs', db:g_db_name, width:150, height:150, bindcollection:bindcollection, key:key, category:category};
+	GridFsFind(data, function(data1){
+		if(g_image_slider_tower_info)
+		{
+			delete g_image_slider_tower_info;
+			g_image_slider_tower_info = undefined;
+			g_image_thumbnail_tower_info = [];
+		}
+		g_image_thumbnail_tower_info = data1;
+		$('#' + container_id).empty();
+		var s = '';
+		if(data1.length>0)
+		{
+			s += '\
+			<div u="loading" style="position: absolute; top: 0px; left: 0px;">\
+				<div style="filter: alpha(opacity=70); opacity:0.7; position: absolute; display: block;\
+					background-color: #000; top: 0px; left: 0px;width: ' + width + 'px;height:' + height + 'px;">\
+				</div>\
+				<div style="position: absolute; display: block; background: url(img/loading.gif) no-repeat center center;\
+					top: 0px; left: 0px;width: ' + width + 'px;height:' + height + 'px;">\
+				</div>\
+			</div>\
+			';
+		}
+		s += '\
+		<div u="slides" style="cursor: default; position: absolute; left: 0px; top: 0px; width: ' + width + 'px; height: ' + height + 'px; overflow: hidden;">\
+		';
+		for (var i in data1)
+		{
+			s += '\
+			<div>\
+				<img u="image" id="' + data1[i]._id + '" src="get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id + '" />\
+				<img u="thumb" src="data:' + data1[i].mimetype + ';base64,' + data1[i].data + '" />\
+			</div>\
+			';
+		}
+		if(data1.length==0)
+		{
+			s += '\
+			<div style="text-align: center;vertical-align: middle;line-height: 300px;">\
+				<img u="image" style="display:none;"  src="" />\
+				<img u="thumb" style="display:none;" src=""  />\
+				无照片\
+			</div>\
+			';
+		}
+		
+		s += '</div>\
+		<div u="thumbnavigator" class="jssort07" style="position: absolute; width: ' + width + 'px; height: 100px; left: 0px; bottom: 0px; overflow: hidden; ">\
+			<div style=" background-color: #000; filter:alpha(opacity=30); opacity:.3; width: 90%; height:100%;"></div>\
+			<div u="slides" style="cursor: default;">\
+				<div u="prototype" class="p" style="position: absolute; width: 99px; height: 66px; top: 0; left: 0;">\
+					<thumbnailtemplate class="i" style="position:absolute;"></thumbnailtemplate>\
+					<div class="o">\
+					</div>\
+				</div>\
+			</div>\
+			<span u="arrowleft" class="jssora11l" style="width: 37px; height: 37px; top: 123px; left: 8px;">\
+			</span>\
+			<span u="arrowright" class="jssora11r" style="width: 37px; height: 37px; top: 123px; right: 8px">\
+			</span>\
+		</div>\
+		';
+		$('#' + container_id).append(s);
+		
+		if(!g_image_slider_tower_info)
+		{
+			//$( "#tower_info_photo" ).accordion({ active: 0 });
+			var options = {
+				$AutoPlay: true,                                    //[Optional] Whether to auto play, to enable slideshow, this option must be set to true, default value is false
+				$AutoPlayInterval: 10000,                            //[Optional] Interval (in milliseconds) to go for next slide since the previous stopped if the slider is auto playing, default value is 3000
+				$SlideDuration: 500,                                //[Optional] Specifies default duration (swipe) for slide in milliseconds, default value is 500
+				$DragOrientation: 3,                                //[Optional] Orientation to drag slide, 0 no drag, 1 horizental, 2 vertical, 3 either, default value is 1 (Note that the $DragOrientation should be the same as $PlayOrientation when $DisplayPieces is greater than 1, or parking position is not 0)
+
+				$ThumbnailNavigatorOptions: {
+					$Class: $JssorThumbnailNavigator$,              //[Required] Class to create thumbnail navigator instance
+					$ChanceToShow: 2,                               //[Required] 0 Never, 1 Mouse Over, 2 Always
+
+					$Loop: 2,                                       //[Optional] Enable loop(circular) of carousel or not, 0: stop, 1: loop, 2 rewind, default value is 1
+					$SpacingX: 3,                                   //[Optional] Horizontal space between each thumbnail in pixel, default value is 0
+					$SpacingY: 3,                                   //[Optional] Vertical space between each thumbnail in pixel, default value is 0
+					$DisplayPieces: 6,                              //[Optional] Number of pieces to display, default value is 1
+					$ParkingPosition: 204,                          //[Optional] The offset position to park thumbnail,
+
+					$ArrowNavigatorOptions: {
+						$Class: $JssorArrowNavigator$,              //[Requried] Class to create arrow navigator instance
+						$ChanceToShow: 2,                               //[Required] 0 Never, 1 Mouse Over, 2 Always
+						$AutoCenter: 2,                                 //[Optional] Auto center arrows in parent container, 0 No, 1 Horizontal, 2 Vertical, 3 Both, default value is 0
+						$Steps: 1                                       //[Optional] Steps to go for each navigation request, default value is 1
+					}
+				}
+			};
+			g_image_slider_tower_info = new $JssorSlider$("tower_info_photo_container", options);
+		}
+		ShowProgressBar(false);
+		//responsive code begin
+		//you can remove responsive code if you don't want the slider scales while window resizes
+		function ScaleSlider() {
+			//console.log($('#tower_info_photo').css('width'));
+			if(g_image_slider_tower_info)
+			{
+				var parentWidth = g_image_slider_tower_info.$Elmt.parentNode.parentNode.parentNode.parentNode.clientWidth;
+				//console.log(parentWidth);
+				if (parentWidth)
+				{
+					//$('#tower_info_photo_container').css('width', parentWidth)
+					//g_image_slider_tower_info.$SetScaleWidth(Math.min(parentWidth, 550));
+					var w = parentWidth - 20;
+					g_image_slider_tower_info.$SetScaleWidth(w );
+					$('#' + toggle_id).css('width', (w-20) + 'px' );
+				}
+			}
+			//else
+				//window.setTimeout(ScaleSlider, 30);
+		}
+
+		//ScaleSlider();
+
+		//if (!navigator.userAgent.match(/(iPhone|iPod|iPad|BlackBerry|IEMobile)/)) {
+			//$(window).bind('resize', ScaleSlider);
+		//}
+
+		
+		//if (navigator.userAgent.match(/(iPhone|iPod|iPad)/)) {
+		//    $(window).bind("orientationchange", ScaleSlider);
+		//}
+		//responsive code end
+		
+
+	});
+
+}
+function UpdateFileUploader(uploader_container_id)
+{
+	try{
+		$('#' + uploader_container_id + '_form').fileupload('destroy');
+	}catch(e){}
+	$('#' + uploader_container_id).empty();
+	$('#' + uploader_container_id).append(
+	'\
+		<form id="' + uploader_container_id + '_form"  method="POST"  enctype="multipart/form-data">\
+			<div class="row fileupload-buttonbar">\
+				<div class="col-lg-7">\
+					<!-- The fileinput-button span is used to style the file input field as button -->\
+					<span class="btn-success fileinput-button" style="border:2px green solid;">\
+						<!--<i class="glyphicon glyphicon-plus"></i>-->\
+						<span >选择文件...</span>\
+						<input type="file" name="files[]">  <!--multiple-->\
+					</span>\
+					<!--<button type="submit" class="btn btn-primary start">-->\
+						<!--<!--<i class="glyphicon glyphicon-upload"></i>-->\
+						<!--<span>上传</span>-->\
+					<!--</button>-->\
+					<!--<button type="reset" class="btn btn-warning cancel">-->\
+						<!--<!--<i class="glyphicon glyphicon-ban-circle"></i>-->\
+						<!--<span>取消</span>-->\
+					<!--</button>-->\
+					<!--<button type="button" class="btn btn-danger delete">-->\
+						<!--<!--<i class="glyphicon glyphicon-trash"></i>-->\
+						<!--<span>删除</span>-->\
+					<!--</button>-->\
+					<!--<input type="checkbox" class="toggle">-->\
+					<!-- The global file processing state -->\
+					<span class="fileupload-process"></span>\
+				</div>\
+				<!-- The global progress state -->\
+				<div class="col-lg-5 fileupload-progress fade" >\
+					<!-- The global progress bar -->\
+					<div class="progress progress-striped active" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="display:none;width:90%;height:5px;margin:10px;">\
+						<div class="progress-bar progress-bar-success" style="width:0%;"></div>\
+					</div>\
+					<!-- The extended global progress state -->\
+					<div class="progress-extended">&nbsp;</div>\
+				</div>\
+			</div>\
+			<!-- The table listing the files available for upload/download -->\
+			<table role="presentation" class="table table-striped"><tbody class="files"></tbody></table>\
+		</form>	\
+	'
+	);
+	//style="border:0px;width:color:#00FF00;background-color:#000000;width:100%"
+	
+
+}
+
+
 function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
@@ -2550,7 +2927,7 @@ function ShowTowerInfoDialog(viewer, tower)
 		title = tower['properties']['tower_name'];
 	}
 	$('#dlg_tower_info').dialog({
-		width: 640,
+		width: 630,
 		height: 720,
 		minWidth:200,
 		minHeight: 200,
@@ -2559,7 +2936,17 @@ function ShowTowerInfoDialog(viewer, tower)
 		modal: false,
 		position:{at: "right center"},
 		title:title,
-		
+		close: function(event, ui){
+			$('#div_tower_photouploader_form').fileupload('destroy');
+			$('#div_tower_photouploader').empty();
+			if(g_image_slider_tower_info)
+			{
+				delete g_image_slider_tower_info;
+				g_image_slider_tower_info = undefined;
+				$('#tower_info_photo_container').empty();
+				g_image_thumbnail_tower_info = [];
+			}
+		},
 		show: {
 			effect: "blind",
 			duration: 500
@@ -2710,6 +3097,14 @@ function ShowTowerInfoDialog(viewer, tower)
 					$('#tower_info_segment_blank').css('display', 'block');
 					iframe.css('display', 'none');
 				}
+			}
+			if(title == '照片')
+			{
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
+				UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload',  520, 400, 'towers', tower['_id'], 'photo');
+				UpdateFileUploader('div_tower_photouploader');
+				InitFileUploader('tower_info_photo_container','div_tower_photouploader','div_toggle_view_upload', 'tower_info_photo_toolbar', 'towers', tower['_id'], 'photo');
+
 			}
 		}
 		//threejs/editor/index.html
