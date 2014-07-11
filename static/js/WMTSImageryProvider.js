@@ -50,26 +50,70 @@ var WMTSImageryProvider = function WMTSImageryProvider(description) {
     this._credit = credit;
 };
 
+
+
+function tile2lng(x,z) 
+{
+    return (x/MathLib.pow(2,z)*360.0-180.0);
+}
+function tile2lat(y,z) 
+{
+    var n = MathLib.pi-2*MathLib.pi*y/MathLib.pow(2,z);
+    return (180.0/MathLib.pi*MathLib.arctan(0.5*(MathLib.exp(n)-MathLib.exp(-n))));
+}
+function tileIndexToLngLat1(x, y, zoom)
+{
+    return [tile2lng(x,zoom), tile2lat(y,zoom) ];
+}
+function tileIndexToLngLat2(x, y, zoom)
+{
+    var pix_at_zoom = MathLib.pow(2.0 , zoom) * 256;
+    var lng = (x / pix_at_zoom) * 360 -180;
+    var rad = MathLib.arctan(MathLib.sinh(MathLib.pi * (1 - 2 * (y / pix_at_zoom))));
+    var lat = MathLib.radToDeg(rad);
+    return [lng, lat];
+}
+function tileIndexToLngLat(x, y, zoom)
+{
+    var n = MathLib.pow(2, zoom);
+    var longitudeMin = x/n * 360.0 -180.0;
+    //var longitudeMin = x/n * 360.0 ;
+    var lat_rad = MathLib.arctan(MathLib.sinh(MathLib.pi * (1 - 2 * y/n)));
+    var latitudeMin = MathLib.radToDeg(lat_rad);
+    
+    var longitudeMax = (x + 1)/n * 360.0 -180.0;
+    //var longitudeMax = (x + 1)/n * 360.0;
+    lat_rad = MathLib.arctan(MathLib.sinh(MathLib.pi * (1 - 2 * (y + 1)/n)));
+    var latitudeMax = MathLib.radToDeg(lat_rad);
+    return [(longitudeMin+longitudeMax)/2.0, (latitudeMin+latitudeMax)/2.0];
+    //return [longitudeMin, latitudeMin];
+}
+
 function buildImageUrl(imageryProvider, imageType, x, y, level) {
     //var url = imageryProvider._url + level + '/' + x + '/' + y + '.' + imageryProvider._fileExtension;
     var zoom = level + 1;
-    //if(imageType == 'osm_map')
-    //{
-        //zoom = level;
-    //}
     var url = imageryProvider._url ;
-    url += '?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile';
-    url += '&LAYER=' + '';
-    url += '&STYLE=' + '';
-    url += '&TILEMATRIXSET=' + imageType;
-    url += '&TILEMATRIX=' + zoom ;
-    url += '&TILEROW=' + y ;
-    url += '&TILECOL=' + x ;
-    url += '&FORMAT=' + imageryProvider._fileExtension;
-    //console.log("url=" + url);
-    var proxy = imageryProvider._proxy;
-    if (Cesium.defined(proxy)) {
-        url = proxy.getURL(url);
+    if(imageType == 'google_map' || imageType == 'google_sat')
+    {
+        url += '?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile';
+        url += '&LAYER=' + '';
+        url += '&STYLE=' + '';
+        url += '&TILEMATRIXSET=' + imageType;
+        url += '&TILEMATRIX=' + zoom ;
+        url += '&TILEROW=' + y ;
+        url += '&TILECOL=' + x ;
+        url += '&FORMAT=' + imageryProvider._fileExtension;
+        //console.log("url=" + url);
+        var proxy = imageryProvider._proxy;
+        if (Cesium.defined(proxy)) {
+            url = proxy.getURL(url);
+        }
+    }
+    if(imageType == 'amap_map')
+    {
+        var lnglat = tileIndexToLngLat(x, y, level);
+        //console.log('(' + lnglat[0] + ',' + lnglat[1] + ')');
+        url = 'http://restapi.amap.com/v3/staticmap?location=' + lnglat[0] + ',' + lnglat[1] + '&zoom=' + level + '&size=256*256&key=ee95e52bf08006f63fd29bcfbcf21df0';
     }
     return url;
 }
@@ -193,3 +237,4 @@ WMTSImageryProvider.prototype.requestImage = function(x, y, level) {
     return Cesium.ImageryProvider.loadImage(this, url);
 };
 
+//http://restapi.amap.com/v3/staticmap?location=116.37359,39.92437&zoom=0&size=256*256&key=ee95e52bf08006f63fd29bcfbcf21df0

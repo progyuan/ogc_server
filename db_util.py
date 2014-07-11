@@ -30,9 +30,12 @@ import base64
 import random
 from PIL import Image
 from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc1
-from pymongo import MongoClient
+from pymongo import MongoClient, ReadPreference
 from bson.objectid import ObjectId
 import gridfs
+import gevent
+from geventhttpclient import HTTPClient, URL
+
 
 
 
@@ -42,6 +45,7 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
 gClientMongo = None
+gClientMongoTiles = None
 ODBC_STRING = {}
 #print(gConfig.keys())
 for k in gConfig['odbc'].keys():
@@ -6851,14 +6855,9 @@ def find_extent(data):
 
 def mongo_action(dbname, collection_name, action, data, conditions={}):
     global gClientMongo, gConfig
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         if dbname in gClientMongo.database_names():      
             db = gClientMongo[dbname]
             if collection_name in db.collection_names():
@@ -6900,14 +6899,9 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
     
 def mongo_find(dbname, collection_name, conditions={}, limit=0):
     global gClientMongo, gConfig
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = []
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         if dbname in gClientMongo.database_names():      
             db = gClientMongo[dbname]
             conditions = add_mongo_id(conditions)
@@ -6943,14 +6937,9 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0):
 
 def mongo_find_one(dbname, collection_name, conditions):
     global gClientMongo
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     ret = None
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
                 
         db = gClientMongo[dbname]
         conditions = add_mongo_id(conditions)
@@ -7847,21 +7836,14 @@ def gridfs_save(qsdict, filename, data):
     
     #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
     #size = int(qsdict['size'][0])
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-                
+        mongo_init_client()
         db = gClientMongo[dbname]
         fs = gridfs.GridFS(db, collection=collection)
         fs.put(data, bindcollection=bindcollection, key=ObjectId(key), mimetype=mimetype, filename=filename, category=category, description=description)
     except:
         traceback.print_exc()
-        #err = sys.exc_info()[1].message
-        #print(err)
+        raise
         
 def gridfs_delete(qsdict):
     global gClientMongo, gConfig
@@ -7888,13 +7870,8 @@ def gridfs_delete(qsdict):
         if not qsdict.has_key('category'):
             raise Exception('category not specified in parameter')
         category = qsdict['category'][0]
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
                 
         db = gClientMongo[dbname]
         fs = gridfs.GridFS(db, collection=collection)
@@ -7913,7 +7890,37 @@ def gridfs_delete(qsdict):
 
 
 
+def mongo_init_client(clienttype='default', host=None, port=None, replicaset=None):
+    global gClientMongo, gClientMongoTiles, gConfig
+    if host is None:
+        host = gConfig['mongodb']['host']
+    if port is None:
+        port = int(gConfig['mongodb']['port'])
+    if replicaset is None:
+        replicaset = gConfig['mongodb']['replicaset']
+    try:
+        if clienttype == 'default':
+            if gClientMongo is not None and not gClientMongo.alive():
+                gClientMongo.close()
+                gClientMongo = None
+            if gClientMongo is None:
+                if len(replicaset) == 0:
+                    gClientMongo = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongo = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'tiles':
+            if gClientMongoTiles is not None and not gClientMongoTiles.alive():
+                gClientMongoTiles.close()
+                gClientMongoTiles = None
+            if gClientMongoTiles is None:
+                if len(replicaset) == 0:
+                    gClientMongoTiles = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongoTiles = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+    except:
+        raise
 
+    
     
     
 def gridfs_find(qsdict):
@@ -7967,20 +7974,15 @@ def gridfs_find(qsdict):
     
     
     mimetype, ret = None, None
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-                
+        mongo_init_client()
         db = gClientMongo[dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if _id:
             if fs.exists({'_id': ObjectId(_id)}):
                 for i in fs.find({'_id':ObjectId(_id)}):
-                    mimetype = i.mimetype
+                    mimetype = str(i.mimetype)
                     ret = i.read()
                     break
             return mimetype, ret
@@ -7990,24 +7992,111 @@ def gridfs_find(qsdict):
                 for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
                     size = (width , height)
                     t = thumbnail(i, size, True)
-                    ret.append({'_id':str(i._id), 'filename':i.filename, 'description':i.description, 'mimetype':i.mimetype, 'data':t})
+                    ret.append({'_id':str(i._id), 'filename':i.filename, 'description':i.description, 'mimetype':str(i.mimetype), 'data':t})
             return ret
     except:
         traceback.print_exc()
         raise
-        #err = sys.exc_info()[1].message
-        #print(err)
     
+def gridfs_tile_find(tiletype, tilepath):
+    global gClientMongoTiles, gConfig
+    dbname = gConfig[tiletype]['mongodb']['database']
+    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    mimetype, ret = None, None
+    
+    try:
+        mongo_init_client('tiles', host, port, replicaset)
+        db = gClientMongoTiles[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        if fs.exists({'filename':tilepath}):
+            for i in fs.find({'filename':tilepath}):
+                mimetype, ret = str(i.mimetype), i.read()
+                break
+        if ret is None:
+            s = str(gConfig[tiletype]['www_url'])
+            if s[-1] != '/':
+                s += '/'
+            href = s + tilepath
+            if tilepath == 'layer.json':
+                mimetype = 'application/json'
+                href += '?f=JSON'
+            elif '.jpg' in tilepath:
+                mimetype = 'image/jpeg'
+            elif '.png' in tilepath:
+                mimetype = 'image/png'
+            elif '.terrain' in tilepath:
+                mimetype = 'application/octet-stream'
+                href += '?f=TerrainTile'
+            print('downloading %s' % href)
+            url = URL(href)    
+            http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
+            try:
+                #response = http.get(url.request_uri)
+                g = gevent.spawn(http.get, url.request_uri)
+                g.start()
+                while not g.ready():
+                    if g.exception:
+                        break
+                    gevent.sleep(0.1)
+                response = g.value
+                if response and response.status_code == 200:
+                    ret = response.read()
+                    gridfs_tile_save(tiletype, tilepath, mimetype, ret)
+            except:
+                raise
+    except:
+        traceback.print_exc()
+        raise
+    return mimetype, ret
+
+def gridfs_tile_save(tiletype, tilepath, mimetype, data):
+    global gClientMongoTiles, gConfig
+    dbname = gConfig[tiletype]['mongodb']['database']
+    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    try:
+        mongo_init_client('tiles', host, port, replicaset)
+        db = gClientMongoTiles[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        fs.put(data, mimetype=mimetype, filename=tilepath)
+    except:
+        traceback.print_exc()
+        raise
+
+
+def gridfs_tile_delete(tiletype, tilepath=None):
+    global gClientMongoTiles, gConfig
+    dbname = gConfig[tiletype]['mongodb']['database']
+    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    try:
+        mongo_init_client('tiles', host, port, replicaset)
+        db = gClientMongoTiles[dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        if tilepath:
+            if fs.exists({'filename':tilepath}):
+                l = []
+                for i in fs.find({'filename':tilepath}):
+                    l.append(i._id)
+                for i in l:
+                    fs.delete(i)
+        else:
+            l = []
+            for i in fs.find():
+                l.append(i._id)
+            for i in l:
+                fs.delete(i)
+            
+    except:
+        traceback.print_exc()
+        raise
+
     
 def test_clear_gridfs(dbname):
     global gClientMongo, gConfig
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
                 
         db = gClientMongo[dbname]
         fs = gridfs.GridFS(db)
@@ -8025,15 +8114,10 @@ def test_clear_gridfs(dbname):
     
 def test_resize_image(dbname):
     global gClientMongo, gConfig 
-    host, port = gConfig['mongodb']['host'], int(gConfig['mongodb']['port'])
+    
     size = (100, 100)
     try:
-        if gClientMongo is not None and not gClientMongo.alive():
-            gClientMongo.close()
-            gClientMongo = None
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-                
+        mongo_init_client()
         db = gClientMongo[dbname]
         fs = gridfs.GridFS(db)
         for i in fs.find():

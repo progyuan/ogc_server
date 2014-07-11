@@ -476,10 +476,6 @@ def create_wfs_GetCapabilities():
     print(ret)
     return ret
 
-def handle_terrain_GetCapabilities(params, Start_response):
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),])
-    s = create_terrain_GetCapabilities()
-    return [s]
 
 def handle_wmts_GetCapabilities(params, Start_response):
     #clear_tmp()
@@ -591,87 +587,6 @@ def create_wmts_GetCapabilities():
     print(ret)
     return ret
 
-def create_terrain_GetCapabilities():
-    upps = ['5.62500000000000000000',
-        '2.81250000000000000000',
-        '1.40625000000000000000',
-        '0.70312500000000000000',
-        '0.35156250000000000000',
-        '0.17578125000000000000',
-        '0.08789062500000000000',
-        '0.04394531250000000000',
-        '0.02197265625000000000',
-        '0.01098632812500000000',
-        '0.00549316406250000000',
-        '0.00274658203125000000',
-        '0.00137329101562500000',
-        '0.00068664550781250000',
-        '0.00034332275390625000',
-        '0.00017166137695312500',
-        '0.00008583068847656250',
-        '0.00004291534423828125',
-        '0.00002145767211914062',
-        '0.00001072883605957031',
-        '0.00000536441802978516',
-        '0.00000268220901489258',
-        '0.00000134110450744629']
-        
-    namespace = {'ows':"http://www.opengis.net/ows/1.1", 'xlink':"http://www.w3.org/1999/xlink", 'xsi':"http://www.w3.org/2001/XMLSchema-instance", 'gml':"http://www.opengis.net/gml", 'schemaLocation':"http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"}
-    ows = '{%s}' % namespace['ows']
-    xlink = '{%s}' % namespace['xlink']
-    root = etree.Element("TileMap",  version="1.0.0")
-    
-    Title = etree.SubElement(root, "Title").text = gConfig['terrain']['Title']
-    Abstract = etree.SubElement(root, "Abstract").text = gConfig['terrain']['Abstract']
-    SRS = etree.SubElement(root, "SRS").text = gConfig['terrain']['SRS']
-    BoundingBox  = etree.SubElement(root, "BoundingBox",
-                                    minx=gConfig['terrain']['BoundingBox']['minx'],
-                                    miny=gConfig['terrain']['BoundingBox']['miny'],
-                                    maxx=gConfig['terrain']['BoundingBox']['maxx'],
-                                    maxy=gConfig['terrain']['BoundingBox']['maxy'],
-                                    )
-    Origin  = etree.SubElement(root, "Origin",
-                                    x=gConfig['terrain']['Origin']['x'],
-                                    y=gConfig['terrain']['Origin']['y'],
-                                    )
-    TileFormat  = etree.SubElement(root, "TileFormat",
-                                    width=gConfig['terrain']['TileFormat']['width'],
-                                    height=gConfig['terrain']['TileFormat']['height'],
-                                    extension=gConfig['terrain']['TileFormat']['extension'],
-                                    )
-    TileFormat.set('mime-type', gConfig['mime_type']['.'+gConfig['terrain']['TileFormat']['extension']])
-    
-    TileSets = etree.SubElement(root, "TileSets" )
-    
-    max_zoom_level, min_zoom_level = int(gConfig['terrain']['max_zoom_level']), int(gConfig['terrain']['min_zoom_level'])
-    if max_zoom_level < min_zoom_level:
-        max_zoom_level, min_zoom_level =  min_zoom_level, max_zoom_level  
-    zoomlist = range(min_zoom_level, max_zoom_level+1, 1)
-    
-    for i in zoomlist:
-        href = '%sREQUEST=GetTile&level=%d' % (gConfig['terrain']['url'], i)
-        TileSet = etree.SubElement(TileSets, "TileSet", href=href)
-        TileSet.set('units-per-pixel',upps[i])
-        TileSet.set('order',str(i))
-        
-    DataExtents = etree.SubElement(root, "DataExtents")
-    for k in gConfig['terrain']['DataExtents'].keys():
-        DataExtent = etree.SubElement(DataExtents, "DataExtent", 
-                                      minx=gConfig['terrain']['DataExtents'][k]['minx'],
-                                      miny=gConfig['terrain']['DataExtents'][k]['miny'],
-                                      maxx=gConfig['terrain']['DataExtents'][k]['maxx'],
-                                      maxy=gConfig['terrain']['DataExtents'][k]['maxy'],
-                                      minlevel=gConfig['terrain']['DataExtents'][k]['minlevel'],
-                                      maxlevel=gConfig['terrain']['DataExtents'][k]['maxlevel'],
-                                      )
-    
-    
-    
-    #ret = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding=ENCODING).replace('&amp;','&')
-    #ret = etree.tostring(root, pretty_print=True,  encoding=ENCODING).replace('&amp;','&')
-    ret = etree.tostring(root, pretty_print=True,  encoding=ENCODING)
-    print(ret)
-    return ret
     
  
 def download_callback(*args, **kwargs):
@@ -708,18 +623,6 @@ def download_callback(*args, **kwargs):
     
     #print(kwargs)
     
-def handle_terrain_GetTile(params, Start_response):
-    global gConfig
-    zoomlevel, row, col = None, None, None
-    if params.has_key('level'):
-        zoomlevel = int(params['level'])
-    if params.has_key('y'):
-        y = int(params['y'])
-    if params.has_key('x'):
-        x = int(params['x'])
-    print('level=%d, x=%d, y=%d' % (zoomlevel, x, y))
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type']['.'+gConfig['terrain']['TileFormat']['extension']])), ])
-    return ['']
     
 def handle_wmts_GetTile(params, Start_response):
     global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
@@ -852,36 +755,59 @@ def handle_wmts_GetTile(params, Start_response):
 
 def handle_terrain(Env, Start_response):
     global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
-    global STATICRESOURCE_IMG_DIR
     path_info = Env['PATH_INFO']
-    #print(path_info)
+    #d = cgi.parse(None, Env)
+    ret = None
     key = path_info.replace('/terrain/','')
     if gTerrainCache.has_key(key):
         ret = gTerrainCache[key]
     else:
-        arr = key.split('/')
-        tilepath = gConfig['terrain']['tiles_dir']
-        for i in arr:
-            tilepath = os.path.join(tilepath, i)
-        tilepath = os.path.abspath(tilepath)
-        ret = '' 
-        if os.path.exists(tilepath):
-            #print('reading %s...' % tilepath)
-            with open(tilepath, 'rb') as f:
-                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                ret = f1.read()
-            gTerrainCache[key] = ret
-        else:
-            if gTerrainCache.has_key('missing'):
-                ret = gTerrainCache['missing']
-            else:
-                print('reading blank_terrain...')
-                with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    ret = f1.read()
-                gTerrainCache['missing'] = ret
         
-    
+        tilepath = key
+        if tilepath == 'layer.json':
+            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath)
+            gTerrainCache[key] = ret
+            Start_response('200 OK', [('Content-Type', mimetype),])
+            return [ret]
+        else:
+            print('tilepath:%s' % tilepath)
+            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath)
+            if ret:
+                gTerrainCache[key] = ret
+                Start_response('200 OK', [('Content-Type', mimetype),])
+                return [ret]
+            else:
+                if gTerrainCache.has_key('missing'):
+                    ret = gTerrainCache['missing']
+                else:
+                    print('reading blank_terrain...')
+                    with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        ret = f1.read()
+                    gTerrainCache['missing'] = ret
+                
+        
+        #arr = key.split('/')
+        #tilepath = gConfig['terrain']['tiles_dir']
+        #for i in arr:
+            #tilepath = os.path.join(tilepath, i)
+        #tilepath = os.path.abspath(tilepath)
+        #ret = '' 
+        #if os.path.exists(tilepath):
+            ##print('reading %s...' % tilepath)
+            #with open(tilepath, 'rb') as f:
+                #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                #ret = f1.read()
+            #gTerrainCache[key] = ret
+        #else:
+            #if gTerrainCache.has_key('missing'):
+                #ret = gTerrainCache['missing']
+            #else:
+                #print('reading blank_terrain...')
+                #with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
+                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    #ret = f1.read()
+                #gTerrainCache['missing'] = ret
     Start_response('200 OK', [('Content-Type', 'application/octet-stream'),])
     return [ret]
     
@@ -1616,8 +1542,8 @@ def application(environ, start_response):
         return handle_wmts(environ, start_response)
     elif '/arcgistile' in path_info:
         return handle_arcgistile(environ, start_response)
-    #elif path_info == '/terrain':
-    elif path_info[-8:] == '.terrain':
+    elif path_info in [ '/terrain', '/terrain/', '/terrain/layer.json'] or path_info[-8:] == '.terrain':
+    #elif path_info[-8:] == '.terrain':
         return handle_terrain(environ, start_response)
     elif path_info == '/wfs':
         return handle_wfs(environ, start_response)
@@ -2142,6 +2068,8 @@ def gen_model_app_cache():
     
     if gConfig['web_cache']['gltf_cache_enable'].lower() == u'true':
         modelsdir = os.path.join(STATICRESOURCE_DIR, 'gltf')
+        if not os.path.exists(modelsdir):
+            return
         l = os.listdir(modelsdir)
         for i in l:
             s += '/gltf/' + i + '\n'

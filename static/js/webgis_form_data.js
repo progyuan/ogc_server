@@ -216,7 +216,9 @@ var g_tower_baseinfo_fields = [
 				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
 			}
-		}
+		},
+		attach:'<img src=""/>',
+		attachclick:null
 	},
 	{ display: "旋转角度", id: "tower_baseinfo_rotate", newline: true, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:300 , validate:{required:true, number: true},
 		change:function( event, ui ) {

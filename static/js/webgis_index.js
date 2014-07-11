@@ -282,6 +282,18 @@ function InitCesiumViewer()
 				}
 			}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : '地图',
+				//iconUrl : 'img/wmts-map.png',
+				//tooltip : 'amap地图',
+				//creationFunction : function() {
+					//return new WMTSImageryProvider({
+						//url :  g_host + 'wmts',
+						////url :  "http://cf-storage:88/" + 'wmts',
+						//imageType:'amap_map'
+					//});
+				//}
+			//}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
 		//name : 'Bing Maps Aerial',
 		//iconUrl : 'img/bingAerial.png',
 		//tooltip : 'Bing Maps aerial imagery \nhttp://www.bing.com/maps',
@@ -324,7 +336,8 @@ function InitCesiumViewer()
 		iconUrl : Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/STK.png'),
 		tooltip : 'High-resolution, mesh-based terrain for the entire globe. Free for use on the Internet. Closed-network options are available.\nhttp://www.agi.com',
 		creationFunction : function() {
-			return new Cesium.CesiumTerrainProvider({
+			//return new Cesium.CesiumTerrainProvider({
+			return new HeightmapAndQuantizedMeshTerrainProvider({
 				url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles',
 				credit : 'Terrain data courtesy Analytical Graphics, Inc.'
 			});
@@ -339,6 +352,18 @@ function InitCesiumViewer()
 			return new Cesium.CesiumTerrainProvider({
 				//url : "http://cf-storage:88/" + "terrain",
 				url : g_host + "terrain",
+				credit : ''
+			});
+		}
+	}));
+	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
+		name : 'quantized-mesh中国云南',
+		iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
+		tooltip : 'quantized-mesh中国云南',
+		creationFunction : function() {
+			return new HeightmapAndQuantizedMeshTerrainProvider({
+			//return new Cesium.CesiumTerrainProvider({
+				url : "terrain",
 				credit : ''
 			});
 		}
@@ -1253,15 +1278,6 @@ function LoadTowerByLineName(viewer, db_name,  line_name)
 	});
 				
 				
-			//var line_id = GetLineIdFromLineName(line_name);
-			//if(line_id)
-			//{
-				//MongoFind( ext_cond, 
-					//function(data){
-						//g_view_extent = data;
-						//FlyToExtent(viewer, g_view_extent['west'], g_view_extent['south'], g_view_extent['east'], g_view_extent['north']);
-						//console.log(g_view_extent);
-				//});
 }
 
 
@@ -2738,7 +2754,7 @@ function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollectio
 		{
 			delete g_image_slider_tower_info;
 			g_image_slider_tower_info = undefined;
-			g_image_thumbnail_tower_info = [];
+			g_image_thumbnail_tower_info.length = 0;
 		}
 		g_image_thumbnail_tower_info = data1;
 		$('#' + container_id).empty();
@@ -2944,7 +2960,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				delete g_image_slider_tower_info;
 				g_image_slider_tower_info = undefined;
 				$('#tower_info_photo_container').empty();
-				g_image_thumbnail_tower_info = [];
+				g_image_thumbnail_tower_info.length = 0;
 			}
 		},
 		show: {
