@@ -35,6 +35,7 @@ from bson.objectid import ObjectId
 import gridfs
 import gevent
 from geventhttpclient import HTTPClient, URL
+import gzip
 
 
 
@@ -45,7 +46,7 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
 gClientMongo = None
-gClientMongoTiles = None
+gClientMongoTiles = {}
 ODBC_STRING = {}
 #print(gConfig.keys())
 for k in gConfig['odbc'].keys():
@@ -7908,15 +7909,18 @@ def mongo_init_client(clienttype='default', host=None, port=None, replicaset=Non
                     gClientMongo = MongoClient(host, port, slave_okay=True)
                 else:
                     gClientMongo = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'tiles':
-            if gClientMongoTiles is not None and not gClientMongoTiles.alive():
-                gClientMongoTiles.close()
-                gClientMongoTiles = None
-            if gClientMongoTiles is None:
+        else:
+            tiletype = clienttype
+            if not gClientMongoTiles.has_key(tiletype):
+                gClientMongoTiles[tiletype] = None
+            if gClientMongoTiles[tiletype] is not None and not gClientMongoTiles[tiletype].alive():
+                gClientMongoTiles[tiletype].close()
+                gClientMongoTiles[tiletype] = None
+            if gClientMongoTiles[tiletype] is None:
                 if len(replicaset) == 0:
-                    gClientMongoTiles = MongoClient(host, port, slave_okay=True)
+                    gClientMongoTiles[tiletype] = MongoClient(host, port, slave_okay=True)
                 else:
-                    gClientMongoTiles = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+                    gClientMongoTiles[tiletype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
     except:
         raise
 
@@ -7998,53 +8002,86 @@ def gridfs_find(qsdict):
         traceback.print_exc()
         raise
     
-def gridfs_tile_find(tiletype, tilepath):
+def gridfs_tile_find(tiletype, tilepath, params):
     global gClientMongoTiles, gConfig
-    dbname = gConfig[tiletype]['mongodb']['database']
-    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
-    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    
+    if tiletype == 'terrain':
+        dbname = gConfig[tiletype]['quantized_mesh']['database']
+        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
+        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
+    else:
+        dbname = gConfig['tiles'][tiletype]['database']
+        collection = gConfig['tiles'][tiletype]['gridfs_collection']
+        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
+    
     mimetype, ret = None, None
     
     try:
-        mongo_init_client('tiles', host, port, replicaset)
-        db = gClientMongoTiles[dbname]
+        mongo_init_client(tiletype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
-        if fs.exists({'filename':tilepath}):
-            for i in fs.find({'filename':tilepath}):
-                mimetype, ret = str(i.mimetype), i.read()
-                break
+        #if fs.exists({'filename':tilepath}):
+        for i in fs.find({'filename':tilepath}):
+            mimetype, ret = str(i.mimetype), i.read()
+            break
         if ret is None:
-            s = str(gConfig[tiletype]['www_url'])
-            if s[-1] != '/':
-                s += '/'
-            href = s + tilepath
-            if tilepath == 'layer.json':
-                mimetype = 'application/json'
-                href += '?f=JSON'
-            elif '.jpg' in tilepath:
-                mimetype = 'image/jpeg'
-            elif '.png' in tilepath:
-                mimetype = 'image/png'
-            elif '.terrain' in tilepath:
-                mimetype = 'application/octet-stream'
-                href += '?f=TerrainTile'
-            print('downloading %s' % href)
+            href = ''
+            connection_timeout, network_timeout = 3.0, 10.0
+            if tiletype == 'terrain':
+                connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
+                s = gConfig[tiletype]['www_url']
+                if s[-1] != '/':
+                    s += '/'
+                href = s + tilepath
+                if tilepath == 'layer.json':
+                    mimetype = 'application/json'
+                    href += '?'
+                    for k in params.keys():
+                        href += k + '=' + params[k][0] + '&'
+                    href += 'f=JSON'
+                elif '.terrain' in tilepath:
+                    mimetype = 'application/octet-stream'
+                    href += '?'
+                    for k in params.keys():
+                        href += k + '=' + params[k][0] + '&'
+                    href += 'f=TerrainTile'
+                print('downloading terrain %s' % href)
+            else:
+                connection_timeout, network_timeout = float(gConfig['tiles']['www_connection_timeout']), float(gConfig['tiles']['www_network_timeout'])
+                x, y, level = params['x'][0], params['y'][0], params['level'][0]
+                s = gConfig['tiles'][tiletype]['url_template']
+                s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
+                mimetype = gConfig['mime_type'][gConfig['tiles'][tiletype]['mimetype']]
+                href = str(s)
+                print('downloading tile %s' % href)
             url = URL(href)    
-            http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
+            http = HTTPClient.from_url(url, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+            response = None
             try:
                 #response = http.get(url.request_uri)
                 g = gevent.spawn(http.get, url.request_uri)
-                g.start()
-                while not g.ready():
-                    if g.exception:
-                        break
-                    gevent.sleep(0.1)
+                #g.start()
+                #while not g.ready():
+                    #if g.exception:
+                        #break
+                    #gevent.sleep(0.1)
+                g.join()
                 response = g.value
                 if response and response.status_code == 200:
-                    ret = response.read()
-                    gridfs_tile_save(tiletype, tilepath, mimetype, ret)
+                    if '.terrain' in tilepath:
+                        with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
+                            ret = f1.read()
+                    else:
+                        ret = response.read()
+                    gevent.spawn(gridfs_tile_save, tiletype, tilepath, mimetype, ret).join()
+                    
             except:
-                raise
+                pass
+            finally:
+                if response:
+                    response.release()
+                if http:
+                    http.close()
     except:
         traceback.print_exc()
         raise
@@ -8052,12 +8089,17 @@ def gridfs_tile_find(tiletype, tilepath):
 
 def gridfs_tile_save(tiletype, tilepath, mimetype, data):
     global gClientMongoTiles, gConfig
-    dbname = gConfig[tiletype]['mongodb']['database']
-    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
-    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    if tiletype == 'terrain':
+        dbname = gConfig[tiletype]['quantized_mesh']['database']
+        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
+        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
+    else:
+        dbname = gConfig['tiles'][tiletype]['database']
+        collection = gConfig['tiles'][tiletype]['gridfs_collection']
+        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
     try:
-        mongo_init_client('tiles', host, port, replicaset)
-        db = gClientMongoTiles[dbname]
+        mongo_init_client(tiletype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         fs.put(data, mimetype=mimetype, filename=tilepath)
     except:
@@ -8067,12 +8109,17 @@ def gridfs_tile_save(tiletype, tilepath, mimetype, data):
 
 def gridfs_tile_delete(tiletype, tilepath=None):
     global gClientMongoTiles, gConfig
-    dbname = gConfig[tiletype]['mongodb']['database']
-    collection = gConfig[tiletype]['mongodb']['gridfs_collection']
-    host, port, replicaset = gConfig[tiletype]['mongodb']['host'], int(gConfig[tiletype]['mongodb']['port']), gConfig[tiletype]['mongodb']['replicaset']
+    if tiletype == 'terrain':
+        dbname = gConfig[tiletype]['quantized_mesh']['database']
+        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
+        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
+    else:
+        dbname = gConfig['tiles'][tiletype]['database']
+        collection = gConfig['tiles'][tiletype]['gridfs_collection']
+        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
     try:
-        mongo_init_client('tiles', host, port, replicaset)
-        db = gClientMongoTiles[dbname]
+        mongo_init_client(tiletype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if tilepath:
             if fs.exists({'filename':tilepath}):
@@ -8137,8 +8184,40 @@ def test_resize_image(dbname):
         traceback.print_exc()
         raise
     
+def test_httpclient():
+    href = 'http://cesiumjs.org/stk-terrain/tilesets/world/tiles/0/1/0.terrain?v=3924.0.0&f=TerrainTile'
+    url = URL(href)    
+    http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
+    response = http.get(url.request_uri)
+    #g = gevent.spawn(http.get, url.request_uri)
+    #g.start()
+    #while not g.ready():
+        #if g.exception:
+            #break
+        #gevent.sleep(0.1)
+    #response = g.value
+    if response.status_code == 200:
+        with open(os.path.join(ur'd:', 'test_httpclient_0_1_0.terrain'), 'wb') as f:
+            with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
+                f.write(f1.read())
     
+def test_httpclient1():
     
+    #href = 'http://cesiumjs.org/stk-terrain/tilesets/world/tiles/0/1/0.terrain'
+    #request = urllib2.Request(href, urllib.urlencode({'v':'3924.0.0','f':'TerrainTile'}))
+    href = 'http://cesiumjs.org/stk-terrain/tilesets/world/tiles/0/1/0.terrain?v=3924.0.0&f=TerrainTile'
+    request = urllib2.Request(href)
+    request.add_header('User-Agent', 'Mozilla/5.0')
+    request.add_header('Accept-Encoding', 'gzip')
+    request.add_header('Accept', 'application/json,application/octet-stream,*/*')
+    response = urllib2.urlopen(request)
+    with open(os.path.join(ur'd:', 'test_httpclient1_0_1_0.terrain'), 'wb') as f:
+        with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
+            f.write(f1.read())
+            
+            
+            
+            
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -8206,5 +8285,6 @@ if __name__=="__main__":
     #test_import_xlsdata()
     #test_clear_gridfs(db_name)
     #test_resize_image(db_name)
+    #test_httpclient()
     
     

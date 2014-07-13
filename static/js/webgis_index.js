@@ -258,25 +258,47 @@ function InitCesiumViewer()
 					});
 				}
 			}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : '卫星图',
+				//iconUrl : 'img/wmts-sat.png',
+				//tooltip : '卫星图',
+				//creationFunction : function() {
+					//return new WMTSImageryProvider({
+						//url :  g_host + 'wmts',
+						//imageType:'google_sat'
+					//});
+				//}
+			//}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : '地图',
+				//iconUrl : 'img/wmts-map.png',
+				//tooltip : '地图',
+				//creationFunction : function() {
+					//return new WMTSImageryProvider({
+						//url :  g_host + 'wmts',
+						////url :  "http://cf-storage:88/" + 'wmts',
+						//imageType:'google_map'
+					//});
+				//}
+			//}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : '卫星图',
+				name : 'CTF卫星图',
 				iconUrl : 'img/wmts-sat.png',
-				tooltip : '卫星图',
+				tooltip : 'CTF卫星图',
 				creationFunction : function() {
-					return new WMTSImageryProvider({
-						url :  g_host + 'wmts',
+					return new CFTTileImageryProvider({
+						url :  g_host + 'tiles',
 						imageType:'google_sat'
 					});
 				}
 			}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : '地图',
+				name : 'CTF地图',
 				iconUrl : 'img/wmts-map.png',
-				tooltip : '地图',
+				tooltip : 'CTF地图',
 				creationFunction : function() {
-					return new WMTSImageryProvider({
-						url :  g_host + 'wmts',
-						//url :  "http://cf-storage:88/" + 'wmts',
+					return new CFTTileImageryProvider({
+						url :  g_host + 'tiles',
 						imageType:'google_map'
 					});
 				}
@@ -331,38 +353,38 @@ function InitCesiumViewer()
 	}));
 
 
-	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
-		name : 'STK 世界地形',
-		iconUrl : Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/STK.png'),
-		tooltip : 'High-resolution, mesh-based terrain for the entire globe. Free for use on the Internet. Closed-network options are available.\nhttp://www.agi.com',
-		creationFunction : function() {
-			//return new Cesium.CesiumTerrainProvider({
-			return new HeightmapAndQuantizedMeshTerrainProvider({
-				url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles',
-				credit : 'Terrain data courtesy Analytical Graphics, Inc.'
-			});
-		}
-	}));
+	//terrainProviderViewModels.push(new Cesium.ProviderViewModel({
+		//name : 'STK 世界地形',
+		//iconUrl : Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/STK.png'),
+		//tooltip : 'High-resolution, mesh-based terrain for the entire globe. Free for use on the Internet. Closed-network options are available.\nhttp://www.agi.com',
+		//creationFunction : function() {
+			////return new Cesium.CesiumTerrainProvider({
+			//return new HeightmapAndQuantizedMeshTerrainProvider({
+				//url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles',
+				//credit : 'Terrain data courtesy Analytical Graphics, Inc.'
+			//});
+		//}
+	//}));
 
-	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
-		name : 'ASTER-30 GDEM 中国云南',
-		iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
-		tooltip : 'ASTER - 30 中国云南',
-		creationFunction : function() {
-			return new Cesium.CesiumTerrainProvider({
-				//url : "http://cf-storage:88/" + "terrain",
-				url : g_host + "terrain",
-				credit : ''
-			});
-		}
-	}));
+	//terrainProviderViewModels.push(new Cesium.ProviderViewModel({
+		//name : 'ASTER-30 GDEM 中国云南',
+		//iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
+		//tooltip : 'ASTER - 30 中国云南',
+		//creationFunction : function() {
+			////return new Cesium.CesiumTerrainProvider({
+			//return new HeightmapAndQuantizedMeshTerrainProvider({
+				////url : "http://cf-storage:88/" + "terrain",
+				//url : g_host + "terrain",
+				//credit : ''
+			//});
+		//}
+	//}));
 	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
 		name : 'quantized-mesh中国云南',
 		iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
 		tooltip : 'quantized-mesh中国云南',
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
-			//return new Cesium.CesiumTerrainProvider({
 				url : "terrain",
 				credit : ''
 			});

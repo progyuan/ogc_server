@@ -298,9 +298,17 @@ class MapDownloaderGevent:
                     http = HTTPClient.from_url(url, proxy_host=self.proxy_host, proxy_port=self.proxy_port,)
                 else:
                     http = HTTPClient.from_url(url, connection_timeout=3.0, network_timeout=3.0, )
+                response = None
                 try:
-                    response = http.get(url.request_uri)
-                    if response.status_code == 200:
+                    #response = http.get(url.request_uri)
+                    g = gevent.spawn(http.get, url.request_uri)
+                    g.start()
+                    while not g.ready():
+                        if g.exception:
+                            break
+                        gevent.sleep(0.1)
+                    response = g.value
+                    if response and response.status_code == 200:
                         #CHUNK_SIZE = 1024 * 16 # 16KB
                         filename = self.coord_to_path(coord, layer)
                         print('downloaded filename=%s' % filename)

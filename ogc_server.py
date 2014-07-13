@@ -35,11 +35,11 @@ import configobj
 from lxml import etree
 import czml
 #from wfs_server import WFSServer
-import gmapcatcher.mapUtils as mapUtils
-import gmapcatcher.mapConf as mapConf
-import gmapcatcher.mapConst as mapConst
-from gmapcatcher.mapServices import MapServ
-from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent, MapDownloaderSocks5
+#import gmapcatcher.mapUtils as mapUtils
+#import gmapcatcher.mapConf as mapConf
+#import gmapcatcher.mapConst as mapConst
+#from gmapcatcher.mapServices import MapServ
+#from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent, MapDownloaderSocks5
 
 import pypyodbc
 import uuid
@@ -66,13 +66,18 @@ UPLOAD_VOICE_DIR = None
 
 gConfig = None
 gStaticCache = {}
+gTileCache = {}
+
+#deprecated
 gSatTileCache = {}
 gMapTileCache = {}
 gTerrainCache = {}
+
 gGreenlets = {}
 gClusterProcess = {}
-gMapDownloader = None
-gCtxMap = None
+
+#gMapDownloader = None
+#gCtxMap = None
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -84,7 +89,7 @@ _RE_OPTION = re.compile(_OPTION) # key=value part of an Content-Type like header
 
 def init_global():
     global ENCODING, ENCODING1, STATICRESOURCE_DIR, CONFIGFILE, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
-    global gConfig, gStaticCache, gSatTileCache, gMapTileCache, gTerrainCache, gGreenlets, gClusterProcess, gMapDownloader, gCtxMap
+    global gConfig, gStaticCache, gGreenlets, gClusterProcess
     ENCODING = 'utf-8'
     ENCODING1 = 'gb18030'
     
@@ -104,26 +109,22 @@ def init_global():
     UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
     
     
-    try:
-        #gWFSService = WFSServer(CONFIGFILE)
-        #gWFSService.load()
-        gCtxMap = MapServ()
-        #gMapDownloader = MapDownloader(gCtxMap, 1)
-        #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-        proxy, port = None, None
-        try:
-            proxy = str(gConfig['proxy']['host'])
-            port = int(gConfig['proxy']['port'])
-            if len(proxy)>0:
-                gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
-            else:
-                gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-        except:
-            gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+    #try:
+        #gCtxMap = MapServ()
+        #proxy, port = None, None
+        #try:
+            #proxy = str(gConfig['proxy']['host'])
+            #port = int(gConfig['proxy']['port'])
+            #if len(proxy)>0:
+                #gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
+            #else:
+                #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+        #except:
+            #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
             
-    except:
-        print(sys.exc_info()[1])
-        pass
+    #except:
+        #print(sys.exc_info()[1])
+        #pass
     
 
 
@@ -590,10 +591,8 @@ def create_wmts_GetCapabilities():
     
  
 def download_callback(*args, **kwargs):
-    global gConfig, gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
     global STATICRESOURCE_IMG_DIR
-    #print(kwargs)
-    #print(args)
     zoom, col, row = args[1][2], args[1][0], args[1][1]
     root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
     if args[2] == mapConst.LAYER_SAT:
@@ -601,7 +600,6 @@ def download_callback(*args, **kwargs):
     if args[2] == mapConst.LAYER_MAP:
         root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
         
-    #print(root)
     p = os.path.join(root,
                     str(zoom),
                     str(col / 1024),
@@ -609,8 +607,6 @@ def download_callback(*args, **kwargs):
                     str(row / 1024),
                     str(row % 1024) + gConfig['wmts']['format']
                     )
-    #print('Not exist %s, downloading...' % p)
-    #p = os.path.abspath(p)
     if os.path.exists(p):
         key = '%d-%d-%d' % (zoom, col, row)
         with open(p, 'rb') as f:
@@ -621,140 +617,195 @@ def download_callback(*args, **kwargs):
                 gMapTileCache[key] = f1.read()
     
     
-    #print(kwargs)
-    
-    
-def handle_wmts_GetTile(params, Start_response):
-    global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
-    global STATICRESOURCE_IMG_DIR
-    picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
-    root = gConfig['wmts']['tiles_sat_root']
-    #gMapConf.map_service = 'Google'
-    lyrtype = mapConst.LAYER_SAT
-    if params.has_key('TILEMATRIXSET'):
-        if 'google_sat' in params['TILEMATRIXSET']:
-            root = os.path.abspath(gConfig['wmts']['tiles_sat_root'])
-            lyrtype = mapConst.LAYER_SAT
-        elif 'google_map' in params['TILEMATRIXSET']:
-            root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
-            lyrtype = mapConst.LAYER_MAP
-        elif 'osm_map' in params['TILEMATRIXSET']:
-            root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
-            #gMapConf.map_service = 'OpenStreetMap'
-            lyrtype = mapConst.LAYER_MAP
-        if not os.path.exists(os.path.abspath(gConfig['wmts']['tiles_root'])):
-            os.mkdir(gConfig['wmts']['tiles_root'])
-        if not os.path.exists(root):
-            os.mkdir(root)
-    zoomlevel, row, col = None, None, None
-    if params.has_key('TILEMATRIX'):
-        #zoomlevel = int(params['TILEMATRIX'])
-        #zoomlevel = int(params['TILEMATRIX'][params['TILEMATRIX'].index('_')+1:])
-        if params['TILEMATRIX']=='undefined' or len(params['TILEMATRIX'])==0:
-            zoomlevel = 1
-        else:
-            zoomlevel = int(params['TILEMATRIX'])
-    if params.has_key('TILEROW'):
-        if params['TILEROW']=='undefined':
-            row = 0
-        else:
-            row = int(params['TILEROW'])
-    if params.has_key('TILECOL'):
-        if params['TILECOL']=='undefined':
-            col = 0
-        else:
-            col = int(params['TILECOL'])
+#def handle_wmts_GetTile(params, Start_response):
+    #global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
+    #global STATICRESOURCE_IMG_DIR
+    #picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
+    #root = gConfig['wmts']['tiles_sat_root']
+    ##gMapConf.map_service = 'Google'
+    #lyrtype = mapConst.LAYER_SAT
+    #if params.has_key('TILEMATRIXSET'):
+        #if 'google_sat' in params['TILEMATRIXSET']:
+            #root = os.path.abspath(gConfig['wmts']['tiles_sat_root'])
+            #lyrtype = mapConst.LAYER_SAT
+        #elif 'google_map' in params['TILEMATRIXSET']:
+            #root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+            #lyrtype = mapConst.LAYER_MAP
+        #elif 'osm_map' in params['TILEMATRIXSET']:
+            #root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
+            #lyrtype = mapConst.LAYER_MAP
+        #if not os.path.exists(os.path.abspath(gConfig['wmts']['tiles_root'])):
+            #os.mkdir(gConfig['wmts']['tiles_root'])
+        #if not os.path.exists(root):
+            #os.mkdir(root)
+    #zoomlevel, row, col = None, None, None
+    #if params.has_key('TILEMATRIX'):
+        #if params['TILEMATRIX']=='undefined' or len(params['TILEMATRIX'])==0:
+            #zoomlevel = 1
+        #else:
+            #zoomlevel = int(params['TILEMATRIX'])
+    #if params.has_key('TILEROW'):
+        #if params['TILEROW']=='undefined':
+            #row = 0
+        #else:
+            #row = int(params['TILEROW'])
+    #if params.has_key('TILECOL'):
+        #if params['TILECOL']=='undefined':
+            #col = 0
+        #else:
+            #col = int(params['TILECOL'])
         
     
-    #zoom = int(gConfig['wmts']['max_zoom_level'])-3-zoomlevel
-    zoom = int(gConfig['wmts']['max_zoom_level'])-2-zoomlevel
-    #if 'osm_map' in params['TILEMATRIXSET']:
-        #zoom = zoomlevel
+    #zoom = int(gConfig['wmts']['max_zoom_level'])-2-zoomlevel
         
         
-    p = os.path.join(root,
-                    str(zoom),
-                    str(col / 1024),
-                    str(col % 1024),
-                    str(row / 1024),
-                    str(row % 1024) + gConfig['wmts']['format']
-                    )
-    p = os.path.abspath(p)
-    #print(p)
-    if os.path.exists(p):
-        picpath = p
-        key = '%d-%d-%d' % (zoom, col, row)
-    else:
-        #key = 'loading'
-        key = '%d-%d-%d' % (zoom, col, row)
-        #url = 
-        #urlobj = URL(url)
-        #http = HTTPClient.from_url(urlobj)
-        #y = http.get(urlobj.request_uri)
-        #gMapConf.language = 'zh_CN'
-        #if gMapDownloader is None:
+    #p = os.path.join(root,
+                    #str(zoom),
+                    #str(col / 1024),
+                    #str(col % 1024),
+                    #str(row / 1024),
+                    #str(row % 1024) + gConfig['wmts']['format']
+                    #)
+    #p = os.path.abspath(p)
+    #if os.path.exists(p):
+        #picpath = p
+        #key = '%d-%d-%d' % (zoom, col, row)
+    #else:
+        #key = '%d-%d-%d' % (zoom, col, row)
+        #gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback)
+    #Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
+    #if lyrtype == mapConst.LAYER_SAT:    
+        #if not gSatTileCache.has_key(key):
             #try:
-                #proxy = str(gConfig['proxy']['host'])
-                #port = int(gConfig['proxy']['port'])
-                #if len(proxy)>0:
-                    #gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
-                #else:
-                    #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
+                #with open(picpath, 'rb') as f:
+                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    #gSatTileCache[key] = f1.read()
             #except:
-                #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-            
-        gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback)
-        
-        
-    
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
-    
-    
-    if lyrtype == mapConst.LAYER_SAT:    
-        if not gSatTileCache.has_key(key):
-            try:
-                with open(picpath, 'rb') as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    gSatTileCache[key] = f1.read()
-                #print(key + ' row=%d,col=%d' % (row, col))
-            except:
-                foundit = False
-                if not foundit:
-                    key = 'missing'
-                if not gSatTileCache.has_key(key):
-                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
-                    with open(picpath, 'rb') as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        gSatTileCache[key] = f1.read()
-                    print(key)
-    if lyrtype == mapConst.LAYER_MAP:    
-        if not gMapTileCache.has_key(key):
-            try:
-                with open(picpath, 'rb') as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    gMapTileCache[key] = f1.read()
-                #print(key + ' row=%d,col=%d' % (row, col))
-            except:
-                foundit = False
-                if not foundit:
-                    key = 'missing'
-                if not gMapTileCache.has_key(key):
-                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
-                    with open(picpath, 'rb') as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        gMapTileCache[key] = f1.read()
-                    print(key)
+                #foundit = False
+                #if not foundit:
+                    #key = 'missing'
+                #if not gSatTileCache.has_key(key):
+                    #picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    #with open(picpath, 'rb') as f:
+                        #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        #gSatTileCache[key] = f1.read()
+                    #print(key)
+    #if lyrtype == mapConst.LAYER_MAP:    
+        #if not gMapTileCache.has_key(key):
+            #try:
+                #with open(picpath, 'rb') as f:
+                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    #gMapTileCache[key] = f1.read()
+            #except:
+                #foundit = False
+                #if not foundit:
+                    #key = 'missing'
+                #if not gMapTileCache.has_key(key):
+                    #picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    #with open(picpath, 'rb') as f:
+                        #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        #gMapTileCache[key] = f1.read()
+                    #print(key)
          
-        #Start_response('200 OK', [('Content-Type',gConfig['mime_type'][gConfig['wmts']['format']]), ('Content-Length', str(len(ret)))])
+    #ret = None
+    #if lyrtype == mapConst.LAYER_SAT:
+        #ret = gSatTileCache[key]
+    #if lyrtype == mapConst.LAYER_MAP:
+        #ret = gMapTileCache[key]
+    #return [ret,]
+
+def handle_tiles(Env, Start_response):
+    global gConfig, gTileCache
+    path_info = Env['PATH_INFO']
+    d = cgi.parse(None, Env)
     ret = None
-    if lyrtype == mapConst.LAYER_SAT:
-        ret = gSatTileCache[key]
-    if lyrtype == mapConst.LAYER_MAP:
-        ret = gMapTileCache[key]
-    return [ret,]
+    mimetype = str('image/png')
+    #key = path_info.replace('/tiles/','')
+    if d.has_key('image_type') and d.has_key('x') and d.has_key('y') and d.has_key('level'):
+        image_type = d['image_type'][0]
+        x, y, level = d['x'][0], d['y'][0], d['level'][0]
+        tilepath = '%s/%s/%s%s' % (level, x, y, gConfig['tiles'][image_type]['mimetype'])
+        if not gTileCache.has_key(image_type):
+            gTileCache[image_type] = {}
+        if gTileCache[image_type].has_key(tilepath):
+            ret = gTileCache[image_type][tilepath]
+        else:
+            try:
+                mimetype, ret = db_util.gridfs_tile_find(image_type, tilepath, d)
+                gTileCache[image_type][tilepath] = ret
+            except:
+                if not gTileCache[image_type].has_key('missing'):
+                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles']['missing'])
+                    with open(picpath, 'rb') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                        gTileCache[image_type]['missing'] = f1.read()
+                ret = gTileCache[image_type]['missing']
+                
+    else:
+        if not gTileCache[image_type].has_key('missing'):
+            picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles']['missing'])
+            with open(picpath, 'rb') as f:
+                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                gTileCache[image_type]['missing'] = f1.read()
+        ret = gTileCache[image_type]['missing']
+    #bytestr = bytearray(ret) 
+    #Start_response('200 OK', [('Content-Type', mimetype), ('Content-Length', str(len(bytestr)))])
+    #return [bytestr]
+    Start_response('200 OK', [('Content-Type', mimetype), ])
+    #if ret is None:
+        #print('-----------------------None----------------------------')
+    #else:
+        #print('============%d==========' % len(ret))
+    return [ret]
+        
+            
 
 def handle_terrain(Env, Start_response):
-    global gConfig,  gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global gConfig, gTileCache
+    path_info = Env['PATH_INFO']
+    d = cgi.parse(None, Env)
+    ret = None
+    mimetype = str('application/octet-stream')
+    key = path_info.replace('/terrain/','')
+    if not gTileCache.has_key('terrain'):
+        gTileCache['terrain'] = {}
+    if gTileCache['terrain'].has_key(key):
+        ret = gTileCache['terrain'][key]
+    else:
+        tilepath = key
+        if tilepath == 'layer.json':
+            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
+            gTileCache['terrain'][key] = ret
+            Start_response('200 OK', [('Content-Type', mimetype),])
+            return [ret]
+        else:
+            print('tilepath:%s' % tilepath)
+            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
+            if ret:
+                gTileCache['terrain'][key] = ret
+                Start_response('200 OK', [('Content-Type', mimetype),])
+                return [ret]
+            else:
+                if not gTileCache['terrain'].has_key('missing'):
+                    print('reading mongo blank_terrain...')
+                    tilepath = '0/0/0.terrain'
+                    mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
+                    gTileCache['terrain']['missing'] = ret
+                ret = gTileCache['terrain']['missing']
+                
+    Start_response('200 OK', [('Content-Type', mimetype),])
+    return [ret]
+
+#def handle_terrain_metafile(Env, Start_response):
+    #path_info = Env['PATH_INFO']
+    #ret = None
+    #key = path_info.replace('/terrain/','')
+    #mimetype, ret = db_util.gridfs_tile_find('terrain',key)
+    #Start_response('200 OK', [('Content-Type', mimetype),])
+    #return [ret]
+        
+def handle_terrain1(Env, Start_response):
+    global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
     path_info = Env['PATH_INFO']
     #d = cgi.parse(None, Env)
     ret = None
@@ -762,58 +813,33 @@ def handle_terrain(Env, Start_response):
     if gTerrainCache.has_key(key):
         ret = gTerrainCache[key]
     else:
-        
-        tilepath = key
-        if tilepath == 'layer.json':
-            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath)
+        arr = key.split('/')
+        tilepath = gConfig['terrain']['tiles_dir']
+        for i in arr:
+            tilepath = os.path.join(tilepath, i)
+        tilepath = os.path.abspath(tilepath)
+        ret = '' 
+        if os.path.exists(tilepath):
+            #print('reading %s...' % tilepath)
+            with open(tilepath, 'rb') as f:
+                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                ret = f1.read()
             gTerrainCache[key] = ret
-            Start_response('200 OK', [('Content-Type', mimetype),])
-            return [ret]
         else:
-            print('tilepath:%s' % tilepath)
-            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath)
-            if ret:
-                gTerrainCache[key] = ret
-                Start_response('200 OK', [('Content-Type', mimetype),])
-                return [ret]
+            if gTerrainCache.has_key('missing'):
+                ret = gTerrainCache['missing']
             else:
-                if gTerrainCache.has_key('missing'):
-                    ret = gTerrainCache['missing']
-                else:
-                    print('reading blank_terrain...')
-                    with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        ret = f1.read()
-                    gTerrainCache['missing'] = ret
-                
-        
-        #arr = key.split('/')
-        #tilepath = gConfig['terrain']['tiles_dir']
-        #for i in arr:
-            #tilepath = os.path.join(tilepath, i)
-        #tilepath = os.path.abspath(tilepath)
-        #ret = '' 
-        #if os.path.exists(tilepath):
-            ##print('reading %s...' % tilepath)
-            #with open(tilepath, 'rb') as f:
-                #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                #ret = f1.read()
-            #gTerrainCache[key] = ret
-        #else:
-            #if gTerrainCache.has_key('missing'):
-                #ret = gTerrainCache['missing']
-            #else:
-                #print('reading blank_terrain...')
-                #with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
-                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    #ret = f1.read()
-                #gTerrainCache['missing'] = ret
+                print('reading blank_terrain...')
+                with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
+                    f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+                    ret = f1.read()
+                gTerrainCache['missing'] = ret
     Start_response('200 OK', [('Content-Type', 'application/octet-stream'),])
     return [ret]
     
     
 def handle_arcgistile(Env, Start_response):
-    global gConfig, gMapDownloader, gMapTileCache, gSatTileCache, gTerrainCache
+    global gConfig, gMapTileCache, gSatTileCache
     global STATICRESOURCE_IMG_DIR
     ret = None
     dd = cgi.parse(None, Env)
@@ -878,6 +904,7 @@ def handle_arcgistile(Env, Start_response):
     Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
     return [ret]    
         
+    
 def handle_wmts(Env, Start_response):
     dd = cgi.parse(None, Env)
     d = {}
@@ -1538,13 +1565,16 @@ def application(environ, start_response):
         return handle_get_method(environ, start_response)
     elif path_info == '/post':
         return handle_post_method(environ, start_response)
-    elif path_info == '/wmts':
-        return handle_wmts(environ, start_response)
+    #elif path_info == '/wmts':
+        #return handle_wmts(environ, start_response)
+    elif path_info == '/tiles':
+        return handle_tiles(environ, start_response)
     elif '/arcgistile' in path_info:
         return handle_arcgistile(environ, start_response)
-    elif path_info in [ '/terrain', '/terrain/', '/terrain/layer.json'] or path_info[-8:] == '.terrain':
-    #elif path_info[-8:] == '.terrain':
+    elif path_info == '/terrain/layer.json' or path_info[-8:] == '.terrain':
         return handle_terrain(environ, start_response)
+    #elif path_info[-8:] == '.terrain':
+        #return handle_terrain1(environ, start_response)
     elif path_info == '/wfs':
         return handle_wfs(environ, start_response)
     elif path_info =='/create_cluster' or  path_info =='/kill_cluster':
@@ -1594,6 +1624,8 @@ def handle_proxy_cgi(environ, start_response):
       
         if url.startswith("http://") or url.startswith("https://"):
             request = None
+            response = None
+            http = None
             urlobj = URL(url)
             if method == "POST":
                 #length = int(environ["CONTENT_LENGTH"])
@@ -1604,37 +1636,41 @@ def handle_proxy_cgi(environ, start_response):
                 #request = urllib2.Request(url, post_data, headers=headers)
                 #y = urllib2.urlopen(request, data=post_data)
                 http = HTTPClient.from_url(urlobj)
-                y = http.post(urlobj.request_uri, post_data, headers)
+                #y = http.post(urlobj.request_uri, post_data, headers)
+                g = gevent.spawn(http.post, urlobj.request_uri, post_data, headers)
+                g.start()
+                while not g.ready():
+                    if g.exception:
+                        break
+                    gevent.sleep(0.1)
+                response = g.value
             else:
                 http = HTTPClient.from_url(urlobj)
-                y = http.get(urlobj.request_uri)
-                #y = urllib2.urlopen(url)
+                #y = http.get(urlobj.request_uri)
+                g = gevent.spawn(http.get, urlobj.request_uri)
+                g.start()
+                while not g.ready():
+                    if g.exception:
+                        break
+                    gevent.sleep(0.1)
+                response = g.value
+                
             
-            # print content type header
-            h = str(y.info())
-            #if i.has_key("Content-Type"):
-                #print("Content-Type: %s" % (i["Content-Type"]))
-            hh = eval(h)
-            responseh = []
-            for i in hh:
-                if i[0] in ['Content-Type', 'Date', 'Server', ]:
-                    responseh.append(i)
-            
-            
-            #s = ''
-            n = y.next()
-            while n:
-                s += n
-                try:
-                    n = y.next()
-                except StopIteration:
-                    break
-            #print(s)
-            #y.close()
-            y.release()
-            responseh.append(('Content-Length', str(len(s))))
-            #print(responseh)
-            start_response('200 OK', responseh)
+            if response:
+                h = str(response.info())
+                #if i.has_key("Content-Type"):
+                    #print("Content-Type: %s" % (i["Content-Type"]))
+                hh = eval(h)
+                responseh = []
+                for i in hh:
+                    if i[0] in ['Content-Type', 'Date', 'Server', ]:
+                        responseh.append(i)
+                s = response.read()
+                #response.release()
+                http.close()
+                responseh.append(('Content-Length', str(len(s))))
+                #print(responseh)
+                start_response('200 OK', responseh)
         else:
             #print("Content-Type: text/plain")
             s += "Illegal request."

@@ -118,7 +118,7 @@ var requestHeaders = {
 };
 
 function loadTile(url) {
-    console.log('loadTile=' + url);
+    //console.log('loadTile=' + url);
     return Cesium.loadArrayBuffer(url, requestHeaders);
 }
 
