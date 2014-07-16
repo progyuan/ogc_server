@@ -9,6 +9,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
     }
     this._proxy = options.proxy;
 
+    this._terrain_type = Cesium.defaultValue( options.terrain_type, 'quantized_mesh');
     this._tilingScheme = new Cesium.GeographicTilingScheme({
         numberOfLevelZeroTilesX : 2,
         numberOfLevelZeroTilesY : 1
@@ -30,7 +31,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
 
     this._ready = false;
 
-    var metadataUrl = this._url + 'layer.json';
+    var metadataUrl = this._url + 'layer.json' + '?terrain_type=' + this._terrain_type;
     if (Cesium.defined(this._proxy)) {
         metadataUrl = this._proxy.getURL(metadataUrl);
     }
@@ -75,7 +76,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
 
         that._tileUrlTemplates = data.tiles;
         for (var i = 0; i < that._tileUrlTemplates.length; ++i) {
-            that._tileUrlTemplates[i] = new Cesium.Uri(that._tileUrlTemplates[i] ).resolve(baseUri).toString().replace('{version}', data.version);
+            that._tileUrlTemplates[i] = new Cesium.Uri(that._tileUrlTemplates[i] + '&terrain_type=' + that._terrain_type ).resolve(baseUri).toString().replace('{version}', data.version);
         }
 
         that._availableTiles = data.available;
@@ -95,7 +96,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
                 version : '1.0.0',
                 scheme : 'tms',
                 tiles : [
-                    '{z}/{x}/{y}.terrain?v={version}'
+                    '{z}/{x}/{y}.terrain?v={version}&terrain_type=' + that._terrain_type
                 ]
             });
             return;

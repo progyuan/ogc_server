@@ -6723,21 +6723,17 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
             else:
                 tower_obj['properties'][k] = tower[k]
                 
-        if not tower_obj['properties'].has_key('prev_ids'):
-            tower_obj['properties']['prev_ids'] = []
-        if not tower_obj['properties'].has_key('next_ids'):
-            tower_obj['properties']['next_ids'] = []
-        if prev:
-            if mapping.has_key(prev['id']):
-                tower_obj['properties']['prev_ids'].append(mapping[prev['id']])
-        #else:
+        #if not tower_obj['properties'].has_key('prev_ids'):
             #tower_obj['properties']['prev_ids'] = []
-            
-        if nextt:
-            if mapping.has_key(nextt['id']):
-                tower_obj['properties']['next_ids'].append(mapping[nextt['id']])
-        #else:
+        #if not tower_obj['properties'].has_key('next_ids'):
             #tower_obj['properties']['next_ids'] = []
+        #if prev:
+            #if mapping.has_key(prev['id']):
+                #tower_obj['properties']['prev_ids'].append(mapping[prev['id']])
+            
+        #if nextt:
+            #if mapping.has_key(nextt['id']):
+                #tower_obj['properties']['next_ids'].append(mapping[nextt['id']])
             
         if not tower_obj['properties'].has_key('metals'):
             tower_obj['properties']['metals'] = []
@@ -6784,8 +6780,6 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                     o['count'] = attach['strand']
                     o['depth'] = attach['value1']
                 tower_obj['properties']['metals'].append(o)
-        #if not tower_obj['properties'].has_key('attachments'):
-            #tower_obj['properties']['attachments'] = []
         attachs = odbc_get_records('TABLE_TOWER_ATTACH', "tower_id='%s'" % tower['id'], area)
         if len(attachs)>0:
             for attach in attachs:
@@ -7132,24 +7126,70 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
                 ret.append(obj)
     return ret           
             
+
+def get_same_tower_mapping(db_name, mapping, area):
+    def get_line_id(_id, amap={}):
+        ret = None
+        if amap.has_key(_id):
+            ret = amap[_id]
+        return ret
+    def get_tower_mongo_id(uid, amap={}):
+        ret = None
+        if amap.has_key(uid):
+            ret = amap[uid]
+        return ret
+    towers_refer = odbc_get_records('TABLE_TOWER', "same_tower != '00000000-0000-0000-0000-000000000000'" , area)
+    ret = []
+    #print(mapping)
+    for i in towers_refer:
+        _id = get_tower_mongo_id(i['id'], mapping)
+        refer = get_tower_mongo_id(i['same_tower'], mapping)
+        ret.append({'id':ObjectId(_id), 'refer': ObjectId(refer)})
+    return ret
+
+
+def mongo_import_same_tower_mapping(db_name, area):
+    global gClientMongo
+    mapping = get_tower_id_mapping(db_name)
+    same_tower_mapping = get_same_tower_mapping(db_name, mapping, area)
+    try:
+        mongo_init_client()
+        db = gClientMongo[db_name]
+        if 'towers_refer' in db.collection_names(False):
+            db.drop_collection('towers_refer')
+        collection = db.create_collection('towers_refer')
+        for i in same_tower_mapping:
+            collection.save(i)
+    except:
+        traceback.print_exc()
+        err = sys.exc_info()[1].message
+        print(err)
     
+def get_tower_refer_mapping(db_name):
+    mapping = {}
+    refer_mapping = mongo_find(db_name, 'towers_refer')
+    for i in refer_mapping:
+        mapping[i['id']] = i['refer']
+    return mapping
+    
+
 def test_mongo_import_towers(db_name, area):
     global gClientMongo
     from pinyin import PinYin
+    
     pydatapath = os.path.join(module_path(), 'pinyin_word.data');
     piny =  PinYin(pydatapath)
     piny.load_word()
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
     mapping = get_tower_id_mapping(db_name)
+    towers_refer_mapping = get_tower_refer_mapping(db_name)
     for line in lines:
         towers = gen_mongo_geojson_by_line_id(line['id'], area, piny, mapping)
         l.extend(towers)
 
-    host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         db = gClientMongo[db_name]
         if 'towers' in db.collection_names(False):
             db.drop_collection('towers')
@@ -7189,10 +7229,8 @@ def test_mongo_import_models(db_name, area):
 
 def create_id_mapping(db_name, area):
     global gClientMongo
-    host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         db = gClientMongo[db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             print('tower_ids_mapping exist in %s' % db_name)
@@ -7302,16 +7340,13 @@ def get_line_id_mapping(db_name):
     
 def test_mongo_import_line(db_name, area):
     global gClientMongo
-    host, port = 'localhost', 27017
     from pinyin import PinYin
     pydatapath = os.path.join(module_path(), 'pinyin_word.data');
     piny =  PinYin(pydatapath)
     piny.load_word()
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         db = gClientMongo[db_name]
-        
         if 'lines' in db.collection_names(False):
             db.drop_collection('lines')
         collection = db.create_collection('lines')
@@ -7331,9 +7366,33 @@ def test_mongo_import_line(db_name, area):
                 del line['box_west']
                 del line['id']
                 lineobj['properties']['towers'] = []
+                lineobj['properties']['towers_pair'] = []
                 for i in towers_sort:
                     if tower_mapping.has_key(i['id']):
                         lineobj['properties']['towers'].append(tower_mapping[i['id']])
+                    
+                    
+                prev, tower, nextt = None, None, None
+                for i in range(len(towers_sort)):
+                    if i == 0:
+                        if len(towers_sort)==1:
+                            prev, tower, nextt = None, towers_sort[i], None
+                        else:    
+                            prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
+                            #lineobj['properties']['towers_pair'].append([tower_mapping[tower['id']], tower_mapping[nextt['id']]])
+                    elif i == len(towers_sort) - 1:
+                        prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
+                        if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
+                            lineobj['properties']['towers_pair'].append([tower_mapping[prev['id']], tower_mapping[tower['id']]])
+                    else:    
+                        prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
+                        if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
+                            lineobj['properties']['towers_pair'].append([tower_mapping[prev['id']], tower_mapping[tower['id']]])
+                        #lineobj['properties']['towers_pair'].append([tower_mapping[tower['id']], tower_mapping[nextt['id']]])
+                    
+                    
+                    
+                    
                 for k in line.keys():
                     lineobj['properties'][k] = line[k]
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
@@ -7891,7 +7950,7 @@ def gridfs_delete(qsdict):
 
 
 
-def mongo_init_client(clienttype='default', host=None, port=None, replicaset=None):
+def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, replicaset=None):
     global gClientMongo, gClientMongoTiles, gConfig
     if host is None:
         host = gConfig['mongodb']['host']
@@ -7912,15 +7971,17 @@ def mongo_init_client(clienttype='default', host=None, port=None, replicaset=Non
         else:
             tiletype = clienttype
             if not gClientMongoTiles.has_key(tiletype):
-                gClientMongoTiles[tiletype] = None
-            if gClientMongoTiles[tiletype] is not None and not gClientMongoTiles[tiletype].alive():
-                gClientMongoTiles[tiletype].close()
-                gClientMongoTiles[tiletype] = None
-            if gClientMongoTiles[tiletype] is None:
+                gClientMongoTiles[tiletype] = {}
+            if not gClientMongoTiles[tiletype].has_key(subtype):
+                gClientMongoTiles[tiletype][subtype] = None
+            if gClientMongoTiles[tiletype][subtype] is not None and not gClientMongoTiles[tiletype][subtype].alive():
+                gClientMongoTiles[tiletype][subtype].close()
+                gClientMongoTiles[tiletype][subtype] = None
+            if gClientMongoTiles[tiletype][subtype] is None:
                 if len(replicaset) == 0:
-                    gClientMongoTiles[tiletype] = MongoClient(host, port, slave_okay=True)
+                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True)
                 else:
-                    gClientMongoTiles[tiletype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
     except:
         raise
 
@@ -8002,23 +8063,16 @@ def gridfs_find(qsdict):
         traceback.print_exc()
         raise
     
-def gridfs_tile_find(tiletype, tilepath, params):
+def gridfs_tile_find(tiletype, subtype, tilepath, params):
     global gClientMongoTiles, gConfig
-    
-    if tiletype == 'terrain':
-        dbname = gConfig[tiletype]['quantized_mesh']['database']
-        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
-        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
-    else:
-        dbname = gConfig['tiles'][tiletype]['database']
-        collection = gConfig['tiles'][tiletype]['gridfs_collection']
-        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
-    
+    dbname = gConfig[tiletype][subtype]['database']
+    collection = gConfig[tiletype][subtype]['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
     mimetype, ret = None, None
     
     try:
-        mongo_init_client(tiletype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][dbname]
+        mongo_init_client(tiletype, subtype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         #if fs.exists({'filename':tilepath}):
         for i in fs.find({'filename':tilepath}):
@@ -8026,10 +8080,10 @@ def gridfs_tile_find(tiletype, tilepath, params):
             break
         if ret is None:
             href = ''
-            connection_timeout, network_timeout = 3.0, 10.0
+            #connection_timeout, network_timeout = 3.0, 10.0
+            connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
             if tiletype == 'terrain':
-                connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
-                s = gConfig[tiletype]['www_url']
+                s = gConfig[tiletype][subtype]['url_template']
                 if s[-1] != '/':
                     s += '/'
                 href = s + tilepath
@@ -8047,15 +8101,14 @@ def gridfs_tile_find(tiletype, tilepath, params):
                     href += 'f=TerrainTile'
                 print('downloading terrain %s' % href)
             else:
-                connection_timeout, network_timeout = float(gConfig['tiles']['www_connection_timeout']), float(gConfig['tiles']['www_network_timeout'])
                 x, y, level = params['x'][0], params['y'][0], params['level'][0]
-                s = gConfig['tiles'][tiletype]['url_template']
+                s = gConfig[tiletype][subtype]['url_template']
                 s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
-                mimetype = gConfig['mime_type'][gConfig['tiles'][tiletype]['mimetype']]
+                mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
                 href = str(s)
                 print('downloading tile %s' % href)
             url = URL(href)    
-            http = HTTPClient.from_url(url, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+            http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
             response = None
             try:
                 #response = http.get(url.request_uri)
@@ -8073,33 +8126,28 @@ def gridfs_tile_find(tiletype, tilepath, params):
                             ret = f1.read()
                     else:
                         ret = response.read()
-                    gevent.spawn(gridfs_tile_save, tiletype, tilepath, mimetype, ret).join()
+                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
                     
             except:
                 pass
-            finally:
-                if response:
-                    response.release()
-                if http:
-                    http.close()
+            #finally:
+                #if response:
+                    #response.release()
+                #if http:
+                    #http.close()
     except:
-        traceback.print_exc()
+        #traceback.print_exc()
         raise
     return mimetype, ret
 
-def gridfs_tile_save(tiletype, tilepath, mimetype, data):
+def gridfs_tile_save(tiletype, subtype, tilepath, mimetype, data):
     global gClientMongoTiles, gConfig
-    if tiletype == 'terrain':
-        dbname = gConfig[tiletype]['quantized_mesh']['database']
-        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
-        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
-    else:
-        dbname = gConfig['tiles'][tiletype]['database']
-        collection = gConfig['tiles'][tiletype]['gridfs_collection']
-        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
+    dbname = gConfig[tiletype][subtype]['database']
+    collection = gConfig[tiletype][subtype]['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
     try:
-        mongo_init_client(tiletype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][dbname]
+        mongo_init_client(tiletype, subtype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         fs.put(data, mimetype=mimetype, filename=tilepath)
     except:
@@ -8107,19 +8155,14 @@ def gridfs_tile_save(tiletype, tilepath, mimetype, data):
         raise
 
 
-def gridfs_tile_delete(tiletype, tilepath=None):
+def gridfs_tile_delete(tiletype, subtype, tilepath=None):
     global gClientMongoTiles, gConfig
-    if tiletype == 'terrain':
-        dbname = gConfig[tiletype]['quantized_mesh']['database']
-        collection = gConfig[tiletype]['quantized_mesh']['gridfs_collection']
-        host, port, replicaset = gConfig[tiletype]['quantized_mesh']['host'], int(gConfig[tiletype]['quantized_mesh']['port']), gConfig[tiletype]['quantized_mesh']['replicaset']
-    else:
-        dbname = gConfig['tiles'][tiletype]['database']
-        collection = gConfig['tiles'][tiletype]['gridfs_collection']
-        host, port, replicaset = gConfig['tiles'][tiletype]['host'], int(gConfig['tiles'][tiletype]['port']), gConfig['tiles'][tiletype]['replicaset']
+    dbname = gConfig[tiletype][subtype]['database']
+    collection = gConfig[tiletype][subtype]['gridfs_collection']
+    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
     try:
-        mongo_init_client(tiletype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][dbname]
+        mongo_init_client(tiletype, subtype, host, port, replicaset)
+        db = gClientMongoTiles[tiletype][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if tilepath:
             if fs.exists({'filename':tilepath}):
@@ -8263,9 +8306,11 @@ if __name__=="__main__":
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)
+    #mongo_import_same_tower_mapping(db_name, area)
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
     #test_mongo_import_towers(db_name, area)
+    #print(len(get_tower_refer_mapping(db_name).keys()))
     #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
     #test_build_tower_odbc_mongo_id_mapping()

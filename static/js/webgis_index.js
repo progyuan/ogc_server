@@ -8,6 +8,7 @@ var g_geojsons = {};
 var g_lines = {};
 var g_segments = [];
 var g_gltf_models = {};
+var g_towers_refer = {};
 var g_dlg_tower_info;
 var g_contextmenu_metal;
 var g_selected_metal_item;
@@ -47,29 +48,44 @@ $(function() {
 	InitModelList(viewer);
 	
 	
-	
-	//var line_name = '七罗I回';
-	var line_name = '永发I回线';
-	LoadTowerByLineName(viewer, g_db_name,  line_name);
-	//line_name = '永发II回线';
-	//LoadTowerByLineName(viewer, g_db_name,  line_name);
-	LoadSegments(viewer, g_db_name);
-	LoadModelsList(g_db_name);
+	LoadLineData(g_db_name, function(){
+		ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔引用信息，请稍候...');
+		LoadTowerReferData(g_db_name, function(){
+			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
+			LoadSegments(g_db_name, function(){
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
+				LoadModelsList(g_db_name, function(){
+					//var line_name = '七罗I回';
+					var line_name = '永发I回线';
+					LoadTowerByLineName(viewer, g_db_name,  line_name);
+					//line_name = '永发II回线';
+					//LoadTowerByLineName(viewer, g_db_name,  line_name);
+				
+				});
+			});
+		});
+	});
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'countyborder'});
-	//GetZfromXY(103.036471, 25.599314, function(alt){
-		//console.log('103.036471, 25.599314 alt=' + alt);
-	//});
-	//GetZfromXY(102.803284, 26.555857, function(alt){
-		//console.log('102.803284, 26.555857 alt=' + alt);
-	//});
-	//GetZListfromXYList([{lng:103.036471, lat:25.599314},{lng:102.803284, lat:26.555857}], function(list){
-		//console.log(list);
-	//});	
 	
 });
 
+
+function LoadTowerReferData(db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'towers_refer' };
+	MongoFind( cond, 
+		function(data){
+			for(var i in data)
+			{
+				var d = data[i]
+				g_towers_refer[d.id] = d.refer;
+			}
+			ShowProgressBar(false);
+			if(callback) callback();
+	});
+}
 function InitWebGISFormDefinition()
 {
 	var methods = 
@@ -78,16 +94,21 @@ function InitWebGISFormDefinition()
 		{
 			if(!fields) return this;
 			this.fields = fields;
+			$.fn.webgisform.fields = fields;
 			this.groups = [];
 			this.options = $.extend({}, $.fn.webgisform.defaults, options);
+			$.fn.webgisform.options = this.options;
 			this.empty();
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
 			
 			for(var i in fields)
 			{
 				var fld = fields[i];
+				var fldid = prefix + fld.id;
 				if(fld.type == 'hidden')
 				{
-					this.append('<input type="hidden" id="' + fld.id + '">');
+					this.append('<input type="hidden" id="' + fldid + '">');
 				}
 				if(fld.group)
 				{
@@ -110,6 +131,8 @@ function InitWebGISFormDefinition()
 				for(var i in fields)
 				{
 					var fld = fields[i];
+					var fldid = prefix + fld.id;
+					
 					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
 					var newline = "float:left;";
 					if(fld.newline == false) newline = "";
@@ -120,8 +143,9 @@ function InitWebGISFormDefinition()
 					}
 					if(fld.type == 'spinner' && fld.group == group)
 					{
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-						var spin = 	$('#' + fld.id).spinner({
+						
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						var spin = 	$('#' + fldid).spinner({
 							step: fld.step,
 							max:fld.max,
 							min:fld.min,
@@ -131,8 +155,8 @@ function InitWebGISFormDefinition()
 					}
 					if(fld.type == 'geographic' && fld.group == group)
 					{
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-						var spin = 	$('#' + fld.id).spinner({
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						var spin = 	$('#' + fldid).spinner({
 							step: 0.00001,
 							max:179.0,
 							min:-179.0,
@@ -147,20 +171,19 @@ function InitWebGISFormDefinition()
 						{
 							readonly = ' readonly="readonly"';
 						}
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '" ' + readonly + '>' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + validate + '</div>');
 					}
 					if(fld.type == 'select' && fld.group == group)
 					{
 						var source = [];
 						if(fld.editor && fld.editor.data) source = fld.editor.data;
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '"></select>' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + validate + '</div>');
 						for(var ii in source)
 						{
-							$('#' + fld.id).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
+							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
 						}
-						//$('#' + 'fieldset_' + uid).append('<div style="margin:' + margin + 'px;' + newline + '"><label for="' + fld.id + '" style="display:inline-block;text-align:right;width:' + labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text"  style="width:' + fld.width + 'px;" id="' + fld.id + '" name="' + fld.id + '">' + validate + '</div>');
-						var auto = $('#' + fld.id).autocomplete({
-							//appendTo:'#' + fld.id,
+						var auto = $('#' + fldid).autocomplete({
+							//appendTo:'#' + fldid,
 							//position: { my: "left top", at: "left bottom", collision: "none" },
 							autoFocus: false,
 							source:source
@@ -175,34 +198,52 @@ function InitWebGISFormDefinition()
 			for(var i in fields)
 			{
 				var fld = fields[i];
+				var fldid = prefix + fld.id;
 				if(fld.validate)
 				{
-					if($('input[name="' + fld.id + '"]').length>0)
+					if($('input[name="' + fldid + '"]').length>0)
 					{
-						$('input[name="' + fld.id + '"]').rules('add',fld.validate);
+						$('input[name="' + fldid + '"]').rules('add',fld.validate);
 					}
-					if($('select[name="' + fld.id + '"]').length>0)
+					if($('select[name="' + fldid + '"]').length>0)
 					{
-						$('select[name="' + fld.id + '"]').rules('add',fld.validate);
+						$('select[name="' + fldid + '"]').rules('add',fld.validate);
 					}
 				}
 			}
 			return this;
 		},
-		setdata : function(data, prefix)
+		setdata : function(data)
 		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
 			for(var k in data)
 			{
-				if(prefix)
-				{
-					this.find('#' + prefix + k).val(data[k]);
-				}
-				else
-				{
-					this.find('#' + k).val(data[k]);
-				}
+				this.find('#' + prefix + k).val(data[k]);
 			}
 			return this;
+		},
+		getdata:function()
+		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			var fields = $.fn.webgisform.fields;
+			var ret = {};
+			for(var i in fields)
+			{
+				var id = fields[i]['id'];
+				//console.log(id);
+				ret[id] = this.find('#' + prefix + id).val();
+				//console.log(ret[id.slice(prefix.length)]);
+			}
+			return ret;
+		},
+		get:function(id)
+		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			var ret = this.find('#' + prefix + id);
+			return ret;
 		}
     };	
 	$.fn.webgisform = function(fields, options) 
@@ -386,6 +427,7 @@ function InitCesiumViewer()
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
 				url : "terrain",
+				terrain_type : 'quantized_mesh',
 				credit : ''
 			});
 		}
@@ -577,7 +619,6 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
 		submit: function(e, data){
 			console.log('submit key=' +  key);
 			console.log(data);
-			//$(this).fileupload('option', 'formData', {db:g_db_name, collection:'documents', type:'photo', bind:'towers._id', key: $('input[id="tower_baseinfo_id"]').val()});
 			$(this).fileupload('option', 'url', g_host + 'post' + '?' 
 			+ 'db=' + g_db_name 
 			//+ '&collection=fs'
@@ -1003,19 +1044,6 @@ function CreateTowerCzmlFromGeojson(tower)
 	return cz;
 }
 
-//function GetLineIdFromLineName(line_name)
-//{
-	//var ret = null;
-	//for(var i in g_lines)
-	//{
-		//if(g_lines[i]['properties']['line_name'] == line_name)
-		//{
-			//ret = g_lines[i]['_id'];
-			//break;
-		//}
-	//}
-	//return ret;
-//}
 
 function FilterModelList(str)
 {
@@ -1041,8 +1069,6 @@ function FilterModelList(str)
 	$("#tower_info_model_list_selectable").selectable({
 		selected: function( event, ui ) {
 			var model_code_height = $(ui.selected).html();
-			//var id = $('input[id="tower_baseinfo_id"]').val();
-			//var tower = GetTowerInfoByTowerId(id);
 			var url = GetModelUrl(model_code_height);
 			if(url.length>0)
 			{
@@ -1068,7 +1094,7 @@ function FilterModelList(str)
 	});
 }
 
-function LoadBorder(viewer, db_name, condition)
+function LoadBorder(viewer, db_name, condition, callback)
 {
 	var cond = {'db':db_name, 'collection':'poi_border'};
 	for(var k in condition)
@@ -1090,6 +1116,7 @@ function LoadBorder(viewer, db_name, condition)
 				ReloadBorders(viewer, false);
 			}
 			ShowProgressBar(false);
+			if(callback) callback();
 	});
 }
 
@@ -1211,22 +1238,24 @@ function ReloadBorders(viewer, forcereload)
 	FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 }
 
-function LoadSegments(viewer, db_name)
+function LoadSegments(db_name, callback)
 {
 	var segs_cond = {'db':db_name, 'collection':'segments'};
 	MongoFind( segs_cond, 
 		function(data){
 			g_segments = data;
 			ShowProgressBar(false);
+			if(callback) callback();
 	});
 }
-function LoadModelsList(db_name)
+function LoadModelsList(db_name, callback)
 {
 	var cond = {'db':db_name, 'collection':'-', 'action':'modelslist', 'data':{}};
 	MongoFind( cond, 
 		function(data){
 			g_models = data;
-			//console.log(g_models);
+			ShowProgressBar(false);
+			if(callback) callback();
 	});
 }
 function GetExtentByCzml()
@@ -1246,57 +1275,65 @@ function GetExtentByCzml()
 	}
 	return ret;
 }
-function LoadTowerByLineName(viewer, db_name,  line_name)
+
+function LoadLineGeometryByName(viewer, line_name)
+{
+	for(var k in g_lines)
+	{
+		if(g_lines[k].properties.line_name == line_name)
+		{
+			var color = '#FF0000';
+			if(g_lines[k].properties.voltage == '13')
+			{
+				color = '#FF0000';
+			}
+			if(g_lines[k].properties.voltage == '15')
+			{
+				color = '#0000FF';
+			}
+			DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
+		}
+	}
+}
+function LoadLineData(db_name, callback)
+{
+	var line_cond = {'db':db_name, 'collection':'lines'};
+	MongoFind( line_cond, 
+		function(linedatas){
+			for(var i in linedatas)
+			{
+				g_lines[linedatas[i]['_id']] = linedatas[i];
+			}
+			ShowProgressBar(false);
+			if (callback) callback();
+	});
+}
+
+function LoadTowerByLineName(viewer, db_name,  line_name,  callback)
 {
 	var geo_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name', 'properties.line_name':line_name};
-	var line_cond = {'db':db_name, 'collection':'lines', 'properties.line_name':line_name};
 	//var ext_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'properties.line_name':line_name};
 	
 	MongoFind( geo_cond, 
 		function(data){
 			ShowProgressBar(false);
-			//var ddd = [];
 			for(var i in data)
 			{
 				if(!g_geojsons[data[i]['_id']])
 				{
 					g_geojsons[data[i]['_id']] = data[i];
 				}
-				//var cz = CreateTowerCzmlFromGeojson(data[i]);
 				if(!g_czmls[data[i]['_id']])
 				{
 					g_czmls[data[i]['_id']] = CreateTowerCzmlFromGeojson(data[i]);
-					//arr.push(cz);
 				}
-				//ddd.push({lng:data[i]['geometry']['coordinates'][0], lat:data[i]['geometry']['coordinates'][1]});
 			}
-			//GetZListfromXYList(ddd,function(dd){
-				//console.log(dd);
-			//});
-			//viewer.dataSources.removeAll();
 			ReloadCzmlDataSource(viewer, g_zaware);
 			var extent = GetExtentByCzml();
 			console.log(extent);
 			FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-			
-			MongoFind( line_cond, 
-				function(linedatas){
-					if(linedatas.length>0)
-					{
-						g_lines[linedatas[0]['_id']] = linedatas[0];
-						var color = '#FF0000';
-						if(linedatas[0].properties.voltage == '13')
-						{
-							color = '#FF0000';
-						}
-						if(linedatas[0].properties.voltage == '15')
-						{
-							color = '#0000FF';
-						}
-						DrawLineModelByLine(viewer, linedatas[0], 4.0, color);
-						//DrawBufferOfLine(viewer, linedatas[0], 5000, 3000, '#00FF00', 0.2);
-					}
-			});
+			LoadLineGeometryByName(viewer,  line_name);
+			if(callback) callback();
 	});
 				
 				
@@ -1504,10 +1541,10 @@ function LoadTowerModelByTower(viewer, tower)
 		{
 			if(tower['properties']['model']['model_code_height'])
 			{
-				var lng = parseFloat($('input[id="tower_baseinfo_lng"]').val()),
-					lat = parseFloat($('input[id="tower_baseinfo_lat"]').val()),
-					height = parseFloat($('input[id="tower_baseinfo_alt"]').val()),
-					rotate = parseFloat($('input[id="tower_baseinfo_rotate"]').val());
+				var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
+					lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
+					height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+					rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 				if(!g_zaware) height = 0;
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
@@ -1533,44 +1570,6 @@ function LoadTowerModelByTower(viewer, tower)
 		}
 	}
 }
-
-//function LoadTowerModelByLineId(viewer, ellipsoid, line_id)
-//{
-	//var scene = viewer.scene;
-	//scene.primitives.removeAll(); // Remove previous model
-	
-	//var idx = 0;
-	//var labels = new Cesium.LabelCollection();
-	
-	//var cond = {'db':'kmgd', 'collection':'towers', 'properties.line_id':line_id};
-	//MongoFind( cond, 
-		//function(data){
-			//for(var i in data)
-			//{
-				//var t = data[i];
-				//var label = labels.add({
-					//position : ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'])),
-					//text     : t['properties']['tower_name'],
-					//fillColor : { red : 0.0, blue : 1.0, green : 0.0, alpha : 1.0 }
-				//});
-				
-				//var model = CreateTowerModel(viewer, GetModelUrl(t['properties']['model_code_height']), t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1], t['properties']['geo_z'] ,  t['properties']['rotate'] );
-				//if(idx > 10)
-				//{
-					//FlyToPoint(viewer, t['geometry']['coordinates'][0],  t['geometry']['coordinates'][1],  t['properties']['geo_z'] );
-					//var controller = scene.screenSpaceCameraController;
-					////controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
-					////controller.enableTilt = true;
-					//var r = t['properties']['geo_z'];
-					////controller.minimumZoomDistance = r ;
-					//break;
-				//}
-				//idx++;
-			//}
-			//scene.primitives.add(labels);
-	//});
-//}
-
 
 
 
@@ -1963,7 +1962,7 @@ function TowerInfoMixin(viewer)
 					color = '#0000FF';
 				}
 				DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
-				//DrawBufferOfLine(viewer, 'test', g_lines[k], 1500, 2300, '#00FF00', 0.3);
+				DrawBufferOfLine(viewer, 'test', g_lines[k], 5000, 3000, '#00FF00', 0.2);
 			}
 		}
 	});
@@ -2326,6 +2325,7 @@ function RemoveSegmentsBetweenTow(viewer, tower0, tower1)
 function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
+	//console.log(line);
 	var array = line['properties']['towers'];
 	if(array.length>0)
 	{
@@ -2364,7 +2364,7 @@ function DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color
 	
 	var corridorGeometry = new Cesium.CorridorGeometry({
 			positions : positions,
-			width : width,
+			width : width*2,
 			extrudedHeight : height,
 			vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
 			cornerType: Cesium.CornerType.ROUNDED
@@ -2393,6 +2393,7 @@ function DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color
 			}
 		})
 	});
+	console.log(corridorGeometry);
 	viewer.scene.primitives.add(primitive);
 	g_buffers[buf_id] = primitive;
 	
@@ -2646,8 +2647,12 @@ function CalcCatenary(ellipsoid, p0, p1, segnum)
 function RemoveSegmentsTower(viewer, tower)
 {
 	var scene = viewer.scene;
-	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
-	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	//var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
+	//var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	var arr = GetPrevNextTowerIds(tower);
+
+	var prev_towers = GetNeighborTowers(arr[0]);
+	var next_towers = GetNeighborTowers(arr[1]);
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
@@ -2659,16 +2664,58 @@ function RemoveSegmentsTower(viewer, tower)
 		RemoveSegmentsBetweenTow(viewer, tower, t);
 	}
 }
+
+function GetPrevNextTowerIds(tower)
+{
+	var prevs = [];
+	var nexts = [];
+	for(var i in g_lines)
+	{
+		var foundit = false;
+		var towers_pair = g_lines[i]['properties']['towers_pair'];
+		for(var j in towers_pair)
+		{
+			var pair = towers_pair[j];
+			if(pair[0] == tower['_id'])
+			{
+				if (g_towers_refer[pair[1]])
+				{
+					nexts.push(g_towers_refer[pair[1]]);
+				}
+				else
+				{
+					nexts.push(pair[1]);
+				}
+			}
+			if(pair[1] == tower['_id'])
+			{
+				if (g_towers_refer[pair[0]])
+				{
+					nexts.push(g_towers_refer[pair[0]]);
+				}
+				else
+				{
+					prevs.push(pair[0]);
+				}
+			}
+		}
+	}
+	return [prevs, nexts];
+}
+
 function DrawSegmentsByTower(viewer, tower)
 {
 	var scene = viewer.scene;
-	var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
-	var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	//var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
+	//var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
+	var arr = GetPrevNextTowerIds(tower);
+	var prev_towers = GetNeighborTowers(arr[0]);
+	var next_towers = GetNeighborTowers(arr[1]);
 	
-	var lng = parseFloat($('input[id="tower_baseinfo_lng"]').val()),
-		lat = parseFloat($('input[id="tower_baseinfo_lat"]').val()),
-		height = parseFloat($('input[id="tower_baseinfo_alt"]').val()),
-		rotate = parseFloat($('input[id="tower_baseinfo_rotate"]').val());
+	var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
+		lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
+		height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+		rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 	if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 	{
 		var tt = {};
@@ -2695,16 +2742,15 @@ function DrawSegmentsByTower(viewer, tower)
 
 function CheckTowerInfoModified()
 {
-	var id = $('input[id="tower_baseinfo_id"]').val();
-	//console.log('tower_id=' + id);
+	var id = $('#form_tower_info_base').webgisform('get','id').val();
 	var tower = GetTowerInfoByTowerId(id);
 	if(tower)
 	{
-		var lng = $('input[id="tower_baseinfo_lng"]').val(),
-			lat = $('input[id="tower_baseinfo_lat"]').val(),
-			height = $('input[id="tower_baseinfo_alt"]').val(),
-			rotate = $('input[id="tower_baseinfo_rotate"]').val();
-		var mc = $('input[id="tower_baseinfo_model_code"]').val();
+		var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
+			lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
+			height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+			rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
+		var mc = $('#form_tower_info_base').webgisform('get','model_code').val();
 		if(lng != tower['geometry']['coordinates'][0] 
 		|| lat != tower['geometry']['coordinates'][1]
 		|| height != tower['properties']['geo_z']
@@ -2716,10 +2762,9 @@ function CheckTowerInfoModified()
 		}
 		for(var k in tower['properties'])
 		{
-			var kk = 'tower_baseinfo_' + k;
-			if($('input[id="' + kk + '"]').length)
+			if($('#form_tower_info_base').webgisform('get', k).length)
 			{
-				var v = $('input[id="' + kk + '"]').val();
+				var v = $('#form_tower_info_base').webgisform('get', k).val();
 				if(v.length>0 && v != tower['properties'][k] )
 				{
 					return true;
@@ -2737,7 +2782,7 @@ function SaveTower(id)
 		console.log('save tower ' + id);
 	}else
 	{
-		var id = $('input[id="tower_baseinfo_id"]').val();
+		var id = $('#form_tower_info_base').webgisform('get','id').val();
 		console.log('save form tower ' + id);
 	}
 }
@@ -3085,8 +3130,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				var obj = {};
 				if(!CheckModelCode(tower['properties']['model']['model_code_height']) || url.length==0)
 				{
-					//var id = $('input[id="tower_baseinfo_id"]').val();
-					//obj['url'] = null;
 					obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
 					obj['denomi_height'] = tower['properties']['denomi_height'];
@@ -3110,7 +3153,10 @@ function ShowTowerInfoDialog(viewer, tower)
 			{
 				var iframe = $(ui.newPanel.context).find('#tower_info_segment').find('iframe');
 				var url = GetModelUrl(tower['properties']['model']['model_code_height']);
-				var url_next = GetNextModelUrl(tower['properties']['next_ids']);
+				var arr = GetPrevNextTowerIds(tower);
+				var next_ids = arr[1]
+				//console.log(next_ids);
+				var url_next = GetNextModelUrl(next_ids);
 				if(url.length>0 && url_next.length>0)
 				{
 					iframe.css('display', 'block');
@@ -3124,9 +3170,9 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['url_next'] = url_next;
 					obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
-					obj['next_ids'] = tower['properties']['next_ids'];
-					obj['data_next'] = GetNextTowerModelData(tower['properties']['next_ids']);
-					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], tower['properties']['next_ids']);
+					obj['next_ids'] = next_ids;
+					obj['data_next'] = GetNextTowerModelData(next_ids);
+					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], next_ids);
 					var json = encodeURIComponent(JSON.stringify(obj));
 					iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
 				}
@@ -3148,31 +3194,31 @@ function ShowTowerInfoDialog(viewer, tower)
 		//threejs/editor/index.html
 	});
 		
-	//BuildForm(viewer, 'form_tower_info_base', g_tower_baseinfo_fields);
-	//console.log($.viewer);
-	var form = $('#form_tower_info_base').webgisform(g_tower_baseinfo_fields);
+	var form = $('#form_tower_info_base').webgisform(g_tower_baseinfo_fields,{prefix:'tower_baseinfo_'});
 	if(tower)
 	{
 		var data = {
-			'tower_baseinfo_id':tower['_id'], 
-			'tower_baseinfo_lng':tower['geometry']['coordinates'][0],
-			'tower_baseinfo_lat':tower['geometry']['coordinates'][1],
-			'tower_baseinfo_alt':tower['properties']['geo_z'],
-			'tower_baseinfo_rotate':tower['properties']['rotate'],
-			'tower_baseinfo_tower_name':tower['properties']['tower_name'],
-			'tower_baseinfo_tower_code':tower['properties']['tower_code'],
-			'tower_baseinfo_model_code':tower['properties']['model']['model_code'],
-			'tower_baseinfo_denomi_height':tower['properties']['denomi_height'],
-			'tower_baseinfo_grnd_resistance':tower['properties']['grnd_resistance'],
-			'tower_baseinfo_horizontal_span':tower['properties']['horizontal_span'],
-			'tower_baseinfo_vertical_span':tower['properties']['vertical_span'],
-			'tower_baseinfo_project':GetProjectNameByTowerId(tower['_id'])
+			'id':tower['_id'], 
+			'lng':tower['geometry']['coordinates'][0],
+			'lat':tower['geometry']['coordinates'][1],
+			'geo_z':tower['properties']['geo_z'],
+			'rotate':tower['properties']['rotate'],
+			'tower_name':tower['properties']['tower_name'],
+			'tower_code':tower['properties']['tower_code'],
+			'model_code':tower['properties']['model']['model_code'],
+			'denomi_height':tower['properties']['denomi_height'],
+			'grnd_resistance':tower['properties']['grnd_resistance'],
+			'horizontal_span':tower['properties']['horizontal_span'],
+			'vertical_span':tower['properties']['vertical_span'],
+			'project':GetProjectNameByTowerId(tower['_id'])
 		};	
 		//SetFormData('form_tower_info_base', data);
 		//var SetFormData = $('#form_tower_info_base').webgisform.SetFormData;
 		//console.log(SetFormData);
 		//SetFormData(data);
 		$('#form_tower_info_base').webgisform('setdata', data);
+		var d = $('#form_tower_info_base').webgisform('getdata');
+		console.log(d);
 	}
 	if(tower)
 	{
@@ -3376,18 +3422,8 @@ function ShowTowerInfoDialog(viewer, tower)
 					}
 				}
 				
-				//$("#form_tower_info_metal").empty();
-				//var form_tower_info_metal = $("#form_tower_info_metal").ligerForm({
-					//inputWidth: 120, labelWidth: 120, space: 10,
-					//validate : true,
-					//fields: flds
-				//});
-				//form_tower_info_metal.setData(formdata);
-				
-				//BuildForm(viewer, 'form_tower_info_metal', flds);
-				//SetFormData('form_tower_info_metal', formdata, 'tower_metal_');
-				$('#form_tower_info_metal').webgisform(flds);
-				$('#form_tower_info_metal').webgisform('setdata', formdata, 'tower_metal_');
+				$('#form_tower_info_metal').webgisform(flds, {prefix:'tower_metal_'});
+				$('#form_tower_info_metal').webgisform('setdata', formdata);
 			}
 		}
 	});
@@ -3459,19 +3495,19 @@ function ShowPoiInfoDialog(viewer, title, poi)
 	if(tower)
 	{
 		var data = {
-			'tower_baseinfo_id':tower['_id'], 
-			'tower_baseinfo_lng':tower['geometry']['coordinates'][0],
-			'tower_baseinfo_lat':tower['geometry']['coordinates'][1],
-			'tower_baseinfo_alt':tower['properties']['geo_z'],
-			'tower_baseinfo_rotate':tower['properties']['rotate'],
-			'tower_baseinfo_tower_name':tower['properties']['tower_name'],
-			'tower_baseinfo_tower_code':tower['properties']['tower_code'],
-			'tower_baseinfo_model_code':tower['properties']['model']['model_code'],
-			'tower_baseinfo_denomi_height':tower['properties']['denomi_height'],
-			'tower_baseinfo_grnd_resistance':tower['properties']['grnd_resistance'],
-			'tower_baseinfo_horizontal_span':tower['properties']['horizontal_span'],
-			'tower_baseinfo_vertical_span':tower['properties']['vertical_span'],
-			'tower_baseinfo_project':GetProjectNameByTowerId(tower['_id'])
+			'id':tower['_id'], 
+			'lng':tower['geometry']['coordinates'][0],
+			'lat':tower['geometry']['coordinates'][1],
+			'alt':tower['properties']['geo_z'],
+			'rotate':tower['properties']['rotate'],
+			'tower_name':tower['properties']['tower_name'],
+			'tower_code':tower['properties']['tower_code'],
+			'model_code':tower['properties']['model']['model_code'],
+			'denomi_height':tower['properties']['denomi_height'],
+			'grnd_resistance':tower['properties']['grnd_resistance'],
+			'horizontal_span':tower['properties']['horizontal_span'],
+			'vertical_span':tower['properties']['vertical_span'],
+			'project':GetProjectNameByTowerId(tower['_id'])
 		};	
 		//SetFormData('form_tower_info_base', data);
 		//var SetFormData = $('#form_tower_info_base').webgisform.SetFormData;
@@ -3496,32 +3532,6 @@ function CheckPoiInfoModified()
 		var poi = GetPoiInfoById(id);
 		if(poi)
 		{
-			var lng = $('input[id="tower_baseinfo_lng"]').val(),
-				lat = $('input[id="tower_baseinfo_lat"]').val(),
-				height = $('input[id="tower_baseinfo_alt"]').val(),
-				rotate = $('input[id="tower_baseinfo_rotate"]').val();
-			var mc = $('input[id="tower_baseinfo_model_code"]').val();
-			if(lng != tower['geometry']['coordinates'][0] 
-			|| lat != tower['geometry']['coordinates'][1]
-			|| height != tower['properties']['geo_z']
-			|| rotate != tower['properties']['rotate']
-			|| mc != tower['properties']['model']['model_code']
-			)
-			{
-				return true;
-			}
-			for(var k in tower['properties'])
-			{
-				var kk = 'tower_baseinfo_' + k;
-				if($('input[id="' + kk + '"]').length)
-				{
-					var v = $('input[id="' + kk + '"]').val();
-					if(v.length>0 && v != tower['properties'][k] )
-					{
-						return true;
-					}
-				}
-			}
 		}
 	}
 	return false;

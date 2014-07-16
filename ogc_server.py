@@ -716,10 +716,18 @@ def download_callback(*args, **kwargs):
 
 def handle_tiles(Env, Start_response):
     global gConfig, gTileCache
+    def get_blank_tile(image_type):
+        blank_tile = ''
+        picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles'][image_type]['missing'])
+        with open(picpath, 'rb') as f:
+            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+            blank_tile = f1.read()
+        return blank_tile
+        
     path_info = Env['PATH_INFO']
     d = cgi.parse(None, Env)
     ret = None
-    mimetype = str('image/png')
+    mimetype = 'image/png'
     #key = path_info.replace('/tiles/','')
     if d.has_key('image_type') and d.has_key('x') and d.has_key('y') and d.has_key('level'):
         image_type = d['image_type'][0]
@@ -727,35 +735,24 @@ def handle_tiles(Env, Start_response):
         tilepath = '%s/%s/%s%s' % (level, x, y, gConfig['tiles'][image_type]['mimetype'])
         if not gTileCache.has_key(image_type):
             gTileCache[image_type] = {}
+        if not gTileCache[image_type].has_key('missing'):
+            gTileCache[image_type]['missing'] = get_blank_tile(image_type)
         if gTileCache[image_type].has_key(tilepath):
             ret = gTileCache[image_type][tilepath]
         else:
             try:
-                mimetype, ret = db_util.gridfs_tile_find(image_type, tilepath, d)
+                mimetype, ret = db_util.gridfs_tile_find('tiles', image_type, tilepath, d)
                 gTileCache[image_type][tilepath] = ret
             except:
-                if not gTileCache[image_type].has_key('missing'):
-                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles']['missing'])
-                    with open(picpath, 'rb') as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        gTileCache[image_type]['missing'] = f1.read()
                 ret = gTileCache[image_type]['missing']
-                
     else:
-        if not gTileCache[image_type].has_key('missing'):
-            picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles']['missing'])
-            with open(picpath, 'rb') as f:
-                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                gTileCache[image_type]['missing'] = f1.read()
+        ret = gTileCache[image_type]['missing']
+    if ret is None:
         ret = gTileCache[image_type]['missing']
     #bytestr = bytearray(ret) 
     #Start_response('200 OK', [('Content-Type', mimetype), ('Content-Length', str(len(bytestr)))])
     #return [bytestr]
     Start_response('200 OK', [('Content-Type', mimetype), ])
-    #if ret is None:
-        #print('-----------------------None----------------------------')
-    #else:
-        #print('============%d==========' % len(ret))
     return [ret]
         
             
@@ -767,42 +764,39 @@ def handle_terrain(Env, Start_response):
     ret = None
     mimetype = str('application/octet-stream')
     key = path_info.replace('/terrain/','')
-    if not gTileCache.has_key('terrain'):
-        gTileCache['terrain'] = {}
-    if gTileCache['terrain'].has_key(key):
-        ret = gTileCache['terrain'][key]
+    terrain_type = 'quantized_mesh'
+    if d.has_key('terrain_type'):
+        terrain_type = d['terrain_type'][0]
+    
+    if not gTileCache.has_key(terrain_type):
+        gTileCache[terrain_type] = {}
+    if gTileCache[terrain_type].has_key(key):
+        ret = gTileCache[terrain_type][key]
     else:
         tilepath = key
         if tilepath == 'layer.json':
-            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
-            gTileCache['terrain'][key] = ret
+            mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
+            gTileCache[terrain_type][key] = ret
             Start_response('200 OK', [('Content-Type', mimetype),])
             return [ret]
         else:
             print('tilepath:%s' % tilepath)
-            mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
+            mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
             if ret:
-                gTileCache['terrain'][key] = ret
+                gTileCache[terrain_type][key] = ret
                 Start_response('200 OK', [('Content-Type', mimetype),])
                 return [ret]
             else:
-                if not gTileCache['terrain'].has_key('missing'):
+                if not gTileCache[terrain_type].has_key('missing'):
                     print('reading mongo blank_terrain...')
-                    tilepath = '0/0/0.terrain'
-                    mimetype, ret = db_util.gridfs_tile_find('terrain',tilepath, d)
-                    gTileCache['terrain']['missing'] = ret
-                ret = gTileCache['terrain']['missing']
+                    tilepath = gConfig['terrain'][terrain_type]['missing'] #'0/0/0.terrain'
+                    mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
+                    gTileCache[terrain_type]['missing'] = ret
+                ret = gTileCache[terrain_type]['missing']
                 
     Start_response('200 OK', [('Content-Type', mimetype),])
     return [ret]
 
-#def handle_terrain_metafile(Env, Start_response):
-    #path_info = Env['PATH_INFO']
-    #ret = None
-    #key = path_info.replace('/terrain/','')
-    #mimetype, ret = db_util.gridfs_tile_find('terrain',key)
-    #Start_response('200 OK', [('Content-Type', mimetype),])
-    #return [ret]
         
 def handle_terrain1(Env, Start_response):
     global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
