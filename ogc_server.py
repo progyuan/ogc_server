@@ -1424,7 +1424,6 @@ def handle_post_method(Env, Start_response):
             if action:
                 l = db_util.mongo_action(dbname, collection, action, data, obj)
             else:
-                #print(obj)
                 l = db_util.mongo_find(dbname, collection, obj)
             if get_extext:
                 l = db_util.find_extent(l)

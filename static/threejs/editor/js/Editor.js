@@ -115,7 +115,7 @@ Editor.prototype = {
 
 	removeObject: function ( object ) {
 
-		if ( object.parent === undefined ) return; // avoid deleting the camera or scene
+		if (!object || object.parent === undefined ) return; // avoid deleting the camera or scene
 
 		//if ( confirm( 'Delete ' + object.name + '?' ) === false ) return;
 

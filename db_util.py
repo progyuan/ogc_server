@@ -6917,6 +6917,15 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0):
                 for i in towers:
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
+            elif collection_name == 'get_towers_refer_data':
+                towers_refer = db['towers_refer'].find()
+                for tr in towers_refer:
+                    o = {}
+                    o['id'] = remove_mongo_id(tr['id'])
+                    o['refer'] = db['towers'].find_one({'_id':tr['refer']})
+                    if o['refer']:
+                        o['refer'] = remove_mongo_id(o['refer'])
+                        ret.append(o)
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -6966,7 +6975,7 @@ def build_mongo_conditions(obj):
     return obj
     
 def add_mongo_id(obj):
-    if isinstance(obj, str):
+    if isinstance(obj, str) or isinstance(obj, unicode):
         try:
             obj = ObjectId(obj)
         except:
@@ -7010,6 +7019,8 @@ def remove_mongo_id(obj):
     return obj
 
 
+
+
 def test_mongo_import_segments(db_name, area):
     global gClientMongo
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
@@ -7018,10 +7029,9 @@ def test_mongo_import_segments(db_name, area):
     for line in lines:
         segs = gen_mongo_segments_by_line_id(line['id'], area,  mapping)
         l.extend(segs)
-    host, port = 'localhost', 27017
+    
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
+        mongo_init_client()
         db = gClientMongo[db_name]
         if 'segments' in db.collection_names(False):
             db.drop_collection('segments')
@@ -7081,6 +7091,10 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
                         obj['connector_type'] = seg['connector_type']
                     if not obj.has_key('contact_points'):
                         obj['contact_points'] = []
+                    if not obj.has_key('t0'):
+                        obj['t0'] = 0.9
+                    if not obj.has_key('w'):
+                        obj['w'] = 0.001
                     o = {}
                     o['phase'] = seg['phase']
                     #o['start_side'] = seg['start_side']

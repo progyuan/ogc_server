@@ -14,11 +14,211 @@ var g_phase_color_mapping = {
 	'R':'#000000'
 };
 
+function InitWebGISFormDefinition()
+{
+	var methods = 
+	{
+		init : function(fields, options) 
+		{
+			if(!fields) return this;
+			this.fields = fields;
+			$.fn.webgisform.fields = fields;
+			this.groups = [];
+			this.options = $.extend({}, $.fn.webgisform.defaults, options);
+			$.fn.webgisform.options = this.options;
+			this.empty();
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			
+			
+			var debug = true;
+			if($.fn.webgisform.options.debug) debug = $.fn.webgisform.options.debug;
+			this.validate({
+				debug:debug,
+				errorElement:'div'
+			});
+			
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				var fldid = prefix + fld.id;
+				if(fld.type == 'hidden')
+				{
+					this.append('<input type="hidden" id="' + fldid + '">');
+				}
+				if(fld.group)
+				{
+					if(this.groups.indexOf(fld.group) < 0)
+					{
+						this.groups.push(fld.group);
+					}
+				}
+			}
+			
+			
+			for(var j in this.groups)
+			{
+				var group = this.groups[j];
+				var uid = $.uuid();
+				var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+				this.append('</fieldset>');
+				this.append('<p></p>');
+				
+				for(var i in fields)
+				{
+					var fld = fields[i];
+					var fldid = prefix + fld.id;
+					
+					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
+					var newline = "float:left;";
+					if(fld.newline == false) newline = "";
+					var validate = '';
+					if(fld.validate)
+					{
+						validate = '<span style="color:#FF0000">*</span>';
+					}
+					if(fld.type == 'spinner' && fld.group == group)
+					{
+						
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						var spin = 	$('#' + fldid).spinner({
+							step: fld.step,
+							max:fld.max,
+							min:fld.min,
+							change:fld.change,
+							spin:fld.spin
+						});
+					}
+					if(fld.type == 'geographic' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						var spin = 	$('#' + fldid).spinner({
+							step: 0.00001,
+							max:179.0,
+							min:-179.0,
+							change: fld.change,
+							spin: fld.spin
+						});
+					}
+					if(fld.type == 'text' && fld.group == group)
+					{
+						var readonly = '';
+						if(fld.editor && fld.editor.readonly == true)
+						{
+							readonly = ' readonly="readonly"';
+						}
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + validate + '</div>');
+					}
+					if(fld.type == 'select' && fld.group == group)
+					{
+						var source = [];
+						if(fld.editor && fld.editor.data) source = fld.editor.data;
+						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + validate + '</div>');
+						for(var ii in source)
+						{
+							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
+						}
+						var auto = $('#' + fldid).autocomplete({
+							//appendTo:'#' + fldid,
+							//position: { my: "left top", at: "left bottom", collision: "none" },
+							autoFocus: false,
+							source:source
+						});
+						
+					}
+					
+				}
+			}
+			
+			var fields = this.fields;
+			for(var i in fields)
+			{
+				var fld = fields[i];
+				var fldid = prefix + fld.id;
+				if(fld.validate)
+				{
+					if($('input[name="' + fldid + '"]').length>0)
+					{
+						$('input[name="' + fldid + '"]').rules('add',fld.validate);
+					}
+					if($('select[name="' + fldid + '"]').length>0)
+					{
+						$('select[name="' + fldid + '"]').rules('add',fld.validate);
+					}
+				}
+			}
+			return this;
+		},
+		setdata : function(data)
+		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			for(var k in data)
+			{
+				this.find('#' + prefix + k).val(data[k]);
+			}
+			return this;
+		},
+		getdata:function()
+		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			var fields = $.fn.webgisform.fields;
+			var ret = {};
+			for(var i in fields)
+			{
+				var id = fields[i]['id'];
+				ret[id] = this.find('#' + prefix + id).val();
+				if(id === 'tower_name')
+				{
+					ret[id] = ret[id].split(',')[0]; 
+				}
+				
+			}
+			return ret;
+		},
+		get:function(id)
+		{
+			var prefix = '';
+			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			var ret = this.find('#' + prefix + id);
+			return ret;
+		}
+		//getvalidate:function(ad)
+		//{
+			//var debug = true;
+			//if(ad) debug = ad;
+			//var ret = this.validate({
+				//debug:debug,
+				//errorElement:'div'
+			//});
+			//return ret;
+		//}
+    };	
+	$.fn.webgisform = function(fields, options) 
+	{
+		if ( methods[fields] ) {
+			return methods[ fields ].apply( this, Array.prototype.slice.call( arguments, 1 ));
+		} else if ( typeof fields === 'object' || ! fields ) {
+			return methods.init.apply( this, arguments );
+		} else {
+			$.error( 'Method ' +  fields + ' does not exist on $.webgisform');
+        }		
+		
+	};
+	$.fn.webgisform.defaults = {
+		labelwidth : 90,
+		margin : 10.0/2,
+		groupmargin : 18.0/2
+	};
+}
 
-function MongoFind(data, success)
+function MongoFind(data, success, host)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
-	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+	var h = '';
+	if(host) h = host;
+	$.post(h + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
 		ret = JSON.parse(decodeURIComponent(data1));
 		if(ret.result)
 		{
@@ -73,10 +273,15 @@ function ShowProgressBar(show, width, height, title, msg)
 		g_progress_interval = setInterval(function(){
 			g_progress_value += 1;
 			if(g_progress_value > 100) g_progress_value = 100;
-			$('#div_progress_bar').progressbar('value', g_progress_value);
-			$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
+			try
+			{
+				$('#div_progress_bar').progressbar('value', g_progress_value);
+				$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
+			}catch(e)
+			{
+				clearInterval(g_progress_interval);
+			}
 		}, 100);
-	
 	}
 	else{
 		//document.body.className = document.body.className.replace(/(?:\s|^)loading(?:\s|$)/, ' ');

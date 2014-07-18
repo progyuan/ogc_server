@@ -8,24 +8,24 @@ var g_cpdata, g_cpdata_next, g_next_ids;
 var g_contact_points;
 var g_segments = [];
 var g_segments_editting = [];
-var g_off_x = 10, g_off_z = 30;
+var g_off_x = 15, g_off_z = 30;
 
 
 $(function() {
+	InitWebGISFormDefinition();
 	ShowProgressBar(true, 400, 150, '载入中', '正在载入，请稍候...');
 	var param = GetParamsFromUrl();
 	if(param['url_next'])
 	{
 		g_mode = 'segs';
+		g_next_ids = param['next_ids'];
 		g_segments = param['segments'];
 		for(var i in g_segments)
 		{
 			//g_segments_editting = $.merge([], g_segments);
 			g_segments_editting.push( $.extend(true, {}, g_segments[i]));
 		}
-		g_cpdata = param['data'];
-		g_cpdata_next = param['data_next'];
-		g_next_ids = param['next_ids'];
+		
 	}else
 	{
 		g_mode = 'tower';
@@ -142,7 +142,9 @@ $(function() {
 							i2 = g_cp_pair[1].data.contact_index;
 						if(side1 != side2 && t1 != t2)
 						{
-							if(!CheckSegExist(t1, t2, side1, side2, i1, i2))
+							var b = CheckSegExist(t1, t2, side1, side2, i1, i2);
+							console.log(b);
+							if(!b)
 							{
 								var phase = $('#button_phase :radio:checked').attr('id');
 								phase = phase.substr(phase.indexOf('_') + 1);
@@ -201,21 +203,11 @@ $(function() {
 								AddSeg(t1, t2, side1, side2, i1, i2, phase);
 							}else
 							{
-								ShowMessage(400, 150, '已存在','所连接的线段已经存在');
+								ShowMessage('dlg_message', 400, 150, '已存在','所连接的线段已经存在');
 							}
 						}
 						g_cp_pair.length = 0;
 					}
-					//if(g_cp_pair.length == 1)
-					//{
-						//var little = g_cp_pair[0];
-						//var big = g_cp_pair[1];
-					//}
-					//if(g_cp_pair.length == 0)
-					//{
-						//var little = g_cp_pair[0];
-						//var big = g_cp_pair[1];
-					//}
 				}
 			}
 		}
@@ -250,7 +242,7 @@ $(function() {
 	//}, false );
 
 	document.addEventListener( 'keydown', function ( event ) {
-		console.log(event.keyCode);
+		//console.log(event.keyCode);
 		switch ( event.keyCode ) {
 
 			case 8: // prevent browser back 
@@ -280,52 +272,81 @@ $(function() {
 	AddHemisphereLight(editor);
 	var off_x = g_off_x, off_z = g_off_z;
 
-	//LoadGltfFromUrl(editor, viewport, 'http://localhost:88/gltf/BJ1_25_0.json', [-90,0,0], [10,10,10], '#00FF00');
 	if(g_mode == 'segs')
 	{
-		if(param['url_next'].length==1)
-		{
-			LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [0, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
-		}
-		if(param['url_next'].length==2)
-		{
-			LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [-off_x, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
-			LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
-		}
-		if(param['data_next'].length==1)
-		{
-			LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [0, 0, -off_z]);
-		}
-		if(param['data_next'].length==2)
-		{
-			LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [-off_x, 0, -off_z]);
-			LoadContactPoint(editor, param['next_ids'][1], param['data_next'][1], [off_x, 0, -off_z]);
-		}
-		if(param['data'])
-		{
-			LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, off_z]);
-		}
-		if(param['url'])
-		{
-			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, off_z], [-90,0,0], [10,10,10], '#00FF00',
-				function(target){
-					if(window.parent)
-					{
-						if(param['data_next'].length==1)
+		//console.log(param['url_next']);
+		param['data_next'] = [];
+		var ids = [];
+		ids.push(param['tower_id']);
+		for(var i in param['next_ids']) ids.push(param['next_ids'][i]);
+		var cond = {'db':g_db_name, 'collection':'towers','_id':ids};
+		MongoFind(cond, function(data){
+			
+			for(var i in data)
+			{
+				var d = data[i];
+				if(d['_id'] === param['tower_id'])
+				{
+					param['data'] = d['properties']['model'];
+				}
+				if(d['_id'] === param['next_ids'][0])
+				{
+					param['data_next'].push(d['properties']['model']);
+				}
+				if(param['next_ids'][1] && d['_id'] === param['next_ids'][1])
+				{
+					param['data_next'].push(d['properties']['model']);
+				}
+				
+			}
+			
+			
+			g_cpdata = param['data'];
+			g_cpdata_next = param['data_next'];
+			if(param['data_next'].length==1)
+			{
+				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [0, 0, -off_z]);
+			}
+			if(param['data_next'].length==2)
+			{
+				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [-off_x, 0, -off_z]);
+				LoadContactPoint(editor, param['next_ids'][1], param['data_next'][1], [off_x, 0, -off_z]);
+			}
+			if(param['data'])
+			{
+				LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, off_z]);
+			}
+			if(param['url'])
+			{
+				LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, off_z], [-90,0,0], [10,10,10], '#00FF00',
+					function(target){
+						if(window.parent)
 						{
-							//DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], 0, off_z);
-							DrawSegments(editor,  param['data'], param['data_next'], 0, off_z);
+							if(param['data_next'].length==1)
+							{
+								DrawSegments(editor,  param['data'], param['data_next'], 0, off_z);
+							}
+							if(param['data_next'].length==2)
+							{
+								DrawSegments(editor,  param['data'], param['data_next'], off_x, off_z);
+							}
 						}
-						if(param['data_next'].length==2)
+						
+						if(param['url_next'].length==1)
 						{
-							//DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], off_x, off_z);
-							DrawSegments(editor,  param['data'], param['data_next'], off_x, off_z);
+							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [0, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
 						}
-					}
-					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
-					ShowProgressBar(false);
-			});
-		}
+						if(param['url_next'].length==2)
+						{
+							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [-off_x, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
+							LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
+						}
+						
+						SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
+						ShowProgressBar(false);
+				});
+			}
+		}, '../../');
 	}else if(g_mode == 'tower')
 	{
 		if(param['url'])
@@ -429,7 +450,7 @@ $(function() {
 		$('#button_del_seg').css('display','block');
 		$('#button_add_seg').css('display','block');
 		$('#button_save_seg').css('display','block');
-		$('#button_phase').css('display','block');
+		$('#button_save_seg_form').css('display','block');
 		$('#button_del_seg').button();
 		$('#button_del_seg').on('click', function() {
 			DeleteSegment();
@@ -438,17 +459,39 @@ $(function() {
 		$('#checkbox_add_segment').button();
 		$('#checkbox_add_segment').on('click', function() {
 			g_is_add_seg = !g_is_add_seg;
-			console.log(g_is_add_seg);
+			if(g_is_add_seg)
+			{
+				$('#button_phase').css('display', 'block');
+				$('#button_save_seg').css('display', 'none');
+				$('#button_save_seg_form').css('display', 'none');
+			}
+			else
+			{
+				$('#button_phase').css('display', 'none');
+				$('#button_save_seg').css('display', 'block');
+				$('#button_save_seg_form').css('display', 'block');
+			}
+			
 		});
 		
 		$('#button_save_seg').button();
 		$('#button_save_seg').on('click', function() {
 			SaveSegment();
 		});
+		$('#button_save_seg_form').button();
+		$('#button_save_seg_form').on('click', function() {
+			//$('#dlg_seg_info').dialog("option", "show", {
+				//effect: "blind",
+				//duration: 500
+			//});
+			ShowSegDialog();
+		});
 		
 		$('#button_phase').buttonset();
+		
+		
 	}
-
+	
 	
 });
 
@@ -468,6 +511,23 @@ function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 			//console.log('after=' + seg.contact_points.length);
 			g_segments_editting[i] = seg;
 			break;
+		}
+	}
+	//console.log('--add--tower_id0=' + tower_id0 + ',tower_id1=' + tower_id1 + ',side0=' + side0 + ',side1=' + side1 + ',index0=' + index0 + ',index1=' + index1 );
+	if(g_segments_editting.length == 0)
+	{
+		if(tower_id0 != tower_id1 && side0 != side1)
+		{
+			var seg = {};
+			seg['start_tower'] = tower_id0;
+			seg['end_tower'] = tower_id1;
+			seg['start_side'] = side0;
+			seg['end_side'] = side1;
+			seg['contact_points'] = [];
+			seg['contact_points'].push({start:index0, end:index1, phase:phase});
+			seg['t0'] = 0.9;
+			seg['w'] = 0.001;
+			g_segments_editting.push(seg);
 		}
 	}
 }
@@ -571,7 +631,7 @@ function DelContactPoint()
 	var obj = g_editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 	{
-		ShowConfirm(400, 200,
+		ShowConfirm('dlg_confirm', 400, 200,
 			'你确定要删除此挂线点吗?', 
 			'删除挂线点后，你可以重新创建挂线点，方法是选择该挂线点的类型(大号端,小号端),然后点击"添加挂线点"按钮，即可完成添加.', 
 			function(){
@@ -585,7 +645,7 @@ function DeleteSegment()
 	var obj = g_editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'line')
 	{
-		ShowConfirm(400, 200,
+		ShowConfirm('dlg_confirm', 400, 200,
 			'你确定要删除此线段吗?', 
 			'删除线段后，你可以重新创建线段，方法是,确认“添加线段”按钮按下,然后在右边选择该线段的类型,然后先点击一个杆塔的挂线端点，再点击另一个杆塔的挂线端点，即可完成添加.', 
 			function(){
@@ -596,9 +656,10 @@ function DeleteSegment()
 }
 function SaveSegment()
 {
-	if(CheckSegsModified())
+	var b = CheckSegsModified();
+	if(b)
 	{
-		ShowConfirm(400, 200,
+		ShowConfirm('dlg_confirm', 400, 200,
 			'发现已修改', 
 			'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。', 
 			function(){
@@ -610,6 +671,12 @@ function SaveSegment()
 function CheckSegsModified()
 {
 	var ret = false;
+	
+	if(g_segments.length != g_segments_editting.length)
+	{
+		return true;
+	}
+	
 	for(var i in g_segments)
 	{
 		if(g_segments[i].contact_points.length != g_segments_editting[i].contact_points.length)
@@ -642,10 +709,12 @@ function SaveSeg()
 	{
 		ids.push(g_segments_editting[i]['_id']);
 	}
-	var data = {'db':'kmgd', 'collection':'segments','action':'save', 'data':g_segments_editting, '_id':ids};
-	MongoFind(data, function(data1){
-			
-	});
+	console.log(g_segments_editting);
+	var data = {'db':g_db_name, 'collection':'segments','action':'save', 'data':g_segments_editting, '_id':ids};
+	console.log(data);
+	//MongoFind(data, function(data1){
+		//ShowProgressBar(false);
+	//});
 	
 	
 }
@@ -688,11 +757,9 @@ function GetDrawInfoFromContactPoint(side, idx, data, offset_x, offset_z)
 }
 function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 {
-	//for(var i in next_ids)
-	//{
-		//var next = next_ids[i];
 	for(var j in g_segments)
 	{
+		var drawedlist = [];
 		var seg = g_segments[j];
 		//if(seg['start_tower'] == tower_id && seg['end_tower'] == next)
 		//{
@@ -711,12 +778,28 @@ function DrawSegments(editor,  data, data_next, offset_x, offset_z)
 				end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 			}
 			var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
-			if(end)
+			var drawed = cp['start'].toString() + '-' + cp['end'].toString() ;
+			
+			var aaa = Math.abs(cp['start'] - cp['end']);	
+			//if(end && (aaa==0 || aaa>2) && drawedlist.indexOf(drawed)<0)
+			if(end )
+			{
 				DrawLine(editor, start, end, color, seg, cp);
-			if(end1)
+				//drawedlist.push(drawed);
+				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
+			}
+			if(end1 && (aaa==0 && cp['start']>1 || cp['start']==0 && (cp['end']==1 || cp['end']==0)) )
+			{
 				DrawLine(editor, start, end1, color, seg, cp);
-			if(end2)
+				//drawedlist.push(drawed);
+				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
+			}
+			if(end2 && (aaa==3|| cp['start']==1 && (cp['end']==1 || cp['end']==0)))
+			{
 				DrawLine(editor, start, end2, color, seg, cp);
+				//drawedlist.push(drawed);
+				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
+			}
 		}
 			//break;
 		//}
@@ -1091,4 +1174,50 @@ function GetParamsFromUrl() {
 	}
 	//console.log(ret);
 	return ret;
+}
+
+
+function ShowSegDialog()
+{
+	$('#dlg_seg_info').dialog({
+		width: 400,
+		height: 270,
+		minWidth:200,
+		minHeight: 200,
+		draggable: false,
+		resizable: false, 
+		modal: true,
+		position:{at: "center"},
+		title:"属性",
+		close: function(event, ui){
+		},
+		show: {
+			effect: "blind",
+			duration: 500
+		},
+		//hide: {
+			//effect: "blind",
+			//duration: 500
+		//},		
+		buttons:[
+			{ 	
+				text: "关闭", 
+				click: function(){ 
+					$( this ).dialog( "close" );
+				}
+			}
+		]
+	});
+	var field = [
+		{display: "应力", id: "t0", newline: true,  type: "spinner", step:0.1, min:0.4,max:1.5, width:150, labelwidth:50,  group:'弧垂参数', validate:{number: true}},
+		{display: "比载", id: "w", newline: true,  type: "spinner", step:0.001, min:0.001,max:0.01, width:150, labelwidth:50,  group:'弧垂参数', validate:{number: true}}
+	];
+	//$('#form_seg_info' ).webgisform("getvalidate");
+	$('#form_seg_info').webgisform( field,{prefix:'seg_info_'});
+	var data = {t0:0.9, w:0.001};
+	$('#form_seg_info').webgisform('setdata', data);
+	//$('#dlg_seg_info').dialog("option", "hide", {
+		//effect: "blind",
+		//duration: 1
+	//});
 }

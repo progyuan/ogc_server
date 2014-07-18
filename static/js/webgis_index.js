@@ -15,7 +15,6 @@ var g_selected_metal_item;
 var g_geometry_segments = [];
 var g_geometry_lines = {};
 var g_use_catenary = true;
-var g_validates = {};
 var g_models = [];
 var g_is_tower_focus = false;
 var g_primitive_appearance;
@@ -25,6 +24,9 @@ var g_image_slider_tower_info;
 var g_image_thumbnail_tower_info = [];
 g_max_file_size = 5000000;
 
+/*
+	jquery全局初始化函数
+*/
 $(function() {
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
@@ -48,7 +50,10 @@ $(function() {
 	InitModelList(viewer);
 	
 	
+	ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
 	LoadLineData(g_db_name, function(){
+		//ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔信息，请稍候...');
+		//LoadTowersData(g_db_name, function(){
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔引用信息，请稍候...');
 		LoadTowerReferData(g_db_name, function(){
 			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
@@ -58,12 +63,13 @@ $(function() {
 					//var line_name = '七罗I回';
 					var line_name = '永发I回线';
 					LoadTowerByLineName(viewer, g_db_name,  line_name);
-					//line_name = '永发II回线';
-					//LoadTowerByLineName(viewer, g_db_name,  line_name);
+					line_name = '永发II回线';
+					LoadTowerByLineName(viewer, g_db_name,  line_name);
 				
 				});
 			});
 		});
+		//});
 	});
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
@@ -74,7 +80,7 @@ $(function() {
 
 function LoadTowerReferData(db_name, callback)
 {
-	var cond = {'db':db_name, 'collection':'towers_refer' };
+	var cond = {'db':db_name, 'collection':'get_towers_refer_data' };
 	MongoFind( cond, 
 		function(data){
 			for(var i in data)
@@ -85,183 +91,6 @@ function LoadTowerReferData(db_name, callback)
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
-}
-function InitWebGISFormDefinition()
-{
-	var methods = 
-	{
-		init : function(fields, options) 
-		{
-			if(!fields) return this;
-			this.fields = fields;
-			$.fn.webgisform.fields = fields;
-			this.groups = [];
-			this.options = $.extend({}, $.fn.webgisform.defaults, options);
-			$.fn.webgisform.options = this.options;
-			this.empty();
-			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
-			
-			for(var i in fields)
-			{
-				var fld = fields[i];
-				var fldid = prefix + fld.id;
-				if(fld.type == 'hidden')
-				{
-					this.append('<input type="hidden" id="' + fldid + '">');
-				}
-				if(fld.group)
-				{
-					if(this.groups.indexOf(fld.group) < 0)
-					{
-						this.groups.push(fld.group);
-					}
-				}
-			}
-			
-			
-			for(var j in this.groups)
-			{
-				var group = this.groups[j];
-				var uid = $.uuid();
-				var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
-				this.append('</fieldset>');
-				this.append('<p></p>');
-				
-				for(var i in fields)
-				{
-					var fld = fields[i];
-					var fldid = prefix + fld.id;
-					
-					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
-					var newline = "float:left;";
-					if(fld.newline == false) newline = "";
-					var validate = '';
-					if(fld.validate)
-					{
-						validate = '<span style="color:#FF0000">*</span>';
-					}
-					if(fld.type == 'spinner' && fld.group == group)
-					{
-						
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
-						var spin = 	$('#' + fldid).spinner({
-							step: fld.step,
-							max:fld.max,
-							min:fld.min,
-							change:fld.change,
-							spin:fld.spin
-						});
-					}
-					if(fld.type == 'geographic' && fld.group == group)
-					{
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
-						var spin = 	$('#' + fldid).spinner({
-							step: 0.00001,
-							max:179.0,
-							min:-179.0,
-							change: fld.change,
-							spin: fld.spin
-						});
-					}
-					if(fld.type == 'text' && fld.group == group)
-					{
-						var readonly = '';
-						if(fld.editor && fld.editor.readonly == true)
-						{
-							readonly = ' readonly="readonly"';
-						}
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + validate + '</div>');
-					}
-					if(fld.type == 'select' && fld.group == group)
-					{
-						var source = [];
-						if(fld.editor && fld.editor.data) source = fld.editor.data;
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + validate + '</div>');
-						for(var ii in source)
-						{
-							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
-						}
-						var auto = $('#' + fldid).autocomplete({
-							//appendTo:'#' + fldid,
-							//position: { my: "left top", at: "left bottom", collision: "none" },
-							autoFocus: false,
-							source:source
-						});
-						
-					}
-					
-				}
-			}
-			
-			var fields = this.fields;
-			for(var i in fields)
-			{
-				var fld = fields[i];
-				var fldid = prefix + fld.id;
-				if(fld.validate)
-				{
-					if($('input[name="' + fldid + '"]').length>0)
-					{
-						$('input[name="' + fldid + '"]').rules('add',fld.validate);
-					}
-					if($('select[name="' + fldid + '"]').length>0)
-					{
-						$('select[name="' + fldid + '"]').rules('add',fld.validate);
-					}
-				}
-			}
-			return this;
-		},
-		setdata : function(data)
-		{
-			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
-			for(var k in data)
-			{
-				this.find('#' + prefix + k).val(data[k]);
-			}
-			return this;
-		},
-		getdata:function()
-		{
-			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
-			var fields = $.fn.webgisform.fields;
-			var ret = {};
-			for(var i in fields)
-			{
-				var id = fields[i]['id'];
-				//console.log(id);
-				ret[id] = this.find('#' + prefix + id).val();
-				//console.log(ret[id.slice(prefix.length)]);
-			}
-			return ret;
-		},
-		get:function(id)
-		{
-			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
-			var ret = this.find('#' + prefix + id);
-			return ret;
-		}
-    };	
-	$.fn.webgisform = function(fields, options) 
-	{
-		if ( methods[fields] ) {
-			return methods[ fields ].apply( this, Array.prototype.slice.call( arguments, 1 ));
-		} else if ( typeof fields === 'object' || ! fields ) {
-			return methods.init.apply( this, arguments );
-		} else {
-			$.error( 'Method ' +  fields + ' does not exist on $.webgisform');
-        }		
-		
-	};
-	$.fn.webgisform.defaults = {
-		labelwidth : 90,
-		margin : 10.0/2,
-		groupmargin : 18.0/2
-	};
 }
 
 function InitCesiumViewer()
@@ -708,10 +537,7 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
 
 function InitPoiInfoDialog()
 {
-	g_validates['form_poi_info'] = $('#form_poi_info' ).validate({
-		debug:true,
-		errorElement:'div'
-	});
+	//$('#form_poi_info' ).webgisform("getvalidate");
 
 }
 function InitTowerInfoDialog()
@@ -727,14 +553,8 @@ function InitTowerInfoDialog()
 			}
 		});
 	});
-	g_validates['form_tower_info_base'] = $('#form_tower_info_base' ).validate({
-		debug:true,
-		errorElement:'div'
-	});
-	g_validates['form_tower_info_metal'] = $('#form_tower_info_metal' ).validate({
-		debug:true,
-		errorElement:'div'
-	});
+	//$('#form_tower_info_base' ).webgisform("getvalidate");
+	//$('#form_tower_info_metal' ).webgisform("getvalidate");
 	$('#upload_desciption').resizable({
 		minHeight:100,
 		minWidth:450
@@ -947,7 +767,6 @@ function InitSearchBox(viewer)
 				//var line_cond = {'db':g_db_name, 'collection':'lines', 'properties.line_name':line_name};
 				if(ui.item.geojson.properties.line_name)
 				{
-					ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 					LoadTowerByLineName(viewer, g_db_name, ui.item.geojson.properties.line_name);
 				}
 			}
@@ -991,13 +810,24 @@ function ShowSearchResult(viewer, geojson)
 	{
 		if(geojson['properties'] && geojson['properties']['tower_name'])
 		{
-			if(!g_geojsons[geojson['_id']])
+			var _id = geojson['_id'];
+			if(!g_geojsons[_id])
 			{
-				g_geojsons[geojson['_id']] = geojson;
+				g_geojsons[_id] = geojson;
 			}
-			if(!g_czmls[geojson['_id']])
+			if(g_towers_refer[_id])
 			{
-				g_czmls[geojson['_id']] = CreateTowerCzmlFromGeojson(geojson);
+				geojson = g_towers_refer[_id];
+				_id = geojson['_id'];
+			}
+			
+			if(!g_geojsons[_id])
+			{
+				g_geojsons[_id] = geojson;
+			}
+			if(!g_czmls[_id])
+			{
+				g_czmls[_id] = CreateTowerCzmlFromGeojson(geojson);
 				ReloadCzmlDataSource(viewer, g_zaware);
 			}
 		}
@@ -1163,7 +993,7 @@ function ReloadBorders(viewer, forcereload)
 				arr = g.geometry.coordinates[0];
 			//console.log(arr);
 				
-			for(var i=0; i < arr.length; i=i+5)
+			for(var i=0; i < arr.length; i=i+10)
 			{
 				var x = arr[i][0],
 					y = arr[i][1],
@@ -1292,9 +1122,25 @@ function LoadLineGeometryByName(viewer, line_name)
 				color = '#0000FF';
 			}
 			DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
+			break;
 		}
 	}
 }
+
+function LoadTowersData(db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'towers'};
+	MongoFind( cond, 
+		function(towers){
+			for(var i in towers)
+			{
+				g_geojsons[towers[i]['_id']] = towers[i];
+			}
+			ShowProgressBar(false);
+			if (callback) callback();
+	});
+}
+
 function LoadLineData(db_name, callback)
 {
 	var line_cond = {'db':db_name, 'collection':'lines'};
@@ -1313,19 +1159,30 @@ function LoadTowerByLineName(viewer, db_name,  line_name,  callback)
 {
 	var geo_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name', 'properties.line_name':line_name};
 	//var ext_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name','get_extext':true, 'properties.line_name':line_name};
-	
+	ShowProgressBar(true, 670, 200, '载入中', '正在载入[' + line_name + ']数据，请稍候...');
 	MongoFind( geo_cond, 
 		function(data){
 			ShowProgressBar(false);
 			for(var i in data)
 			{
-				if(!g_geojsons[data[i]['_id']])
+				var _id = data[i]['_id'];
+				var geojson = data[i];
+				if(!g_geojsons[_id])
 				{
-					g_geojsons[data[i]['_id']] = data[i];
+					g_geojsons[_id] = geojson;
 				}
-				if(!g_czmls[data[i]['_id']])
+				if(g_towers_refer[_id])
 				{
-					g_czmls[data[i]['_id']] = CreateTowerCzmlFromGeojson(data[i]);
+					geojson = g_towers_refer[_id];
+					_id = geojson['_id'];
+				}
+				if(!g_geojsons[_id])
+				{
+					g_geojsons[_id] = geojson;
+				}
+				if(!g_czmls[_id])
+				{
+					g_czmls[_id] = CreateTowerCzmlFromGeojson(geojson);
 				}
 			}
 			ReloadCzmlDataSource(viewer, g_zaware);
@@ -2194,14 +2051,42 @@ function GetNeighborTowers(ids)
 
 function GetSegmentPairsByTowTowerId(id0, id1)
 {
-	var ret = [];
+	var ret = {};
+	ret['contact_points'] = [];
+	ret['t0'] = 0.9;
+	ret['w'] = 0.001;
+	
 	for(var i in g_segments)
 	{
 		var seg = g_segments[i];
 		if(seg['start_tower'] == id0 && seg['end_tower'] == id1)
 		{
-			ret = seg['contact_points'];
+			ret['contact_points'] = seg['contact_points'];
+			ret['t0'] = seg['t0'];
+			ret['w'] = seg['w'];
 			break;
+		}
+	}
+	var referee = GetRefereeByTowerId(id0);
+	if(referee.length>0)
+	{
+		for(var k in referee)
+		{
+			for(var j in g_segments)
+			{
+				var seg = g_segments[j];
+				if(seg['start_tower'] == referee[k])
+				{
+					var arr = seg['contact_points'];
+					for(var i in arr)
+					{
+						ret['contact_points'].push(arr[i]);
+					}
+					ret['t0'] = seg['t0'];
+					ret['w'] = seg['w'];
+					break;
+				}
+			}
 		}
 	}
 	return ret;
@@ -2449,11 +2334,20 @@ function DrawLineModelByLine(viewer, line, width, color, alpha)
 	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
 	//console.log(rgba);
 	
-	var array = line['properties']['towers'];
+	var arr = line['properties']['towers'];
+	var array = [];
+	for(var i in arr)
+	{
+		var id = arr[i];
+		if(g_towers_refer[id])
+		{
+			id = g_towers_refer[id]['_id'];
+		}
+		array.push(id);
+	}
 	if(array.length>0)
 	{
 		//var polylines = new Cesium.PolylineCollection();
-		
 		if(array[0] instanceof Array)
 		{
 			for(var i in array)
@@ -2517,7 +2411,7 @@ function DrawLineModelByLine(viewer, line, width, color, alpha)
 		//g_geometry_segments.push({'line_id': line['_id'], 'model':polylines});
 	}
 }
-function DrawSegmentsBetweenTowTower(viewer, tower0, tower1)
+function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len, exist)
 {
 	var scene = viewer.scene;
 	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
@@ -2549,12 +2443,29 @@ function DrawSegmentsBetweenTowTower(viewer, tower0, tower1)
 		var	quat_1 = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, rotate1);
 		var	rot_mat3_1 = Cesium.Matrix3.fromQuaternion(quat_1);
 		
-		var segpairs = GetSegmentPairsByTowTowerId(tower0['_id'], tower1['_id']);
 		
-		//var mat4 = Cesium.Matrix4.fromRotationTranslation(rot_mat3_0, Cesium.Cartesian3.ZERO);
-		//mat4 = Cesium.Matrix4.multiplyByTranslation(mat4, cart3_0);
-		//var m = Cesium.Matrix4.multiplyTransformation(modelMatrix_0, mat4);
-		
+		var obj = GetSegmentPairsByTowTowerId(tower0['_id'], tower1['_id']);
+		var t0 = obj['t0'];
+		var w = obj['w'];
+		var arr = obj['contact_points'];
+		var segpairs = [];
+		//var counter = {};
+		for(var i in arr)
+		{
+			var key = arr[i].start + '-' + arr[i].end;
+			//if(!counter[key]) 
+				//counter[key] = 1;
+			//counter[key] += 1;
+			if(!exist[tower0['_id']]) exist[tower0['_id']] = [];
+			if(exist[tower0['_id']].indexOf(key)<0)
+			{
+				exist[tower0['_id']].push(key);
+				segpairs.push(arr[i]);
+			}
+		}
+		//console.log(tower0['_id']  + '-' + tower1['_id'] );
+		//console.log(segpairs.length);
+		//console.log(counter);
 		
 		var polylines = new Cesium.PolylineCollection({
 			modelMatrix:Cesium.Matrix4.IDENTITY,
@@ -2584,7 +2495,7 @@ function DrawSegmentsBetweenTowTower(viewer, tower0, tower1)
 				var p0 = Cesium.Matrix4.getTranslation(m_0),
 					p1 = Cesium.Matrix4.getTranslation(m_1);
 				
-				var positions = CalcCatenary(ellipsoid, p0, p1, 15);
+				var positions = CalcCatenary(ellipsoid, p0, p1, 15, t0, w);
 				var polyline = polylines.add({
 					positions : positions,
 					material : Cesium.Material.fromType('Color', {
@@ -2598,10 +2509,10 @@ function DrawSegmentsBetweenTowTower(viewer, tower0, tower1)
 		scene.primitives.add(polylines);
 		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines});
 	}
-	
+	return exist;
 }
 
-function CalcCatenary(ellipsoid, p0, p1, segnum)
+function CalcCatenary(ellipsoid, p0, p1, segnum, t0, w)
 {
 	var ret = [];
 	if(g_use_catenary)
@@ -2629,16 +2540,14 @@ function CalcCatenary(ellipsoid, p0, p1, segnum)
 		
 		for(var i=0; i<=segnum; i++)
 		{
-			var z = get_z(l, h, carto0.height, i*step, 0.9, 0.001);
+			var z = get_z(l, h, carto0.height, i*step, t0, w);
 			var carto = new Cesium.Cartographic(carto0.longitude + i * dx,  carto0.latitude + i * dy,  z);
 			var p = ellipsoid.cartographicToCartesian(carto);
 			ret.push(p);
 		}
 	}else
 	{
-		ret = [	p0,
-				p1
-			];
+		ret = [	p0,p1];
 	}
 	return ret;
 }
@@ -2671,29 +2580,29 @@ function GetPrevNextTowerIds(tower)
 	var nexts = [];
 	for(var i in g_lines)
 	{
-		var foundit = false;
 		var towers_pair = g_lines[i]['properties']['towers_pair'];
 		for(var j in towers_pair)
 		{
 			var pair = towers_pair[j];
-			if(pair[0] == tower['_id'])
+			if (g_towers_refer[pair[0]])
 			{
-				if (g_towers_refer[pair[1]])
-				{
-					nexts.push(g_towers_refer[pair[1]]);
-				}
-				else
+				pair[0] = g_towers_refer[pair[0]]['_id'];
+			}
+			if (g_towers_refer[pair[1]]) 
+			{
+				pair[1] = g_towers_refer[pair[1]]['_id'];
+			}
+			
+			if(pair[0] === tower['_id'])
+			{
+				if(nexts.indexOf(pair[1])<0)
 				{
 					nexts.push(pair[1]);
 				}
 			}
-			if(pair[1] == tower['_id'])
+			if(pair[1] === tower['_id'])
 			{
-				if (g_towers_refer[pair[0]])
-				{
-					nexts.push(g_towers_refer[pair[0]]);
-				}
-				else
+				if(prevs.indexOf(pair[0])<0)
 				{
 					prevs.push(pair[0]);
 				}
@@ -2703,6 +2612,13 @@ function GetPrevNextTowerIds(tower)
 	return [prevs, nexts];
 }
 
+
+//function CheckHasMoreNext(id)
+//{
+
+//}
+
+
 function DrawSegmentsByTower(viewer, tower)
 {
 	var scene = viewer.scene;
@@ -2711,6 +2627,19 @@ function DrawSegmentsByTower(viewer, tower)
 	var arr = GetPrevNextTowerIds(tower);
 	var prev_towers = GetNeighborTowers(arr[0]);
 	var next_towers = GetNeighborTowers(arr[1]);
+	
+	var referee = GetRefereeByTowerId(tower['_id']);
+	if(referee.length==0 && arr[1].length==1)
+	{
+		referee = GetRefereeByTowerId(arr[1][0]);
+		if(referee.length>0)
+		{
+			console.log(tower['properties']['tower_name'] );
+			console.log('{"start_tower":"' + tower['_id'] + '", "end_tower":"' + arr[1][0] + '"}' );
+		}
+	}
+	//console.log(prev_towers);
+	//console.log(next_towers);
 	
 	var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 		lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
@@ -2726,15 +2655,16 @@ function DrawSegmentsByTower(viewer, tower)
 		tt['properties']['geo_z'] = height;
 		tt['properties']['rotate'] = rotate;
 		tt['properties']['model'] = tower['properties']['model'];
+		var exist = {};
 		for(var i in prev_towers)
 		{
 			var t = prev_towers[i];
-			DrawSegmentsBetweenTowTower(viewer, t, tt);
+			exist = DrawSegmentsBetweenTowTower(viewer, t, tt, prev_towers.length, 1, exist);
 		}
 		for(var i in next_towers)
 		{
 			var t = next_towers[i];
-			DrawSegmentsBetweenTowTower(viewer, tt, t);
+			exist = DrawSegmentsBetweenTowTower(viewer, tt, t, 1, next_towers.length, exist);
 		}
 	}
 }
@@ -2765,6 +2695,11 @@ function CheckTowerInfoModified()
 			if($('#form_tower_info_base').webgisform('get', k).length)
 			{
 				var v = $('#form_tower_info_base').webgisform('get', k).val();
+				
+				if(k === 'tower_name')
+				{
+					v = v.split(',')[0]; 
+				}
 				if(v.length>0 && v != tower['properties'][k] )
 				{
 					return true;
@@ -2803,6 +2738,7 @@ function SavePoi(id)
 function ShowTowerInfo(viewer, id)
 {
 	var tower = GetTowerInfoByTowerId(id);
+	
 	if(tower)
 	{
 		FilterModelList('');
@@ -3001,13 +2937,40 @@ function UpdateFileUploader(uploader_container_id)
 }
 
 
+function GetTitlesByTower(tower)
+{
+	var ret = [];
+	ret.push(tower['properties']['tower_name']);
+	for(var k in g_towers_refer)
+	{
+		if(tower['_id'] === g_towers_refer[k]['_id'])
+		{
+			if(g_geojsons[k])
+			{
+				ret.push(g_geojsons[k]['properties']['tower_name']);
+			}
+		}
+	}
+	return ret;
+}
+
 function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
 	var title = '';
 	if(tower)
 	{
-		title = tower['properties']['tower_name'];
+		var titles = GetTitlesByTower(tower);
+		if(titles.length>1)
+		{
+			for(var i in titles)
+			{
+				title += titles[i] + ',';
+			}
+		}else
+		{
+			title = tower['properties']['tower_name'];
+		}
 	}
 	$('#dlg_tower_info').dialog({
 		width: 630,
@@ -3168,12 +3131,13 @@ function ShowTowerInfoDialog(viewer, tower)
 						url_next[i] = '/' + url_next[i];
 					}
 					obj['url_next'] = url_next;
-					obj['data'] = tower['properties']['model'];
+					//obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
 					obj['next_ids'] = next_ids;
-					obj['data_next'] = GetNextTowerModelData(next_ids);
+					//obj['data_next'] = GetNextTowerModelData(next_ids);
 					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], next_ids);
 					var json = encodeURIComponent(JSON.stringify(obj));
+					
 					iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
 				}
 				else
@@ -3203,7 +3167,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			'lat':tower['geometry']['coordinates'][1],
 			'geo_z':tower['properties']['geo_z'],
 			'rotate':tower['properties']['rotate'],
-			'tower_name':tower['properties']['tower_name'],
+			'tower_name':title,
 			'tower_code':tower['properties']['tower_code'],
 			'model_code':tower['properties']['model']['model_code'],
 			'denomi_height':tower['properties']['denomi_height'],
@@ -3217,8 +3181,8 @@ function ShowTowerInfoDialog(viewer, tower)
 		//console.log(SetFormData);
 		//SetFormData(data);
 		$('#form_tower_info_base').webgisform('setdata', data);
-		var d = $('#form_tower_info_base').webgisform('getdata');
-		console.log(d);
+		//var d = $('#form_tower_info_base').webgisform('getdata');
+		//console.log(d);
 	}
 	if(tower)
 	{
@@ -3538,9 +3502,27 @@ function CheckPoiInfoModified()
 
 }
 
+
+function GetRefereeByTowerId(id)
+{
+	var ret = [];
+	for(var k in g_towers_refer)
+	{
+		if(id === g_towers_refer[k]['_id'])
+		{
+			//if(g_geojsons[k])
+			//{
+				ret.push(k);
+			//}
+		}
+	}
+	return ret;
+}
+
 function GetSegmentsByTowerStartEnd(start_id, end_ids)
 {
 	var ret = [];
+	
 	for(var i in end_ids)
 	{
 		var end_id = end_ids[i];
@@ -3551,6 +3533,24 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 			{
 				ret.push(seg);
 				break;
+			}
+		}
+	}
+	
+	var referee = GetRefereeByTowerId(start_id);
+	
+	if(referee.length>0)
+	{
+		for(var k in referee)
+		{
+			for(var j in g_segments)
+			{
+				var seg = g_segments[j];
+				if(seg['start_tower'] == referee[k])// && seg['end_tower'] == end_id)
+				{
+					ret.push(seg);
+					break;
+				}
 			}
 		}
 	}
@@ -3600,11 +3600,26 @@ function GetProjectNameByTowerId(id)
 {
 	var ret = '';
 	var l = [];
+	var _ids = [];
+	if(g_geojsons[id])
+	{
+		_ids.push(id);
+	}
+	for(var k in g_towers_refer)
+	{
+		if(id === g_towers_refer[k]['_id'])
+		{
+			if(g_geojsons[k])
+			{
+				_ids.push(k);
+			}
+		}
+	}
 	for(var i in g_lines)
 	{
-		for(var j in g_lines[i]['properties']['towers'])
+		for(var j in _ids)
 		{
-			if(g_lines[i]['properties']['towers'][j] === id)
+			if(g_lines[i]['properties']['towers'].indexOf(_ids[j])>-1)
 			{
 				l.push(g_lines[i]['properties']['line_name']);
 			}
@@ -3614,6 +3629,7 @@ function GetProjectNameByTowerId(id)
 	{
 		ret += l[i] + ',';
 	}
+	
 	return ret;
 }
 
