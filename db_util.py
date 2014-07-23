@@ -36,6 +36,12 @@ import gridfs
 import gevent
 from geventhttpclient import HTTPClient, URL
 import gzip
+import shapely
+import shapely.geometry
+import shapely.wkt
+import pyproj
+import geojson
+
 
 
 
@@ -6616,25 +6622,80 @@ def test_gen_geojson_by_list(data_dir, filelist):
         gen_geojson_by_list(data_dir, tname, ret)
         gen_boundry_by_list(data_dir, tname, ret)
  
-def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
-    ret = []
+def gen_mongo_geojson_by_line_id(alist, line_id, area, piny, mapping, refer_mapping):
+    def get_referee_towers_by_refer_id(refer_mapping, refer_id):
+        ret = []
+        uids = []
+        for k in refer_mapping.keys():
+            if refer_mapping[k] == refer_id:
+                uids.append(k)
+                
+        if len(uids)>0:
+            ids = '('
+            for i in uids:
+                if uids.index(i) < len(uids) - 1:
+                    ids += "'%s'," % i
+                else:
+                    ids += "'%s'" % i
+            ids += ')'
+            ret = odbc_get_records('TABLE_TOWER', "id IN %s" % ids, area)
+        return ret
+    
+    def get_refer_tower_by_refer_id(mapping, refer_id):
+        ret = None
+        uid = None
+        for k in mapping.keys():
+            if mapping[k] == refer_id:
+                uid = k
+                break
+        if uid:
+            ret = odbc_get_records('TABLE_TOWER', "id='%s'" % uid, area)
+            if len(ret)>0:
+                ret = ret[0]
+        return ret
+    def checkexist(alist, id):
+        ret = False
+        for i in alist:
+            if i['_id'] == ObjectId(id):
+                return True
+        return ret
+    #ret = []
     towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
     validlgtlat = None, None
     prev, tower, nextt = None, None, None
+    existset = set()
     for i in range(len(towers_sort)):
-        if i == 0:
-            if len(towers_sort)==1:
-                prev, tower, nextt = None, towers_sort[i], None
-            else:    
-                prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
-        elif i == len(towers_sort) - 1:
-            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
-        else:    
-            prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
+        #if i == 0:
+            #if len(towers_sort)==1:
+                #prev, tower, nextt = None, towers_sort[i], None
+            #else:    
+                #prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
+        #elif i == len(towers_sort) - 1:
+            #prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
+        #else:    
+            #prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
             
+        tower = towers_sort[i]
+        tower_name = tower['tower_name']
+        if not mapping.has_key(tower['id']):
+            continue
+        id = mapping[tower['id']]
+        idold = mapping[tower['id']]
+        #print(id)
+        #if id == '53a8f01cca49c818b8aeaf30':
+            #print('here')
+        if refer_mapping.has_key(id):
+            id = refer_mapping[id]
+            tower = get_refer_tower_by_refer_id(mapping, id)
+            if tower is None:
+                continue
             
+        if refer_mapping.has_key(idold):
+            tower_name += ',' + tower['tower_name']
             
-        x, y = tower['geo_x'], tower['geo_y']
+        x, y, z = tower['geo_x'], tower['geo_y'], tower['geo_z']
+        if z is None:
+            z = 0.0
         if x and y:
             validlgtlat = x, y
         else:
@@ -6645,7 +6706,10 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
         tower_obj = {}
         tower_obj['geometry'] = {}
         tower_obj['geometry']['type'] = 'Point'
-        tower_obj['geometry']['coordinates'] = [x, y]
+        tower_obj['geometry']['coordinates'] = [x, y, z]
+        tower_obj['geometry2d'] = {}
+        tower_obj['geometry2d']['type'] = 'Point'
+        tower_obj['geometry2d']['coordinates'] = [x, y]
         tower_obj['type'] = 'Feature'
         tower_obj['properties'] = {}
         for k in tower.keys():
@@ -6658,9 +6722,8 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                 #tower_obj['properties']['line_id'].append(tower[k])
                 continue
             elif k=='id':
-                if mapping.has_key(tower[k]):
-                    tower_obj['_id'] = ObjectId(mapping[tower[k]])
-                #continue
+                tower_obj['_id'] = ObjectId(id)
+                
             elif k=='same_tower':
                 #if not tower[k] == '00000000-0000-0000-0000-000000000000':
                     #st = odbc_get_records('TABLE_TOWER', "id='%s'" % tower[k], area)
@@ -6671,13 +6734,13 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                         #tower_obj['properties']['line_id'].append(lindid)
                 continue
             elif k=='tower_name':
-                tower_obj['properties'][k] = tower[k]
+                tower_obj['properties'][k] = tower_name
                 tower_obj['properties']['py'] = ''
                 try:
-                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('II',u'额').replace('I',u'一'))
+                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower_name.replace('#','').replace(',','').replace('II',u'额').replace('I',u'一'))
                 except:
                     pass
-            elif k=='geo_x' or k=='geo_y':
+            elif k=='geo_x' or k=='geo_y' or k=='geo_z':
                 continue
             elif k in ['model_code', 'model_code_height']:
                 if not tower_obj['properties'].has_key('model'):
@@ -6826,8 +6889,9 @@ def gen_mongo_geojson_by_line_id(line_id, area, piny, mapping):
                     o['count'] = attach['int_value1']
                 tower_obj['properties']['metals'].append(o)
             
-        ret.append(tower_obj)
-    return ret
+        if not checkexist(alist, id):
+            alist.append(tower_obj)
+    return alist
 
 
 def find_extent(data):
@@ -6880,6 +6944,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                 for i in os.listdir(SERVERGLTFROOT):
                     if i[-4:].lower() == '.bin':
                         ret.append(i[:-4])
+            elif action.lower() == 'buffer':
+                if isinstance(data, dict):
+                    geojsonobj = data
+                    if data.has_key('geometry'):
+                        geojsonobj = data['geometry']
+                    if not conditions.has_key('distance'):
+                        raise Exception('buffer distance should be specified')
+                    ret.append(calc_buffer(geojsonobj, conditions['distance']))
+                else:
+                    raise Exception('buffer calculation need geojson object')
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -6890,8 +6964,217 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
         #print(err)
         ret = []
     return ret
+
+
+def get_line_geojson1(db_name, line):
+    def getnext(id, alist):
+        for i in alist:
+            if i[0] == id:
+                return i[1]
+        return None
+    def deletebynext(id, alist):
+        for i in alist:
+            if i[1] == id:
+                alist.remove(i)
+                return alist
+        return alist
+    ret = ''
+    if line.has_key('properties') and line['properties'].has_key('towers_pair'):
+        if isinstance(line['properties']['towers_pair'], list) and len(line['properties']['towers_pair'])>0:
+            candidates = []
+            for i in line['properties']['towers_pair']:
+                l = line['properties']['towers_pair']
+                candidate = []
+                candidate.append(i[0])
+                nextid = i[1]
+                while nextid:
+                    candidate.append(nextid)
+                    #l = deletebynext(nextid, l)
+                    nextid = getnext(nextid, l)
+                candidates.append(candidate)
+            maxlen = 0
+            idx = -1
+            for i in candidates:
+                if maxlen < len(i):
+                    maxlen = len(i)
+                    idx = candidates.index(i)
+                #print(i)
+            if idx > -1:
+                base = candidates[idx]
+                l = []
+                l.append(base)
+                for i in candidates:
+                    istr = str(i).replace('[','').replace(']','')
+                    if not istr in str(base):
+                        l.append(i)
+                for i in l:
+                    print(i)
+                
+                        
+        #towers_refer = mongo_find(db_name, 'towers_refer')
+        #mapping = {}
+        #for i in towers_refer:
+            #mapping[i['id']] = i['refer']
+        #l = line['properties']['towers_pair']
+        #s = set()
+        #ll = []
+        #for i in l:
+            #id0, id1 = i[0], i[1]
+            #if mapping.has_key(id0): id0 = mapping[id0]
+            #if mapping.has_key(id1): id1 = mapping[id1]
+            #s.add(id0)
+            #s.add(id1)
+            #ll.append([id0, id1])
+            
+        #tids = list(s)
+        #towers = mongo_find(db_name, 'towers', {'_id':tids})
+        #m = {}
+        #for i in towers:
+            #m[i['_id']] = i['geometry']['coordinates']
+        #obj = {}
+        #obj['_id'] = line['_id']
+        #obj['geometry'] = {'type':'MultiLineString', 'coordinates':[]}
+        #obj['type'] = 'Feature'
+        #obj['properties'] = line['properties']
+        #del obj['properties']['towers']
+        #del obj['properties']['towers_pair']
+        #for i in ll:
+            #id0, id1 = i[0], i[1]
+            #obj['geometry']['coordinates'].append([m[id0], m[id1]])
+        #ret = obj
+    return ret
     
+def get_line_geojson(db_name, line):
+    ret = ''
+    if line.has_key('properties') and line['properties'].has_key('towers_pair'):
+        #towers_refer = mongo_find(db_name, 'towers_refer')
+        #mapping = {}
+        #for i in towers_refer:
+            #mapping[i['id']] = i['refer']
+        l = line['properties']['towers_pair']
+        s = set()
+        ll = []
+        for i in l:
+            id0, id1 = i[0], i[1]
+            #if mapping.has_key(id0): id0 = mapping[id0]
+            #if mapping.has_key(id1): id1 = mapping[id1]
+            s.add(id0)
+            s.add(id1)
+            ll.append([id0, id1])
+            
+        tids = list(s)
+        towers = mongo_find(db_name, 'features', {'_id':tids})
+        m = {}
+        for i in towers:
+            lng, lat, alt = i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['geometry']['coordinates'][2]
+            id = i['_id']
+            m[id] = [lng, lat, alt]
+        obj = {}
+        obj['_id'] = line['_id']
+        obj['geometry'] = {'type':'MultiLineString', 'coordinates':[]}
+        obj['type'] = 'Feature'
+        obj['properties'] = line['properties']
+        del obj['properties']['towers']
+        
+        
+        obj['properties']['towers_pair'] = ll
+        for i in ll:
+            id0, id1 = i[0], i[1]
+            obj['geometry']['coordinates'].append([m[id0], m[id1]])
+        ret = obj
+    return ret
+
+def calc_buffer_ogr(geojsonobj, dist):
+    obj = geojsonobj
+    if obj.has_key('geometry'):
+        obj = obj['geometry']
+    geojson = enc(json.dumps(obj, ensure_ascii=False, indent=4))
     
+    source = osr.SpatialReference()
+    source.ImportFromEPSG(4326)
+    target = osr.SpatialReference()
+    target.ImportFromEPSG(3857) 
+    transform = osr.CoordinateTransformation(source, target)    
+    transform1 = osr.CoordinateTransformation(target, source)    
+    pts = ogr.CreateGeometryFromJson(geojson)
+    pts.Transform(transform)
+    poly = pts.Buffer(dist)
+    poly.Transform(transform1)
+    #print("buffered by %d is \n%s" % ( dist, poly.ExportToJson()) )
+    g = json.loads(poly.ExportToJson())
+    return g
+
+def calc_buffer(geojsonobj, dist):
+    def transform(inp, outp, coordinates):
+        if isinstance(coordinates, list) or isinstance(coordinates, tuple):
+            if isinstance(coordinates[0], float):
+                x2,y2 = pyproj.transform(inp, outp, coordinates[0], coordinates[1])
+                return [x2, y2]
+            if isinstance(coordinates[0], list) or isinstance(coordinates[0], tuple):
+                l = []
+                for i in coordinates:
+                    l.append(transform(inp, outp, i))
+                return l
+        return coordinates
+        
+    geometry = geojsonobj
+    if geojsonobj.has_key('geometry'):
+        geometry = geojsonobj['geometry']
+        
+    inProj = pyproj.Proj(init='epsg:4326')
+    outProj = pyproj.Proj(init='epsg:3857')
+    geometry['coordinates'] = transform(inProj,outProj,  geometry['coordinates'])        
+    shp = shapely.geometry.asShape(geometry)
+    b = shp.buffer(dist, 4)
+    #print(b)
+    g1 = shapely.wkt.loads(b.wkt)
+    g = geojson.Feature(geometry=g1, properties={})
+    g['geometry']['coordinates'] = transform(outProj, inProj,  g['geometry']['coordinates'])
+    return g['geometry']
+    
+def extract_one_altitude(lng, lat):
+    global gConfig
+    ret = None
+    exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
+    dem_path = gConfig['terrain']['dem_file']
+    out = subprocess.check_output([exe_path, '-wgs84', "%s" % dem_path, "%f" % lng, "%f" % lat])
+    t = 'Value:'
+    if t in out:
+        idx = out.index(t) + len(t)
+        ret = float(out[idx:].strip())
+    else:
+        raise Exception('extract_altitude_from_dem:out of range!')
+    return ret
+
+def extract_many_altitudes(lnglatlist):
+    ret = []
+    for i in lnglatlist:
+        if isinstance(i, dict) and i.has_key('lng') and i.has_key('lat'):
+            ret.append({'lng':i['lng'], 'lat':i['lat'], 'alt':extract_one_altitude(i['lng'], i['lat'])})
+    return ret
+    
+
+def mongo_remove(dbname, collection_name, conditions={}):
+    global gClientMongo, gConfig
+    try:
+        mongo_init_client()
+        if dbname in gClientMongo.database_names():      
+            db = gClientMongo[dbname]
+            conditions = add_mongo_id(conditions)
+            conds = build_mongo_conditions(conditions)
+            if collection_name in db.collection_names():
+                db[collection_name].remove(conds)
+            else:
+                print('mongo_remove:collection [%s] does not exist.' % collection_name)
+        else:
+            print('mongo_remove:database [%s] does not exist.' % dbname)
+    except:
+        traceback.print_exc()
+        raise
+    
+def mongo_geowithin(dbname, geojsonobj):
+    return mongo_find(dbname, 'features', {'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}})
+
 def mongo_find(dbname, collection_name, conditions={}, limit=0):
     global gClientMongo, gConfig
     ret = []
@@ -6913,19 +7196,22 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0):
                     for t in line['properties']['towers']:
                         #print(str(t))
                         towerids.append(t)
-                towers = db['towers'].find({'_id':{'$in':towerids}}).limit(limit)
+                towers = db['features'].find({'_id':{'$in':towerids}}).limit(limit)
                 for i in towers:
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
-            elif collection_name == 'get_towers_refer_data':
-                towers_refer = db['towers_refer'].find()
-                for tr in towers_refer:
-                    o = {}
-                    o['id'] = remove_mongo_id(tr['id'])
-                    o['refer'] = db['towers'].find_one({'_id':tr['refer']})
-                    if o['refer']:
-                        o['refer'] = remove_mongo_id(o['refer'])
-                        ret.append(o)
+            #elif collection_name == 'get_towers_refer_data':
+                #towers_refer = db['towers_refer'].find()
+                #for tr in towers_refer:
+                    #o = {}
+                    #o['id'] = remove_mongo_id(tr['id'])
+                    #o['refer'] = db['towers'].find_one({'_id':tr['refer']})
+                    #if o['refer']:
+                        #o['refer'] = remove_mongo_id(o['refer'])
+                        #ret.append(o)
+            elif collection_name == 'get_line_geojson':
+                line = remove_mongo_id(db['lines'].find_one(conds))
+                ret.append(get_line_geojson(dbname, line))
             else:
                 print('collection [%s] does not exist.' % collection_name)
         else:
@@ -6971,7 +7257,10 @@ def build_mongo_conditions(obj):
         return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
-            obj[k] = build_mongo_conditions(obj[k])
+            if k in ['geometry2d','$geoWithin', '$geometry']:
+                pass
+            else:
+                obj[k] = build_mongo_conditions(obj[k])
     return obj
     
 def add_mongo_id(obj):
@@ -7026,8 +7315,9 @@ def test_mongo_import_segments(db_name, area):
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
     mapping = get_tower_id_mapping(db_name)
+    towers_refer_mapping = get_tower_refer_mapping(db_name)
     for line in lines:
-        segs = gen_mongo_segments_by_line_id(line['id'], area,  mapping)
+        segs = gen_mongo_segments_by_line_id(line['id'], area,  mapping, towers_refer_mapping)
         l.extend(segs)
     
     try:
@@ -7043,7 +7333,98 @@ def test_mongo_import_segments(db_name, area):
         err = sys.exc_info()[1].message
         print(err)
 
-def gen_mongo_segments_by_line_id(line_id, area, mapping): 
+def gen_mongo_segments_by_line_id(line_id, area, mapping, refer_mapping):
+    def get_refer_toweruid_by_refer_id(mapping, id):
+        ret = None
+        for k in mapping.keys():
+            if mapping[k] == id:
+                ret = str(k)
+                break
+        return ret
+    def gen_obj(mapping, startuid, enduid):
+        obj = {}
+        if startuid is None:
+            return obj
+        if enduid is None:
+            return obj
+        segs = odbc_get_records('VIEW_CONTACT_SEGMENT', "start_tower_id='%s' AND end_tower_id='%s'" % (startuid,  enduid), area)
+        for seg in segs:
+            #if mapping.has_key(seg['start_tower_id']) and mapping.has_key(seg['end_tower_id']):
+            side0 = 1
+            side1 = 0
+            if not obj.has_key('start_tower'):
+                obj['start_tower'] = ObjectId(mapping[seg['start_tower_id']])
+            if not obj.has_key('end_tower'):
+                obj['end_tower'] = ObjectId(mapping[seg['end_tower_id']])
+            if not obj.has_key('start_model_code'):
+                obj['start_model_code'] = seg['start_model_code']
+            if not obj.has_key('end_model_code'):
+                obj['end_model_code'] = seg['end_model_code']
+            if not obj.has_key('start_side'):
+                obj['start_side'] = side0
+            if not obj.has_key('end_side'):
+                obj['end_side'] = side1
+            if not obj.has_key('splitting'):
+                obj['splitting'] = seg['splitting']
+            if not obj.has_key('conductor_count'):
+                obj['conductor_count'] = seg['conductor_count']
+            if not obj.has_key('crosspoint_count'):
+                obj['crosspoint_count'] = seg['crosspoint_count']
+            if not obj.has_key('seperator_bar'):
+                obj['seperator_bar'] = seg['seperator_bar']
+            if not obj.has_key('connector_count'):
+                obj['connector_count'] = seg['connector_count']
+            if not obj.has_key('connector_type'):
+                obj['connector_type'] = seg['connector_type']
+            if not obj.has_key('contact_points'):
+                obj['contact_points'] = []
+            if not obj.has_key('t0'):
+                obj['t0'] = 0.9
+            if not obj.has_key('w'):
+                obj['w'] = 0.001
+            o = {}
+            o['phase'] = seg['phase']
+            #o['start_side'] = seg['start_side']
+            #o['end_side'] = seg['end_side']
+            if seg['start_position'] in [u'地左',u'地单']:
+                o['start'] = 0
+            if seg['start_position'] == u'地右':
+                o['start'] = 1
+            if seg['start_position'] in [ u'单回',u'左侧']:
+                if seg['start_contact_index']==1:
+                    o['start'] = 2
+                if seg['start_contact_index']==2:
+                    o['start'] = 3
+                if seg['start_contact_index']==3:
+                    o['start'] = 4
+            if seg['start_position'] in [ u'右侧']:
+                if seg['start_contact_index']==1:
+                    o['start'] = 5
+                if seg['start_contact_index']==2:
+                    o['start'] = 6
+                if seg['start_contact_index']==3:
+                    o['start'] = 7
+            if seg['end_position'] in [u'地左',u'地单']:
+                o['end'] = 0
+            if seg['end_position'] == u'地右':
+                o['end'] = 1
+            if seg['end_position'] in [ u'单回',u'左侧']:
+                if seg['end_contact_index']==1:
+                    o['end'] = 2
+                if seg['end_contact_index']==2:
+                    o['end'] = 3
+                if seg['end_contact_index']==3:
+                    o['end'] = 4
+            if seg['end_position'] in [ u'右侧']:
+                if seg['end_contact_index']==1:
+                    o['end'] = 5
+                if seg['end_contact_index']==2:
+                    o['end'] = 6
+                if seg['end_contact_index']==3:
+                    o['end'] = 7
+            obj['contact_points'].append(o)
+        return obj
+    
     ret = []
     towers_sort = odbc_get_sorted_tower_by_line(line_id, area)
     validlgtlat = None, None
@@ -7059,83 +7440,39 @@ def gen_mongo_segments_by_line_id(line_id, area, mapping):
         else:    
             prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
         if tower and nextt:
-            segs = odbc_get_records('VIEW_CONTACT_SEGMENT', "start_tower_id='%s' AND end_tower_id='%s'" % (tower['id'],  nextt['id']), area)
             obj = {}
-            for seg in segs:
-                if mapping.has_key(seg['start_tower_id']) and mapping.has_key(seg['end_tower_id']):
-                    side0 = 1
-                    side1 = 0
-                    if not obj.has_key('start_tower'):
-                        obj['start_tower'] = ObjectId(mapping[seg['start_tower_id']])
-                    if not obj.has_key('end_tower'):
-                        obj['end_tower'] = ObjectId(mapping[seg['end_tower_id']])
-                    if not obj.has_key('start_model_code'):
-                        obj['start_model_code'] = seg['start_model_code']
-                    if not obj.has_key('end_model_code'):
-                        obj['end_model_code'] = seg['end_model_code']
-                    if not obj.has_key('start_side'):
-                        obj['start_side'] = side0
-                    if not obj.has_key('end_side'):
-                        obj['end_side'] = side1
-                    if not obj.has_key('splitting'):
-                        obj['splitting'] = seg['splitting']
-                    if not obj.has_key('conductor_count'):
-                        obj['conductor_count'] = seg['conductor_count']
-                    if not obj.has_key('crosspoint_count'):
-                        obj['crosspoint_count'] = seg['crosspoint_count']
-                    if not obj.has_key('seperator_bar'):
-                        obj['seperator_bar'] = seg['seperator_bar']
-                    if not obj.has_key('connector_count'):
-                        obj['connector_count'] = seg['connector_count']
-                    if not obj.has_key('connector_type'):
-                        obj['connector_type'] = seg['connector_type']
-                    if not obj.has_key('contact_points'):
-                        obj['contact_points'] = []
-                    if not obj.has_key('t0'):
-                        obj['t0'] = 0.9
-                    if not obj.has_key('w'):
-                        obj['w'] = 0.001
-                    o = {}
-                    o['phase'] = seg['phase']
-                    #o['start_side'] = seg['start_side']
-                    #o['end_side'] = seg['end_side']
-                    if seg['start_position'] in [u'地左',u'地单']:
-                        o['start'] = 0
-                    if seg['start_position'] == u'地右':
-                        o['start'] = 1
-                    if seg['start_position'] in [ u'单回',u'左侧']:
-                        if seg['start_contact_index']==1:
-                            o['start'] = 2
-                        if seg['start_contact_index']==2:
-                            o['start'] = 3
-                        if seg['start_contact_index']==3:
-                            o['start'] = 4
-                    if seg['start_position'] in [ u'右侧']:
-                        if seg['start_contact_index']==1:
-                            o['start'] = 5
-                        if seg['start_contact_index']==2:
-                            o['start'] = 6
-                        if seg['start_contact_index']==3:
-                            o['start'] = 7
-                    if seg['end_position'] in [u'地左',u'地单']:
-                        o['end'] = 0
-                    if seg['end_position'] == u'地右':
-                        o['end'] = 1
-                    if seg['end_position'] in [ u'单回',u'左侧']:
-                        if seg['end_contact_index']==1:
-                            o['end'] = 2
-                        if seg['end_contact_index']==2:
-                            o['end'] = 3
-                        if seg['end_contact_index']==3:
-                            o['end'] = 4
-                    if seg['end_position'] in [ u'右侧']:
-                        if seg['end_contact_index']==1:
-                            o['end'] = 5
-                        if seg['end_contact_index']==2:
-                            o['end'] = 6
-                        if seg['end_contact_index']==3:
-                            o['end'] = 7
-                    obj['contact_points'].append(o)
+            startuid, enduid = tower['id'], nextt['id']
+            if mapping.has_key(startuid) and mapping.has_key(enduid):
+                obj = gen_obj(mapping, startuid, enduid)
+                id0, id1 = mapping[startuid], mapping[enduid]
+                startuidnew, enduidnew = startuid, enduid
+                if refer_mapping.has_key(id0):
+                    id0 = refer_mapping[id0]
+                    startuidnew = get_refer_toweruid_by_refer_id(mapping, id0)
+                if refer_mapping.has_key(id1):
+                    id1 = refer_mapping[id1]
+                    enduidnew = get_refer_toweruid_by_refer_id(mapping, id1)
+                    
+                if len(obj.keys())>0:
+                    obj['start_tower'] = ObjectId(id0)
+                    obj['end_tower'] = ObjectId(id1)
+                    if startuidnew != startuid and enduidnew == enduid:
+                        obj1 = gen_obj(mapping, startuidnew, enduid)
+                        if len(obj1.keys())>0:
+                            obj['contact_points'].extend(obj1['contact_points'])
+                    if startuidnew == startuid and enduidnew != enduid:
+                        obj1 = gen_obj(mapping, startuid, enduidnew)
+                        if len(obj1.keys())>0:
+                            obj['contact_points'].extend(obj1['contact_points'])
+                    if startuidnew != startuid and enduidnew != enduid:
+                        obj1 = gen_obj(mapping, startuidnew, enduidnew)
+                        if len(obj1.keys())>0:
+                            obj['contact_points'].extend(obj1['contact_points'])
+                    l = []
+                    for i in obj['contact_points']:
+                        if not i in l:
+                            l.append(i)
+                    obj['contact_points'] = l
             if len(obj.keys())>0:
                 ret.append(obj)
     return ret           
@@ -7197,17 +7534,27 @@ def test_mongo_import_towers(db_name, area):
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
     mapping = get_tower_id_mapping(db_name)
+    #print(mapping)
+    ids = []
+    for k in mapping.keys():
+        ids.append(mapping[k])
     towers_refer_mapping = get_tower_refer_mapping(db_name)
+    
     for line in lines:
-        towers = gen_mongo_geojson_by_line_id(line['id'], area, piny, mapping)
-        l.extend(towers)
-
+        l = gen_mongo_geojson_by_line_id(l, line['id'], area, piny, mapping, towers_refer_mapping)
+    #s= ''
+    #for i in l:
+        #s += '%s:%s\n' % (str(i['_id']), i['properties']['tower_name'])
+    #with open(ur'd:\aaa.txt','w') as f:
+        #f.write(enc(s))
     try:
         mongo_init_client()
         db = gClientMongo[db_name]
-        if 'towers' in db.collection_names(False):
-            db.drop_collection('towers')
-        collection = db.create_collection('towers')
+        if not 'features' in db.collection_names(False):
+            collection = db.create_collection('features')
+        else:
+            collection = db['features']
+        mongo_remove(db_name, 'features', {'_id':ids})
         for i in l:
             collection.save(i)
     except:
@@ -7219,7 +7566,7 @@ def test_mongo_import_models(db_name, area):
     global gClientMongo
     l = []
     ll = []
-    li = mongo_find(db_name, 'towers')
+    li = mongo_find(db_name, 'features')
     for i in li:
         m = i['properties']['model']
         if m and len(m.keys())>0:
@@ -7292,7 +7639,7 @@ def test_build_tower_odbc_mongo_id_mapping(db_name):
         if 'tower_ids_mapping' in db.collection_names(False):
             db.drop_collection('tower_ids_mapping')
         collection = db.create_collection('tower_ids_mapping')
-        l = mongo_find(db_name, 'towers')
+        l = mongo_find(db_name, 'features')
         for i in l:
             collection.save({'uuid':i['properties']['id'], 'id':i['_id']})
     except:
@@ -7366,7 +7713,7 @@ def test_mongo_import_line(db_name, area):
         collection = db.create_collection('lines')
         line_mapping = get_line_id_mapping(db_name)
         tower_mapping = get_tower_id_mapping(db_name)
-        #collection_lines = db['lines']
+        towers_refer_mapping = get_tower_refer_mapping(db_name)
         odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
             lineobj = {}
@@ -7383,7 +7730,11 @@ def test_mongo_import_line(db_name, area):
                 lineobj['properties']['towers_pair'] = []
                 for i in towers_sort:
                     if tower_mapping.has_key(i['id']):
-                        lineobj['properties']['towers'].append(tower_mapping[i['id']])
+                        id = tower_mapping[i['id']]
+                        if towers_refer_mapping.has_key(id):
+                            id = towers_refer_mapping[id]
+                        if not id in lineobj['properties']['towers']:
+                            lineobj['properties']['towers'].append(id)
                     
                     
                 prev, tower, nextt = None, None, None
@@ -7397,11 +7748,21 @@ def test_mongo_import_line(db_name, area):
                     elif i == len(towers_sort) - 1:
                         prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
                         if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
-                            lineobj['properties']['towers_pair'].append([tower_mapping[prev['id']], tower_mapping[tower['id']]])
+                            id0, id1 = tower_mapping[prev['id']], tower_mapping[tower['id']]
+                            if towers_refer_mapping.has_key(id0):
+                                id0 = towers_refer_mapping[id0]
+                            if towers_refer_mapping.has_key(id1):
+                                id1 = towers_refer_mapping[id1]
+                            lineobj['properties']['towers_pair'].append([id0, id1])
                     else:    
                         prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
                         if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
-                            lineobj['properties']['towers_pair'].append([tower_mapping[prev['id']], tower_mapping[tower['id']]])
+                            id0, id1 = tower_mapping[prev['id']], tower_mapping[tower['id']]
+                            if towers_refer_mapping.has_key(id0):
+                                id0 = towers_refer_mapping[id0]
+                            if towers_refer_mapping.has_key(id1):
+                                id1 = towers_refer_mapping[id1]
+                            lineobj['properties']['towers_pair'].append([id0, id1])
                         #lineobj['properties']['towers_pair'].append([tower_mapping[tower['id']], tower_mapping[nextt['id']]])
                     
                     
@@ -8316,14 +8677,14 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     db_name, area = 'kmgd', 'km'
-    db_name, area = 'ztgd', 'zt'
+    #db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)
     #mongo_import_same_tower_mapping(db_name, area)
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
-    #test_mongo_import_towers(db_name, area)
+    test_mongo_import_towers(db_name, area)
     #print(len(get_tower_refer_mapping(db_name).keys()))
     #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
@@ -8345,5 +8706,7 @@ if __name__=="__main__":
     #test_clear_gridfs(db_name)
     #test_resize_image(db_name)
     #test_httpclient()
+    #l = mongo_find(db_name, 'features', {'_id':'53a8f01cca49c818b8aeaf30'})
+    #print(l[0]['properties']['tower_name'])
     
     

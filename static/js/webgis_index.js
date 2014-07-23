@@ -8,7 +8,6 @@ var g_geojsons = {};
 var g_lines = {};
 var g_segments = [];
 var g_gltf_models = {};
-var g_towers_refer = {};
 var g_dlg_tower_info;
 var g_contextmenu_metal;
 var g_selected_metal_item;
@@ -54,8 +53,8 @@ $(function() {
 	LoadLineData(g_db_name, function(){
 		//ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔信息，请稍候...');
 		//LoadTowersData(g_db_name, function(){
-		ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔引用信息，请稍候...');
-		LoadTowerReferData(g_db_name, function(){
+		//ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔引用信息，请稍候...');
+		//LoadTowerReferData(g_db_name, function(){
 			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
 			LoadSegments(g_db_name, function(){
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
@@ -64,11 +63,11 @@ $(function() {
 					var line_name = '永发I回线';
 					LoadTowerByLineName(viewer, g_db_name,  line_name);
 					line_name = '永发II回线';
-					LoadTowerByLineName(viewer, g_db_name,  line_name);
+					//LoadTowerByLineName(viewer, g_db_name,  line_name);
 				
 				});
 			});
-		});
+		//});
 		//});
 	});
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
@@ -78,20 +77,6 @@ $(function() {
 });
 
 
-function LoadTowerReferData(db_name, callback)
-{
-	var cond = {'db':db_name, 'collection':'get_towers_refer_data' };
-	MongoFind( cond, 
-		function(data){
-			for(var i in data)
-			{
-				var d = data[i]
-				g_towers_refer[d.id] = d.refer;
-			}
-			ShowProgressBar(false);
-			if(callback) callback();
-	});
-}
 
 function InitCesiumViewer()
 {
@@ -815,16 +800,6 @@ function ShowSearchResult(viewer, geojson)
 			{
 				g_geojsons[_id] = geojson;
 			}
-			if(g_towers_refer[_id])
-			{
-				geojson = g_towers_refer[_id];
-				_id = geojson['_id'];
-			}
-			
-			if(!g_geojsons[_id])
-			{
-				g_geojsons[_id] = geojson;
-			}
 			if(!g_czmls[_id])
 			{
 				g_czmls[_id] = CreateTowerCzmlFromGeojson(geojson);
@@ -850,7 +825,7 @@ function CreateTowerCzmlFromGeojson(tower)
 	cz['id'] = tower['_id'];
 	cz['name'] = tower['properties']['tower_name'];
 	cz['position'] = {};
-	cz['position']['cartographicDegrees'] = [tower['geometry']['coordinates'][0], tower['geometry']['coordinates'][1], tower['properties']['geo_z']];
+	cz['position']['cartographicDegrees'] = [tower['geometry']['coordinates'][0], tower['geometry']['coordinates'][1], tower['geometry']['coordinates'][2]];
 	cz['point'] = {};
 	cz['point']['color'] = {'rgba':[255, 255, 0, 255]};
 	cz['point']['outlineColor'] = {'rgba': [0, 0, 0, 255]};
@@ -1121,25 +1096,29 @@ function LoadLineGeometryByName(viewer, line_name)
 			{
 				color = '#0000FF';
 			}
-			DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
+			DrawLineModelByLine(viewer, g_lines[k], 4.0, color, null, function(){
+				//DrawBufferOfLine2(viewer, 'test2', g_lines[k], 1000, 3000, '#FF00FF', 0.5);
+				//DrawBufferOfLine1(viewer, 'test1', g_lines[k], 1000, 3000, '#FF00FF', 0.5);
+				//DrawBufferOfLine(viewer, 'test', g_lines[k], 5000, 3000, '#FF0000', 0.5);
+			});
 			break;
 		}
 	}
 }
 
-function LoadTowersData(db_name, callback)
-{
-	var cond = {'db':db_name, 'collection':'towers'};
-	MongoFind( cond, 
-		function(towers){
-			for(var i in towers)
-			{
-				g_geojsons[towers[i]['_id']] = towers[i];
-			}
-			ShowProgressBar(false);
-			if (callback) callback();
-	});
-}
+//function LoadTowersData(db_name, callback)
+//{
+	//var cond = {'db':db_name, 'collection':'features'};
+	//MongoFind( cond, 
+		//function(towers){
+			//for(var i in towers)
+			//{
+				//g_geojsons[towers[i]['_id']] = towers[i];
+			//}
+			//ShowProgressBar(false);
+			//if (callback) callback();
+	//});
+//}
 
 function LoadLineData(db_name, callback)
 {
@@ -1162,20 +1141,12 @@ function LoadTowerByLineName(viewer, db_name,  line_name,  callback)
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入[' + line_name + ']数据，请稍候...');
 	MongoFind( geo_cond, 
 		function(data){
+			//console.log(data);
 			ShowProgressBar(false);
 			for(var i in data)
 			{
 				var _id = data[i]['_id'];
 				var geojson = data[i];
-				if(!g_geojsons[_id])
-				{
-					g_geojsons[_id] = geojson;
-				}
-				if(g_towers_refer[_id])
-				{
-					geojson = g_towers_refer[_id];
-					_id = geojson['_id'];
-				}
 				if(!g_geojsons[_id])
 				{
 					g_geojsons[_id] = geojson;
@@ -1297,10 +1268,10 @@ function LookAtTarget(viewer, id, zoom_factor)
 	
 	if(g_geojsons[id])
 	{
-		var tower = g_geojsons[id];
-		var x = tower['geometry']['coordinates'][0];
-		var y = tower['geometry']['coordinates'][1];
-		var z = tower['properties']['geo_z'];
+		var g = g_geojsons[id];
+		var x = g['geometry']['coordinates'][0];
+		var y = g['geometry']['coordinates'][1];
+		var z = g['geometry']['coordinates'][2];
 		if(zoom_factor)
 			FlyToPoint(viewer, x, y, z, zoom_factor, 4000);
 		else
@@ -1400,7 +1371,7 @@ function LoadTowerModelByTower(viewer, tower)
 			{
 				var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 					lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
-					height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+					height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
 					rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 				if(!g_zaware) height = 0;
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
@@ -1760,10 +1731,11 @@ function TowerInfoMixin(viewer)
 			}
 		}
 		else{
-			if(g_selected_obj_id && g_selected_obj_id.primitive && g_selected_obj_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
+			if(g_prev_selected_id && g_prev_selected_id.primitive && g_prev_selected_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
 			{
-				g_selected_obj_id.primitive.appearance = g_primitive_appearance;
+				g_prev_selected_id.primitive.appearance = g_primitive_appearance;
 			}
+			
 			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = undefined;
 		}
@@ -1797,7 +1769,7 @@ function TowerInfoMixin(viewer)
 						
 						var lng = t['geometry']['coordinates'][0],
 							lat = t['geometry']['coordinates'][1],
-							height = t['properties']['geo_z'],
+							height = t['geometry']['coordinates'][2],
 							rotate = t['properties']['rotate'];
 						
 						if(!g_zaware) height = 0;
@@ -1818,8 +1790,15 @@ function TowerInfoMixin(viewer)
 				{
 					color = '#0000FF';
 				}
-				DrawLineModelByLine(viewer, g_lines[k], 4.0, color);
-				DrawBufferOfLine(viewer, 'test', g_lines[k], 5000, 3000, '#00FF00', 0.2);
+				if(g_geojsons[k])
+				{
+					//console.log('1--' + g_geojsons[k]);
+					DrawLineModelByLine(viewer, g_lines[k], 4.0, color, null );
+						//console.log('2--' + g_geojsons[k]);
+						//DrawBufferOfLine(viewer, 'test', g_lines[k], 5000, 3000, '#FF0000', 0.5);
+					//});
+					//DrawBufferOfLine(viewer, 'test', g_lines[k], 1000, 3000, '#FF0000', 0.2);
+				}
 			}
 		}
 	});
@@ -2067,28 +2046,6 @@ function GetSegmentPairsByTowTowerId(id0, id1)
 			break;
 		}
 	}
-	var referee = GetRefereeByTowerId(id0);
-	if(referee.length>0)
-	{
-		for(var k in referee)
-		{
-			for(var j in g_segments)
-			{
-				var seg = g_segments[j];
-				if(seg['start_tower'] == referee[k])
-				{
-					var arr = seg['contact_points'];
-					for(var i in arr)
-					{
-						ret['contact_points'].push(arr[i]);
-					}
-					ret['t0'] = seg['t0'];
-					ret['w'] = seg['w'];
-					break;
-				}
-			}
-		}
-	}
 	return ret;
 }
 
@@ -2207,23 +2164,150 @@ function RemoveSegmentsBetweenTow(viewer, tower0, tower1)
 	}
 }
 
-function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha)
+function DrawBufferOfLine1(viewer, buf_id, line, width, height, color, alpha)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	//console.log(line);
-	var array = line['properties']['towers'];
-	if(array.length>0)
+	var array = SortTowersByTowersPair(line['properties']['towers_pair']);
+	//g = GetTowerGeojsonByTowerIdArray(st);
+	
+	var positions = GetPositions2DByCzmlArray(ellipsoid, array);
+	DrawBufferCorridorGeometry(viewer, buf_id, positions, width, height, color, alpha);
+}
+
+function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha, callback)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	//console.log(line['_id']);
+	//console.log(g_geojsons[line['_id']]);
+	if(g_geojsons[line['_id']])
 	{
-		if(array[0] instanceof Array)
-		{
-		}
-		else if(typeof(array[0]) == 'string')
-		{
-			var positions = GetPositions2DByCzmlArray(ellipsoid, array);
-			DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color, alpha);
-		}
+		//var array = SortTowersByTowersPair(line['properties']['towers_pair']);
+		//g = GetTowerGeojsonByTowerIdArray(array);
+		
+		var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g_geojsons[line['_id']], 'distance':width};
+		MongoFind(cond, function(data){
+			array = data[0]['coordinates'];
+			
+			var positions = GetPositionsByGeojsonCoordinatesArray(ellipsoid, array[0]);
+			DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alpha);
+			if(callback) callback();
+		});
 	}
 }
+
+function SortTowersByTowersPair(pairlist)
+{
+	var l0 = [];
+	var find_prev = function(id, list)
+	{
+		for(var i in list)
+		{
+			var pair =  list[i];
+			if(id == pair[1]) return pair[0];
+		}
+		return undefined;
+	};
+	var find_next = function(id, list)
+	{
+		var r = []
+		for(var i in list)
+		{
+			var pair =  list[i];
+			if(id == pair[0])
+			{
+				r.push(pair[1]);
+			}
+		}
+		return r;
+	};
+	
+	var find_order_list = function(list,  start, index)
+	{
+		var l = []
+		l.push(start);
+		var next = find_next(start, list);
+		var startold;
+		while(next.length>0)
+		{
+			if(next.length >= index+1)
+			{
+				startold = start;
+				start = next[index];
+				l.push(start);
+				var idx = list.indexOf([startold, start]);
+				if(idx>-1) list.splice(idx, 1);
+				next = find_next(start, list);
+			}
+			else
+			{
+				break;
+			}
+		}
+		return l;
+	};
+
+	var list  = pairlist.slice();
+	
+	if(pairlist.length>0)
+	{
+		pair0 = pairlist[0];
+		var oldprev = pair0[0];
+		var prev = find_prev(oldprev, list);
+		while(prev)
+		{
+			oldprev = prev;
+			prev = find_prev(oldprev, list);
+		}
+		//console.log(oldprev);
+
+		l0 = find_order_list(list,  oldprev, 0);
+	}
+	return l0;
+}
+function GetTowerGeojsonByTowerIdArray(array)
+{
+	var ret = {'type':'LineString', 'coordinates':[]};
+	for(var i in array)
+	{
+		var id = array[i];
+		if(g_geojsons[id])
+		{
+			ret['coordinates'].push(g_geojsons[id]['geometry']['coordinates']);
+		}
+	}
+	return ret;
+	//var ret = {'type':'Point', 'coordinates':[]};
+	//for(var i in array)
+	//{
+		//var id = array[i];
+		//if(g_geojsons[id])
+		//{
+			//ret['coordinates'] = g_geojsons[id]['geometry']['coordinates'];
+			//break;
+		//}
+	//}
+	//return ret;
+}
+function DrawBufferOfLine2(viewer, buf_id, line, width, height, color, alpha, callback)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var st = SortTowersByTowersPair(line['properties']['towers_pair']);
+	g = GetTowerGeojsonByTowerIdArray(st);
+	//console.log(g);
+		
+	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':width};
+	MongoFind(cond, function(data){
+		array = data[0]['coordinates'];
+		console.log(array[0]);
+		var positions = GetPositionsByGeojsonCoordinatesArray(ellipsoid, array[0]);
+		DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alpha);
+		if(callback) callback();
+	});
+		
+}
+
+
 function RemoveBuffer(viewer, buf_id)
 {
 	for(var i in g_buffers)
@@ -2236,7 +2320,8 @@ function RemoveBuffer(viewer, buf_id)
 		}
 	}
 }
-function DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color, alpha)
+
+function DrawBufferCorridorGeometry(viewer, buf_id, positions, width, height, color, alpha)
 {
 	RemoveBuffer(viewer, buf_id);
 	var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -2278,11 +2363,87 @@ function DrawBufferPointPolyLine(viewer, buf_id, positions, width, height, color
 			}
 		})
 	});
-	console.log(corridorGeometry);
+	//console.log(corridorGeometry);
+	viewer.scene.primitives.add(primitive);
+	g_buffers[buf_id] = primitive;
+}
+
+function DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alpha)
+{
+	RemoveBuffer(viewer, buf_id);
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var rgba = tinycolor(color).toRgb();
+	rgba.a = 0.5;
+	if(alpha) rgba.a = alpha;
+	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
+	
+	if(!g_zaware) height = 0;
+	
+	var geometry = new Cesium.PolygonGeometry.fromPositions({
+			positions : positions,
+			extrudedHeight : height,
+			vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+	});
+	var primitive = new Cesium.Primitive({
+		geometryInstances : new Cesium.GeometryInstance({
+			id:	buf_id,
+			geometry : geometry,
+			attributes : {
+				color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString(rgba))
+			}
+		}),
+		appearance : new Cesium.PerInstanceColorAppearance({
+            flat:true,
+            closed : true,
+            translucent : true,
+			//material : Cesium.Material.fromType('Color', {
+				//color : Cesium.Color.fromCssColorString(rgba)
+			//}),
+			renderState : {
+				depthTest : {
+					enabled : true
+				}
+			}
+		})
+	});
+	//console.log(corridorGeometry);
 	viewer.scene.primitives.add(primitive);
 	g_buffers[buf_id] = primitive;
 	
 	
+}
+
+function GetPositionsByGeojsonCoordinatesArray(ellipsoid, arr, force2d)
+{
+	var ret = [];
+	for(var i in arr)
+	{
+		var lng = arr[i][0];
+		var lat = arr[i][1];
+		var alt = 0;
+		if(arr[i].length == 3)
+			alt = arr[i][2];
+		var pos = [];
+		pos.push(lng);
+		pos.push(lat);
+		if(force2d)
+		{
+			pos.push(0);
+		}else
+		{
+			if(g_zaware)
+			{
+				pos.push(alt);
+			}else
+			{
+				pos.push(0);
+			}
+		}
+		var carto = Cesium.Cartographic.fromDegrees(pos[0],  pos[1],  pos[2]);
+		var p = ellipsoid.cartographicToCartesian(carto);
+		ret.push(p);
+	}
+	return ret;
 }
 
 function GetPositionsByCzmlArray(ellipsoid, arr, force2d)
@@ -2322,8 +2483,7 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 	return GetPositionsByCzmlArray(ellipsoid, arr, true);
 }
 
-
-function DrawLineModelByLine(viewer, line, width, color, alpha)
+function DrawLineModelByLine(viewer, line, width, color, alpha, callback)
 {
 	RemoveLineModel(viewer, line['_id']);
 	var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -2334,28 +2494,22 @@ function DrawLineModelByLine(viewer, line, width, color, alpha)
 	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
 	//console.log(rgba);
 	
-	var arr = line['properties']['towers'];
-	var array = [];
-	for(var i in arr)
-	{
-		var id = arr[i];
-		if(g_towers_refer[id])
+	var _id = line['_id'];
+	var cond = {'db':g_db_name, 'collection':'get_line_geojson', '_id':_id};
+	MongoFind(cond, function(data){
+		if(data.length>0)
 		{
-			id = g_towers_refer[id]['_id'];
-		}
-		array.push(id);
-	}
-	if(array.length>0)
-	{
-		//var polylines = new Cesium.PolylineCollection();
-		if(array[0] instanceof Array)
-		{
+			g_geojsons[_id] = data[0];
+			
+			array = data[0]['geometry']['coordinates'];
+			pairs = data[0]['properties']['towers_pair'];
+			//console.log(array);
 			for(var i in array)
 			{
-				var poss = GetPositionsByCzmlArray(ellipsoid, array[i]);
+				var poss = GetPositionsByGeojsonCoordinatesArray(ellipsoid, array[i]);
 				var primitive = new Cesium.Primitive({
 					geometryInstances : new Cesium.GeometryInstance({
-						id:	line['_id'] + '_' + i,
+						id:	line['_id'] + '_' + pairs[i][0] + '_' + pairs[i][1],
 						geometry : new Cesium.PolylineGeometry({
 							positions : poss,
 							width : width,
@@ -2375,42 +2529,18 @@ function DrawLineModelByLine(viewer, line, width, color, alpha)
 					})
 				});
 				viewer.scene.primitives.add(primitive);
-				g_geometry_lines[line['_id'] + '_' + i] = primitive;
+				g_geometry_lines[line['_id'] + '_' + + pairs[i][0] + '_' + pairs[i][1]] = primitive;
+				//if(i==0) break;
 			}
 		}
-		else if(typeof(array[0]) == 'string')
-		{
-			var poss = GetPositionsByCzmlArray(ellipsoid, array);
-			var primitive = new Cesium.Primitive({
-				geometryInstances : new Cesium.GeometryInstance({
-					id:	line['_id'],
-					geometry : new Cesium.PolylineGeometry({
-						positions : poss,
-						width : width,
-						vertexFormat : Cesium.PolylineMaterialAppearance.VERTEX_FORMAT
-					})
-				}),
-				appearance : new Cesium.PolylineMaterialAppearance({
-					material : Cesium.Material.fromType('Color', {
-						color : Cesium.Color.fromCssColorString(rgba)
-					}),
-					renderState : {
-						depthTest : {
-							enabled : false
-						}
-					}
-				})
-			});
-			viewer.scene.primitives.add(primitive);
-			g_geometry_lines[line['_id']] = primitive;
-			
-			
-		}
-		//viewer.scene.primitives.add(polylines);
-		//viewer.scene.primitives.add(polylines);
-		//g_geometry_segments.push({'line_id': line['_id'], 'model':polylines});
-	}
+		if(callback) callback();
+	});
+
 }
+
+
+
+
 function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len, exist)
 {
 	var scene = viewer.scene;
@@ -2419,11 +2549,11 @@ function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len,
 		var ellipsoid = scene.globe.ellipsoid;
 		var lng0 = tower0['geometry']['coordinates'][0],
 			lat0 = tower0['geometry']['coordinates'][1],
-			height0 = tower0['properties']['geo_z'],
+			height0 = tower0['geometry']['coordinates'][2],
 			rotate0 = Cesium.Math.toRadians(tower0['properties']['rotate'] - 90),
 			lng1 = tower1['geometry']['coordinates'][0],
 			lat1 = tower1['geometry']['coordinates'][1],
-			height1 = tower1['properties']['geo_z'],
+			height1 = tower1['geometry']['coordinates'][2],
 			rotate1 = Cesium.Math.toRadians(tower1['properties']['rotate'] - 90);
 		
 		if(!g_zaware)
@@ -2584,14 +2714,6 @@ function GetPrevNextTowerIds(tower)
 		for(var j in towers_pair)
 		{
 			var pair = towers_pair[j];
-			if (g_towers_refer[pair[0]])
-			{
-				pair[0] = g_towers_refer[pair[0]]['_id'];
-			}
-			if (g_towers_refer[pair[1]]) 
-			{
-				pair[1] = g_towers_refer[pair[1]]['_id'];
-			}
 			
 			if(pair[0] === tower['_id'])
 			{
@@ -2622,37 +2744,24 @@ function GetPrevNextTowerIds(tower)
 function DrawSegmentsByTower(viewer, tower)
 {
 	var scene = viewer.scene;
-	//var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
-	//var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
 	var arr = GetPrevNextTowerIds(tower);
 	var prev_towers = GetNeighborTowers(arr[0]);
 	var next_towers = GetNeighborTowers(arr[1]);
 	
-	var referee = GetRefereeByTowerId(tower['_id']);
-	if(referee.length==0 && arr[1].length==1)
-	{
-		referee = GetRefereeByTowerId(arr[1][0]);
-		if(referee.length>0)
-		{
-			console.log(tower['properties']['tower_name'] );
-			console.log('{"start_tower":"' + tower['_id'] + '", "end_tower":"' + arr[1][0] + '"}' );
-		}
-	}
 	//console.log(prev_towers);
 	//console.log(next_towers);
 	
 	var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 		lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
-		height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+		height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
 		rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 	if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 	{
 		var tt = {};
 		tt['_id'] = tower['_id'];
 		tt['geometry'] = {};
-		tt['geometry']['coordinates'] = [lng, lat];
+		tt['geometry']['coordinates'] = [lng, lat, height];
 		tt['properties'] = {};
-		tt['properties']['geo_z'] = height;
 		tt['properties']['rotate'] = rotate;
 		tt['properties']['model'] = tower['properties']['model'];
 		var exist = {};
@@ -2678,12 +2787,12 @@ function CheckTowerInfoModified()
 	{
 		var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 			lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
-			height = parseFloat($('#form_tower_info_base').webgisform('get','geo_z').val()),
+			height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
 			rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 		var mc = $('#form_tower_info_base').webgisform('get','model_code').val();
 		if(lng != tower['geometry']['coordinates'][0] 
 		|| lat != tower['geometry']['coordinates'][1]
-		|| height != tower['properties']['geo_z']
+		|| height != tower['geometry']['coordinates'][2]
 		|| rotate != tower['properties']['rotate']
 		|| mc != tower['properties']['model']['model_code']
 		)
@@ -2696,10 +2805,10 @@ function CheckTowerInfoModified()
 			{
 				var v = $('#form_tower_info_base').webgisform('get', k).val();
 				
-				if(k === 'tower_name')
-				{
-					v = v.split(',')[0]; 
-				}
+				//if(k === 'tower_name')
+				//{
+					//v = v.split(',')[0]; 
+				//}
 				if(v.length>0 && v != tower['properties'][k] )
 				{
 					return true;
@@ -2937,41 +3046,12 @@ function UpdateFileUploader(uploader_container_id)
 }
 
 
-function GetTitlesByTower(tower)
-{
-	var ret = [];
-	ret.push(tower['properties']['tower_name']);
-	for(var k in g_towers_refer)
-	{
-		if(tower['_id'] === g_towers_refer[k]['_id'])
-		{
-			if(g_geojsons[k])
-			{
-				ret.push(g_geojsons[k]['properties']['tower_name']);
-			}
-		}
-	}
-	return ret;
-}
 
 function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
 	var title = '';
-	if(tower)
-	{
-		var titles = GetTitlesByTower(tower);
-		if(titles.length>1)
-		{
-			for(var i in titles)
-			{
-				title += titles[i] + ',';
-			}
-		}else
-		{
-			title = tower['properties']['tower_name'];
-		}
-	}
+	title = tower['properties']['tower_name'];
 	$('#dlg_tower_info').dialog({
 		width: 630,
 		height: 720,
@@ -2994,7 +3074,8 @@ function ShowTowerInfoDialog(viewer, tower)
 			}
 		},
 		show: {
-			effect: "blind",
+			effect: "slide",
+			direction: "right",
 			duration: 500
 		},
 		//hide: {
@@ -3165,7 +3246,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			'id':tower['_id'], 
 			'lng':tower['geometry']['coordinates'][0],
 			'lat':tower['geometry']['coordinates'][1],
-			'geo_z':tower['properties']['geo_z'],
+			'alt':tower['geometry']['coordinates'][2],
 			'rotate':tower['properties']['rotate'],
 			'tower_name':title,
 			'tower_code':tower['properties']['tower_code'],
@@ -3462,7 +3543,7 @@ function ShowPoiInfoDialog(viewer, title, poi)
 			'id':tower['_id'], 
 			'lng':tower['geometry']['coordinates'][0],
 			'lat':tower['geometry']['coordinates'][1],
-			'alt':tower['properties']['geo_z'],
+			'alt':tower['geometry']['coordinates'][2],
 			'rotate':tower['properties']['rotate'],
 			'tower_name':tower['properties']['tower_name'],
 			'tower_code':tower['properties']['tower_code'],
@@ -3503,21 +3584,6 @@ function CheckPoiInfoModified()
 }
 
 
-function GetRefereeByTowerId(id)
-{
-	var ret = [];
-	for(var k in g_towers_refer)
-	{
-		if(id === g_towers_refer[k]['_id'])
-		{
-			//if(g_geojsons[k])
-			//{
-				ret.push(k);
-			//}
-		}
-	}
-	return ret;
-}
 
 function GetSegmentsByTowerStartEnd(start_id, end_ids)
 {
@@ -3537,23 +3603,6 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 		}
 	}
 	
-	var referee = GetRefereeByTowerId(start_id);
-	
-	if(referee.length>0)
-	{
-		for(var k in referee)
-		{
-			for(var j in g_segments)
-			{
-				var seg = g_segments[j];
-				if(seg['start_tower'] == referee[k])// && seg['end_tower'] == end_id)
-				{
-					ret.push(seg);
-					break;
-				}
-			}
-		}
-	}
 	return ret;
 }
 
@@ -3604,16 +3653,6 @@ function GetProjectNameByTowerId(id)
 	if(g_geojsons[id])
 	{
 		_ids.push(id);
-	}
-	for(var k in g_towers_refer)
-	{
-		if(id === g_towers_refer[k]['_id'])
-		{
-			if(g_geojsons[k])
-			{
-				_ids.push(k);
-			}
-		}
 	}
 	for(var i in g_lines)
 	{

@@ -1471,9 +1471,9 @@ def handle_post_method(Env, Start_response):
                     ret = handle_requset_sync(obj)
             elif obj['op'] in ['alt','height'] :
                 if obj.has_key('lng') and obj.has_key('lat') and isinstance(obj['lng'], float) and isinstance(obj['lat'], float):
-                    ret = extract_one_altitude(obj['lng'], obj['lat'])
+                    ret = db_util.extract_one_altitude(obj['lng'], obj['lat'])
                 if obj.has_key('data')  and isinstance(obj['data'], list):
-                    ret = extract_many_altitudes(obj['data'])
+                    ret = db_util.extract_many_altitudes(obj['data'])
             else:
                 ret["result"] = "unknown area"
         elif obj.has_key('tracks') and obj.has_key('area'):
@@ -2126,26 +2126,6 @@ def gen_model_app_cache():
         f.write(s)
    
 
-def extract_one_altitude(lng, lat):
-    global gConfig
-    ret = None
-    exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
-    dem_path = gConfig['terrain']['dem_file']
-    out = subprocess.check_output([exe_path, '-wgs84', "%s" % dem_path, "%f" % lng, "%f" % lat])
-    t = 'Value:'
-    if t in out:
-        idx = out.index(t) + len(t)
-        ret = float(out[idx:].strip())
-    else:
-        print('extract_altitude_from_dem:out of range!')
-    return ret
-
-def extract_many_altitudes(lnglatlist):
-    ret = []
-    for i in lnglatlist:
-        if isinstance(i, dict) and i.has_key('lng') and i.has_key('lat'):
-            ret.append({'lng':i['lng'], 'lat':i['lat'], 'alt':extract_one_altitude(i['lng'], i['lat'])})
-    return ret
 
 
 if __name__=="__main__":

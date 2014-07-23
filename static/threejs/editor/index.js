@@ -279,7 +279,7 @@ $(function() {
 		var ids = [];
 		ids.push(param['tower_id']);
 		for(var i in param['next_ids']) ids.push(param['next_ids'][i]);
-		var cond = {'db':g_db_name, 'collection':'towers','_id':ids};
+		var cond = {'db':g_db_name, 'collection':'features','_id':ids};
 		MongoFind(cond, function(data){
 			
 			for(var i in data)
@@ -324,11 +324,11 @@ $(function() {
 						{
 							if(param['data_next'].length==1)
 							{
-								DrawSegments(editor,  param['data'], param['data_next'], 0, off_z);
+								DrawSegments(editor, param['tower_id'], param['next_ids'],  param['data'], param['data_next'], 0, off_z);
 							}
 							if(param['data_next'].length==2)
 							{
-								DrawSegments(editor,  param['data'], param['data_next'], off_x, off_z);
+								DrawSegments(editor, param['tower_id'], param['next_ids'], param['data'], param['data_next'], off_x, off_z);
 							}
 						}
 						
@@ -755,56 +755,102 @@ function GetDrawInfoFromContactPoint(side, idx, data, offset_x, offset_z)
 	}
 	return ret;
 }
-function DrawSegments(editor,  data, data_next, offset_x, offset_z)
+function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, offset_z)
 {
-	for(var j in g_segments)
+	var get_seg = function(segments, startid, endid)
 	{
-		var drawedlist = [];
-		var seg = g_segments[j];
-		//if(seg['start_tower'] == tower_id && seg['end_tower'] == next)
-		//{
+		var ret;
+		for(var j in segments)
+		{
+			var seg = segments[j];
+			if(seg['start_tower'] == startid && seg['end_tower'] == endid)
+			{
+				ret = seg;
+				break;
+			}
+		}
+		return ret;
+	};
+	var seg;
+	if(next_ids.length === 1)
+	{
+		seg = get_seg(g_segments, tower_id, next_ids[0]);
 		for(var k in seg['contact_points'])
 		{
 			var cp = seg['contact_points'][k];
 			var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
-			var end, end1, end2;
-			if(data_next.length==1)
-			{
-				end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
-			}
-			if(data_next.length==2)
-			{
-				end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
-				end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
-			}
-			var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
-			var drawed = cp['start'].toString() + '-' + cp['end'].toString() ;
-			
-			var aaa = Math.abs(cp['start'] - cp['end']);	
-			//if(end && (aaa==0 || aaa>2) && drawedlist.indexOf(drawed)<0)
+			var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
 			if(end )
 			{
+				var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
 				DrawLine(editor, start, end, color, seg, cp);
-				//drawedlist.push(drawed);
-				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
 			}
-			if(end1 && (aaa==0 && cp['start']>1 || cp['start']==0 && (cp['end']==1 || cp['end']==0)) )
+			
+		}
+		
+	}
+	if(next_ids.length === 2)
+	{
+		seg = get_seg(g_segments, tower_id, next_ids[0]);
+		if(seg)
+		{
+			for(var k in seg['contact_points'])
 			{
-				DrawLine(editor, start, end1, color, seg, cp);
-				//drawedlist.push(drawed);
-				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
-			}
-			if(end2 && (aaa==3|| cp['start']==1 && (cp['end']==1 || cp['end']==0)))
-			{
-				DrawLine(editor, start, end2, color, seg, cp);
-				//drawedlist.push(drawed);
-				//console.log(cp['start'].toString() + '-' + cp['end'].toString());
+				var cp = seg['contact_points'][k];
+				var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
+				if(end)
+				{
+					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					DrawLine(editor, start, end, color, seg, cp);
+				}
 			}
 		}
-			//break;
-		//}
+		seg = get_seg(g_segments, tower_id, next_ids[1]);
+		if(seg)
+		{
+			for(var k in seg['contact_points'])
+			{
+				var cp = seg['contact_points'][k];
+				var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
+				if(end)
+				{
+					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					DrawLine(editor, start, end, color, seg, cp);
+				}
+			}
+		}
 	}
-	//}
+		
+		//for(var k in seg['contact_points'])
+		//{
+			//var cp = seg['contact_points'][k];
+			//var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+			//var end, end1, end2;
+			//if(data_next.length==1)
+			//{
+				//end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
+			//}
+			//if(data_next.length==2)
+			//{
+				//end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
+				//end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
+			//}
+			//var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+			//if(end )
+			//{
+				//DrawLine(editor, start, end, color, seg, cp);
+			//}
+			//if(end1)
+			//{
+				//DrawLine(editor, start, end1, color, seg, cp);
+			//}
+			//if(end2)
+			//{
+				//DrawLine(editor, start, end2, color, seg, cp);
+			//}
+		//}
 }
 function DelLine(editor)
 {

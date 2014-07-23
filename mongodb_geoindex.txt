@@ -1,0 +1,1 @@
+﻿db.features.ensureIndex( { geometry2d : "2dsphere" } )

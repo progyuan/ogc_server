@@ -92,7 +92,7 @@ var g_tower_baseinfo_fields = [
 				{
 					var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 						lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-						height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+						height = $('#form_tower_info_base').webgisform('get','alt').val(),
 						rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 					if(!g_zaware) height = 0;
 					lng = event.currentTarget.value;
@@ -117,7 +117,7 @@ var g_tower_baseinfo_fields = [
 			{
 				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lng = ui.value;
@@ -138,7 +138,7 @@ var g_tower_baseinfo_fields = [
 				{
 					var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 						lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-						height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+						height = $('#form_tower_info_base').webgisform('get','alt').val(),
 						rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 					if(!g_zaware) height = 0;
 					lat = event.currentTarget.value;
@@ -163,7 +163,7 @@ var g_tower_baseinfo_fields = [
 			{
 				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lat = ui.value;
@@ -172,7 +172,7 @@ var g_tower_baseinfo_fields = [
 			}
 		}
 	},
-	{ display: "海拔(米)", id: "geo_z", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true},
+	{ display: "海拔(米)", id: "alt", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true},
 		change:function( event, ui ) {
 			if(event.currentTarget)
 			{
@@ -182,7 +182,7 @@ var g_tower_baseinfo_fields = [
 				var id = $('#form_tower_info_base').webgisform('get','id').val();
 				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				if(g_gltf_models[id])
@@ -207,7 +207,7 @@ var g_tower_baseinfo_fields = [
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
 			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-				height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(!g_zaware) height = 0;
 			if(g_gltf_models[id]) 
@@ -230,7 +230,7 @@ var g_tower_baseinfo_fields = [
 				var id = $('#form_tower_info_base').webgisform('get','id').val();
 				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				if(g_gltf_models[id])
@@ -255,7 +255,7 @@ var g_tower_baseinfo_fields = [
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
 			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-				height = $('#form_tower_info_base').webgisform('get','geo_z').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(!g_zaware) height = 0;
 			if(g_gltf_models[id]) 
