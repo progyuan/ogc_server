@@ -20,23 +20,22 @@ function InitWebGISFormDefinition()
 	{
 		init : function(fields, options) 
 		{
+			
 			if(!fields) return this;
 			this.fields = fields;
-			$.fn.webgisform.fields = fields;
+			if(!$.fn.webgisform.fields) $.fn.webgisform.fields = {}
+			$.fn.webgisform.fields[this.attr('id')] = fields;
 			this.groups = [];
 			this.options = $.extend({}, $.fn.webgisform.defaults, options);
-			$.fn.webgisform.options = this.options;
+			if(!$.fn.webgisform.options) $.fn.webgisform.options = {}
+			$.fn.webgisform.options[this.attr('id')] = this.options;
 			this.empty();
 			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
 			
-			
+			var divorspan = this.options.divorspan;
 			var debug = true;
-			if($.fn.webgisform.options.debug) debug = $.fn.webgisform.options.debug;
-			this.validate({
-				debug:debug,
-				errorElement:'div'
-			});
+			if($.fn.webgisform.options[this.attr('id')].debug) debug = $.fn.webgisform.options[this.attr('id')].debug;
 			
 			for(var i in fields)
 			{
@@ -60,7 +59,7 @@ function InitWebGISFormDefinition()
 			{
 				var group = this.groups[j];
 				var uid = $.uuid();
-				var g = this.append('<fieldset id="fieldset_' + uid + '" style="color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
+				var g = this.append('<fieldset id="fieldset_' + uid + '" style="min-height:50px;color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
 				this.append('</fieldset>');
 				this.append('<p></p>');
 				
@@ -72,15 +71,15 @@ function InitWebGISFormDefinition()
 					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
 					var newline = "float:left;";
 					if(fld.newline == false) newline = "";
-					var validate = '';
-					if(fld.validate)
+					var required = '';
+					if(fld.validate && fld.validate.required)
 					{
-						validate = '<span style="color:#FF0000">*</span>';
+						required = '<span  style="color:#FF0000;">*</span>';
 					}
 					if(fld.type == 'spinner' && fld.group == group)
 					{
 						
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + required + '</' + divorspan + '>');
 						var spin = 	$('#' + fldid).spinner({
 							step: fld.step,
 							max:fld.max,
@@ -91,7 +90,7 @@ function InitWebGISFormDefinition()
 					}
 					if(fld.type == 'geographic' && fld.group == group)
 					{
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + required + '</' + divorspan + '>');
 						var spin = 	$('#' + fldid).spinner({
 							step: 0.00001,
 							max:179.0,
@@ -107,13 +106,13 @@ function InitWebGISFormDefinition()
 						{
 							readonly = ' readonly="readonly"';
 						}
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + required + '</' + divorspan + '>');
 					}
 					if(fld.type == 'select' && fld.group == group)
 					{
 						var source = [];
 						if(fld.editor && fld.editor.data) source = fld.editor.data;
-						$('#' + 'fieldset_' + uid).append('<div style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + validate + '</div>');
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + required + '</' + divorspan + '>');
 						for(var ii in source)
 						{
 							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
@@ -126,33 +125,124 @@ function InitWebGISFormDefinition()
 						});
 						
 					}
+					if(fld.type == 'date' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="padding:7px 0px 0px 0px;width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>'  + required + '</' + divorspan + '>');
+						$('#' + fldid ).datepicker({
+							//appendText: "(yyyy-mm-dd)",
+							dateFormat:  "yy-mm-dd",
+							autoSize: false,
+							//altField: "#" + fldid,
+							buttonImage: "img/datepicker.png",
+							buttonImageOnly:true,
+							currentText: "今天",
+							monthNames: ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'],  
+							dayNames: ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'],  
+							dayNamesShort: ['周日','周一','周二','周三','周四','周五','周六'],  
+							dayNamesMin: ['日','一','二','三','四','五','六'],  
+							showOn: "button",
+							duration: "slow",
+							showButtonPanel: false,
+							showAnim:"slideDown",
+							//showOptions: { 
+								////effect: "slide",
+								////direction: "down",
+								//duration: 100
+							//},
+							yearSuffix: '年'
+						});
+					}
+					if(fld.type == 'icon' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline 
+						+ '"><label for="input_' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display 
+						+ ':' 
+						+ '</label><' + divorspan + ' style="display:inline-block;width:64px;height:64px;border:1px #00FF00 solid;" id="' + fldid + '" name="' + fldid + '" ></' + divorspan + '>' + required 
+						+ '<ol class="kmgd-icon-selectable"  id="ol_' + fldid + '"></ol></' + divorspan + '>');
+						$('#ol_' + fldid ).css('display', 'none');
+						$('#' + fldid ).addClass('icon-selector-' + fld.iconvalue);
+						
+						$('#ol_' + fldid ).empty();
+						for(var i in fld.iconlist)
+						{
+							//$('#ol_' + fldid ).append('<li class="ui-state-default"><' + divorspan + ' class="icon-selector-' + fld.iconlist[i] + '"></' + divorspan + '></li>');
+							$('#ol_' + fldid ).append('<li class="icon-selector-' + fld.iconlist[i] + '"></li>');
+						}
+						var fldid2 = fldid ;
+						var v = fld.iconvalue;
+						$('#ol_' + fldid2 ).selectable({
+							appendTo: '#' + fldid2,
+							selected: function( event, ui ){
+								$(ui.selected).removeClass('ui-selected');
+								$('#' + fldid2).attr('class', '');
+								var cls = $(ui.selected).attr('class');
+								$('#' + fldid2 ).addClass(cls);
+								$('#ol_' + fldid2 ).css('display', 'none');
+							}
+						});
+						var widget = $('#ol_' + fldid ).selectable("widget");
+						$('#' + fldid ).off();
+						var fldid3 = fldid ;
+						$('#' + fldid ).on('click', function(e){
+							if($('#ol_' + fldid3 ).css('display') === 'none')
+							{
+								$('#ol_' + fldid3 ).css('display', 'block');
+							}
+							else
+							{
+								$('#ol_' + fldid3 ).css('display', 'none');
+							}
+						});
+						$('#' + fldid ).on('mouseenter', function(e){
+							$(this).css("background-color", "#005500");
+						});
+						$('#' + fldid ).on('mouseleave', function(e){
+							$(this).css("background-color", "#000000");
+						});
+						$('#ol_' + fldid ).on('mouseleave', function(e){
+							$('#ol_' + fldid3 ).css('display', 'none');
+						});
+						
+					}
 					
 				}
 			}
 			
 			var fields = this.fields;
+			this.validate({
+				errorPlacement: function(error, element) {
+					//element.html(error.html()).css('color', '#FF0000').css('width', '130px').css('height', '20px').css('background-image', 'none');
+					element.tooltipster('update', error.text());
+					element.tooltipster('show');				
+				},
+				success:function(label, element) {
+					$(element).tooltipster('hide');
+				}
+				//success:'valid'
+			});
 			for(var i in fields)
 			{
 				var fld = fields[i];
 				var fldid = prefix + fld.id;
 				if(fld.validate)
 				{
-					if($('input[name="' + fldid + '"]').length>0)
-					{
-						$('input[name="' + fldid + '"]').rules('add',fld.validate);
-					}
-					if($('select[name="' + fldid + '"]').length>0)
-					{
-						$('select[name="' + fldid + '"]').rules('add',fld.validate);
-					}
+					$('#' + fldid ).rules('add',fld.validate);
+					
+					$('#' + fldid ).tooltipster({ 
+						trigger: 'custom',
+						onlyOne: false, 
+						position: 'right'
+					});					
+					
 				}
 			}
+			
 			return this;
 		},
 		setdata : function(data)
 		{
 			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
 			for(var k in data)
 			{
 				this.find('#' + prefix + k).val(data[k]);
@@ -161,37 +251,86 @@ function InitWebGISFormDefinition()
 		},
 		getdata:function()
 		{
+			var isInt = function(n){
+				return typeof n== "number" && isFinite(n) && n%1===0;
+			}			
 			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
-			var fields = $.fn.webgisform.fields;
+			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
+			var fields = $.fn.webgisform.fields[this.attr('id')];
 			var ret = {};
-			for(var i in fields)
+			for(var k in fields)
 			{
-				var id = fields[i]['id'];
-				ret[id] = this.find('#' + prefix + id).val();
-				if(id === 'tower_name')
+				var id = fields[k]['id'];
+				if(id === 'icon')
 				{
-					ret[id] = ret[id].split(',')[0]; 
+					ret[id] = this.find('#' + prefix + id).attr('class').replace('icon-selector-', '').replace(' ui-selectee', '');
 				}
-				
+				else
+				{
+					ret[id] = this.find('#' + prefix + id).val();
+				}
+				var typ = fields[k]['type'];
+				if(typ === 'spinner')
+				{
+					if(ret[id].length>0)
+					{
+						if(isInt(ret[id])) 
+						{
+							ret[id] = parseInt(ret[id]);
+						}else
+						{
+							ret[id] = parseFloat(ret[id]);
+						}
+					}else
+						ret[id] = 0;
+				}
 			}
 			return ret;
 		},
 		get:function(id)
 		{
 			var prefix = '';
-			if($.fn.webgisform.options.prefix) prefix = $.fn.webgisform.options.prefix;
+			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
 			var ret = this.find('#' + prefix + id);
 			return ret;
+		},
+		set:function(id, value)
+		{
+			var prefix = '';
+			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
+			var ret = this.find('#' + prefix + id);
+			if(ret.length>0)
+			{
+				ret.val(value);
+			}
+			return this;
 		}
-		//getvalidate:function(ad)
+		//getdefaultvalue:function(fld_id)
 		//{
-			//var debug = true;
-			//if(ad) debug = ad;
-			//var ret = this.validate({
-				//debug:debug,
-				//errorElement:'div'
-			//});
+			//var id = this.attr('id');
+			//var prefix = '';
+			//if($.fn.webgisform.options[id].prefix) prefix = $.fn.webgisform.options[id].prefix;
+			//var ret = null;
+			//for(var i in $.fn.webgisform.fields[id])
+			//{
+				//var fld = $.fn.webgisform.fields[id][i];
+				//if(fld.id === fld_id)
+				//{
+					//if(fld.type === 'text')
+					//{
+						//ret = '(无)';
+					//}
+					//if(fld.type === 'spinner')
+					//{
+						//ret = fld.min;
+					//}
+					//if(fld.type === 'date')
+					//{
+						
+					//}
+					//break;
+				//}
+			//}
 			//return ret;
 		//}
     };	
@@ -207,9 +346,11 @@ function InitWebGISFormDefinition()
 		
 	};
 	$.fn.webgisform.defaults = {
+		divorspan:"div",
 		labelwidth : 90,
 		margin : 10.0/2,
-		groupmargin : 18.0/2
+		groupmargin : 18.0/2,
+		iconsource:[]
 	};
 }
 
@@ -327,6 +468,20 @@ function ShowConfirm(id, width, height, title, msg, ok, cancel, thumbnail)
 				} 
 			}]
 	});
+}
+
+function GetDisplayLatLngString(ellipsoid, cartesian, precision) 
+{
+	var cartographic = ellipsoid.cartesianToCartographic(cartesian);
+	if(cartographic.longitude &&  cartographic.latitude)
+	{
+		var height = 0;
+		if(Math.abs(cartographic.height) > Cesium.Math.EPSILON1) height =  Math.floor(cartographic.height);
+		return "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ", " + height + ")";
+	}else
+	{
+		return "";
+	}
 }
 
 function ShowMessage(id, width, height, title, msg, ok)

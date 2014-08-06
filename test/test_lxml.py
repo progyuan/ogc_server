@@ -13,7 +13,7 @@ XML = '''<?xml version="1.0" encoding="UTF-8"?><wfs:FeatureCollection xmlns="htt
 #print(root.tag)
 #print(root.text)
 
-WFS_NAMESPACES = {'ows':"http://www.opengis.net/ows",
+NAMESPACES = {'ows':"http://www.opengis.net/ows",
              'ogc':"http://www.opengis.net/ogc",
              'wfs':"http://www.opengis.net/wfs", 
              'gml':"http://www.opengis.net/gml", 
@@ -28,12 +28,12 @@ INPUTFILE = 'input_data.xml'
 
 def get_params_from_xml(xml):
     ret = {}
-    wfs = '{%s}' % WFS_NAMESPACES['wfs']
-    ogc = '{%s}' % WFS_NAMESPACES['ogc']
-    ows = '{%s}' % WFS_NAMESPACES['ows']
-    xlink = '{%s}' % WFS_NAMESPACES['xlink']
+    wfs = '{%s}' % NAMESPACES['wfs']
+    ogc = '{%s}' % NAMESPACES['ogc']
+    ows = '{%s}' % NAMESPACES['ows']
+    xlink = '{%s}' % NAMESPACES['xlink']
     root = etree.XML(xml)
-    elements = root.xpath("/wfs:*",  namespaces=WFS_NAMESPACES)
+    elements = root.xpath("/wfs:*",  namespaces=NAMESPACES)
     if len(elements)>0:
         ret['REQUEST'] = elements[0].tag.replace(wfs, '')
         if 'service' in elements[0].attrib.keys():
@@ -41,13 +41,13 @@ def get_params_from_xml(xml):
         if 'version' in elements[0].attrib.keys():
             ret['VERSION'] = elements[0].get('version')
         if elements[0].tag.replace(wfs, '') == 'GetFeature':
-            query = root.xpath("//wfs:Query",  namespaces=WFS_NAMESPACES)
+            query = root.xpath("//wfs:Query",  namespaces=NAMESPACES)
             if len(query)>0:
                 if 'typeName' in query[0].attrib.keys():
                     ret['TYPENAME'] = query[0].get('typeName')
                 if 'srsName' in query[0].attrib.keys():
                     ret['SRSNAME'] = query[0].get('srsName')
-            Filter = root.xpath("//ogc:Filter",  namespaces=WFS_NAMESPACES)
+            Filter = root.xpath("//ogc:Filter",  namespaces=NAMESPACES)
             if len(Filter)>0:
                 #print(dir(Filter[0]))
                 ret['FILTER'] = etree.tostring(Filter[0])
@@ -164,12 +164,157 @@ def merge_xml():
     with open(p, 'w') as f:
         f.write(ret)
     
+def merge_xml1():
+    def get_max_level_str(alist):
+        maxlv = max(alist)
+        maxlvstr = 'I'
+        if maxlv == 1: maxlvstr = 'I'
+        if maxlv == 2: maxlvstr = 'II'
+        if maxlv == 3: maxlvstr = 'III'
+        if maxlv == 4: maxlvstr = 'IV'
+        return maxlvstr
+        
+    records = etree.Element("records")
+    unit_list = [u'基础', u'杆塔', u'导地线', u'绝缘子串', u'金具', u'接地装置', u'附属设施', u'通道环境', ]
+    for root, dirs, files  in os.walk(ROOTDIR, topdown=False):
+        for name in files:
+            if name[-4:].lower() == '.xml':
+                p = os.path.join(root, name)
+                print('parsing %s...' % p)
+                tree = etree.parse(p)
+                rn = tree.getroot()
+                if len(rn[0][0])>0:
+                    record = None
+                    record = etree.SubElement(records, "record")
+                
+                    line_state_int = [1, ]
+                    #line_state = etree.SubElement(record, 'line_state')
+                    for i in rn[0][0]:
+                        #print('%s=%s' % (i.tag, i.text))
+                        if i.tag in [ 'name', 'check_year', 'collaborate_factor']:
+                            #etree.SubElement(record, i.tag).text = i.text
+                            if i.tag == 'name':
+                                record.attrib['line_name'] = i.text.replace(u'线线', u'线')
+                            else:
+                                record.attrib[i.tag] = i.text
+                        #if i.tag == 'collaborate_factor':
+                            #etree.SubElement(record, 'collaborate_factor').text = i.text
+                        if i.tag == 'items':
+                            units = etree.SubElement(record, 'line_units')
+                            unitexist = []
+                            unitsmap = {}
+                            for item in i:
+                                unit = None
+                                for key in item:
+                                    if key.tag == 'parent' and not key.text in unitexist:
+                                        unitexist.append(key.text)
+                                        unit = etree.SubElement(units, "unit")
+                                        unit.attrib["unit_index"] = str(unit_list.index(key.text) + 1)
+                                        unit.attrib["unit_state"] = ''
+                                        #etree.SubElement(unit, "unit_index").text = str(unit_list.index(key.text) + 1)
+                                        #etree.SubElement(unit, "unit_state")
+                                        etree.SubElement(unit, "unit_items")
+                                        unitsmap[key.text] = unit
+                                        break
+                            
+                            
+                            #print(unitsmap[u'杆塔'].find('unit_index').text)
+                            unitscores = {}
+                            for uuu in unit_list:
+                                unitscores[uuu] = [1,]
+                                unit_items = None
+                                unit_name = None
+                                for item in i:
+                                    inunit = True
+                                    index, weight, levels = None, None, None
+                                    for key in item:
+                                        if key.tag == 'index':
+                                            index = key.text
+                                        if key.tag == 'weight':
+                                            weight = key.text
+                                        if key.tag == 'parent':
+                                            if uuu == key.text:
+                                                unit_items = unitsmap[uuu].find('unit_items')
+                                            else:
+                                                inunit = False
+                                                break
+                                        if key.tag == 'levels':
+                                            levels = key
+                                    if not inunit:
+                                        continue
+                                    if not unit_items is None:
+                                        it = etree.SubElement(unit_items, "item")
+                                        if not index is None:
+                                            #etree.SubElement(it, "index").text = index
+                                            it.attrib["item_index"] = index
+                                        if not weight is None:
+                                            #etree.SubElement(it, "weight").text = weight
+                                            it.attrib["weight"] = weight
+                                        
+                                        if not levels is None:
+                                            #lvs = etree.SubElement(it, "levels")
+                                            for lv in levels:
+                                                #lvnode = etree.SubElement(lvs, lv.tag)
+                                                for kk in lv:
+                                                    if kk.tag in ['base_score', 'lost_score']:
+                                                        #etree.SubElement(lvnode, kk.tag).text = kk.text
+                                                        if kk.tag == 'lost_score':
+                                                            if int(kk.text)>0:
+                                                                if lv.tag == 'I':
+                                                                    unitscores[uuu].append(1)
+                                                                    
+                                                                if lv.tag == 'II':
+                                                                    unitscores[uuu].append(2)
+                                                                if lv.tag == 'III':
+                                                                    unitscores[uuu].append(3)
+                                                                if lv.tag == 'IV':
+                                                                    unitscores[uuu].append(4)
+                                        it.attrib["item_state"] = get_max_level_str(unitscores[uuu])
+                                line_state_int.extend(unitscores[uuu])
+                                #unitsmap[uuu].find('unit_state').text = get_max_level_str(unitscores[uuu])
+                                unitsmap[uuu].attrib['unit_state'] = get_max_level_str(unitscores[uuu])
+                                        
+                    #line_state.text = get_max_level_str(line_state_int)
+                    record.attrib['line_state']= get_max_level_str(line_state_int)
+                    #ret = etree.tostring(records, pretty_print=True, xml_declaration=True, encoding='utf-8')
+                    #print(ret)
+
+                #break
+            #break
+                
+    ret = etree.tostring(records, pretty_print=True, xml_declaration=True, encoding='utf-8')
+    p = os.path.join(ROOTDIR, INPUTFILE)
+    with open(p, 'w') as f:
+        f.write(ret)
 
 
+def split_xml():
+    p = os.path.join(ROOTDIR, INPUTFILE)
+    tree = etree.parse(p)
+    rn = tree.getroot()
+    m = {}
+    for i in rn:
+        if i.attrib.has_key('check_year'):
+            #print('%s %s' % (i.attrib['check_year'], i.attrib['name']))
+            if not m.has_key(i.attrib['line_name']):
+                m[i.attrib['line_name']] = []
+            m[i.attrib['line_name']].append(i)
+    #print(m)
+    for k in m.keys():
+        pp = os.path.join(ROOTDIR, 'input_data_%s.xml' % k)
+        records = etree.Element("records")
+        #records.append('\n')
+        for i in m[k]:
+            records.append(i)
+        ret = etree.tostring(records, pretty_print=True, xml_declaration=True, encoding='utf-8')
+        with open(pp, 'w') as f:
+            f.write(ret)
+        
 
 if __name__ == "__main__":
     #print(get_params_from_xml(XML))
     #root = etree.XML(XML)
     #print(etree.tostring(root, pretty_print=True))
-    merge_xml()
+    #merge_xml1()
+    split_xml()
     

@@ -1,8 +1,50 @@
+/**
+ * A {@link TerrainProvider} that access terrain data in a Cesium terrain format.
+ * The format is described on the
+ * {@link https://github.com/AnalyticalGraphicsInc/cesium/wiki/Cesium-Terrain-Server|Cesium wiki}.
+ *
+ * @alias HeightmapAndQuantizedMeshTerrainProvider
+ * @constructor
+ *
+ * @param {Object} options Object with the following properties:
+ * @param {String} options.url The URL of the Cesium terrain server.
+ * @param {Proxy} [options.proxy] A proxy to use for requests. This object is expected to have a getURL function which returns the proxied URL, if needed.
+ * @param {Boolean} [options.requestVertexNormals=false] Flag that indicates if the client should request additional lighting information from the server, in the form of per vertex normals if available.
+ * @param {Credit|String} [options.credit] A credit for the data source, which is displayed on the canvas.
+ *
+ * @see TerrainProvider
+ *
+ * @example
+ * // Construct a terrain provider that uses per vertex normals for lighting
+ * // to add shading detail to an imagery provider.
+ * var terrainProvider = new Cesium.HeightmapAndQuantizedMeshTerrainProvider({
+ *     url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles',
+ *     requestVertexNormals : true
+ * });
+ *
+ * // Terrain geometry near the surface of the globe is difficult to view when using NaturalEarthII imagery,
+ * // unless the TerrainProvider provides additional lighting information to shade the terrain (as shown above).
+ * var imageryProvider = new Cesium.TileMapServiceImageryProvider({
+ *        url : 'http://localhost:8080/Source/Assets/Textures/NaturalEarthII',
+ *        fileExtension : 'jpg'
+ *    });
+ *
+ * var viewer = new Cesium.Viewer('cesiumContainer', {
+ *     imageryProvider : imageryProvider,
+ *     baseLayerPicker : false,
+ *     terrainProvider : terrainProvider
+ * });
+ *
+ * // The globe must enable lighting to make use of the terrain's vertex normals
+ * viewer.scene.globe.enableLighting = true;
+ */
 var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMeshTerrainProvider(options) {
-            if (!Cesium.defined(options) || !Cesium.defined(options.url)) {
+    //>>includeStart('debug', pragmas.debug)
+    if (!Cesium.defined(options) || !Cesium.defined(options.url)) {
         throw new Cesium.DeveloperError('options.url is required.');
     }
-    
+    //>>includeEnd('debug');
+
     this._url = options.url;
     if (this._url.length === 0 || this._url[this._url.length - 1] !== '/') {
         this._url = this._url + '/';
@@ -10,6 +52,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
     this._proxy = options.proxy;
 
     this._terrain_type = Cesium.defaultValue( options.terrain_type, 'quantized_mesh');
+
     this._tilingScheme = new Cesium.GeographicTilingScheme({
         numberOfLevelZeroTilesX : 2,
         numberOfLevelZeroTilesY : 1
@@ -21,6 +64,21 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
     this._heightmapStructure = undefined;
     this._hasWaterMask = false;
 
+    /**
+     * Boolean flag that indicates if the Terrain Server can provide vertex normals.
+     * @type {Boolean}
+     * @default false
+     * @private
+     */
+    this._hasVertexNormals = false;
+    /**
+     * Boolean flag that indicates if the client should request vertex normals from the server.
+     * @type {Boolean}
+     * @default false
+     * @private
+     */
+    this._requestVertexNormals = Cesium.defaultValue(options.requestVertexNormals, false);
+
     this._errorEvent = new Cesium.Event();
 
     var credit = options.credit;
@@ -31,6 +89,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
 
     this._ready = false;
 
+    //var metadataUrl = this._url + 'layer.json';
     var metadataUrl = this._url + 'layer.json' + '?terrain_type=' + this._terrain_type;
     if (Cesium.defined(this._proxy)) {
         metadataUrl = this._proxy.getURL(metadataUrl);
@@ -64,7 +123,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
                     isBigEndian : false
                 };
             that._hasWaterMask = true;
-        } else if (data.format === 'quantized-mesh-1.0') {
+        } else if (data.format.indexOf('quantized-mesh-1.') === 0) {
             that._hasWaterMask = false;
         } else {
             message = 'The tile format "' + data.format + '" is invalid or not supported.';
@@ -76,6 +135,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
 
         that._tileUrlTemplates = data.tiles;
         for (var i = 0; i < that._tileUrlTemplates.length; ++i) {
+            //that._tileUrlTemplates[i] = new Cesium.Uri(that._tileUrlTemplates[i]).resolve(baseUri).toString().replace('{version}', data.version);
             that._tileUrlTemplates[i] = new Cesium.Uri(that._tileUrlTemplates[i] + '&terrain_type=' + that._terrain_type ).resolve(baseUri).toString().replace('{version}', data.version);
         }
 
@@ -85,10 +145,15 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
             that._credit = new Cesium.Credit(data.attribution);
         }
 
+        if (Cesium.defined(data.extensions) && data.extensions.indexOf('vertexnormals') !== -1) {
+            that._hasVertexNormals = true;
+        }
+
         that._ready = true;
     }
 
     function metadataFailure(data) {
+        // If the metadata is not found, assume this is a pre-metadata heightmap tileset.
         if (Cesium.defined(data) && data.statusCode === 404) {
             metadataSuccess({
                 tilejson: '2.1.0',
@@ -96,6 +161,7 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
                 version : '1.0.0',
                 scheme : 'tms',
                 tiles : [
+                    //'{z}/{x}/{y}.terrain?v={version}'
                     '{z}/{x}/{y}.terrain?v={version}&terrain_type=' + that._terrain_type
                 ]
             });
@@ -113,14 +179,43 @@ var HeightmapAndQuantizedMeshTerrainProvider = function HeightmapAndQuantizedMes
     requestMetadata();
 };
 
-var requestHeaders = {
-    Accept : 'application/octet-stream,*/*;q=0.01'
-    //Accept : 'application/octet-stream'
+/**
+ * When using the Quantized-Mesh format, a tile may be returned that includes additional extensions, such as PerVertexNormals, watermask, etc.
+ * This enumeration defines the unique identifiers for each type of extension data that has been appended to the standard mesh data.
+ *
+ * @namespace
+ * @alias QuantizedMeshExtensionIds
+ * @see HeightmapAndQuantizedMeshTerrainProvider
+ * @private
+ */
+var QuantizedMeshExtensionIds = {
+    /**
+     * Oct-Encoded Per-Vertex Normals are included as an extension to the tile mesh
+     *
+     * @type {Number}
+     * @constant
+     * @default 1
+     */
+    OCT_VERTEX_NORMALS: 1
+};
+
+var requestHeadersVertexNormals = {
+        // prefer quantized-mesh media-type
+        // only request vertex normals if Lighting is enabled on the HeightmapAndQuantizedMeshTerrainProvider
+        Accept : 'application/vnd.quantized-mesh;extensions=vertexnormals,application/octet-stream;q=0.9,*/*;q=0.01'
+};
+
+function loadTileVertexNormals(url) {
+    return Cesium.loadArrayBuffer(url, requestHeadersVertexNormals);
+}
+
+var requestHeadersDefault = {
+        // prefer quantized-mesh media-type
+        Accept : 'application/vnd.quantized-mesh,application/octet-stream;q=0.9,*/*;q=0.01'
 };
 
 function loadTile(url) {
-    //console.log('loadTile=' + url);
-    return Cesium.loadArrayBuffer(url, requestHeaders);
+    return Cesium.loadArrayBuffer(url, requestHeadersDefault);
 }
 
 function createHeightmapTerrainData(provider, buffer, level, x, y, tmsY) {
@@ -137,28 +232,24 @@ function createHeightmapTerrainData(provider, buffer, level, x, y, tmsY) {
 
 function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
     var pos = 0;
-    var uint16Length = 2;
-    var uint32Length = 4;
-    var float32Length = 4;
-    var float64Length = 8;
     var cartesian3Elements = 3;
     var boundingSphereElements = cartesian3Elements + 1;
-    var cartesian3Length = float64Length * cartesian3Elements;
-    var boundingSphereLength = float64Length * boundingSphereElements;
+    var cartesian3Length = Float64Array.BYTES_PER_ELEMENT * cartesian3Elements;
+    var boundingSphereLength = Float64Array.BYTES_PER_ELEMENT * boundingSphereElements;
     var vertexElements = 6;
     var encodedVertexElements = 3;
-    var encodedVertexLength = uint16Length * encodedVertexElements;
+    var encodedVertexLength = Uint16Array.BYTES_PER_ELEMENT * encodedVertexElements;
     var triangleElements = 3;
-    var triangleLength = uint16Length * triangleElements;
+    var triangleLength = Uint16Array.BYTES_PER_ELEMENT * triangleElements;
 
     var view = new DataView(buffer);
     var center = new Cesium.Cartesian3(view.getFloat64(pos, true), view.getFloat64(pos + 8, true), view.getFloat64(pos + 16, true));
     pos += cartesian3Length;
 
     var minimumHeight = view.getFloat32(pos, true);
-    pos += float32Length;
+    pos += Float32Array.BYTES_PER_ELEMENT;
     var maximumHeight = view.getFloat32(pos, true);
-    pos += float32Length;
+    pos += Float32Array.BYTES_PER_ELEMENT;
 
     var boundingSphere = new Cesium.BoundingSphere(
             new Cesium.Cartesian3(view.getFloat64(pos, true), view.getFloat64(pos + 8, true), view.getFloat64(pos + 16, true)),
@@ -169,7 +260,7 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
     pos += cartesian3Length;
 
     var vertexCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var encodedVertexBuffer = new Uint16Array(buffer, pos, vertexCount * 3);
     pos += vertexCount * encodedVertexLength;
 
@@ -203,7 +294,7 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
     }
 
     var triangleCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var indices = new Uint16Array(buffer, pos, triangleCount * triangleElements);
     pos += triangleCount * triangleLength;
 
@@ -220,24 +311,37 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
     }
 
     var westVertexCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var westIndices = new Uint16Array(buffer, pos, westVertexCount);
-    pos += westVertexCount * uint16Length;
+    pos += westVertexCount * Uint16Array.BYTES_PER_ELEMENT;
 
     var southVertexCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var southIndices = new Uint16Array(buffer, pos, southVertexCount);
-    pos += southVertexCount * uint16Length;
+    pos += southVertexCount * Uint16Array.BYTES_PER_ELEMENT;
 
     var eastVertexCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var eastIndices = new Uint16Array(buffer, pos, eastVertexCount);
-    pos += eastVertexCount * uint16Length;
+    pos += eastVertexCount * Uint16Array.BYTES_PER_ELEMENT;
 
     var northVertexCount = view.getUint32(pos, true);
-    pos += uint32Length;
+    pos += Uint32Array.BYTES_PER_ELEMENT;
     var northIndices = new Uint16Array(buffer, pos, northVertexCount);
-    pos += northVertexCount * uint16Length;
+    pos += northVertexCount * Uint16Array.BYTES_PER_ELEMENT;
+
+    var encodedNormalBuffer;
+    while (pos < view.byteLength) {
+        var extensionId = view.getUint8(pos);
+        pos += Uint8Array.BYTES_PER_ELEMENT;
+        var extensionLength = view.getUint32(pos);
+        pos += Uint32Array.BYTES_PER_ELEMENT;
+
+        if (extensionId === QuantizedMeshExtensionIds.OCT_VERTEX_NORMALS) {
+            encodedNormalBuffer = new Uint8Array(buffer, pos, vertexCount * 2);
+        }
+        pos += extensionLength;
+    }
 
     var skirtHeight = provider.getLevelMaximumGeometricError(level) * 5.0;
 
@@ -248,6 +352,7 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
         boundingSphere : boundingSphere,
         horizonOcclusionPoint : horizonOcclusionPoint,
         quantizedVertices : encodedVertexBuffer,
+        encodedNormals : encodedNormalBuffer,
         indices : indices,
         westIndices : westIndices,
         southIndices : southIndices,
@@ -266,8 +371,6 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
  * {@link HeightmapAndQuantizedMeshTerrainProvider#ready} returns true.  The result must include terrain data and
  * may optionally include a water mask and an indication of which child tiles are available.
  *
- * @memberof HeightmapAndQuantizedMeshTerrainProvider
- *
  * @param {Number} x The X coordinate of the tile for which to request geometry.
  * @param {Number} y The Y coordinate of the tile for which to request geometry.
  * @param {Number} level The level of the tile for which to request geometry.
@@ -278,13 +381,16 @@ function createQuantizedMeshTerrainData(provider, buffer, level, x, y, tmsY) {
  *          returns undefined instead of a promise, it is an indication that too many requests are already
  *          pending and the request will be retried later.
  *
- * @exception {Cesium.DeveloperError} This function must not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready}
+ * @exception {DeveloperError} This function must not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready}
  *            returns true.
  */
 HeightmapAndQuantizedMeshTerrainProvider.prototype.requestTileGeometry = function(x, y, level, throttleRequests) {
+    //>>includeStart('debug', pragmas.debug)
     if (!this._ready) {
         throw new Cesium.DeveloperError('requestTileGeometry must not be called before the terrain provider is ready.');
     }
+    //>>includeEnd('debug');
+
     var urlTemplates = this._tileUrlTemplates;
     if (urlTemplates.length === 0) {
         return undefined;
@@ -304,15 +410,19 @@ HeightmapAndQuantizedMeshTerrainProvider.prototype.requestTileGeometry = functio
 
     var promise;
 
+    var tileLoader = loadTile;
+    if (this._requestVertexNormals && this._hasVertexNormals) {
+        tileLoader = loadTileVertexNormals;
+    }
+
     throttleRequests = Cesium.defaultValue(throttleRequests, true);
-    
     if (throttleRequests) {
-        promise = Cesium.throttleRequestByServer(url, loadTile);
+        promise = Cesium.throttleRequestByServer(url, tileLoader);
         if (!Cesium.defined(promise)) {
             return undefined;
         }
     } else {
-        promise = Cesium.loadArrayBuffer(url);
+        promise = tileLoader(url);
     }
 
     var that = this;
@@ -329,7 +439,7 @@ Cesium.defineProperties(HeightmapAndQuantizedMeshTerrainProvider.prototype, {
     /**
      * Gets an event that is raised when the terrain provider encounters an asynchronous error.  By subscribing
      * to the event, you will be notified of the error and can potentially recover from it.  Event listeners
-     * are passed an instance of {@link Cesium.TileProviderError}.
+     * are passed an instance of {@link TileProviderError}.
      * @memberof HeightmapAndQuantizedMeshTerrainProvider.prototype
      * @type {Event}
      */
@@ -347,10 +457,12 @@ Cesium.defineProperties(HeightmapAndQuantizedMeshTerrainProvider.prototype, {
      */
     credit : {
         get : function() {
+            //>>includeStart('debug', pragmas.debug)
             if (!this._ready) {
                 throw new Cesium.DeveloperError('credit must not be called before the terrain provider is ready.');
             }
-            
+            //>>includeEnd('debug');
+
             return this._credit;
         }
     },
@@ -363,10 +475,12 @@ Cesium.defineProperties(HeightmapAndQuantizedMeshTerrainProvider.prototype, {
      */
     tilingScheme : {
         get : function() {
+            //>>includeStart('debug', pragmas.debug)
             if (!this._ready) {
                 throw new Cesium.DeveloperError('tilingScheme must not be called before the terrain provider is ready.');
             }
-            
+            //>>includeEnd('debug');
+
             return this._tilingScheme;
         }
     },
@@ -380,39 +494,74 @@ Cesium.defineProperties(HeightmapAndQuantizedMeshTerrainProvider.prototype, {
         get : function() {
             return this._ready;
         }
+    },
+
+    /**
+     * Gets a value indicating whether or not the provider includes a water mask.  The water mask
+     * indicates which areas of the globe are water rather than land, so they can be rendered
+     * as a reflective surface with animated waves.  This function should not be
+     * called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready} returns true.
+     * @memberof HeightmapAndQuantizedMeshTerrainProvider.prototype
+     * @type {Boolean}
+     * @exception {DeveloperError} This property must not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready}
+     */
+    hasWaterMask : {
+        get : function() {
+            //>>includeStart('debug', pragmas.debug)
+            if (!this._ready) {
+                throw new Cesium.DeveloperError('hasWaterMask must not be called before the terrain provider is ready.');
+            }
+            //>>includeEnd('debug');
+
+            return this._hasWaterMask;
+        }
+    },
+
+    /**
+     * Gets a value indicating whether or not the requested tiles include vertex normals.
+     * This function should not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready} returns true.
+     * @memberof HeightmapAndQuantizedMeshTerrainProvider.prototype
+     * @type {Boolean}
+     * @exception {DeveloperError} This property must not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready}
+     */
+    hasVertexNormals : {
+        get : function() {
+            //>>includeStart('debug', pragmas.debug)
+            if (!this._ready) {
+                throw new Cesium.DeveloperError('hasVertexNormals must not be called before the terrain provider is ready.');
+            }
+            //>>includeEnd('debug');
+
+            // returns true if we can request vertex normals from the server
+            return this._hasVertexNormals && this._requestVertexNormals;
+        }
+    },
+
+    /**
+     * Boolean flag that indicates if the client should request vertex normals from the server.
+     * Vertex normals data is appended to the standard tile mesh data only if the client requests the vertex normals and
+     * if the server provides vertex normals.
+     *
+     * This property is read only. To change this value, a new HeightmapAndQuantizedMeshTerrainProvider must be constructed that requests
+     * vertex normals to ensure that all existing tiles are requested that includes/excludes vertex normal extension data.
+     * @memberof HeightmapAndQuantizedMeshTerrainProvider.prototype
+     * @type {Boolean}
+     */
+    requestVertexNormals : {
+        get : function() {
+            return this._requestVertexNormals;
+        }
     }
 });
 
 /**
  * Gets the maximum geometric error allowed in a tile at a given level.
  *
- * @memberof HeightmapAndQuantizedMeshTerrainProvider
- *
  * @param {Number} level The tile level for which to get the maximum geometric error.
  * @returns {Number} The maximum geometric error.
  */
 HeightmapAndQuantizedMeshTerrainProvider.prototype.getLevelMaximumGeometricError = function(level) {
     return this._levelZeroMaximumGeometricError / (1 << level);
-};
-
-/**
- * Gets a value indicating whether or not the provider includes a water mask.  The water mask
- * indicates which areas of the globe are water rather than land, so they can be rendered
- * as a reflective surface with animated waves.
- *
- * @memberof HeightmapAndQuantizedMeshTerrainProvider
- *
- * @returns {Boolean} True if the provider has a water mask; otherwise, false.
- *
- * @exception {Cesium.DeveloperError} This function must not be called before {@link HeightmapAndQuantizedMeshTerrainProvider#ready}
- *            returns true.
- */
-HeightmapAndQuantizedMeshTerrainProvider.prototype.hasWaterMask = function() {
-    if (!this._ready) {
-        throw new Cesium.DeveloperError('hasWaterMask must not be called before the terrain provider is ready.');
-    }
-    
-    return this._hasWaterMask;
 };
 
 function getChildMaskForTile(terrainProvider, level, x, y) {

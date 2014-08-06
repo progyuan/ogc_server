@@ -1,1 +1,14 @@
-﻿db.features.ensureIndex( { geometry2d : "2dsphere" } )
+﻿#2dsphere
+db.features.ensureIndex( { geometry2d : "2dsphere" } )
+
+#text
+db.features.ensureIndex( { "properties.py": "text" } )
+db.features.find( "$text":{ "$search": "yf" } )
+db.features.getIndexes()
+db.features.dropIndex("properties.py_text")
+
+#pinyin
+db.features.ensureIndex( { "properties.py": 1 } )
+
+#feature_yn
+db.features.ensureIndex( { geometry2d : "2dsphere" } )

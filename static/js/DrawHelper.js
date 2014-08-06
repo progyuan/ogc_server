@@ -697,22 +697,21 @@ var DrawHelper = (function() {
 
         // create one common billboard collection for all billboards
         var b = new Cesium.BillboardCollection();
-        //var a = this._scene.context.createTextureAtlas();
-        var a = new Cesium.TextureAtlas({scene:this._scene});
-        b.textureAtlas = a;
+        //var a = new Cesium.TextureAtlas({scene:this._scene});
+        //b.textureAtlas = a;
         this._scene.primitives.add(b);
 		this._drawHelper.addPrimitive(b);
         this._billboards = b;
-        this._textureAtlas = a;
+        //this._textureAtlas = a;
         // keep an ordered list of billboards
         this._orderedBillboards = [];
 
         // create the image for the billboards
         var image = new Image();
         var _self = this;
-        image.onload = function() {
-            a.addImage(image);
-        };
+        //image.onload = function() {
+            //a.addImage(image);
+        //};
         image.src = options.iconUrl;
     }
 
@@ -720,7 +719,7 @@ var DrawHelper = (function() {
 		if(this._billboards.isDestroyed())
 		{
 			var b = new Cesium.BillboardCollection();
-			b.textureAtlas = this._textureAtlas;
+			//b.textureAtlas = this._textureAtlas;
 			this._scene.primitives.add(b);
 			this._drawHelper.addPrimitive(b);
 			this._billboards = b;
@@ -770,7 +769,10 @@ var DrawHelper = (function() {
                     var handler = new Cesium.ScreenSpaceEventHandler(_self._scene.canvas);
 
                     handler.setInputAction(function(movement) {
-                        var cartesian = _self._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
+                        //var cartesian = _self._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
+						var ray = _self._scene.camera.getPickRay(movement.endPosition);
+						var cartesian = _self._scene.globe.pick(ray, _self._scene);					
+                        
                         if (cartesian) {
                             onDrag(cartesian);
                         } else {
@@ -779,12 +781,19 @@ var DrawHelper = (function() {
                     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
                     handler.setInputAction(function(movement) {
-                        onDragEnd(_self._scene.camera.pickEllipsoid(movement.position, ellipsoid));
+                        //onDragEnd(_self._scene.camera.pickEllipsoid(movement.position, ellipsoid));
+						var ray = _self._scene.camera.getPickRay(movement.position);
+						var cartesian = _self._scene.globe.pick(ray, _self._scene);					
+                        onDragEnd(cartesian);
                     }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
                     enableRotation(false);
 
-                    callbacks.dragHandlers.onDragStart && callbacks.dragHandlers.onDragStart(getIndex(), _self._scene.camera.pickEllipsoid(position, ellipsoid));
+                    //callbacks.dragHandlers.onDragStart && callbacks.dragHandlers.onDragStart(getIndex(), _self._scene.camera.pickEllipsoid(position, ellipsoid));
+                    //var cartesian = _self._scene.camera.pickEllipsoid(position, ellipsoid);
+					var ray = _self._scene.camera.getPickRay(position);
+					var cartesian = _self._scene.globe.pick(ray, _self._scene);					
+                    callbacks.dragHandlers.onDragStart && callbacks.dragHandlers.onDragStart(getIndex(), cartesian);
                 });
             }
             if(callbacks.onDoubleClick) {
@@ -881,7 +890,10 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+				var ray = scene.camera.getPickRay(movement.position);
+				var cartesian = scene.globe.pick(ray, scene);					
+                
                 if (cartesian) {
                     markers.addBillboard(cartesian);
                     _self.stopDrawing();
@@ -893,12 +905,12 @@ var DrawHelper = (function() {
         mouseHandler.setInputAction(function(movement) {
             var position = movement.endPosition;
             if(position != null) {
-                //var cartesian = scene.camera.controller.pickEllipsoid(position, ellipsoid);
-                var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
-				//console.log(cartesian);
-
+                //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+				var ray = scene.camera.getPickRay(position);
+				var cartesian = scene.globe.pick(ray, scene);					
+				
                 if (cartesian) {
-                    tooltip.showAt(position, "<p>当前坐标: </p>" + getDisplayLatLngString(ellipsoid.cartesianToCartographic(cartesian), 7));
+                    tooltip.showAt(position, "<p>当前坐标: </p>" + GetDisplayLatLngString(ellipsoid, cartesian, 7));
                 } else {
                     tooltip.showAt(position, "<p>单击添加地标.</p>");
                 }
@@ -950,7 +962,9 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+				var ray = scene.camera.getPickRay(movement.position);
+				var cartesian = scene.globe.pick(ray, scene);					
                 if (cartesian) {
                     // first click
                     if(positions.length == 0) {
@@ -976,7 +990,11 @@ var DrawHelper = (function() {
                 if(positions.length == 0) {
                     tooltip.showAt(position, "<p>单击添加点</p>");
                 } else {
-                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+					//add terrain support
+					var ray = scene.camera.getPickRay(position);
+					var cartesian = scene.globe.pick(ray, scene);					
+					
                     if (cartesian) {
                         positions.pop();
                         // make sure it is slightly different
@@ -990,7 +1008,7 @@ var DrawHelper = (function() {
                         //markers.getBillboard(positions.length - 1).setPosition(cartesian);
                         markers.getBillboard(positions.length - 1).position = cartesian;
                         // show tooltip
-                        tooltip.showAt(position, "<p>单击添加点 (" + positions.length + ")</p>" + (positions.length > minPoints ? "<p>双击结束添加</p>" : ""));
+                        tooltip.showAt(position, "<p>单击添加第" + positions.length + "点" + GetDisplayLatLngString(ellipsoid, cartesian, 7) + "</p>" + (positions.length > minPoints ? "<p>双击结束添加</p>" : ""));
                     }
                 }
             }
@@ -1002,7 +1020,9 @@ var DrawHelper = (function() {
                 if(positions.length < minPoints + 2) {
                     return;
                 } else {
-                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+					var ray = scene.camera.getPickRay(position);
+					var cartesian = scene.globe.pick(ray, scene);					
                     if (cartesian) {
                         _self.stopDrawing();
                         if(typeof options.callback == 'function') {
@@ -1068,7 +1088,9 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+				var ray = scene.camera.getPickRay(movement.position);
+				var cartesian = scene.globe.pick(ray, scene);					
                 if (cartesian) {
                     if(extent == null) {
                         // create the rectangle
@@ -1091,7 +1113,9 @@ var DrawHelper = (function() {
                 if(extent == null) {
                     tooltip.showAt(position, "<p>点击鼠标设定矩形范围顶点</p>");
                 } else {
-                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+					var ray = scene.camera.getPickRay(position);
+					var cartesian = scene.globe.pick(ray, scene);					
                     if (cartesian) {
                         var value = getExtent(firstPoint, ellipsoid.cartesianToCartographic(cartesian));
                         updateExtent(value);
@@ -1134,7 +1158,9 @@ var DrawHelper = (function() {
         // Now wait for start
         mouseHandler.setInputAction(function(movement) {
             if(movement.position != null) {
-                var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
+				var ray = scene.camera.getPickRay(movement.position);
+				var cartesian = scene.globe.pick(ray, scene);					
                 if (cartesian) {
                     if(circle == null) {
                         // create the circle
@@ -1164,13 +1190,16 @@ var DrawHelper = (function() {
                 if(circle == null) {
                     tooltip.showAt(position, "<p>点击鼠标设定圆心</p>");
                 } else {
-                    var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+					var ray = scene.camera.getPickRay(position);
+					var cartesian = scene.globe.pick(ray, scene);					
                     if (cartesian) {
 						var r = Cesium.Cartesian3.distance(circle.getCenter(), cartesian);
                         circle.setRadius(r);
                         markers.updateBillboardsPositions(cartesian);
-						var carto = ellipsoid.cartesianToCartographic(circle.getCenter());
-						var s = '<p>圆心:(' + Cesium.Math.toDegrees(carto.longitude).toFixed(7) + ',' + Cesium.Math.toDegrees(carto.latitude).toFixed(7) + ')</p>';
+						//var carto = ellipsoid.cartesianToCartographic(circle.getCenter());
+						//var s = '<p>圆心:(' + Cesium.Math.toDegrees(carto.longitude).toFixed(7) + ',' + Cesium.Math.toDegrees(carto.latitude).toFixed(7) + ')</p>';
+						var s = '<p>圆心:' + GetDisplayLatLngString(ellipsoid, circle.getCenter(), 7) + '</p>';
                         s += '<p>半径:' + r.toFixed(1) + '米</p>';
                         tooltip.showAt(position, s);
                     }
@@ -1217,7 +1246,9 @@ var DrawHelper = (function() {
                 var handler = new Cesium.ScreenSpaceEventHandler(drawHelper._scene.canvas);
 
                 handler.setInputAction(function(movement) {
-                    var cartesian = drawHelper._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
+                    //var cartesian = drawHelper._scene.camera.pickEllipsoid(movement.endPosition, ellipsoid);
+					var ray = drawHelper._scene.camera.getPickRay(movement.endPosition);
+					var cartesian = drawHelper._scene.globe.pick(ray, drawHelper._scene);					
                     if (cartesian) {
                         onDrag(cartesian);
                     } else {
@@ -1226,7 +1257,10 @@ var DrawHelper = (function() {
                 }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
                 handler.setInputAction(function(movement) {
-                    onDragEnd(drawHelper._scene.camera.pickEllipsoid(movement.position, ellipsoid));
+                    //onDragEnd(drawHelper._scene.camera.pickEllipsoid(movement.position, ellipsoid));
+					var ray = drawHelper._scene.camera.getPickRay(movement.position);
+					var cartesian = drawHelper._scene.globe.pick(ray, drawHelper._scene);					
+					onDragEnd(cartesian);
                 }, Cesium.ScreenSpaceEventType.LEFT_UP);
 
                 enableRotation(false);
@@ -1921,15 +1955,6 @@ var DrawHelper = (function() {
         return new tooltip(frameDiv);
     }
 
-    function getDisplayLatLngString(cartographic, precision) {
-		if(cartographic.longitude &&  cartographic.latitude)
-		{
-			return "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ")";
-		}else
-		{
-			return "";
-		}
-    }
 
     function clone(from, to) {
         if (from == null || typeof from != "object") return from;

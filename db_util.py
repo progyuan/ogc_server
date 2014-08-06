@@ -41,6 +41,8 @@ import shapely.geometry
 import shapely.wkt
 import pyproj
 import geojson
+from pinyin import PinYin
+
 
 
 
@@ -70,6 +72,7 @@ DEM_NAME = 'YN_DEM'
 
 gDemExtractor = None
 gTowerDict = {}
+gPinYin = None
 
 AREA_DATA = {'zt':[u'永甘甲线',u'永发II回线', u'镇永甲线', u'永发I回线',u'甘大线',u'永甘乙线',u'甘镇线'],
              'km':[u'厂口曲靖I回', u'和平厂口I回', u'草和乙线', u'厂口七甸I回',u'七罗II回', u'厂口曲靖II回',u'草和甲线',u'草宝乙线',u'和平厂口II回', u'草宝甲线', u'七罗I回',u'大宝I回',u'宝七I回',u'宝七II回']
@@ -2496,18 +2499,46 @@ def merge_dem():
     #import gdal_merge
     #sys.exit(gdal_merge.main(sys.argv))
     
-    s = r'-o "D:\gis\YN_DEM.tif" '
-    
-    for root, dirs, files  in os.walk(r'D:\gis\demdata\zip', topdown=False):
+    s = r'-o "H:\gis\YN_DEM1.tif" '
+    l = []
+    for root, dirs, files  in os.walk(r'H:\gis\demdata\zip', topdown=False):
         for name in files:
             if len(re.findall(r'ASTGTM2_\w{7}_dem', name))>0:
                 p = os.path.join(root, name)
-                print(p)
-                s += '"%s" ' % p
+                l.append(p)
         #for name in dirs:
             #p = os.path.join(root, name)
-    print(s)  
 
+    argv = ['', '-o', r"H:\gis\YN_DEM1.tif",]
+    for i in l:
+        print(i)
+        argv.append(i)
+    print(len(l))
+        
+    #print(argv)
+    import gdal_merge
+    gdal_merge.main(argv)
+
+def merge_dem2():
+    l = []
+    #for root, dirs, files  in os.walk(ur'H:\gis', topdown=False):
+    root = ur'H:\gis\demdata_srtm'
+    for name in os.listdir(root):
+        if len(re.findall(r'srtm_\d{2}_\d{2}', name))>0 and name[-4:] == '.tif':
+            p = os.path.join(root, name)
+            l.append(p)
+    #for name in dirs:
+        #p = os.path.join(root, name)
+
+    argv = ['', '-o', r"H:\gis\YN_DEM_SRTM.tif",]
+    for i in l:
+        print(i)
+        argv.append(i)
+    print(len(l))
+        
+    #print(argv)
+    import gdal_merge
+    gdal_merge.main(argv)
 
 def test_update_model_code(line_id):
     towers = odbc_get_records('TABLE_TOWER', "line_id='%s'" % line_id)
@@ -4568,7 +4599,6 @@ def test_merge_tif():
             if p[-4:]=='.tif':
                 print(p)
                 l.append(p)
-    s = ''
     argv = ['', '-o', os.path.join(d, 'zt.tif'),]
     for i in l:
         argv.append(i)
@@ -5564,7 +5594,7 @@ def copy_tiles_as_esri(area, minzoom, maxzoom):
  
 
 
-def convert_shp_to_geojson_feature(shp, piny):
+def convert_shp_to_mongo(shp, piny):
     def tuple_to_list(obj):
         if isinstance(obj, tuple):
             l = []
@@ -5587,7 +5617,9 @@ def convert_shp_to_geojson_feature(shp, piny):
         return obj
                 
         
-        
+    POINTDEF = ['hotel', 'restaurant', 'mall',  'exitentrance', 'village', 'building', 'subcity', 'busstop', 'park',  'provincecapital', 'rollstop', 'parker', 'county', 'school', 'chemistsshop', 'hospital', 'bank', 'town', ]
+    #LINESTRINGDEF = ['speedway', 'heighway', 'nationalroad',  'provinceroad', 'railway', ]#'countyroad','villageroad',
+    LINESTRINGDEF = ['countyroad',]#'villageroad',]
     ret = []
     shpname = os.path.basename(shp)
     shpname = shpname.replace('.shp','')
@@ -5596,7 +5628,10 @@ def convert_shp_to_geojson_feature(shp, piny):
         if shpname == GEOJSONSHAPEMAPPING[k] and not k in ['subway',]:
             key = k
             break
-    if key:
+    if key :
+        if not key in LINESTRINGDEF:
+            return ret
+        print('%s%s' % (key, GEOJSONSHAPEMAPPING[key]))
         reader = shapefile.Reader(shp)
         fields = reader.fields[1:]
         field_names = [field[0] for field in fields]
@@ -5620,8 +5655,20 @@ def convert_shp_to_geojson_feature(shp, piny):
                     pass
             geom = tuple_to_list(sr.shape.__geo_interface__)
             #geom = chop(geom, bound)
+            webgis_type = ''
             if geom:
-                ret.append(dict(type="Feature",  geometry=geom, properties=atr)) 
+                obj = dict(type="Feature",  geometry=geom, properties=atr)
+                if obj['geometry']['type'] == 'Point':
+                    if key in POINTDEF :
+                        webgis_type = 'point_' + key
+                if obj['geometry']['type'] == 'LineString':
+                    if key in LINESTRINGDEF:
+                        webgis_type = 'polyline_' + key
+                if len(webgis_type)>0:
+                    obj['properties']['webgis_type'] = webgis_type
+                    if key in POINTDEF or key in LINESTRINGDEF:
+                        obj = update_geometry2d(obj, True)
+                    ret.append(obj) 
     return ret
 
     
@@ -5725,8 +5772,6 @@ def convert_shp_to_geojson(area, bound, shp, piny):
                     pass
             #print('%s=%s' % (dec(atr['NAME']), atr['py']))
             geom = sr.shape.__geo_interface__
-            #if not geom['type'] in ['LineString', 'MultiLineString', 'Point','MultiPolygon','Polygon']:
-                #print(geom)
             geom = chop(geom, bound)
             if geom:
                 buf.append(dict(type="Feature",  geometry=geom, properties=atr)) 
@@ -5748,13 +5793,17 @@ def convert_shp_to_geojson(area, bound, shp, piny):
         #except:
             #pass
             
-            
+def get_pinyin_data():
+    global gPinYin
+    if gPinYin is None:
+        pydatapath = os.path.join(module_path(), 'pinyin_word.data');
+        gPinYin =  PinYin(pydatapath)
+        gPinYin.load_word()
+    return gPinYin
+        
              
 def gen_geojson_by_shape(area = None):
-    from pinyin import PinYin
-    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
-    piny =  PinYin(pydatapath)
-    piny.load_word()
+    piny = get_pinyin_data()
     bounds = None
     if area:
         p = os.path.abspath(SERVERJSONROOT)
@@ -5767,43 +5816,26 @@ def gen_geojson_by_shape(area = None):
             #if i == u'村.shp':
             convert_shp_to_geojson(area, bounds,  p, piny)
             
-def test_import_geojson_feature_by_shape():
+def test_import_shape_to_mongo():
     global gClientMongo
-    from pinyin import PinYin
-    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
-    piny =  PinYin(pydatapath)
-    piny.load_word()
-    geojson = {}
+    piny = get_pinyin_data()
+    geojson = []
     for i in os.listdir(SHAPEROOT):
         p = os.path.join(SHAPEROOT, i)
         if os.path.isfile(p) and i[-4:]=='.shp':
-            if i in [u'省界.shp', u'市界.shp', u'县界.shp']:
-                if not geojson.has_key('poi_border'):
-                    geojson['poi_border'] = []
-                geojson['poi_border'].extend(convert_shp_to_geojson_feature(p, piny))
-            #if i in [u'国道.shp', u'省道.shp', u'铁路.shp', u'高速.shp',  u'城市快速路.shp', ]:#u'县道.shp',]:
-                #if not geojson.has_key('poi_road'):
-                    #geojson['poi_road'] = []
-                #geojson['poi_road'].extend(convert_shp_to_geojson_feature(p, piny))
-    for k in geojson.keys():
-        print('%s:%d' % (k, len(geojson[k])))
-        #if len(geojson[k]) > 0:
-            #for i in range(10):
-                #print(geojson[k][-i])
-                
-    ks = ['poi_border',]            
-    host, port = 'localhost', 27017
+            #if i in [u'省界.shp', u'市界.shp', u'县界.shp']:
+            geojson.extend(convert_shp_to_mongo(p, piny))
+            #if len(geojson)>0:
+                #break
+    #if True:return
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo['kmgd']
-
-        for k in ks:
-            if k in db.collection_names(False):
-                db.drop_collection(k)
+        mongo_init_client()
+        db = gClientMongo['feature_yn']
+        if not 'features' in db.collection_names(False):
             collection = db.create_collection(k)
-            for i in geojson[k]:
-                collection.save(i)
+        collection = db['features']   
+        for i in geojson:
+            collection.save(i)
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message
@@ -5837,7 +5869,7 @@ def gen_geojson_by_tunnel_devices(area, piny):
         o['properties']['NAME'] = tun['equip_name']
         o['properties']['py'] = ''
         try:
-            o['properties']['py'] = piny.hanzi2pinyin_first_letter(tun['equip_name'].replace('#','').replace('I',u'一').replace('II',u'二'))
+            o['properties']['py'] = piny.hanzi2pinyin_first_letter(tun['equip_name'].replace('#','').replace('II',u'二').replace('I',u'一'))
         except:
             pass
         for k in tun.keys():
@@ -5938,7 +5970,7 @@ def gen_geojson_by_potential_risk(area, piny):
         o['properties']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
         o['properties']['py'] = ''
         try:
-            o['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('I',u'一').replace('II',u'二'))
+            o['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('II',u'二').replace('I',u'一'))
             #print(o['properties']['py'])
         except:
             print(sys.exc_info()[1])
@@ -6003,7 +6035,7 @@ def gen_geojson_by_line_id(line_id, area, piny):
             o['properties']['NAME'] = line[k]
             o['properties']['py'] = ''
             try:
-                o['properties']['py'] = piny.hanzi2pinyin_first_letter(line[k].replace('#','').replace('I',u'一').replace('II',u'二'))
+                o['properties']['py'] = piny.hanzi2pinyin_first_letter(line[k].replace('#','').replace('II',u'二').replace('I',u'一'))
             except:
                 pass
         o['properties'][k] = line[k]
@@ -6032,7 +6064,7 @@ def gen_geojson_by_line_id(line_id, area, piny):
                 tower_obj['properties']['NAME'] = tower[k]
                 tower_obj['properties']['py'] = ''
                 try:
-                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('I',u'一').replace('II',u'二'))
+                    tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower[k].replace('#','').replace('II',u'二').replace('I',u'一'))
                 except:
                     pass
             tower_obj['properties'][k] = tower[k]
@@ -6058,10 +6090,7 @@ def gen_geojson_by_line_id(line_id, area, piny):
     return line_obj, towers_obj
     
 def gen_geojson_by_lines(area):
-    from pinyin import PinYin
-    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
-    piny =  PinYin(pydatapath)
-    piny.load_word()
+    piny = get_pinyin_data()
     ret = {}
     ret['line'] = {}
     ret['towers'] = {}
@@ -6681,9 +6710,6 @@ def gen_mongo_geojson_by_line_id(alist, line_id, area, piny, mapping, refer_mapp
             continue
         id = mapping[tower['id']]
         idold = mapping[tower['id']]
-        #print(id)
-        #if id == '53a8f01cca49c818b8aeaf30':
-            #print('here')
         if refer_mapping.has_key(id):
             id = refer_mapping[id]
             tower = get_refer_tower_by_refer_id(mapping, id)
@@ -6693,7 +6719,7 @@ def gen_mongo_geojson_by_line_id(alist, line_id, area, piny, mapping, refer_mapp
         if refer_mapping.has_key(idold):
             tower_name += ',' + tower['tower_name']
             
-        x, y, z = tower['geo_x'], tower['geo_y'], tower['geo_z']
+        x, y, z = tower['geo_x'], tower['geo_y'], extract_one_altitude(tower['geo_x'], tower['geo_y'])
         if z is None:
             z = 0.0
         if x and y:
@@ -6712,26 +6738,17 @@ def gen_mongo_geojson_by_line_id(alist, line_id, area, piny, mapping, refer_mapp
         tower_obj['geometry2d']['coordinates'] = [x, y]
         tower_obj['type'] = 'Feature'
         tower_obj['properties'] = {}
+        tower_obj['properties']['webgis_type'] = 'point_tower'
         for k in tower.keys():
             if isinstance(tower[k], unicode):
                 #tower[k] = tower[k]
                 pass
             if k=='line_id':
-                #if not tower_obj['properties'].has_key('line_id'):
-                    #tower_obj['properties']['line_id'] = []
-                #tower_obj['properties']['line_id'].append(tower[k])
                 continue
             elif k=='id':
                 tower_obj['_id'] = ObjectId(id)
                 
             elif k=='same_tower':
-                #if not tower[k] == '00000000-0000-0000-0000-000000000000':
-                    #st = odbc_get_records('TABLE_TOWER', "id='%s'" % tower[k], area)
-                    #if len(st)>0:
-                        #lindid = st[0]['line_id']
-                        #if not tower_obj['properties'].has_key('line_id'):
-                            #tower_obj['properties']['line_id'] = []
-                        #tower_obj['properties']['line_id'].append(lindid)
                 continue
             elif k=='tower_name':
                 tower_obj['properties'][k] = tower_name
@@ -6912,6 +6929,69 @@ def find_extent(data):
         ret['north'] = max(yl)
     return ret
 
+def remove_geometry2d(obj = {}):
+    if obj.has_key('geometry2d'):
+        del obj['geometry2d']
+    return obj
+    
+    
+    
+def update_geometry2d(adict = {}, z_aware = False):
+    def add_alt(coord, z_aware):
+        if isinstance(coord, list) and len(coord)==2 and isinstance(coord[0], float) and z_aware:
+            coord.append(extract_one_altitude(coord[0], coord[1]))
+        elif isinstance(coord, list) and len(coord)==3 and isinstance(coord[0], float) and coord[2]==0 and z_aware:
+            coord[2] = extract_one_altitude(coord[0], coord[1])
+        elif isinstance(coord, list) and isinstance(coord[0], list):
+            l = []
+            for i in coord:
+                l.append(add_alt(i, z_aware))
+            coord = l
+        return coord
+    def remove_alt(coord):
+        if isinstance(coord, list) and isinstance(coord[0], float) and len(coord)==3:
+            coord = coord[:2]
+        elif isinstance(coord, list) and isinstance(coord[0], list):
+            l = []
+            for i in coord:
+                l.append(remove_alt(i))
+            coord = l
+        return coord
+    
+    def add_pinyin(adict):
+        name = None
+        if adict.has_key('properties') and adict['properties'].has_key('name'):
+            name = adict['properties']['name']
+        if adict.has_key('properties') and adict['properties'].has_key('NAME'):
+            name = adict['properties']['NAME']
+            adict['properties']['name'] = name
+            del adict['properties']['NAME']
+        if adict.has_key('properties') and adict['properties'].has_key('tower_name'):
+            name = adict['properties']['tower_name']
+        if adict.has_key('properties') and adict['properties'].has_key('line_name'):
+            name = adict['properties']['line_name']
+        if name and len(name)>0 and adict.has_key('properties') and not adict['properties'].has_key('py'):
+            try:
+                piny = get_pinyin_data()
+                adict['properties']['py'] = piny.hanzi2pinyin_first_letter(name.replace('#','').replace('II',u'二').replace('I',u'一'))
+            except:
+                pass
+        return adict
+        
+        
+    if adict.has_key('geometry'):
+        coord = adict['geometry']['coordinates']
+        adict['geometry']['coordinates'] = add_alt(coord, z_aware)
+        if not adict.has_key('geometry2d'):
+            adict['geometry2d'] = {}
+            adict['geometry2d']['type'] = adict['geometry']['type']
+        adict['geometry2d']['coordinates'] = remove_alt(coord)
+            
+        adict = add_pinyin(adict)
+    return adict
+    
+    
+    
 def mongo_action(dbname, collection_name, action, data, conditions={}):
     global gClientMongo, gConfig
     ret = []
@@ -6919,17 +6999,32 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
         mongo_init_client()
         if dbname in gClientMongo.database_names():      
             db = gClientMongo[dbname]
-            if collection_name in db.collection_names():
-                if action.lower() == 'save':
+            if action.lower() == 'save':
+                if collection_name in db.collection_names() : 
                     data = add_mongo_id(data)
+                    z_aware = False
+                     
                     if isinstance( data, list):
                         for i in data:
+                            if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
+                                if 'point_' in i['properties']['webgis_type'] or 'polyline_' in i['properties']['webgis_type']:
+                                    z_aware = True
+                                i = update_geometry2d(i, z_aware)
                             db[collection_name].save(i)
                     if isinstance(data, dict):
+                        if data.has_key('properties') and data['properties'].has_key('webgis_type'):
+                            if 'point_' in data['properties']['webgis_type'] or 'polyline_' in data['properties']['webgis_type']:
+                                z_aware = True
+                            data = update_geometry2d(data, z_aware)
                         db[collection_name].save(data)
-                    ret = mongo_find(dbname, collection_name, conditions)
+                    ret = []
+                else:
+                    s = 'collection [%s] does not exist.' % collection_name
+                    raise Exception(s)
             elif action.lower() == 'pinyinsearch':
                 arr = []
+                tyarr = []
+                limit = 100
                 if collection_name in db.collection_names():
                     arr.append(collection_name)
                 if '*' in collection_name:
@@ -6938,8 +7033,14 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                     arr = collection_name.split(';')
                 if not data.has_key('py'):
                     arr = []
+                if data.has_key('type'):
+                    tyarr = data['type']
+                    #tyarr = map(lambda x:str(x), data['type'])
+                if data.has_key('limit'):
+                    limit = data['limit']
                 for i in arr:
-                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}}, limit=100))
+                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                #print(ret)
             elif action.lower() == 'modelslist':
                 for i in os.listdir(SERVERGLTFROOT):
                     if i[-4:].lower() == '.bin':
@@ -6954,15 +7055,18 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                     ret.append(calc_buffer(geojsonobj, conditions['distance']))
                 else:
                     raise Exception('buffer calculation need geojson object')
-            else:
-                print('collection [%s] does not exist.' % collection_name)
+            #else:
+                #s = 'collection [%s] does not exist.' % collection_name
+                #raise Exception(s)
         else:
-            print('database [%s] does not exist.' % dbname)
+            s = 'database [%s] does not exist.' % dbname
+            raise Exception(s)
     except:
         traceback.print_exc()
         #err = sys.exc_info()[1].message
         #print(err)
-        ret = []
+        #ret = []
+        raise
     return ret
 
 
@@ -7263,7 +7367,7 @@ def build_mongo_conditions(obj):
                 obj[k] = build_mongo_conditions(obj[k])
     return obj
     
-def add_mongo_id(obj):
+def add_mongo_id(obj, objidkeys = ['_id', u'_id',]):
     if isinstance(obj, str) or isinstance(obj, unicode):
         try:
             obj = ObjectId(obj)
@@ -7286,7 +7390,10 @@ def add_mongo_id(obj):
         return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
+            if k in objidkeys and obj[k] is None:
+                obj[k] = ObjectId()
             obj[k] = add_mongo_id(obj[k])
+                
     elif isinstance(obj, list):
         for i in obj:
             obj[obj.index(i)] = add_mongo_id(i)
@@ -7302,6 +7409,7 @@ def remove_mongo_id(obj):
     elif isinstance(obj, dict):
         for k in obj.keys():
             obj[k] = remove_mongo_id(obj[k])
+        obj = remove_geometry2d(obj)
     elif isinstance(obj, list):
         for i in obj:
             obj[obj.index(i)] = remove_mongo_id(i)
@@ -7526,11 +7634,7 @@ def get_tower_refer_mapping(db_name):
 
 def test_mongo_import_towers(db_name, area):
     global gClientMongo
-    from pinyin import PinYin
-    
-    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
-    piny =  PinYin(pydatapath)
-    piny.load_word()
+    piny = get_pinyin_data()
     lines = odbc_get_records('TABLE_LINE', '1=1', area)
     l = []
     mapping = get_tower_id_mapping(db_name)
@@ -7701,10 +7805,7 @@ def get_line_id_mapping(db_name):
     
 def test_mongo_import_line(db_name, area):
     global gClientMongo
-    from pinyin import PinYin
-    pydatapath = os.path.join(module_path(), 'pinyin_word.data');
-    piny =  PinYin(pydatapath)
-    piny.load_word()
+    piny = get_pinyin_data()
     try:
         mongo_init_client()
         db = gClientMongo[db_name]
@@ -8677,14 +8778,14 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     db_name, area = 'kmgd', 'km'
-    #db_name, area = 'ztgd', 'zt'
+    db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)
     #mongo_import_same_tower_mapping(db_name, area)
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
-    test_mongo_import_towers(db_name, area)
+    #test_mongo_import_towers(db_name, area)
     #print(len(get_tower_refer_mapping(db_name).keys()))
     #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
@@ -8708,5 +8809,8 @@ if __name__=="__main__":
     #test_httpclient()
     #l = mongo_find(db_name, 'features', {'_id':'53a8f01cca49c818b8aeaf30'})
     #print(l[0]['properties']['tower_name'])
+    
+    #test_import_shape_to_mongo()
+    #merge_dem2()
     
     

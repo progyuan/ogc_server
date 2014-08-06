@@ -13,8 +13,9 @@
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
 	<link rel="stylesheet" href="css/DrawHelper.css" />
 	<link rel="stylesheet" href="css/kmgd-tools.css" />
-	<!--<link rel="stylesheet" href="css/bootstrap.min.css" />-->
-	<!--<link rel="stylesheet" href="css/blueimp-gallery.min.css">-->
+	<link rel="stylesheet" href="css/tooltipster.css" />
+	<link rel="stylesheet" href="css/icheck-skins/all.css" />
+	<!--<link rel="stylesheet" href="css/icheck-skins/polaris/polaris.css" />-->
 	<!-- CSS to style the file input field as button and adjust the Bootstrap progress bars -->
 	<link rel="stylesheet" href="css/jquery.fileupload.css">
 	<link rel="stylesheet" href="css/jquery.fileupload-ui.css">
@@ -30,7 +31,7 @@
     <script type="text/javascript" src="js/jquery/jquery-ui-1.10.4.custom.js"></script>
     <!--<script type="text/javascript" src="js/jquery/jquery.mousewheel.js"></script>-->
     <!--<script type="text/javascript" src="js/jquery/jquery.mCustomScrollbar.js"></script>-->
-    <!--<script type="text/javascript" src="js/iscroll.js"></script>-->
+    <script type="text/javascript" src="js/icheck.js"></script>
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.validate.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.metadata.js"></script>
@@ -43,7 +44,7 @@
     <script type="text/javascript" src="js/jssor.core.js"></script>
     <script type="text/javascript" src="js/jssor.utils.js"></script>
     <script type="text/javascript" src="js/jssor.slider.js"></script>
-	<!--<script type="text/javascript" src="js/jquery/jquery.ui.widget.js"></script>-->
+	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
@@ -64,6 +65,40 @@
 	<div id="button_search" ></div>
 	<div id="text_search_waiting" >输入关键字拼音首字母</div>
 	<input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
+	<div id="div_search_option">
+		<div id="div_search_option_toggle">
+			<label>更多选项&gt;&gt;</label>
+		</div>
+		<div id="div_search_option_panel">
+			<fieldset>
+				<legend>搜索范围 - 地标</legend>
+				<div>
+					<div><input id='chb_search_webgis_type_point_tower' type='checkbox'><label for='chb_search_webgis_type_point_tower'>杆塔</label></div>
+					<div><input id='chb_search_webgis_type_point_marker' type='checkbox'><label for='chb_search_webgis_type_point_marker'>地标</label></div>
+					<div><input id='chb_search_webgis_type_point_hazard' type='checkbox'><label for='chb_search_webgis_type_point_hazard'>隐患点</label></div>
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>搜索范围 - 地点</legend>
+				<div>
+					<div><input id='chb_search_webgis_type_point_subcity' type='checkbox'><label for='chb_search_webgis_type_point_subcity'>地市</label></div>
+					<div><input id='chb_search_webgis_type_point_county' type='checkbox'><label for='chb_search_webgis_type_point_county'>区县</label></div>
+					<div><input id='chb_search_webgis_type_point_town' type='checkbox'><label for='chb_search_webgis_type_point_town'>乡镇</label></div>
+					<div><input id='chb_search_webgis_type_point_village' type='checkbox'><label for='chb_search_webgis_type_point_village'>村寨</label></div>
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>搜索范围 - 道路</legend>
+				<div>
+					<div><input id='chb_search_webgis_type_polyline_nationalroad' type='checkbox'><label for='chb_search_webgis_type_polyline_nationalroad'>国道</label></div>
+					<div><input id='chb_search_webgis_type_polyline_provinceroad' type='checkbox'><label for='chb_search_webgis_type_polyline_provinceroad'>省道</label></div>
+					<div><input id='chb_search_webgis_type_polyline_heighway' type='checkbox'><label for='chb_search_webgis_type_polyline_heighway'>高速路</label></div>
+				</div>
+			</fieldset>
+		
+		</div>
+		
+	</div>
 </div>
 
 
@@ -75,23 +110,65 @@
 <div id="control_toolpanel_kmgd">
 	<div id="accordion_tools">
 	  <h3>地图图层</h3>
-	  <div style="min-height:100px;">
-			<input id='chb_show_label' type='checkbox'><label for='chb_show_label'>显示标签文字</label>
+	  <div style="min-height:200px;">
+		<fieldset>
+			<legend>杆塔</legend>
+			<div>
+				<input id='chb_show_label_point_tower' type='checkbox'><label for='chb_show_label_point_tower'>显示杆塔名称</label>
+			</div>
+		</fieldset>
+		<fieldset>
+			<legend>地标</legend>
+			<div>
+				<input id='chb_show_label_point_marker' type='checkbox'><label for='chb_show_label_point_marker'>显示地标名称</label>
+			</div>
+		</fieldset>
+		<fieldset>
+			<legend>线路</legend>
+			<div>
+				<input id='chb_show_label_polyline_line' type='checkbox'><label for='chb_show_label_polyline_line'>显示线路名称</label>
+			</div>
+		</fieldset>
 	  </div>
 	  <h3>POI设置</h3>
-	  <div style="min-height:100px;">
+	  <div style="min-height:200px;">
 		 <div id='but_add_poi'></div>
 	  </div>
 	</div>	
 </div>
 
 <div id="dlg_poi_info" >
-	<div id='dlg_confirm_poi'><div></div>
-	</div>
-	<div id='dlg_message_poi'><div></div>
-	</div>
-	<form id="form_poi_info">
-	</form>
+	<div id='dlg_confirm_poi'><div></div></div>
+	<div id='dlg_message_poi'><div></div></div>
+	<div id="div_select_poi_type"></div>
+	<fieldset   style="color:#00FF00;border:1px solid #00FF00;margin:0px;"><legend style="font-weight:bolder;color:#00FF00;">类型</legend>
+		<span style="margin:20px;">
+			<label for="select_poi_type" style="display:inline-block;text-align:right;width:100px;">兴趣点类型:</label>
+			<select style="width:200px;" id="select_poi_type" name="select_poi_type"></select>
+		</span>
+	</fieldset>
+	<p></p>
+	<span>
+		<form id="form_poi_info_point_marker"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_point_hazard"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_point_tower"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_polyline_road"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_polyline_hazard"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_polygon_area"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_polygon_hazard"></form>
+	</span>
 </div>
 
 

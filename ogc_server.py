@@ -1372,7 +1372,7 @@ def geojson_to_czml(aList):
             #tower
             if i['properties'].has_key('tower_code'):
                 packet = czml.CZMLPacket(id=i['properties']['id'], name=i['properties']['tower_name'])
-                packet.position = czml.Position(cartographicDegrees = [i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['properties']['geo_z'],])
+                packet.position = czml.Position(cartographicDegrees = [i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['geometry']['coordinates'][2],])
                 packet.point = czml.Point(show=True, color={'rgba': [255, 255, 0, 255]}, pixelSize=10, outlineColor={'rgba': [0, 0, 0, 255]}, outlineWidth=1)
                 #packet.label = czml.Label(text=i['properties']['tower_name'], show=True, scale=0.5)
                 packet.description = i['properties']['tower_name']

@@ -86,13 +86,67 @@
 	opacity:0.4;
     position: absolute;
     top: 10px;
-    left: 100px;
-    width: 400px;
+    left: 180px;
+    width: 230px;
 	display:none;
 	font-size: 1.4em;
 	border:0px;
 	z-index:30;
 }
+
+#div_search_option
+{
+    position: absolute;
+    top: 48px;
+    left: 48px;
+	color:#00FF00;
+	background:#000000;
+    width: 400px;
+	height:16px;
+	display:none;
+	border:1px solid #00FF00;
+	/*z-index:10;*/
+}
+
+#div_search_option_toggle
+{
+	font-size: 0.5em;
+	float:right;
+}
+#div_search_option_panel
+{
+	color:#00FF00;
+	background:#000000;
+    width: 400px;
+	height:290px;
+	display:none;
+	border:1px solid #00FF00;
+	font-size: 0.9em;
+}
+
+#div_search_option_panel fieldset
+{
+	color:#00FF00;
+	border:1px solid #00FF00;
+	margin:10px;
+}
+#div_search_option_panel fieldset legend
+{
+	font-weight:bolder;
+	color:#00FF00;
+}
+#div_search_option_panel fieldset div div
+{
+	margin:10px;
+	float:left;
+}
+#div_search_option_panel fieldset div div label
+{
+	vertical-align:middle;
+	line-height:40px;
+}
+
+
 #dlg_tower_info{
 	display:none;
 }
@@ -765,3 +819,42 @@ input[type="button"].btn-block {
 	/*color:#000000;*/
 	border-radius: 5px;
 }
+
+
+.kmgd-icon-selectable {float: right;  list-style-type: none; margin: 0; padding: 2px; height:68px}
+
+.kmgd-icon-selectable .ui-selecting { background: #009900; }
+.kmgd-icon-selectable .ui-selected { background: #009900; color: white; }
+.kmgd-icon-selectable li { margin: 2px; padding: 0px; float: left; width: 32px; height: 32px; }
+.kmgd-icon-highlight{
+	background-color: #005500;
+}
+.icon-selector-marker{
+	background: #000000 url(img/location_marker.png) 100% 100% no-repeat;
+	background-size:32px 32px;
+	background-position:center;
+}
+
+.icon-selector-tower{
+	background: #000000 url(img/tower.png) 100% 100% no-repeat;
+	background-size:32px 32px;
+	background-position:center;
+}
+
+#accordion_tools div fieldset
+{
+	color:#00FF00;
+	border:1px solid #00FF00;
+	margin:5px;
+}
+#accordion_tools div fieldset legend
+{
+	font-weight:bolder;
+	color:#00FF00;
+}
+
+#accordion_tools div fieldset div
+{
+	margin:5px;
+}
+

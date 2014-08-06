@@ -44,7 +44,7 @@ var g_grd_flds = [
 	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'接地装置',  width:275},
 	{display: "型号", id: "model", newline: true,  type: "text", group:'接地装置', width:275},
 	{display: "数量", id: "count", newline: true,  type: "spinner", step:1, min:0,max:100, group:'接地装置', width:70, validate:{number: true}},
-	{display: "埋深", id: "depth", newline: false,  type: "spinner", step:0.1, min:0,max:100, group:'接地装置', width:80, validate:{number: true}},
+	{display: "埋深", id: "depth", newline: false,  type: "spinner", step:0.1, min:0.0,max:100.0, group:'接地装置', width:80, validate:{number: true}},
 	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'接地装置', width:275},
 	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'接地装置', width:275}
 ];
