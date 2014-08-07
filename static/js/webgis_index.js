@@ -1,7 +1,8 @@
 var g_drawhelper;
 var g_selected_obj_id;
+var g_selected_obj;
+var g_prev_selected_obj;
 var g_prev_selected_id;
-var g_prev_selected_pos;
 var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
@@ -719,7 +720,7 @@ function InitSearchBox(viewer)
 {
 	$('#button_search_clear').on( 'click', function(){
 		var v = $('#input_search').val();
-		console.log(v);
+		//console.log(v);
 		if(v.length>0)
 		{
 			$('#input_search').val('');
@@ -905,9 +906,10 @@ function BuildSearchItemList(data)
 
 function ShowSearchResult(viewer, geojson)
 {
+	//console.log(geojson);
 	if(geojson['_id'])
 	{
-		if(geojson['properties'] && geojson['properties']['tower_name'])
+		if(geojson['properties'] && (geojson['properties']['tower_name'] || geojson['properties']['line_name'] || geojson['properties']['name']))
 		{
 			var _id = geojson['_id'];
 			if(!g_geojsons[_id])
@@ -916,7 +918,7 @@ function ShowSearchResult(viewer, geojson)
 			}
 			if(!g_czmls[_id])
 			{
-				g_czmls[_id] = CreateTowerCzmlFromGeojson(geojson);
+				g_czmls[_id] = CreatePointCzmlFromGeojson(geojson);
 				ReloadCzmlDataSource(viewer, g_zaware);
 			}
 		}
@@ -924,76 +926,155 @@ function ShowSearchResult(viewer, geojson)
 }
 
 
-function CreateLineCzmlFromGeojson(geojson, color)
+function CreatePolyLineCzmlFromGeojson(geojson)
 {
+	var get_line_style = function(geojson){
+		var ret = {};
+		var color = '#000000';
+		if(geojson.properties.voltage == '13')
+		{
+			color = '#FF0000';
+		}
+		if(geojson.properties.voltage == '15')
+		{
+			color = '#0000FF';
+		}
+		var rgba = tinycolor(color).toRgb();
+		rgba.a = Math.floor(0.5 * 256);
+		ret['color'] = [ rgba.r , rgba.g , rgba.b , rgba.a ];
+		ret['outlineColor'] = [ 0, 0, 0, 255 ];
+		ret['outlineWidth'] = 1;
+		ret['labelFillColor'] = [255, 128, 0, 255];
+		ret['labelOutlineColor'] = [0, 0, 0, 255];
+		ret['labelScale'] = 1;
+		return ret;
+	};
+
 	var get_center = function(positions){
 		var i0 = Math.floor(positions.length/2);
 		var i1 = i0+1;
 		var i2 = i0+2;
 		return [positions[i0], positions[i1], positions[i2]];
 	};
-	var positions = GetVertexPositionsByTowerPairs(geojson['properties']['towers_pair']);
 	var cz = {};
-	var line_name = geojson['properties']['line_name'];
+	var name = '';
 	cz['id'] = geojson['_id'];
-	cz['name'] = line_name;
 	cz['webgis_type'] = 'polyline_line';
 	cz['position'] = {};
-	cz['position']['cartographicDegrees'] = get_center(positions);
 	cz['polyline'] = {};
 	cz['polyline']['positions'] = {};
-	cz['polyline']['positions']['cartographicDegrees'] = positions;
+	if(geojson['properties']['line_name'])
+	{
+		name = geojson['properties']['line_name'];
+		var positions = GetVertexPositionsByTowerPairs(geojson['properties']['towers_pair']);
+		cz['position']['cartographicDegrees'] = get_center(positions);
+		cz['polyline']['positions']['cartographicDegrees'] = positions;
+	}
+	else
+	{
+		name = geojson['properties']['name'];
+		var positions = GetVertexPositionsByGeojsonPolyline(geojson['geometry']);
+		cz['position']['cartographicDegrees'] = get_center(positions);
+		cz['polyline']['positions']['cartographicDegrees'] = positions;
+	}
+	cz['name'] = name;
 	cz['polyline']['material'] = {}
 	cz['polyline']['material']['solidColor'] = {}
-	cz['polyline']['material']['solidColor']['color'] = {'rgba':color};
+	var style;
+	if(geojson['properties']['voltage'])
+	{
+		style = get_line_style(geojson);
+	}else
+	{
+		style = g_style_polyline_mapping[geojson['properties']['webgis_type']];
+	}
+	cz['polyline']['material']['solidColor']['color'] = {'rgba':style.color};
 	cz['polyline']['width'] = {'number':3};
 	cz['polyline']['material']['polylineOutline'] = {}
-	cz['polyline']['material']['polylineOutline']['outlineColor'] = {'rgba': [0, 0, 0, 255]};
-	cz['polyline']['material']['polylineOutline']['outlineWidth'] = {'number':1};
+	cz['polyline']['material']['polylineOutline']['outlineColor'] = {'rgba': style.outlineColor};
+	cz['polyline']['material']['polylineOutline']['outlineWidth'] = {'number': style.outlineWidth};
 	cz['polyline']['show'] = {'boolean':true};
 	cz['label'] = {};
-	cz['label']['fillColor'] = {'rgba':[255, 128, 0, 255]};
+	cz['label']['fillColor'] = {'rgba': style.labelFillColor};
 	cz['label']['horizontalOrigin'] = 'LEFT';
-	cz['label']['outlineColor'] = {'rgba':[0, 0, 0, 255]};
-	cz['label']['pixelOffset'] = {'cartesian2':[10.0, 0.0]};
-	cz['label']['scale'] = {'number':1};
+	cz['label']['outlineColor'] = {'rgba': style.labelOutlineColor};
+	cz['label']['pixelOffset'] = {'cartesian2':[20.0, 0.0]};
+	cz['label']['scale'] = {'number': style.labelScale};
 	cz['label']['show'] = {'boolean':true};
 	cz['label']['style'] = 'FILL';
 	cz['label']['font'] = 'normal normal bold 32px arial';
-	cz['label']['text'] = line_name;
+	cz['label']['text'] = name;
 	cz['label']['verticalOrigin'] = 'CENTER';
-	cz['description'] = '<!--HTML-->\r\n<p>' + line_name + '</p>';
+	cz['description'] = '<!--HTML-->\r\n<p>' + name + '</p>';
 	return cz;
 }
 
-function CreateTowerCzmlFromGeojson(tower)
+function CreatePointCzmlFromGeojson(geojson)
 {
+	var get_tower_style = function(geojson){
+		var ret = {};
+		ret['color'] = [255, 255, 0, 255];
+		ret['outlineColor'] = [0, 0, 0, 255];
+		ret['outlineWidth'] = 1;
+		ret['pixelSize'] = 10;
+		ret['labelFillColor'] = [128, 255, 0, 255];
+		ret['labelOutlineColor'] = [255, 255, 255, 255];
+		ret['labelScale'] = 0.6;
+		return ret;
+	};
 	var cz = {};
-	//cz['id'] = tower['properties']['id'];
-	cz['id'] = tower['_id'];
-	cz['name'] = tower['properties']['tower_name'];
-	cz['webgis_type'] = 'point_tower';
+	cz['id'] = geojson['_id'];
+	cz['webgis_type'] = geojson['properties']['webgis_type'];
+	var name = '';
+	var style;
+	if(geojson['properties']['tower_name'])
+	{
+		name = geojson['properties']['tower_name'];
+		style = get_tower_style(geojson);
+	}
+	else
+	{
+		name = geojson['properties']['name'];
+		style = g_style_point_mapping[cz['webgis_type']];
+		cz['billboard'] = {};
+		cz['billboard']['color'] = {'rgba':[255, 255, 255, 255]};
+		cz['billboard']['horizontalOrigin'] = 'CENTER';
+		cz['billboard']['verticalOrigin'] = 'BOTTOM';
+		cz['billboard']['scale'] = {'number':1.0};
+		cz['billboard']['show'] = {'boolean':true};
+		var icon_img = 'img/marker30x48.png';
+		if(geojson['properties']['icon']) 
+		{
+			icon_img = g_style_point_mapping[geojson['properties']['icon']].icon_img;
+		}
+		else if(geojson['properties']['webgis_type'])
+		{
+			icon_img = style.icon_img;
+			if(!icon_img) icon_img = 'img/marker30x48.png';
+		}
+		cz['billboard']['image'] = {'uri':icon_img};
+	}
+	cz['name'] = name;
 	cz['position'] = {};
-	cz['position']['cartographicDegrees'] = [tower['geometry']['coordinates'][0], tower['geometry']['coordinates'][1], tower['geometry']['coordinates'][2]];
-	//cz['position']['cartographicDegrees'] = [tower['geometry']['coordinates'][0], tower['geometry']['coordinates'][1], 0];
+	cz['position']['cartographicDegrees'] = [geojson['geometry']['coordinates'][0], geojson['geometry']['coordinates'][1], geojson['geometry']['coordinates'][2]];
 	cz['point'] = {};
-	cz['point']['color'] = {'rgba':[255, 255, 0, 255]};
-	cz['point']['outlineColor'] = {'rgba': [0, 0, 0, 255]};
-	cz['point']['outlineWidth'] = {'number':1};
-	cz['point']['pixelSize'] = {'number':10};
+	cz['point']['color'] = {'rgba':style.color};
+	cz['point']['outlineColor'] = {'rgba': style.outlineColor};
+	cz['point']['outlineWidth'] = {'number': style.outlineWidth};
+	cz['point']['pixelSize'] = {'number': style.pixelSize};
 	cz['point']['show'] = {'boolean':true};
 	cz['label'] = {};
-	cz['label']['fillColor'] = {'rgba':[128, 255, 0, 255]};
+	cz['label']['fillColor'] = {'rgba': style.labelFillColor};
 	cz['label']['horizontalOrigin'] = 'LEFT';
-	cz['label']['outlineColor'] = {'rgba':[255, 255, 255, 255]};
-	cz['label']['pixelOffset'] = {'cartesian2':[10.0, 0.0]};
-	cz['label']['scale'] = {'number':0.6};
-	cz['label']['show'] = {'boolean':true};
-	cz['label']['style'] = 'FILL';//FILL, OUTLINE, FILL_AND_OUTLINE
+	cz['label']['verticalOrigin'] = 'BOTTOM';
+	cz['label']['outlineColor'] = {'rgba': style.labelOutlineColor};
+	cz['label']['pixelOffset'] = {'cartesian2':[20.0, 0.0]};
+	cz['label']['scale'] = {'number': style.labelScale};
+	cz['label']['show'] = {'boolean':false};
+	cz['label']['style'] = 'FILL';
 	cz['label']['font'] = 'normal normal bold 32px arial';
-	cz['label']['text'] = tower['properties']['tower_name'];
-	cz['label']['verticalOrigin'] = 'CENTER';
-	cz['description'] = '<!--HTML-->\r\n<p>' + tower['properties']['tower_name'] + '</p>';
+	cz['label']['text'] = name;
+	cz['description'] = '<!--HTML-->\r\n<p>' + name + '</p>';
 	return cz;
 }
 
@@ -1301,7 +1382,7 @@ function LoadTowerByLineName(viewer, db_name,  line_name,  callback)
 				}
 				if(!g_czmls[_id])
 				{
-					g_czmls[_id] = CreateTowerCzmlFromGeojson(geojson);
+					g_czmls[_id] = CreatePointCzmlFromGeojson(geojson);
 				}
 			}
 			//var cnt = 0;
@@ -1320,40 +1401,28 @@ function LoadTowerByLineName(viewer, db_name,  line_name,  callback)
 	});
 }
 
-function LoadLineByLineName(viewer, db_name, line_name, alpha, callback)
+function LoadLineByLineName(viewer, db_name, line_name, callback)
 {
-	var get_line_id_color = function(line_name){
-		var ret = {};
+	var get_line_id = function(line_name){
+		var ret;
 		for(var k in g_lines)
 		{
 			if(g_lines[k].properties.line_name == line_name)
 			{
-				var color = '#FF0000';
-				if(g_lines[k].properties.voltage == '13')
-				{
-					color = '#FF0000';
-				}
-				if(g_lines[k].properties.voltage == '15')
-				{
-					color = '#0000FF';
-				}
-				ret['id'] = k;
-				ret['color'] = color;
+				ret = k;
 				break;
 			}
 		}
 		return ret;
 	};
-	var idcolor = get_line_id_color(line_name);
+	var _id = get_line_id(line_name);
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	
-	var rgba = tinycolor(idcolor.color).toRgb();
-	rgba.a = Math.floor(0.5 * 256);
-	if(alpha) rgba.a = Math.floor(alpha * 256);
-	rgba = [ rgba.r , rgba.g , rgba.b , rgba.a ];
-	//console.log(rgba);
-	
-	var _id = idcolor.id;
+	if(!_id)
+	{
+		console.log(line_name + " does not exist");
+		return;
+	}
 	var cond = {'db':db_name, 'collection':'get_line_geojson', '_id':_id};
 	MongoFind(cond, function(data){
 		if(data.length>0)
@@ -1364,41 +1433,25 @@ function LoadLineByLineName(viewer, db_name, line_name, alpha, callback)
 			}
 			if(!g_czmls[_id])
 			{
-				g_czmls[_id] = CreateLineCzmlFromGeojson(data[0], rgba);
+				g_czmls[_id] = CreatePolyLineCzmlFromGeojson(data[0]);
 			}
 			ReloadCzmlDataSource(viewer, g_zaware);
-			//array = data[0]['geometry']['coordinates'];
-			//pairs = data[0]['properties']['towers_pair'];
-			////console.log(array);
-			//for(var i in array)
-			//{
-				//var poss = GetPositionsByGeojsonCoordinatesArray(ellipsoid, array[i]);
-				//var primitive = new Cesium.Primitive({
-					//geometryInstances : new Cesium.GeometryInstance({
-						//id:	line['_id'] + '_' + pairs[i][0] + '_' + pairs[i][1],
-						//geometry : new Cesium.PolylineGeometry({
-							//positions : poss,
-							//width : width,
-							//vertexFormat : Cesium.PolylineMaterialAppearance.VERTEX_FORMAT
-						//})
-					//}),
-					//appearance : new Cesium.PolylineMaterialAppearance({
-						//material : Cesium.Material.fromType('Color', {
-							//color : Cesium.Color.fromCssColorString(rgba)
-						//}),
-						//renderState : {
-							//depthTest : {
-								//enabled : false
-							//}
-						//}
-					//})
-				//});
-				//viewer.scene.primitives.add(primitive);
-				//g_geometry_lines[line['_id'] + '_' + + pairs[i][0] + '_' + pairs[i][1]] = primitive;
-			//}
 		}
 		if(callback) callback();
 	});
+}
+
+function GetVertexPositionsByGeojsonPolyline(geometry)
+{
+	var ret = [];
+	for(var i in geometry.coordinates)
+	{
+		var coord = geometry.coordinates[i];
+		ret.push(coord[0]);
+		ret.push(coord[1]);
+		ret.push(coord[2]);
+	}
+	return ret;
 }
 
 function GetVertexPositionsByTowerPairs(towers_pair)
@@ -1556,6 +1609,7 @@ function ReloadCzmlDataSource(viewer, z_aware)
 	{
 		viewer.selectedEntity = undefined;
 		g_selected_obj_id = undefined;
+		g_selected_obj = undefined;
 	}
 	var dataSource = GetDataSourcesByName(viewer, 'czml');
 	//var dataSource;
@@ -2016,61 +2070,81 @@ function TowerInfoMixin(viewer)
 		}
 	}
 
-	function pickAndSelectObject(e) {
+	function moveOverObject(e) {
+		var picked = viewer.scene.pick(e.endPosition);
+		if (Cesium.defined(g_selected_obj) && Cesium.defined(picked) && Cesium.defined(picked.id) && picked.id === g_selected_obj) 
+		{
+			var id = g_selected_obj.id;
+			if(g_geojsons[id] && g_geojsons[id]['properties']['name'])
+			{
+				ShowGeoTip(id, e.endPosition, g_geojsons[id]['properties']['name']);
+			}else if(g_geojsons[id] && g_geojsons[id]['properties']['tower_name'])
+			{
+				ShowGeoTip(id, e.endPosition, g_geojsons[id]['properties']['tower_name']);
+			}else if(g_geojsons[id] && g_geojsons[id]['properties']['line_name'])
+			{
+				ShowGeoTip(id, e.endPosition, g_geojsons[id]['properties']['line_name']);
+			}else 
+			{
+				ShowGeoTip(false);
+			}
+		}else 
+		{
+			ShowGeoTip(false);
+		} 
+	}
 	
+	function pickAndSelectObject(e) {
+		var clearselcolor = function(){
+			if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_prev_selected_obj.primitive instanceof Cesium.Primitive && g_primitive_appearance)
+			{
+				g_prev_selected_obj.primitive.appearance = g_primitive_appearance;
+			}
+			if(g_prev_selected_obj && g_prev_selected_obj.polyline && g_prev_selected_obj.polyline instanceof Cesium.PolylineGraphics && g_polyline_material_unselect)
+			{
+				g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
+			}
+		};
 		viewer.selectedEntity = pickTrackedEntity(e);
 		if (Cesium.defined(viewer.selectedEntity)) 
 		{
-			if (viewer.selectedEntity.primitive && viewer.selectedEntity.primitive instanceof Cesium.Primitive)
-			{
-				var id = viewer.selectedEntity.id;
-				g_primitive_appearance =  viewer.selectedEntity.primitive.appearance;
-				if(g_primitive_appearance.material)
-				{
-					viewer.selectedEntity.primitive.appearance = new Cesium.PolylineMaterialAppearance({
-							//material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
-							material : Cesium.Material.fromType('PolylineOutline',{
-								color:	g_primitive_appearance.material.uniforms.color,
-								outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
-								outlineWidth: 3.0
-							})
-							//material : Cesium.Material.fromType('Color', {
-								//color : Cesium.Color.fromCssColorString(rgba)
+			g_prev_selected_obj = g_selected_obj;
+			g_selected_obj = viewer.selectedEntity;
+			g_prev_selected_id = g_selected_obj_id;
+			var id = g_selected_obj_id = g_selected_obj.id;
+			//if (viewer.selectedEntity.primitive && viewer.selectedEntity.primitive instanceof Cesium.Primitive)
+			//{
+				//var id = viewer.selectedEntity.id;
+				//g_primitive_appearance =  viewer.selectedEntity.primitive.appearance;
+				//if(g_primitive_appearance.material)
+				//{
+					//viewer.selectedEntity.primitive.appearance = new Cesium.PolylineMaterialAppearance({
+							////material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
+							//material : Cesium.Material.fromType('PolylineOutline',{
+								//color:	g_primitive_appearance.material.uniforms.color,
+								//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
+								//outlineWidth: 3.0
 							//})
-						});
-					g_prev_selected_id = viewer.selectedEntity;
-				}
-			}
-			else if (viewer.selectedEntity.polyline && viewer.selectedEntity.polyline instanceof Cesium.PolylineGraphics)
+							////material : Cesium.Material.fromType('Color', {
+								////color : Cesium.Color.fromCssColorString(rgba)
+							////})
+						//});
+					//g_prev_selected_obj = viewer.selectedEntity;
+				//}
+			//}
+			if (viewer.selectedEntity.polyline && viewer.selectedEntity.polyline instanceof Cesium.PolylineGraphics)
 			{
-				var id = viewer.selectedEntity.id;
 				console.log('selected line id=' + id);
 				//console.log(viewer.selectedEntity);
 				g_polyline_material_unselect = viewer.selectedEntity.polyline.material;
 				viewer.selectedEntity.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('#00FFFF'));
-				g_prev_selected_id = viewer.selectedEntity;
 			}
-			else
+			else if (viewer.selectedEntity.point && viewer.selectedEntity.point instanceof Cesium.PointGraphics)
 			{
-				
-				if(g_prev_selected_id && g_prev_selected_id.primitive && g_prev_selected_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
-				{
-					g_prev_selected_id.primitive.appearance = g_primitive_appearance;
-				}
-				if(g_prev_selected_id && g_prev_selected_id.polyline && g_prev_selected_id.polyline instanceof Cesium.PolylineGraphics && g_polyline_material_unselect)
-				{
-					g_prev_selected_id.polyline.material = g_polyline_material_unselect;
-				}
-				//g_prev_selected_id = undefined;
-				//g_selected_obj_id = undefined;
-				
-				var id = viewer.selectedEntity.id;
-				g_prev_selected_pos = viewer.selectedEntity.position;
-				g_prev_selected_id = g_selected_obj_id;
-				g_selected_obj_id = id;
-				//console.log('selected id=' + id);
+				clearselcolor();
+				console.log('selected marker id=' + id);
 				//console.log('prev selected id=' + g_prev_selected_id);
-				if(g_prev_selected_id != g_selected_obj_id)
+				if(CheckIsTower(g_selected_obj_id) && g_prev_selected_id != g_selected_obj_id)
 				{
 					if(g_prev_selected_id)
 					{
@@ -2100,17 +2174,12 @@ function TowerInfoMixin(viewer)
 			}
 		}
 		else{
-			if(g_prev_selected_id && g_prev_selected_id.primitive && g_prev_selected_id.primitive instanceof Cesium.Primitive && g_primitive_appearance)
-			{
-				g_prev_selected_id.primitive.appearance = g_primitive_appearance;
-			}
-			if(g_prev_selected_id && g_prev_selected_id.polyline && g_prev_selected_id.polyline instanceof Cesium.PolylineGraphics && g_polyline_material_unselect)
-			{
-				g_prev_selected_id.polyline.material = g_polyline_material_unselect;
-			}
-			
+			ShowGeoTip(false);
+			clearselcolor();
+			g_prev_selected_obj = g_selected_obj;			
 			g_prev_selected_id = g_selected_obj_id;
 			g_selected_obj_id = undefined;
+			g_selected_obj = undefined;
 		}
 	}
 
@@ -2293,6 +2362,7 @@ function TowerInfoMixin(viewer)
 
 	viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(pickAndTrackObject, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+	viewer.screenSpaceEventHandler.setInputAction(moveOverObject, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
 	viewer.trackedEntity = undefined;
 
@@ -2375,6 +2445,16 @@ function ReloadLinePosition(viewer)
 			//DrawBufferOfLine(viewer, 'test', g_lines[k], 1000, 3000, '#FF0000', 0.2);
 		}
 	}
+}
+
+function CheckIsTower(id)
+{
+	var ret = false;
+	if(g_geojsons[id] && g_geojsons[id]['properties']['webgis_type'] && g_geojsons[id]['properties']['webgis_type'] === 'point_tower')
+	{
+		ret = true;
+	}
+	return ret;
 }
 
 function ReloadModelPosition(viewer)
@@ -3225,7 +3305,7 @@ function SaveTower(id)
 
 function SavePoi(data, callback)
 {
-	console.log(data);
+	//console.log(data);
 	var cond = {'db':g_db_name, 'collection':'features', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 
@@ -3239,6 +3319,7 @@ function SavePoi(data, callback)
 		{
 			ShowMessage('dlg_message_poi',400, 200, '成功','保存成功', callback);
 		}
+		if(callback) callback(data1);
 	});
 }
 
@@ -3949,8 +4030,23 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								if(v.indexOf('polyline')>-1) t = 'LineString';
 								if(v.indexOf('polygon')>-1) t = 'Polygon';
 								data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position)};
-								SavePoi(data, function(){
+								SavePoi(data, function(data1){
+									//console.log(data1);
 									that.dialog( "close" );
+									g_drawhelper.clearPrimitive();
+									if(data1 && data1.length>0)
+									{
+										for(var i in data1)
+										{
+											var geojson = data1[i];
+											var id = geojson['_id'];
+											if(!g_czmls[id])
+											{
+												g_czmls[id] = CreatePointCzmlFromGeojson(geojson);
+											}
+										}
+										ReloadCzmlDataSource(viewer, g_zaware);
+									}
 								});
 							},
 							function(){

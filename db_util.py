@@ -53,7 +53,7 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
 
     
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
-gClientMongo = None
+gClientMongo = {'default':None, 'geofeature':None,}
 gClientMongoTiles = {}
 ODBC_STRING = {}
 #print(gConfig.keys())
@@ -5619,7 +5619,7 @@ def convert_shp_to_mongo(shp, piny):
         
     POINTDEF = ['hotel', 'restaurant', 'mall',  'exitentrance', 'village', 'building', 'subcity', 'busstop', 'park',  'provincecapital', 'rollstop', 'parker', 'county', 'school', 'chemistsshop', 'hospital', 'bank', 'town', ]
     #LINESTRINGDEF = ['speedway', 'heighway', 'nationalroad',  'provinceroad', 'railway', ]#'countyroad','villageroad',
-    LINESTRINGDEF = ['countyroad',]#'villageroad',]
+    #LINESTRINGDEF = ['countyroad',]#'villageroad',]
     ret = []
     shpname = os.path.basename(shp)
     shpname = shpname.replace('.shp','')
@@ -5830,7 +5830,7 @@ def test_import_shape_to_mongo():
     #if True:return
     try:
         mongo_init_client()
-        db = gClientMongo['feature_yn']
+        db = gClientMongo['default']['feature_yn']
         if not 'features' in db.collection_names(False):
             collection = db.create_collection(k)
         collection = db['features']   
@@ -6385,38 +6385,6 @@ def test_tile_directory():
             ll.append(i)
     print(ll)
             
-def mongodb_get_server_tree(host, port):
-    ret = [{"id":u"root","text":u"服务器列表","isexpand":True, "children":[]}]
-    server = {"id":u"%s_%s" % (host, port), "type":"server", "text":u"%s:%s" % (host, port), "isexpand":True, "err":"", "children":[]}
-    try:
-        gClientMongo = MongoClient(host, int(port))
-        for dbname in gClientMongo.database_names():
-            if dbname != 'admin' and dbname != 'local':
-                db = {}
-                db["id"] = u"%s_%s_%s" % (host, port, dbname)
-                db["text"] = u"%s" % dbname
-                db["isexpand"] = True
-                db["type"] = "database"
-                db["children"] = []
-                dbo = gClientMongo[dbname]
-                for collectionname in dbo.collection_names():
-                    if collectionname != "system.indexes":
-                        collection = {}
-                        collection["id"] = u"%s_%s_%s_%s" % (host, port, dbname, collectionname)
-                        collection["text"] = u"%s" % collectionname
-                        collection["isexpand"] = True
-                        collection["type"] = "collection"
-                        collection["children"] = []
-                        db["children"].append(collection)
-                server["children"].append(db)
-    except:
-        traceback.print_exc()
-        server['err'] = sys.exc_info()[1].message
-        print("err=%s" % server['err'])
-        server["children"].append({"id":u"%s_%s_err" % (host, port), "text":u"Error:%s" % server['err']})
-    finally:
-        ret[0]["children"].append(server)
-    return ret
     
 
 def collation(lng, lat):
@@ -6992,32 +6960,36 @@ def update_geometry2d(adict = {}, z_aware = False):
     
     
     
-def mongo_action(dbname, collection_name, action, data, conditions={}):
+def mongo_action(dbname, collection_name, action, data, conditions={}, clienttype='default'):
     global gClientMongo, gConfig
     ret = []
     try:
-        mongo_init_client()
-        if dbname in gClientMongo.database_names():      
-            db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        if dbname in gClientMongo[clienttype].database_names():      
+            db = gClientMongo[clienttype][dbname]
             if action.lower() == 'save':
                 if collection_name in db.collection_names() : 
                     data = add_mongo_id(data)
                     z_aware = False
-                     
+                    ids = [] 
                     if isinstance( data, list):
                         for i in data:
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
                                 if 'point_' in i['properties']['webgis_type'] or 'polyline_' in i['properties']['webgis_type']:
                                     z_aware = True
                                 i = update_geometry2d(i, z_aware)
-                            db[collection_name].save(i)
+                            _id = db[collection_name].save(i)
+                            ids.append(str(_id))
                     if isinstance(data, dict):
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
                             if 'point_' in data['properties']['webgis_type'] or 'polyline_' in data['properties']['webgis_type']:
                                 z_aware = True
                             data = update_geometry2d(data, z_aware)
-                        db[collection_name].save(data)
+                        _id = db[collection_name].save(data)
+                        ids.append(str(_id))
                     ret = []
+                    if len(ids) > 0:
+                        ret = mongo_find(dbname, collection_name, conditions={'_id':ids})
                 else:
                     s = 'collection [%s] does not exist.' % collection_name
                     raise Exception(s)
@@ -7039,7 +7011,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}):
                 if data.has_key('limit'):
                     limit = data['limit']
                 for i in arr:
-                    ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                    if len(tyarr)>0:
+                        ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                if 'point_tower'in tyarr: tyarr.remove('point_tower')   
+                if u'point_tower'in tyarr: tyarr.remove(u'point_tower')   
+                if 'point_hazard'in tyarr: tyarr.remove('point_hazard')   
+                if u'point_hazard'in tyarr: tyarr.remove(u'point_hazard')   
+                if 'point_marker'in tyarr: tyarr.remove('point_marker')   
+                if u'point_marker'in tyarr: tyarr.remove(u'point_marker')   
+                if len(tyarr)>0:
+                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 #print(ret)
             elif action.lower() == 'modelslist':
                 for i in os.listdir(SERVERGLTFROOT):
@@ -7258,12 +7239,12 @@ def extract_many_altitudes(lnglatlist):
     return ret
     
 
-def mongo_remove(dbname, collection_name, conditions={}):
+def mongo_remove(dbname, collection_name, conditions={}, clienttype='default'):
     global gClientMongo, gConfig
     try:
-        mongo_init_client()
-        if dbname in gClientMongo.database_names():      
-            db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        if dbname in gClientMongo[clienttype].database_names():      
+            db = gClientMongo[clienttype][dbname]
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
@@ -7279,13 +7260,13 @@ def mongo_remove(dbname, collection_name, conditions={}):
 def mongo_geowithin(dbname, geojsonobj):
     return mongo_find(dbname, 'features', {'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}})
 
-def mongo_find(dbname, collection_name, conditions={}, limit=0):
+def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='default'):
     global gClientMongo, gConfig
     ret = []
     try:
-        mongo_init_client()
-        if dbname in gClientMongo.database_names():      
-            db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        if dbname in gClientMongo[clienttype].database_names():      
+            db = gClientMongo[clienttype][dbname]
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
@@ -7317,25 +7298,25 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0):
                 line = remove_mongo_id(db['lines'].find_one(conds))
                 ret.append(get_line_geojson(dbname, line))
             else:
-                print('collection [%s] does not exist.' % collection_name)
+                s = 'collection [%s] does not exist.' % collection_name
+                raise Exception(s)
         else:
-            print('database [%s] does not exist.' % dbname)
+            s = 'database [%s] does not exist.' % dbname
+            raise Exception(s)
     except:
         traceback.print_exc()
         #err = sys.exc_info()[1].message
-        #print(err)
         ret = []
-    #print(conditions)
-    #print(len(ret))
     return ret
 
-def mongo_find_one(dbname, collection_name, conditions):
+
+
+def mongo_find_one(dbname, collection_name, conditions, clienttype='default'):
     global gClientMongo
     ret = None
     try:
-        mongo_init_client()
-                
-        db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        db = gClientMongo[clienttype][dbname]
         conditions = add_mongo_id(conditions)
         conds = build_mongo_conditions(conditions)
         ret = db[collection_name].find_one(conds)
@@ -7430,7 +7411,7 @@ def test_mongo_import_segments(db_name, area):
     
     try:
         mongo_init_client()
-        db = gClientMongo[db_name]
+        db = gClientMongo['default'][db_name]
         if 'segments' in db.collection_names(False):
             db.drop_collection('segments')
         collection = db.create_collection('segments')
@@ -7613,7 +7594,7 @@ def mongo_import_same_tower_mapping(db_name, area):
     same_tower_mapping = get_same_tower_mapping(db_name, mapping, area)
     try:
         mongo_init_client()
-        db = gClientMongo[db_name]
+        db = gClientMongo['default'][db_name]
         if 'towers_refer' in db.collection_names(False):
             db.drop_collection('towers_refer')
         collection = db.create_collection('towers_refer')
@@ -7653,7 +7634,7 @@ def test_mongo_import_towers(db_name, area):
         #f.write(enc(s))
     try:
         mongo_init_client()
-        db = gClientMongo[db_name]
+        db = gClientMongo['default'][db_name]
         if not 'features' in db.collection_names(False):
             collection = db.create_collection('features')
         else:
@@ -7679,9 +7660,8 @@ def test_mongo_import_models(db_name, area):
                 ll.append(m)
     host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo[db_name]
+        mongo_init_client()
+        db = gClientMongo['default'][db_name]
         if 'models' in db.collection_names(False):
             db.drop_collection('models')
         collection = db.create_collection('models')
@@ -7696,7 +7676,7 @@ def create_id_mapping(db_name, area):
     global gClientMongo
     try:
         mongo_init_client()
-        db = gClientMongo[db_name]
+        db = gClientMongo['default'][db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             print('tower_ids_mapping exist in %s' % db_name)
         else:
@@ -7737,9 +7717,8 @@ def test_build_tower_odbc_mongo_id_mapping(db_name):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo[db_name]
+        mongo_init_client()
+        db = gClientMongo['default'][db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             db.drop_collection('tower_ids_mapping')
         collection = db.create_collection('tower_ids_mapping')
@@ -7755,9 +7734,8 @@ def test_build_line_odbc_mongo_id_mapping(db_name):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo[db_name]
+        mongo_init_client()
+        db = gClientMongo['default'][db_name]
         if 'line_ids_mapping' in db.collection_names(False):
             db.drop_collection('line_ids_mapping')
         collection = db.create_collection('line_ids_mapping')
@@ -7773,9 +7751,8 @@ def test_build_model_odbc_mongo_id_mapping(db_name):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo[db_name]
+        mongo_init_client()
+        db = gClientMongo['default'][db_name]
         if 'model_ids_mapping' in db.collection_names(False):
             db.drop_collection('model_ids_mapping')
         collection = db.create_collection('model_ids_mapping')
@@ -7808,7 +7785,7 @@ def test_mongo_import_line(db_name, area):
     piny = get_pinyin_data()
     try:
         mongo_init_client()
-        db = gClientMongo[db_name]
+        db = gClientMongo['default'][db_name]
         if 'lines' in db.collection_names(False):
             db.drop_collection('lines')
         collection = db.create_collection('lines')
@@ -7882,9 +7859,8 @@ def test_mongo_import_code(db_name, area):
     global gClientMongo
     host, port = 'localhost', 27017
     try:
-        if gClientMongo is None:
-            gClientMongo = MongoClient(host, port)
-        db = gClientMongo[db_name]
+        mongo_init_client()
+        db = gClientMongo['default'][db_name]
         cods = {
             'equipment_class':'TABLE_COD_EQU_CLASS',
             'equipment_container':'TABLE_COD_EQU_CONT',
@@ -8335,7 +8311,7 @@ def test_delete_import_xlsdata(line_id):
         print(sys.exc_info()[1])
 
  
-def gridfs_save(qsdict, filename, data):
+def gridfs_save(qsdict, filename, data, clienttype='default'):
     global gClientMongo, gConfig
     
     if not qsdict.has_key('db'):
@@ -8373,15 +8349,15 @@ def gridfs_save(qsdict, filename, data):
     #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
     #size = int(qsdict['size'][0])
     try:
-        mongo_init_client()
-        db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         fs.put(data, bindcollection=bindcollection, key=ObjectId(key), mimetype=mimetype, filename=filename, category=category, description=description)
     except:
         traceback.print_exc()
         raise
         
-def gridfs_delete(qsdict):
+def gridfs_delete(qsdict, clienttype='default'):
     global gClientMongo, gConfig
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
@@ -8407,9 +8383,8 @@ def gridfs_delete(qsdict):
             raise Exception('category not specified in parameter')
         category = qsdict['category'][0]
     try:
-        mongo_init_client()
-                
-        db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if _id:
             fs.delete(ObjectId(_id))
@@ -8428,22 +8403,37 @@ def gridfs_delete(qsdict):
 
 def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, replicaset=None):
     global gClientMongo, gClientMongoTiles, gConfig
-    if host is None:
-        host = gConfig['mongodb']['host']
-    if port is None:
-        port = int(gConfig['mongodb']['port'])
-    if replicaset is None:
-        replicaset = gConfig['mongodb']['replicaset']
     try:
         if clienttype == 'default':
-            if gClientMongo is not None and not gClientMongo.alive():
-                gClientMongo.close()
-                gClientMongo = None
-            if gClientMongo is None:
+            if gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+                gClientMongo[clienttype].close()
+                gClientMongo[clienttype] = None
+            if gClientMongo[clienttype] is None:
+                if host is None:
+                    host = gConfig['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['mongodb']['replicaset']
                 if len(replicaset) == 0:
-                    gClientMongo = MongoClient(host, port, slave_okay=True)
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
-                    gClientMongo = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'geofeature':
+            if gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+                gClientMongo[clienttype].close()
+                gClientMongo[clienttype] = None
+            if gClientMongo[clienttype] is None:
+                if host is None:
+                    host = gConfig['geofeature']['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['geofeature']['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['geofeature']['mongodb']['replicaset']
+                if len(replicaset) == 0:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         else:
             tiletype = clienttype
             if not gClientMongoTiles.has_key(tiletype):
@@ -8454,6 +8444,12 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
                 gClientMongoTiles[tiletype][subtype].close()
                 gClientMongoTiles[tiletype][subtype] = None
             if gClientMongoTiles[tiletype][subtype] is None:
+                if host is None:
+                    host = gConfig[tiletype][subtype]['host']
+                if port is None:
+                    port = int(gConfig[tiletype][subtype]['port'])
+                if replicaset is None:
+                    replicaset = gConfig[tiletype][subtype]['replicaset']
                 if len(replicaset) == 0:
                     gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True)
                 else:
@@ -8464,7 +8460,7 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
     
     
     
-def gridfs_find(qsdict):
+def gridfs_find(qsdict, clienttype='default'):
     global gClientMongo, gConfig
     
     def thumbnail(fp, size, use_base64=False):
@@ -8517,8 +8513,8 @@ def gridfs_find(qsdict):
     mimetype, ret = None, None
     
     try:
-        mongo_init_client()
-        db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if _id:
             if fs.exists({'_id': ObjectId(_id)}):
@@ -8659,12 +8655,12 @@ def gridfs_tile_delete(tiletype, subtype, tilepath=None):
         raise
 
     
-def test_clear_gridfs(dbname):
+def test_clear_gridfs(dbname, clienttype='default'):
     global gClientMongo, gConfig
     try:
-        mongo_init_client()
+        mongo_init_client(clienttype)
                 
-        db = gClientMongo[dbname]
+        db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db)
         l = fs.list()
         idlist = []
@@ -8678,13 +8674,13 @@ def test_clear_gridfs(dbname):
     except:
         traceback.print_exc()
     
-def test_resize_image(dbname):
+def test_resize_image(dbname, clienttype='default'):
     global gClientMongo, gConfig 
     
     size = (100, 100)
     try:
-        mongo_init_client()
-        db = gClientMongo[dbname]
+        mongo_init_client(clienttype)
+        db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db)
         for i in fs.find():
             mimetype = i.mimetype
@@ -8812,5 +8808,6 @@ if __name__=="__main__":
     
     #test_import_shape_to_mongo()
     #merge_dem2()
+    
     
     

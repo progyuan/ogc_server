@@ -821,7 +821,7 @@ input[type="button"].btn-block {
 }
 
 
-.kmgd-icon-selectable {float: right;  list-style-type: none; margin: 0; padding: 2px; height:68px}
+.kmgd-icon-selectable {float: right;  list-style-type: none; margin: 0; padding: 2px; height:36px}
 
 .kmgd-icon-selectable .ui-selecting { background: #009900; }
 .kmgd-icon-selectable .ui-selected { background: #009900; color: white; }
@@ -830,13 +830,13 @@ input[type="button"].btn-block {
 	background-color: #005500;
 }
 .icon-selector-marker{
-	background: #000000 url(img/location_marker.png) 100% 100% no-repeat;
+	background: #000000 url(/img/marker30x48.png) 100% 100% no-repeat;
 	background-size:32px 32px;
 	background-position:center;
 }
 
 .icon-selector-tower{
-	background: #000000 url(img/tower.png) 100% 100% no-repeat;
+	background: #000000 url(/img/features/powerlinepole.png) 100% 100% no-repeat;
 	background-size:32px 32px;
 	background-position:center;
 }
