@@ -14,11 +14,13 @@ var g_phase_color_mapping = {
 	'R':'#000000'
 };
 var g_style_polyline_mapping = {
-	'polyline_speedway':{color:[0, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_heighway':{color:[0, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_nationalroad':{color:[0, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_provinceroad':{color:[0, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_railway':{color:[0, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
+	'polyline_marker':{color:[0, 64, 255, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 255, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_hazard':{color:[255, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_speedway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_heighway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_nationalroad':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_provinceroad':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_railway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 var g_style_point_mapping = {
 	'marker' :			{icon_img:'img/marker30x48.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
@@ -260,7 +262,6 @@ function InitWebGISFormDefinition()
 				if(fld.validate)
 				{
 					$('#' + fldid ).rules('add',fld.validate);
-					
 					$('#' + fldid ).tooltipster({ 
 						trigger: 'custom',
 						onlyOne: false, 
