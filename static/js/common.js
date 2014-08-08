@@ -49,6 +49,12 @@ var g_style_point_mapping = {
 	'point_town':		{icon_img:'img/features/cathedral.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6}
 };
 
+var g_style_polygon_mapping = {
+	'polygon_marker':{color:[0, 64, 255, 100], outlineColor:[255, 255, 0, 255],  labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polygon_hazard':{color:[255, 64, 0, 100], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
+};
+
+
 function InitWebGISFormDefinition()
 {
 	var methods = 
@@ -429,9 +435,12 @@ function ReadTable(url, success, failed)
 
 function ShowProgressBar(show, width, height, title, msg)
 {
+	$('#dlg_progress_bar').empty();
 	if(show)
 	{
-		$('#div_progress_msg').html(msg);
+		//$('#div_progress_msg').html(msg);
+		$('#dlg_progress_bar').append('<div id="div_progress_msg"></div>').html(msg);
+		$('#dlg_progress_bar').append('<div id="div_progress_bar"><span class="progressbartext" style="width:95%;"></span></div>');
 		$('#dlg_progress_bar').dialog({
 			width: width,
 			height: height,
@@ -476,10 +485,30 @@ function ShowConfirm(id, width, height, title, msg, ok, cancel, thumbnail)
 	if(thumbnail)
 	{
 		var s = '<div style="vertical-align: middle;line-height: ' + 40 + 'px;">' + msg  + '</div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<img  src="data:' + thumbnail.mimetype + ';base64,' + thumbnail.data + '" />';
-		$('#' + id + ' div').html(s);
+		if(id)
+		{
+			$('#' + id ).empty();
+			$('#' + id ).append('<div></div>');
+			$('#' + id + ' div').html(s);
+		}else
+		{
+			id = 'dlgconfirmdynamic';
+			$('body').append('<div id="' + id + '"><div></div></div>');
+			$('#' + id + ' div').html(s);
+		}
 	}else
 	{
-		$('#' + id + ' div').html(msg);
+		if(id)
+		{
+			$('#' + id ).empty();
+			$('#' + id ).append('<div></div>');
+			$('#' + id + ' div').html(msg);
+		}else
+		{
+			id = 'dlgconfirmdynamic';
+			$('body').append('<div id="' + id + '"><div></div></div>');
+			$('#' + id + ' div').html(msg);
+		}
 	}
 	$('#' + id).dialog({
 		title:title,
@@ -492,12 +521,14 @@ function ShowConfirm(id, width, height, title, msg, ok, cancel, thumbnail)
 			{  	text: "确定", 
 				click: function() { 
 					$( this ).dialog( "close" ); 
+					$('#dlgconfirmdynamic').remove();
 					 if(ok) ok();
 				}
 			},
 			{	text: "取消", 
 				click: function() { 
 					$( this ).dialog( "close" );
+					$('#dlgconfirmdynamic').remove();
 					if(cancel) cancel();
 				} 
 			}]
@@ -520,7 +551,17 @@ function GetDisplayLatLngString(ellipsoid, cartesian, precision)
 
 function ShowMessage(id, width, height, title, msg, ok)
 {
-	$('#' + id + ' div').html(msg);
+	if(id)
+	{
+		$('#' + id ).empty();
+		$('#' + id ).append('<div></div>');
+		$('#' + id + ' div').html(msg);
+	}else
+	{
+		id = 'dlgmsgdynamic';
+		$('body').append('<div id="' + id + '"><div></div></div>');
+		$('#' + id + ' div').html(msg);
+	}
 	console.log(msg);
 
 	$('#' + id).dialog({
@@ -533,8 +574,9 @@ function ShowMessage(id, width, height, title, msg, ok)
 		buttons: [ 
 			{  	text: "确定", 
 				click: function() { 
-					$( this ).dialog( "close" ); 
-					 if(ok) ok();
+					$( this ).dialog( "close" );
+					$('#dlgmsgdynamic').remove();
+					if(ok) ok();
 				}
 			}]
 	});

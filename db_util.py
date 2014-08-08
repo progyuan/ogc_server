@@ -32,6 +32,7 @@ from PIL import Image
 from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc1
 from pymongo import MongoClient, ReadPreference
 from bson.objectid import ObjectId
+from bson.timestamp import Timestamp
 import gridfs
 import gevent
 from geventhttpclient import HTTPClient, URL
@@ -6906,10 +6907,16 @@ def remove_geometry2d(obj = {}):
     
 def update_geometry2d(adict = {}, z_aware = False):
     def add_alt(coord, z_aware):
-        if isinstance(coord, list) and len(coord)==2 and isinstance(coord[0], float) and z_aware:
-            coord.append(extract_one_altitude(coord[0], coord[1]))
-        elif isinstance(coord, list) and len(coord)==3 and isinstance(coord[0], float) and coord[2]==0 and z_aware:
-            coord[2] = extract_one_altitude(coord[0], coord[1])
+        if isinstance(coord, list) and len(coord)==2 and isinstance(coord[0], float):
+            if z_aware:
+                coord.append(extract_one_altitude(coord[0], coord[1]))
+            else:
+                coord.append(0)
+        elif isinstance(coord, list) and len(coord)==3 and isinstance(coord[0], float) and coord[2]==0:
+            if z_aware:
+                coord[2] = extract_one_altitude(coord[0], coord[1])
+            else:
+                coord[2] = 0
         elif isinstance(coord, list) and isinstance(coord[0], list):
             l = []
             for i in coord:
@@ -6963,27 +6970,48 @@ def update_geometry2d(adict = {}, z_aware = False):
 def mongo_action(dbname, collection_name, action, data, conditions={}, clienttype='default'):
     global gClientMongo, gConfig
     ret = []
+    featureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
     try:
         mongo_init_client(clienttype)
         if dbname in gClientMongo[clienttype].database_names():      
             db = gClientMongo[clienttype][dbname]
-            if action.lower() == 'save':
-                if collection_name in db.collection_names() : 
+            if action.lower() == 'remove':
+                if collection_name in db.collection_names() :
+                    if conditions.has_key('_id'):
+                        if isinstance( conditions['_id'], list) or isinstance( conditions['_id'], tuple):
+                            ids = []
+                            for i in conditions['_id']:
+                                if i:
+                                    ids.append(str(i))
+                            wr = mongo_remove(dbname, collection_name, {'_id':ids})
+                            if wr:
+                                ret.append(remove_mongo_id(wr))
+                        elif isinstance(conditions['_id'], str) or isinstance(conditions['_id'], unicode):
+                            wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
+                            if wr:
+                                ret.append(remove_mongo_id(wr))
+                else:
+                    s = 'collection [%s] does not exist.' % collection_name
+                    raise Exception(s)
+            elif action.lower() == 'save':
+                if data is None:
+                    raise Exception('data is none, nothing to save')
+                if collection_name in db.collection_names(): 
                     data = add_mongo_id(data)
                     z_aware = False
                     ids = [] 
                     if isinstance( data, list):
                         for i in data:
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
-                                if 'point_' in i['properties']['webgis_type'] or 'polyline_' in i['properties']['webgis_type']:
-                                    z_aware = True
+                                #if 'point_' in i['properties']['webgis_type'] or 'polyline_' in i['properties']['webgis_type'] :
+                                z_aware = True
                                 i = update_geometry2d(i, z_aware)
                             _id = db[collection_name].save(i)
                             ids.append(str(_id))
                     if isinstance(data, dict):
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
-                            if 'point_' in data['properties']['webgis_type'] or 'polyline_' in data['properties']['webgis_type']:
-                                z_aware = True
+                            #if 'point_' in data['properties']['webgis_type'] or 'polyline_' in data['properties']['webgis_type']:
+                            z_aware = True
                             data = update_geometry2d(data, z_aware)
                         _id = db[collection_name].save(data)
                         ids.append(str(_id))
@@ -7013,12 +7041,11 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 for i in arr:
                     if len(tyarr)>0:
                         ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
-                if 'point_tower'in tyarr: tyarr.remove('point_tower')   
-                if u'point_tower'in tyarr: tyarr.remove(u'point_tower')   
-                if 'point_hazard'in tyarr: tyarr.remove('point_hazard')   
-                if u'point_hazard'in tyarr: tyarr.remove(u'point_hazard')   
-                if 'point_marker'in tyarr: tyarr.remove('point_marker')   
-                if u'point_marker'in tyarr: tyarr.remove(u'point_marker')   
+                for i in featureslist:
+                    if i in tyarr: 
+                        tyarr.remove(i)   
+                    if unicode(i) in tyarr: 
+                        tyarr.remove(unicode(i))   
                 if len(tyarr)>0:
                     ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 #print(ret)
@@ -7241,6 +7268,7 @@ def extract_many_altitudes(lnglatlist):
 
 def mongo_remove(dbname, collection_name, conditions={}, clienttype='default'):
     global gClientMongo, gConfig
+    ret = None
     try:
         mongo_init_client(clienttype)
         if dbname in gClientMongo[clienttype].database_names():      
@@ -7248,14 +7276,19 @@ def mongo_remove(dbname, collection_name, conditions={}, clienttype='default'):
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
-                db[collection_name].remove(conds)
+                writeResult = db[collection_name].remove(conds)
+                ret = writeResult
             else:
-                print('mongo_remove:collection [%s] does not exist.' % collection_name)
+                s = 'mongo_remove:collection [%s] does not exist.' % collection_name
+                raise Exception(s)
         else:
-            print('mongo_remove:database [%s] does not exist.' % dbname)
+            s = 'mongo_remove:database [%s] does not exist.' % dbname
+            raise Exception(s)
+            
     except:
         traceback.print_exc()
         raise
+    return ret
     
 def mongo_geowithin(dbname, geojsonobj):
     return mongo_find(dbname, 'features', {'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}})
@@ -7383,10 +7416,10 @@ def add_mongo_id(obj, objidkeys = ['_id', u'_id',]):
 def remove_mongo_id(obj):
     if isinstance(obj, ObjectId):
         obj = str(obj)
-        return obj
-    if isinstance(obj, datetime.datetime):
+    elif isinstance(obj, Timestamp):
+        obj = obj.as_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(obj, datetime.datetime):
         obj = obj.strftime("%Y-%m-%d %H:%M:%S")
-        return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
             obj[k] = remove_mongo_id(obj[k])

@@ -17,7 +17,7 @@ var g_geometry_lines = {};
 var g_use_catenary = true;
 var g_models = [];
 var g_is_tower_focus = false;
-var g_primitive_appearance, g_polyline_material_unselect;
+var g_primitive_appearance, g_polyline_material_unselect, g_polygon_material_unselect;
 var g_buffers = {};
 var g_borders = {};
 var g_image_slider_tower_info;
@@ -51,7 +51,8 @@ $(function() {
 	InitSearchBox(viewer);
 	InitToolPanel(viewer);
 	InitModelList(viewer);
-	
+	InitBird(viewer);
+	InitKeyboardEvent(viewer);
 	
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
 	LoadLineData(g_db_name, function(){
@@ -309,6 +310,62 @@ function InitCesiumViewer()
 	return viewer;
 }
 
+function InitKeyboardEvent(viewer)
+{
+	$(document).on('keyup', function(e){
+		if(e.keyCode == 46)//delete
+		{
+			if(g_selected_obj && (g_selected_obj.point || g_selected_obj.polyline || g_selected_obj.polygon) && g_geojsons[g_selected_obj_id]  && 
+			(  g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'point_marker'
+			|| g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'point_hazard'
+			|| g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'polyline_marker'
+			|| g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'polyline_hazard'
+			|| g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'polygon_marker'
+			|| g_geojsons[g_selected_obj_id]['properties']['webgis_type'] === 'polygon_hazard'
+			))
+			{
+				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + g_geojsons[g_selected_obj_id]['properties']['name'] + ']吗?', function(){
+					//console.log(g_selected_obj_id);
+					var cond = {'db':g_db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj_id};
+					MongoFind( cond, 
+						function(data){
+							if(data.length>0)
+							{
+								//console.log(data[0]);
+								if(data[0]['ok'] === 1)
+								{
+									if(g_geojsons[g_selected_obj_id])
+									{
+										delete g_geojsons[g_selected_obj_id];
+										g_geojsons[g_selected_obj_id] = undefined;
+										console.log(g_geojsons[g_selected_obj_id]);
+									}
+									if(g_czmls[g_selected_obj_id])
+									{
+										delete g_czmls[g_selected_obj_id];
+										g_czmls[g_selected_obj_id] = undefined;
+										console.log(g_czmls[g_selected_obj_id]);
+									}
+									g_prev_selected_obj = undefined;
+									g_prev_selected_id = undefined;
+									g_selected_obj = undefined;
+									g_selected_obj_id = undefined;
+									viewer.selectedEntity = undefined;
+									viewer.trackedEntity = undefined;
+									ReloadCzmlDataSource(viewer, g_zaware);
+								}
+							}
+					});
+				});
+			}
+		}
+	});
+}
+function InitBird(viewer)
+{
+	$('#tower_info_test').drawChart({});
+}
+
 function InitDrawHelper(viewer)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -352,6 +409,8 @@ function InitDrawHelper(viewer)
 		ShowPoiInfoDialog(viewer, '添加兴趣点', 'point', event.position);
 	});
 	toolbar.addListener('polylineCreated', function(event) {
+		event.positions.pop();
+		event.positions.pop();
 		console.log('Polyline created with ' + event.positions.length + ' points');
 		//console.log(event.positions);
 		var polyline = new DrawHelper.PolylinePrimitive({
@@ -369,6 +428,8 @@ function InitDrawHelper(viewer)
 
 	});
 	toolbar.addListener('polygonCreated', function(event) {
+		event.positions.pop();
+		event.positions.pop();
 		console.log('Polygon created with ' + event.positions.length + ' points');
 		var polygon = new DrawHelper.PolygonPrimitive({
 			positions: event.positions,
@@ -376,6 +437,7 @@ function InitDrawHelper(viewer)
 		});
 		viewer.scene.primitives.add(polygon);
 		g_drawhelper.addPrimitive(polygon);
+		ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
 		//polygon.setEditable();
 		//polygon.addListener('onEdited', function(event) {
 			//console.log('Polygon edited, ' + event.positions.length + ' points');
@@ -599,7 +661,7 @@ function InitTowerInfoDialog()
 			var img = g_image_thumbnail_tower_info[idx];
 			//console.log(img._id + ' ' + img.filename);
 			
-			ShowConfirm('dlg_confirm',500, 300,
+			ShowConfirm(null, 500, 300,
 				'删除确认',
 				'确认要删除文件[' + img.filename + ']吗?',
 				function(){
@@ -749,16 +811,6 @@ function InitSearchBox(viewer)
 	});
 	$( "#chb_search_webgis_type_point_tower").iCheck('check');
 	$( "input[id^=chb_search_webgis_type_]").on("ifChanged", function(e){
-		//var tylist = GetCheckedBoxList('chb_search_webgis_type_');
-		//var py_cond = {'db':g_db_name, 'collection':'features', 'action':'pinyinsearch', 'data':{'py':$('#input_search').val(), 'type':tylist}};
-		//$('#text_search_waiting').css('display','block');
-		//$('#text_search_waiting').html('正在查询，请稍候...');
-		//MongoFind( py_cond, 
-			//function(data){
-				//console.log(data);
-				//$('#text_search_waiting').css('display','none');
-				//$( "#input_search" ).autocomplete("option", "source", BuildSearchItemList(data));
-		//});
 	});
 	
 	//$( "#input_search" ).css("border", "1px 1px 0px 1px solid #00FF00");
@@ -816,9 +868,40 @@ function InitSearchBox(viewer)
 		},
 		select: function( event, ui ) {
 			//console.log(ui.item.geojson);
-			if(ui.item.geojson && ui.item.geojson.geometry && ui.item.geojson.geometry.type == 'Point')
+			var get_center = function(geojson)
 			{
-				FlyToPoint(viewer, ui.item.pos[0], ui.item.pos[1], 2000, 1.05, 4000);
+				var ret = [];
+				if(geojson.geometry.type === 'Point')
+				{
+					ret.push(geojson.geometry.coordinates[0]);
+					ret.push(geojson.geometry.coordinates[1]);
+				}
+				else if(geojson.geometry.type === 'LineString')
+				{
+					var idx = Math.floor(geojson.geometry.coordinates.length/2);
+					ret.push(geojson.geometry.coordinates[idx][0]);
+					ret.push(geojson.geometry.coordinates[idx][1]);
+				}
+				else if(geojson.geometry.type === 'Polygon')
+				{
+					var x=0, y=0;
+					for(var i in geojson.geometry.coordinates[0])
+					{
+						x += geojson.geometry.coordinates[0][i][0];
+						y += geojson.geometry.coordinates[0][i][1];
+					}
+					ret.push(x/geojson.geometry.coordinates[0].length);
+					ret.push(y/geojson.geometry.coordinates[0].length);
+				}
+				return ret;
+			};
+			if(ui.item.geojson)
+			{
+				var center = get_center(ui.item.geojson);
+				if(center.length === 2)
+				{
+					FlyToPoint(viewer, center[0], center[1], 2000, 1.05, 4000);
+				}
 				ShowSearchResult(viewer, ui.item.geojson);
 			}
 			else if(ui.item.geojson && ui.item.geojson.properties && ui.item.geojson.properties.category && ui.item.geojson.properties.category == '架空线')
@@ -914,7 +997,7 @@ function ShowSearchResult(viewer, geojson)
 	//console.log(geojson);
 	if(geojson['_id'])
 	{
-		if(geojson['properties'] && (geojson['properties']['tower_name'] || geojson['properties']['line_name'] || geojson['properties']['name']))
+		if(geojson['properties'] )
 		{
 			var _id = geojson['_id'];
 			if(!g_geojsons[_id])
@@ -923,13 +1006,95 @@ function ShowSearchResult(viewer, geojson)
 			}
 			if(!g_czmls[_id])
 			{
-				g_czmls[_id] = CreatePointCzmlFromGeojson(g_geojsons[_id]);
+				if(g_geojsons[_id]['properties']['webgis_type'].indexOf('point_')>-1)
+					g_czmls[_id] = CreatePointCzmlFromGeojson(g_geojsons[_id]);
+				else if(g_geojsons[_id]['properties']['webgis_type'].indexOf('polyline_')>-1)
+					g_czmls[_id] = CreatePolyLineCzmlFromGeojson(g_geojsons[_id]);
+				else if(g_geojsons[_id]['properties']['webgis_type'].indexOf('polygon_')>-1)
+					g_czmls[_id] = CreatePolygonCzmlFromGeojson(g_geojsons[_id]);
 				ReloadCzmlDataSource(viewer, g_zaware);
 			}
 		}
 	}
 }
 
+
+function CreatePolygonCzmlFromGeojson(geojson)
+{
+	var get_center = function(positions){
+		var x=0, y=0, z=0;
+		for(var i in positions)
+		{
+			if(i%3 == 0) x += positions[i];
+			if(i%3 == 1) y += positions[i];
+			if(i%3 == 2) z += positions[i];
+		}
+		var len = positions.length/3;
+		x = x/len;
+		y = y/len;
+		z = z/len;
+		return [x, y, z];
+	};
+	var cz = {};
+	var name = '';
+	cz['id'] = geojson['_id'];
+	cz['webgis_type'] = geojson['properties']['webgis_type'];
+	cz['position'] = {};
+	cz['polygon'] = {};
+	cz['polygon']['positions'] = {};
+	name = geojson['properties']['name'];
+	var positions = GetVertexPositionsByGeojsonPolyline(geojson['geometry'], geojson['properties']['height']);
+	cz['polygon']['positions']['cartographicDegrees'] = positions;
+	var center = get_center(positions);
+	cz['position']['cartographicDegrees'] = center;
+	cz['name'] = name;
+	cz['polygon']['material'] = {};
+	cz['polygon']['material']['solidColor'] = {};
+	var style;
+	style = g_style_polygon_mapping[geojson['properties']['webgis_type']];
+	cz['polygon']['material']['solidColor']['color'] = {'rgba':style.color};
+	if(style.image)
+	{
+		cz['polygon']['material']['image'] = {};
+		cz['polygon']['material']['image']['image'] = {'uri':style.image};
+	}
+	cz['polygon']['perPositionHeight'] = {'boolean':false};
+	cz['polygon']['height'] = {'number': 0};
+	cz['polygon']['extrudedHeight'] = {'number': 0};
+	if(cz['webgis_type'] === 'polygon_buffer')
+	{
+		cz['polygon']['extrudedHeight'] = {'number': 3000};
+	}
+	else
+	{
+		if(geojson['properties']['height'])
+		{
+			cz['polygon']['extrudedHeight'] = {'number': center[2] + geojson['properties']['height'] * 10};
+		}
+		else
+		{
+			cz['polygon']['extrudedHeight'] = {'number': center[2] * 2};
+		}
+	}
+	
+	cz['polygon']['fill'] = {'boolean':true};
+	cz['polygon']['outline'] = {'boolean':true};
+	cz['polygon']['outlineColor'] = {'rgba': style.outlineColor};
+	cz['polygon']['show'] = {'boolean':true};
+	cz['label'] = {};
+	cz['label']['fillColor'] = {'rgba': style.labelFillColor};
+	cz['label']['horizontalOrigin'] = 'LEFT';
+	cz['label']['outlineColor'] = {'rgba': style.labelOutlineColor};
+	cz['label']['pixelOffset'] = {'cartesian2':[20.0, 0.0]};
+	cz['label']['scale'] = {'number': style.labelScale};
+	cz['label']['show'] = {'boolean':true};
+	cz['label']['style'] = 'FILL';
+	cz['label']['font'] = 'normal normal bold 32px arial';
+	cz['label']['text'] = name;
+	cz['label']['verticalOrigin'] = 'CENTER';
+	cz['description'] = '<!--HTML-->\r\n<p>' + name + '</p>';
+	return cz;
+}
 
 function CreatePolyLineCzmlFromGeojson(geojson)
 {
@@ -964,7 +1129,7 @@ function CreatePolyLineCzmlFromGeojson(geojson)
 	var cz = {};
 	var name = '';
 	cz['id'] = geojson['_id'];
-	cz['webgis_type'] = 'polyline_line';
+	cz['webgis_type'] = geojson['properties']['webgis_type'];
 	cz['position'] = {};
 	cz['polyline'] = {};
 	cz['polyline']['positions'] = {};
@@ -972,19 +1137,19 @@ function CreatePolyLineCzmlFromGeojson(geojson)
 	{
 		name = geojson['properties']['line_name'];
 		var positions = GetVertexPositionsByTowerPairs(geojson['properties']['towers_pair']);
-		cz['position']['cartographicDegrees'] = get_center(positions);
 		cz['polyline']['positions']['cartographicDegrees'] = positions;
+		cz['position']['cartographicDegrees'] = get_center(positions);
 	}
 	else
 	{
 		name = geojson['properties']['name'];
-		var positions = GetVertexPositionsByGeojsonPolyline(geojson['geometry']);
-		cz['position']['cartographicDegrees'] = get_center(positions);
+		var positions = GetVertexPositionsByGeojsonPolyline(geojson['geometry'], geojson['properties']['height']);
 		cz['polyline']['positions']['cartographicDegrees'] = positions;
+		cz['position']['cartographicDegrees'] = get_center(positions);
 	}
 	cz['name'] = name;
-	cz['polyline']['material'] = {}
-	cz['polyline']['material']['solidColor'] = {}
+	cz['polyline']['material'] = {};
+	cz['polyline']['material']['solidColor'] = {};
 	var style;
 	if(geojson['properties']['voltage'])
 	{
@@ -995,7 +1160,7 @@ function CreatePolyLineCzmlFromGeojson(geojson)
 	}
 	cz['polyline']['material']['solidColor']['color'] = {'rgba':style.color};
 	cz['polyline']['width'] = {'number':3};
-	cz['polyline']['material']['polylineOutline'] = {}
+	cz['polyline']['material']['polylineOutline'] = {};
 	cz['polyline']['material']['polylineOutline']['outlineColor'] = {'rgba': style.outlineColor};
 	cz['polyline']['material']['polylineOutline']['outlineWidth'] = {'number': style.outlineWidth};
 	cz['polyline']['show'] = {'boolean':true};
@@ -1377,10 +1542,12 @@ function AddTerrainZOffset(geojson)
 		}
 		else if(coord instanceof Array)
 		{
+			var l = [];
 			for(var i in coord)
 			{
-				coord[i] = add_to_coord(coord[i]);
+				l.push(add_to_coord(coord[i]));
 			}
+			coord = l;
 		}
 		return coord;
 	}
@@ -1470,15 +1637,23 @@ function LoadLineByLineName(viewer, db_name, line_name, callback)
 	});
 }
 
-function GetVertexPositionsByGeojsonPolyline(geometry)
+function GetVertexPositionsByGeojsonPolyline(geometry, height)
 {
 	var ret = [];
-	for(var i in geometry.coordinates)
+	var coordinates = geometry.coordinates;
+	if(geometry.type === 'Polygon')
 	{
-		var coord = geometry.coordinates[i];
+		coordinates = geometry.coordinates[0];
+	}
+	for(var i in coordinates)
+	{
+		var coord = coordinates[i];
 		ret.push(coord[0]);
 		ret.push(coord[1]);
-		ret.push(coord[2]);
+		if(height) 
+			ret.push(coord[2] + height);
+		else
+			ret.push(coord[2]);
 	}
 	return ret;
 }
@@ -1564,10 +1739,27 @@ function ReloadCzmlDataSource(viewer, z_aware)
 			}
 			if(obj['polyline'] && obj['polyline']['positions'])
 			{
-				for(var i=2; i<obj['polyline']['positions']['cartographicDegrees'].length; i=i+3)
+				for(var i in obj['polyline']['positions']['cartographicDegrees'])
 				{
-					obj['polyline']['positions']['cartographicDegrees'][i] = 0;
+					if(i % 3 == 2)
+					{
+						obj['polyline']['positions']['cartographicDegrees'][i] = 0;
+					}
 				}
+			}
+			if(obj['polygon'] && obj['polygon']['positions'])
+			{
+				for(var i in obj['polygon']['positions']['cartographicDegrees'])
+				{
+					if(i % 3 == 2)
+					{
+						obj['polygon']['positions']['cartographicDegrees'][i] = 0;
+					}
+				}
+			}
+			if(obj['polygon'] && obj['polygon']['extrudedHeight'])
+			{
+				obj['polygon']['extrudedHeight'] = 0;
 			}
 		
 		}else
@@ -1776,6 +1968,13 @@ function GetTowerInfoByTowerId(id)
 
 function LoadTowerModelByTower(viewer, tower)
 {
+	var url_exist = function(url)
+	{
+		var http = new XMLHttpRequest();
+		http.open('HEAD', url, false);
+		http.send();
+		return http.status!=404;
+	};
 	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
 	
@@ -1804,19 +2003,32 @@ function LoadTowerModelByTower(viewer, tower)
 				}
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
-					var model = CreateTowerModel(
-						viewer, 
-						GetModelUrl(tower['properties']['model']['model_code_height']), 
-						lng,  
-						lat, 
-						height ,  
-						rotate,
-						10
-					);
-					if(model)
+					var url = GetModelUrl(tower['properties']['model']['model_code_height']);
+					if(url_exist(url))
 					{
-						g_gltf_models[id] = model;
-						console.log("load model for [" + id + "]");
+						var model = CreateTowerModel(
+							viewer, 
+							url, 
+							lng,  
+							lat, 
+							height ,  
+							rotate,
+							10
+						);
+						if(model)
+						{
+							g_gltf_models[id] = model;
+							console.log("load model for [" + id + "]");
+						}
+						delete g_czmls[id]['billboard']['image'];
+					}else
+					{
+						console.log("model " + url + " does not exist");
+						if(g_czmls[id])
+						{
+							g_czmls[id]['billboard']['image'] = {'uri':g_style_point_mapping['tower']['icon_img']};
+							ReloadCzmlDataSource(viewer, g_zaware);
+						}
 					}
 				}
 			}
@@ -2133,6 +2345,10 @@ function TowerInfoMixin(viewer)
 			{
 				g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
 			}
+			if(g_prev_selected_obj && g_prev_selected_obj.polygon && g_polygon_material_unselect)
+			{
+				g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
+			}
 		};
 		//clearselcolor();
 		viewer.selectedEntity = pickTrackedEntity(e);
@@ -2162,7 +2378,7 @@ function TowerInfoMixin(viewer)
 					//g_prev_selected_obj = viewer.selectedEntity;
 				//}
 			//}
-			if (g_selected_obj.polyline && g_selected_obj.polyline instanceof Cesium.PolylineGraphics)
+			if (g_selected_obj.polyline)
 			{
 				if(g_prev_selected_id != id)
 				{
@@ -2172,7 +2388,17 @@ function TowerInfoMixin(viewer)
 					g_selected_obj.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('#00FFFF'));
 				}
 			}
-			else if (g_selected_obj.point && g_selected_obj.point instanceof Cesium.PointGraphics)
+			else if (g_selected_obj.polygon)
+			{
+				if(g_prev_selected_id != id)
+				{
+					clearselcolor();
+					console.log('selected polygon id=' + id);
+					g_polygon_material_unselect = g_selected_obj.polygon.material;
+					g_selected_obj.polygon.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.5)'));
+				}
+			}
+			else if (g_selected_obj.point)
 			{
 				clearselcolor();
 				console.log('selected marker id=' + id);
@@ -2184,7 +2410,7 @@ function TowerInfoMixin(viewer)
 						if(CheckTowerInfoModified())
 						{
 							
-							ShowConfirm('dlg_confirm',500, 200,
+							ShowConfirm(null,500, 200,
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
@@ -3186,12 +3412,12 @@ function CalcCatenary(ellipsoid, p0, p1, segnum, t0, w)
 function RemoveSegmentsTower(viewer, tower)
 {
 	var scene = viewer.scene;
-	//var prev_towers = GetNeighborTowers(tower['properties']['prev_ids']);
-	//var next_towers = GetNeighborTowers(tower['properties']['next_ids']);
 	var arr = GetPrevNextTowerIds(tower);
 
 	var prev_towers = GetNeighborTowers(arr[0]);
 	var next_towers = GetNeighborTowers(arr[1]);
+	//console.log(prev_towers);
+	//console.log(next_towers);
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
@@ -3247,10 +3473,6 @@ function DrawSegmentsByTower(viewer, tower)
 	var arr = GetPrevNextTowerIds(tower);
 	var prev_towers = GetNeighborTowers(arr[0]);
 	var next_towers = GetNeighborTowers(arr[1]);
-	
-	//console.log(prev_towers);
-	//console.log(next_towers);
-	
 	var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 		lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
 		height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
@@ -3343,11 +3565,11 @@ function SavePoi(data, callback)
 		ShowProgressBar(false);
 		if(data1.result)
 		{
-			ShowMessage('dlg_message_poi',400, 200, '错误','保存出错:' + data1.result, callback);
+			ShowMessage(null, 400, 200, '错误','保存出错:' + data1.result, callback);
 		}
 		else
 		{
-			ShowMessage('dlg_message_poi',400, 200, '成功','保存成功', callback);
+			//ShowMessage(null, 400, 200, '成功','保存成功', callback);
 		}
 		if(callback) callback(data1);
 	});
@@ -3643,7 +3865,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					{
 						if(CheckTowerInfoModified())
 						{
-							ShowConfirm('dlg_confirm', 500, 200,
+							ShowConfirm(null, 500, 200,
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
@@ -3987,7 +4209,7 @@ function ShowTowerInfoDialog(viewer, tower)
 
 
 
-function GetGeojsonFromPosition(ellipsoid, position)
+function GetGeojsonFromPosition(ellipsoid, position, type)
 {
 	if(position instanceof Cesium.Cartesian3)
 	{
@@ -3999,6 +4221,13 @@ function GetGeojsonFromPosition(ellipsoid, position)
 		for(var i in position)
 		{
 			position[i] = GetGeojsonFromPosition(ellipsoid, position[i]);
+		}
+		if(type && type === 'Polygon')
+		{
+			var position1 = [];
+			position.push(position[0]);
+			position1.push(position);
+			position = position1;
 		}
 	}
 	return position;
@@ -4036,7 +4265,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 					var v = $('#select_poi_type').val();
 					if($('#form_poi_info_' + v).valid())
 					{
-						ShowConfirm('dlg_confirm_poi', 500, 200,
+						ShowConfirm(null, 500, 200,
 							'保存确认',
 							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 							function(){
@@ -4060,14 +4289,12 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								if(v.indexOf('polyline')>-1)
 								{
 									t = 'LineString';
-									position.pop();
-									position.pop();
 								}
 								if(v.indexOf('polygon')>-1) 
 								{
 									t = 'Polygon';
 								}
-								data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position)};
+								data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position, t)};
 								SavePoi(data, function(data1){
 									//console.log(data1);
 									that.dialog( "close" );
@@ -4090,6 +4317,8 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 													g_czmls[id] = CreatePolyLineCzmlFromGeojson(g_geojsons[id]);
 												if(t === 'Polygon')
 													g_czmls[id] = CreatePolygonCzmlFromGeojson(g_geojsons[id]);
+												//console.log(g_geojsons[id]);
+												//console.log(g_czmls[id]);
 											}
 										}
 										ReloadCzmlDataSource(viewer, g_zaware);
@@ -4293,14 +4522,14 @@ function CheckModelCode(modelcode)
 	return ret;
 }
 
-//function RePositionPoint(viewer, id, lng, lat, height, rotate)
-//{
-	//if(g_czmls[id] && $.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
-	//{
-		//g_czmls[id]['position']['cartographicDegrees'] = [parseFloat(lng), parseFloat(lat), parseFloat(height)];
-		//ReloadCzmlDataSource(viewer, g_zaware);
-	//}
-//}
+function RePositionPoint(viewer, id, lng, lat, height, rotate)
+{
+	if(g_czmls[id] && $.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
+	{
+		g_czmls[id]['position']['cartographicDegrees'] = [parseFloat(lng), parseFloat(lat), parseFloat(height)];
+		ReloadCzmlDataSource(viewer, g_zaware);
+	}
+}
 
 function PositionModel(ellipsoid, model, lng, lat, height, rotate)
 {

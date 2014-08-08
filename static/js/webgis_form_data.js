@@ -121,7 +121,6 @@ var g_tower_baseinfo_fields = [
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lng = ui.value;
-				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 			}
 		}
@@ -167,7 +166,6 @@ var g_tower_baseinfo_fields = [
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lat = ui.value;
-				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 			}
 		}
@@ -213,7 +211,6 @@ var g_tower_baseinfo_fields = [
 			if(g_gltf_models[id]) 
 			{
 				height = ui.value;
-				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
 			}
 		},

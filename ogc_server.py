@@ -128,7 +128,7 @@ def init_global():
     
 
 
-def handle_static(aUrl):
+def handle_static(environ, aUrl):
     global ENCODING, gConfig
     global STATICRESOURCE_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_CSS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_VOICE_DIR
     statuscode, contenttype, body = '404 Not Found', 'text/plain;charset=' + ENCODING, '404 Not Found'
@@ -1408,10 +1408,11 @@ def handle_post_method(Env, Start_response):
             collection = obj[u'collection']
             action = None
             data = None
-            if obj.has_key(u'action') and obj.has_key(u'data'):
+            if obj.has_key(u'action'):
                 action = obj[u'action']
-                data = obj[u'data']
                 del obj[u'action']
+            if obj.has_key(u'data'):
+                data = obj[u'data']
                 del obj[u'data']
             if obj.has_key(u'use_czml') and obj[u'use_czml']:
                 use_czml = True
@@ -1549,7 +1550,6 @@ def handle_websocket(environ, start_response):
 def application(environ, start_response):
     global gConfig
     path_info = environ['PATH_INFO']
-    
     if 'proxy.cgi' in path_info:
         return handle_proxy_cgi(environ, start_response)
     elif path_info == '/test':
@@ -1582,7 +1582,7 @@ def application(environ, start_response):
     else:
         if path_info[-1:] == '/':
             path_info += gConfig['web']['indexpage']
-        statuscode, contenttype, body =  handle_static(path_info)
+        statuscode, contenttype, body =  handle_static(environ, path_info)
         if start_response:
             start_response(statuscode, [('Content-Type', contenttype), ])
             return [body]
