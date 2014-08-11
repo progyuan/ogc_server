@@ -6998,20 +6998,20 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     raise Exception('data is none, nothing to save')
                 if collection_name in db.collection_names(): 
                     data = add_mongo_id(data)
-                    z_aware = False
+                    z_aware = True
                     ids = [] 
                     if isinstance( data, list):
                         for i in data:
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
-                                #if 'point_' in i['properties']['webgis_type'] or 'polyline_' in i['properties']['webgis_type'] :
-                                z_aware = True
+                                if i['properties']['webgis_type'] == 'polygon_buffer':
+                                    z_aware = False
                                 i = update_geometry2d(i, z_aware)
                             _id = db[collection_name].save(i)
                             ids.append(str(_id))
                     if isinstance(data, dict):
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
-                            #if 'point_' in data['properties']['webgis_type'] or 'polyline_' in data['properties']['webgis_type']:
-                            z_aware = True
+                            if data['properties']['webgis_type'] == 'polygon_buffer':
+                                z_aware = False
                             data = update_geometry2d(data, z_aware)
                         _id = db[collection_name].save(data)
                         ids.append(str(_id))
@@ -7222,7 +7222,7 @@ def calc_buffer(geojsonobj, dist):
             if isinstance(coordinates[0], float):
                 x2,y2 = pyproj.transform(inp, outp, coordinates[0], coordinates[1])
                 return [x2, y2]
-            if isinstance(coordinates[0], list) or isinstance(coordinates[0], tuple):
+            elif isinstance(coordinates[0], list) or isinstance(coordinates[0], tuple):
                 l = []
                 for i in coordinates:
                     l.append(transform(inp, outp, i))

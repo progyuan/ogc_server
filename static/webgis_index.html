@@ -12,13 +12,13 @@
 	<link rel="stylesheet" href="css/ligerui-skins/Aqua/css/ligerui-all.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
 	<link rel="stylesheet" href="css/DrawHelper.css" />
-	<link rel="stylesheet" href="css/kmgd-tools.css" />
 	<link rel="stylesheet" href="css/tooltipster.css" />
 	<link rel="stylesheet" href="css/icheck-skins/all.css" />
-	<link rel="stylesheet" href="css/jquery.qtip.min.css" />
-	<!-- CSS to style the file input field as button and adjust the Bootstrap progress bars -->
+	<link rel="stylesheet" href="css/spectrum.css" />
 	<link rel="stylesheet" href="css/jquery.fileupload.css">
 	<link rel="stylesheet" href="css/jquery.fileupload-ui.css">
+	<link rel="stylesheet" href="css/kmgd-tools.css" />
+	<link rel="stylesheet" href="css/kmgd-icon.css" />
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
     <script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>
     <!--<script type="text/javascript" src="js/WMTSImageryProvider.js"></script>-->
@@ -47,6 +47,7 @@
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	<script type="text/javascript" src="js/highcharts.js"></script>
 	<script type="text/javascript" src="js/webgis.js"></script>
+	<script type="text/javascript" src="js/spectrum.js"></script>
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
 
@@ -56,8 +57,7 @@
 <body >
 <style>
 </style>
-<div style="" id="dlg_progress_bar">
-</div>
+
 <div id="cesiumContainer" class="fullSize"></div>
 
 <div id="control_search">
@@ -148,6 +148,10 @@
 		 <div id='but_add_poi'></div>
 	  </div>
 	</div>	
+</div>
+
+<div id="dlg_buffer_create" >
+	<form id="form_buffer_create"></form>
 </div>
 
 <div id="dlg_poi_info" >
@@ -356,7 +360,6 @@
 <script type="text/javascript" src="js/jquery/jquery.fileupload-ui.js"></script>
 <!-- The File Upload jQuery UI plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-jquery-ui.js"></script>
-<!--<script type="text/javascript" src="js/jquery/jquery.qtip.min.js"></script>-->
 <script type="text/javascript" src="js/webgis_index.js"></script>
 
 </body>

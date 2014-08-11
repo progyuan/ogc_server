@@ -829,17 +829,6 @@ input[type="button"].btn-block {
 .kmgd-icon-highlight{
 	background-color: #005500;
 }
-.icon-selector-marker{
-	background: #000000 url(/img/marker30x48.png) 100% 100% no-repeat;
-	background-size:32px 32px;
-	background-position:center;
-}
-
-.icon-selector-tower{
-	background: #000000 url(/img/features/powerlinepole.png) 100% 100% no-repeat;
-	background-size:32px 32px;
-	background-position:center;
-}
 
 #accordion_tools div fieldset
 {
@@ -856,5 +845,10 @@ input[type="button"].btn-block {
 #accordion_tools div fieldset div
 {
 	margin:5px;
+}
+
+.webgis-colorpicker
+{
+	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 }
 

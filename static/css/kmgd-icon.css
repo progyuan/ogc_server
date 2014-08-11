@@ -1,0 +1,25 @@
+.icon-selector-point_marker{
+	background: #000000 url(/img/marker30x48.png) 100% 100% no-repeat;
+	background-size:32px 32px;
+	background-position:center;
+}
+
+.icon-selector-point_tower{
+	background: #000000 url(/img/features/powerlinepole.png) 100% 100% no-repeat;
+	background-size:32px 32px;
+	background-position:center;
+}
+
+.icon-selector-point_hazard{
+	background: #000000 url(/img/features/radiation.png) 100% 100% no-repeat;
+	background-size:32px 32px;
+	background-position:center;
+}
+
+
+
+
+
+
+
+

@@ -13,45 +13,43 @@ var g_phase_color_mapping = {
 	'L':'#000000',
 	'R':'#000000'
 };
-var g_style_polyline_mapping = {
-	'polyline_marker':{color:[0, 64, 255, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 255, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_hazard':{color:[255, 64, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_speedway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_heighway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_nationalroad':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_provinceroad':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_railway':{color:[255, 128, 0, 255], outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
-};
 var g_style_point_mapping = {
-	'marker' :			{icon_img:'img/marker30x48.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'hazard' :			{icon_img:'img/features/radiation.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'tower'	:			{icon_img:'img/features/powerlinepole.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_tower' :		{icon_img:'img/features/powerlinepole.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_hazard' :	{icon_img:'img/features/radiation.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_marker' :	{icon_img:'img/marker30x48.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_hotel':		{icon_img:'img/features/hotel_0star.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_restaurant': {icon_img:'img/features/restaurant.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_mall':		{icon_img:'img/features/mall.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_exitentrance': {icon_img:'img/features/entrance.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_village':	{icon_img:'img/features/windmill-2.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_building':	{icon_img:'img/features/office-building.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_subcity':	{icon_img:'img/features/citysquare.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_busstop':	{icon_img:'img/features/busstop.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_park':		{icon_img:'img/features/wetlands.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_provincecapital': {icon_img:'img/features/arch.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_rollstop':	{icon_img:'img/features/accesdenied.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_parker':		{icon_img:'img/features/parking-meter-export.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_county':		{icon_img:'img/features/ghosttown.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_school':		{icon_img:'img/features/school.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_chemistsshop': {icon_img:'img/features/', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_hospital':	{icon_img:'img/features/hospital-building.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_bank':		{icon_img:'img/features/hospital-building.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_town':		{icon_img:'img/features/cathedral.png', color:[64, 128, 256, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6}
+	'point_tower' :		{icon_img:'img/features/powerlinepole.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_hazard' :	{icon_img:'img/features/radiation.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_marker' :	{icon_img:'img/marker30x48.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_hotel':		{icon_img:'img/features/hotel_0star.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_restaurant': {icon_img:'img/features/restaurant.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_mall':		{icon_img:'img/features/mall.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_exitentrance': {icon_img:'img/features/entrance.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_village':	{icon_img:'img/features/windmill-2.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_building':	{icon_img:'img/features/office-building.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_subcity':	{icon_img:'img/features/citysquare.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_busstop':	{icon_img:'img/features/busstop.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_park':		{icon_img:'img/features/wetlands.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_provincecapital': {icon_img:'img/features/arch.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_rollstop':	{icon_img:'img/features/accesdenied.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_parker':		{icon_img:'img/features/parking-meter-export.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_county':		{icon_img:'img/features/ghosttown.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_school':		{icon_img:'img/features/school.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_chemistsshop': {icon_img:'img/features/', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_hospital':	{icon_img:'img/features/hospital-building.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_bank':		{icon_img:'img/features/hospital-building.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+	'point_town':		{icon_img:'img/features/cathedral.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6}
+};
+var g_style_polyline_mapping = {
+	'polyline_marker':{color:[0, 64, 255, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 255, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_hazard':{color:[255, 64, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_speedway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_heighway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_nationalroad':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_provinceroad':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polyline_railway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 
 var g_style_polygon_mapping = {
 	'polygon_marker':{color:[0, 64, 255, 100], outlineColor:[255, 255, 0, 255],  labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polygon_hazard':{color:[255, 64, 0, 100], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
+	'polygon_hazard':{color:[255, 64, 0, 100], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+	'polygon_buffer':{color:[255, 0, 0, 100], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 0, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 
 
@@ -128,6 +126,7 @@ function InitWebGISFormDefinition()
 							change:fld.change,
 							spin:fld.spin
 						});
+						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
 					}
 					if(fld.type == 'geographic' && fld.group == group)
 					{
@@ -139,6 +138,7 @@ function InitWebGISFormDefinition()
 							change: fld.change,
 							spin: fld.spin
 						});
+						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
 					}
 					if(fld.type == 'text' && fld.group == group)
 					{
@@ -148,6 +148,7 @@ function InitWebGISFormDefinition()
 							readonly = ' readonly="readonly"';
 						}
 						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + required + '</' + divorspan + '>');
+						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
 					}
 					if(fld.type == 'select' && fld.group == group)
 					{
@@ -164,6 +165,7 @@ function InitWebGISFormDefinition()
 							autoFocus: false,
 							source:source
 						});
+						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
 						
 					}
 					if(fld.type == 'date' && fld.group == group)
@@ -192,6 +194,7 @@ function InitWebGISFormDefinition()
 							//},
 							yearSuffix: '年'
 						});
+						if(fld.defaultvalue) $('#' + fldid).datepicker("setDate", fld.defaultvalue);
 					}
 					if(fld.type == 'icon' && fld.group == group)
 					{
@@ -201,7 +204,9 @@ function InitWebGISFormDefinition()
 						+ '</label><' + divorspan + ' style="display:inline-block;width:32px;height:32px;border:1px #00FF00 solid;" id="' + fldid + '" name="' + fldid + '" ></' + divorspan + '>' + required 
 						+ '<ol class="kmgd-icon-selectable"  id="ol_' + fldid + '"></ol></' + divorspan + '>');
 						$('#ol_' + fldid ).css('display', 'none');
-						$('#' + fldid ).addClass('icon-selector-' + fld.iconvalue);
+						var defaultvalue = 'point_marker';
+						if(fld.defaultvalue) defaultvalue = fld.defaultvalue;
+						$('#' + fldid ).addClass('icon-selector-' + defaultvalue);
 						
 						$('#ol_' + fldid ).empty();
 						for(var i in fld.iconlist)
@@ -246,6 +251,45 @@ function InitWebGISFormDefinition()
 						
 					}
 					
+					if(fld.type == 'color' && fld.group == group)
+					{
+						//divorspan = 'span';
+						var colorarr = [255, 0, 0, 128];
+						if(fld.defaultvalue) colorarr = fld.defaultvalue;
+						var color = ColorArrayToRgba(colorarr);
+						//console.log(fldid + ' ' + color);
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="margin:' + this.options.margin + 'px;' + newline 
+						+ '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display 
+						+ ':</label>'
+						+ '<' + divorspan + '  style="display:inline-block;width:42px;height:32px;border:1px #00FF00 solid;">'
+						+ '<input type="color" id="' + fldid + '" name="' + fldid + '" >' + required 
+						+ '</' + divorspan + '>'
+						+ '</' + divorspan + '>');
+						var id = fldid;
+						$('#' + id).spectrum({
+							color: color,
+							allowEmpty: true,
+							flat: false,
+							showAlpha: true,
+							showInitial: true,
+							showPalette: false,
+							showInput: true,
+							cancelText: '取消',
+							chooseText: '确定',
+							showButtons: false,
+							preferredFormat: "rgb",
+							clickoutFiresChange: true,
+							replacerClassName: 'webgis-colorpicker'
+						});
+						$('#' + id).next().css('display', 'inline-block');
+						$('#' + id).next().children().css('display', 'inline-block');
+						$('#' + id).next().find('.sp-preview-inner').css('display', 'inline-block');
+						$('#' + id).next().css('width', '32px');
+						$('#' + id).next().css('height', '22px');
+						$('#' + id).next().find('.sp-preview-inner').css('background-color', color);
+						//console.log($('#' + fldid).next().children().css('display'));
+					}
+					
 				}
 			}
 			
@@ -283,9 +327,46 @@ function InitWebGISFormDefinition()
 		{
 			var prefix = '';
 			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
-			for(var k in data)
+			//for(var k in data)
+			//{
+				//this.find('#' + prefix + k).val(data[k]);
+			//}
+			var fields = $.fn.webgisform.fields[this.attr('id')];
+			for(var k in fields)
 			{
-				this.find('#' + prefix + k).val(data[k]);
+				var id = fields[k]['id'];
+				var typ = fields[k]['type'];
+				if(typ === 'icon')
+				{
+					if(data['style'] && data['style']['icon'] && data['style']['icon']['uri'])
+					this.find('#' + prefix + id).css('background', '#000000 url(/' + data['style']['icon']['uri'] + ') 100% 100% no-repeat' );
+				}
+				else if(typ === 'color')
+				{
+					if(data['style'] && data['style'][id])
+					{
+						this.find('#' + prefix + id).spectrum("set", ColorArrayToRgba(data['style'][id]));
+					}
+				}
+				else if(typ === 'date')
+				{
+					if(data[id])
+					{
+						this.find('#' + prefix + id).datepicker("setDate",  data[id]);
+					}
+				}
+				else if(data[id])
+				{
+					if(id==='pixel_size' || id==='pixel_width' || id==='label_scale')
+					{
+						if(data['style'] && data['style'][id])
+						{
+							this.find('#' + prefix + id).val(data['style'][id]);
+						}
+					}
+					else
+						this.find('#' + prefix + id).val(data[id]);
+				}
 			}
 			return this;
 		},
@@ -301,28 +382,66 @@ function InitWebGISFormDefinition()
 			for(var k in fields)
 			{
 				var id = fields[k]['id'];
-				if(id === 'icon')
+				//if(id === 'icon')
+				//{
+					//ret[id] = this.find('#' + prefix + id).attr('class').replace('icon-selector-', '').replace(' ui-selectee', '');
+				//}
+				//else
+				//{
+				
+				//}
+				var typ = fields[k]['type'];
+				if(typ === 'icon')
 				{
-					ret[id] = this.find('#' + prefix + id).attr('class').replace('icon-selector-', '').replace(' ui-selectee', '');
+					if(!ret['style']) ret['style'] = {};
+					if(!ret['style']['icon']) ret['style']['icon'] = {};
+					var c = this.find('#' + prefix + id).attr('class').replace('icon-selector-', '').replace(' ui-selectee', '');
+					var icon_img = GetDefaultStyleValue(c, 'icon_img');
+					ret['style']['icon']['uri'] = icon_img;
 				}
-				else
+				else if(typ === 'color')
+				{
+					if(!ret['style']) ret['style'] = {};
+					ret['style'][id] = ColorRgbaToArray(this.find('#' + prefix + id).spectrum("get").toRgbString());
+				}
+				else if(typ === 'date')
+				{
+					ret[id] = this.find('#' + prefix + id).datepicker("getDate");
+				}
+				else if(typ === 'spinner')
+				{
+					if(id==='pixel_size' || id==='pixel_width' || id==='label_scale')
+					{
+						var v = this.find('#' + prefix + id).val();
+						if(v>0)
+						{
+							if(isInt(v)) 
+							{
+								ret['style'][id]  = parseInt(v);
+							}else
+							{
+								ret['style'][id] = parseFloat(v);
+							}
+						}
+					}
+					else
+					{
+						ret[id] = this.find('#' + prefix + id).val();
+						if(ret[id].length>0)
+						{
+							if(isInt(ret[id])) 
+							{
+								ret[id] = parseInt(ret[id]);
+							}else
+							{
+								ret[id] = parseFloat(ret[id]);
+							}
+						}else
+							delete ret[id] ;
+					}
+				}else
 				{
 					ret[id] = this.find('#' + prefix + id).val();
-				}
-				var typ = fields[k]['type'];
-				if(typ === 'spinner')
-				{
-					if(ret[id].length>0)
-					{
-						if(isInt(ret[id])) 
-						{
-							ret[id] = parseInt(ret[id]);
-						}else
-						{
-							ret[id] = parseFloat(ret[id]);
-						}
-					}else
-						ret[id] = 0;
 				}
 			}
 			return ret;
@@ -394,6 +513,41 @@ function InitWebGISFormDefinition()
 	};
 }
 
+function ColorArrayToRgba(array)
+{
+	var ret = 'rgba(255,255,255,1)';
+	if(array.length == 4 && Math.floor(array[0])<256  && Math.floor(array[1])<256  && Math.floor(array[2])<256  && Math.floor(array[3])<256 )
+	{
+		ret = 'rgba(' + Math.floor(array[0]) + ', ' +  Math.floor(array[1]) + ', ' +  Math.floor(array[2]) + ', ' +  (array[3]/256) + ')';
+	}
+	return ret;
+}
+
+
+function GetDefaultStyleValue(type, stylename)
+{
+	var mapping;
+	if(type.indexOf('point_')>-1) mapping = g_style_point_mapping[type];
+	if(type.indexOf('polyline_')>-1) mapping = g_style_polyline_mapping[type];
+	if(type.indexOf('polygon_')>-1) mapping = g_style_polygon_mapping[type];
+	var ret = [255, 0, 0, 128];
+	if(stylename==='pixelSize' ) ret = 3;
+	if(stylename==='outlineWidth') ret = 1;
+	if(stylename==='labelScale') ret = 1;
+	if(stylename==='width') ret = 1;
+	if(mapping[stylename]) ret = mapping[stylename];
+	return ret;
+};
+
+function ColorRgbaToArray(rgbastr)
+{
+	var c = tinycolor(rgbastr);
+	//var a = Math.floor(c.getAlpha()*256-1);
+	var rgba = c.toRgb();
+	return [rgba.r, rgba.g, rgba.b, Math.floor(rgba.a*256-1)];
+}
+
+
 function MongoFind(data, success, host)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
@@ -435,10 +589,10 @@ function ReadTable(url, success, failed)
 
 function ShowProgressBar(show, width, height, title, msg)
 {
-	$('#dlg_progress_bar').empty();
+	$('#dlg_progress_bar').remove();
 	if(show)
 	{
-		//$('#div_progress_msg').html(msg);
+		$('body').append('<div id="dlg_progress_bar"></div>');
 		$('#dlg_progress_bar').append('<div id="div_progress_msg"></div>').html(msg);
 		$('#dlg_progress_bar').append('<div id="div_progress_bar"><span class="progressbartext" style="width:95%;"></span></div>');
 		$('#dlg_progress_bar').dialog({
