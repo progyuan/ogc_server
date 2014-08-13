@@ -74,6 +74,8 @@ DEM_NAME = 'YN_DEM'
 gDemExtractor = None
 gTowerDict = {}
 gPinYin = None
+gFeatureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
+
 
 AREA_DATA = {'zt':[u'永甘甲线',u'永发II回线', u'镇永甲线', u'永发I回线',u'甘大线',u'永甘乙线',u'甘镇线'],
              'km':[u'厂口曲靖I回', u'和平厂口I回', u'草和乙线', u'厂口七甸I回',u'七罗II回', u'厂口曲靖II回',u'草和甲线',u'草宝乙线',u'和平厂口II回', u'草宝甲线', u'七罗I回',u'大宝I回',u'宝七I回',u'宝七II回']
@@ -6720,7 +6722,7 @@ def gen_mongo_geojson_by_line_id(alist, line_id, area, piny, mapping, refer_mapp
             elif k=='same_tower':
                 continue
             elif k=='tower_name':
-                tower_obj['properties'][k] = tower_name
+                tower_obj['properties']['name'] = tower_name
                 tower_obj['properties']['py'] = ''
                 try:
                     tower_obj['properties']['py'] = piny.hanzi2pinyin_first_letter(tower_name.replace('#','').replace(',','').replace('II',u'额').replace('I',u'一'))
@@ -6941,10 +6943,6 @@ def update_geometry2d(adict = {}, z_aware = False):
             name = adict['properties']['NAME']
             adict['properties']['name'] = name
             del adict['properties']['NAME']
-        if adict.has_key('properties') and adict['properties'].has_key('tower_name'):
-            name = adict['properties']['tower_name']
-        if adict.has_key('properties') and adict['properties'].has_key('line_name'):
-            name = adict['properties']['line_name']
         if name and len(name)>0 and adict.has_key('properties') and not adict['properties'].has_key('py'):
             try:
                 piny = get_pinyin_data()
@@ -6968,9 +6966,8 @@ def update_geometry2d(adict = {}, z_aware = False):
     
     
 def mongo_action(dbname, collection_name, action, data, conditions={}, clienttype='default'):
-    global gClientMongo, gConfig
+    global gClientMongo, gConfig, gFeatureslist
     ret = []
-    featureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
     try:
         mongo_init_client(clienttype)
         if dbname in gClientMongo[clienttype].database_names():      
@@ -7031,23 +7028,23 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     arr = db.collection_names()
                 if ';' in collection_name:
                     arr = collection_name.split(';')
-                if not data.has_key('py'):
+                if not conditions.has_key('py'):
                     arr = []
-                if data.has_key('type'):
-                    tyarr = data['type']
+                if conditions.has_key('type'):
+                    tyarr = conditions['type']
                     #tyarr = map(lambda x:str(x), data['type'])
-                if data.has_key('limit'):
-                    limit = data['limit']
+                if conditions.has_key('limit'):
+                    limit = conditions['limit']
                 for i in arr:
                     if len(tyarr)>0:
-                        ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
-                for i in featureslist:
+                        ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                for i in gFeatureslist:
                     if i in tyarr: 
                         tyarr.remove(i)   
                     if unicode(i) in tyarr: 
                         tyarr.remove(unicode(i))   
                 if len(tyarr)>0:
-                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + data['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 #print(ret)
             elif action.lower() == 'modelslist':
                 for i in os.listdir(SERVERGLTFROOT):
@@ -7060,9 +7057,28 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                         geojsonobj = data['geometry']
                     if not conditions.has_key('distance'):
                         raise Exception('buffer distance should be specified')
-                    ret.append(calc_buffer(geojsonobj, conditions['distance']))
+                    res = 4
+                    if conditions.has_key('res'):
+                        res = conditions['res']
+                    ret.append(calc_buffer(geojsonobj, conditions['distance'], res))
                 else:
                     raise Exception('buffer calculation need geojson object')
+            elif action.lower() == 'within':
+                if isinstance(data, dict):
+                    geojsonobj = data
+                    if data.has_key('geometry'):
+                        geojsonobj = data['geometry']
+                    if not conditions.has_key('webgis_type'):
+                        raise Exception('webgis_type should be specified in within calculation')
+                    intersect = False
+                    if conditions.has_key('intersect') and conditions['intersect']:
+                        intersect = True
+                    limit = 500
+                    if conditions.has_key('limit'):
+                        limit = conditions['limit']
+                    ret.extend(mongo_geowithin(dbname,  geojsonobj, conditions['webgis_type'], intersect, limit))
+                else:
+                    raise Exception('within calculation need geojson object')
             #else:
                 #s = 'collection [%s] does not exist.' % collection_name
                 #raise Exception(s)
@@ -7216,7 +7232,7 @@ def calc_buffer_ogr(geojsonobj, dist):
     g = json.loads(poly.ExportToJson())
     return g
 
-def calc_buffer(geojsonobj, dist):
+def calc_buffer(geojsonobj, dist, res=4):
     def transform(inp, outp, coordinates):
         if isinstance(coordinates, list) or isinstance(coordinates, tuple):
             if isinstance(coordinates[0], float):
@@ -7237,7 +7253,7 @@ def calc_buffer(geojsonobj, dist):
     outProj = pyproj.Proj(init='epsg:3857')
     geometry['coordinates'] = transform(inProj,outProj,  geometry['coordinates'])        
     shp = shapely.geometry.asShape(geometry)
-    b = shp.buffer(dist, 4)
+    b = shp.buffer(dist, res)
     #print(b)
     g1 = shapely.wkt.loads(b.wkt)
     g = geojson.Feature(geometry=g1, properties={})
@@ -7290,8 +7306,44 @@ def mongo_remove(dbname, collection_name, conditions={}, clienttype='default'):
         raise
     return ret
     
-def mongo_geowithin(dbname, geojsonobj):
-    return mongo_find(dbname, 'features', {'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}})
+def mongo_geowithin(dbname, geojsonobj, webgis_type_list, intersect=False, limit=500):
+    global gConfig, gFeatureslist
+    ret = []
+    #ret.extend( mongo_find(dbname, 'features', {'properties.webgis_type':webgis_type_list, 'geometry2d':{'$geoWithin':{'$geometry':geojsonobj['geometry']}}}))
+    
+    l_point, l_polyline, l_polygon = [], [], []
+    for i in webgis_type_list:
+        if i in gFeatureslist:
+            if 'point_' in i:
+                l_point.append(i)
+            if 'polyline_' in i and intersect:
+                l_polyline.append(i)
+            if 'polygon_' in i and intersect:
+                l_polygon.append(i)
+    if len(l_point)>0:
+        ret.extend( mongo_find(dbname, 'features', {'properties.webgis_type':l_point, 'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}}, limit))
+    if len(l_polyline)>0:
+        ret.extend( mongo_find(dbname, 'features', {'properties.webgis_type':l_polyline, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit))
+    if len(l_polygon)>0:
+        ret.extend( mongo_find(dbname, 'features', {'properties.webgis_type':l_polygon, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit))
+    
+    l_point, l_polyline, l_polygon = [], [], []
+    for i in webgis_type_list:
+        if not i in gFeatureslist:
+            if 'point_' in i:
+                l_point.append(i)
+            if 'polyline_' in i and intersect:
+                l_polyline.append(i)
+            if 'polygon_' in i and intersect:
+                l_polygon.append(i)
+    if len(l_point)>0:
+        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_point, 'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+    if len(l_polyline)>0:
+        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polyline, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+    if len(l_polygon)>0:
+        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polygon, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+        
+    return ret
 
 def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='default'):
     global gClientMongo, gConfig
@@ -7880,8 +7932,12 @@ def test_mongo_import_line(db_name, area):
                     
                     
                 for k in line.keys():
-                    lineobj['properties'][k] = line[k]
+                    if k=='line_name':
+                        lineobj['properties']['name'] = line[k]
+                    else:
+                        lineobj['properties'][k] = line[k]
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
+                lineobj['properties']['webgis_type'] = 'polyline_line'
                 collection.save(add_mongo_id(lineobj))
     except:
         traceback.print_exc()
@@ -8814,7 +8870,7 @@ if __name__=="__main__":
     #mongo_import_same_tower_mapping(db_name, area)
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
-    #test_mongo_import_towers(db_name, area)
+    test_mongo_import_towers(db_name, area)
     #print(len(get_tower_refer_mapping(db_name).keys()))
     #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
