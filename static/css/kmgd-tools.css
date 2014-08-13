@@ -13,7 +13,7 @@
 	font-size: 1.2em;
 
 }
-#control_toolpanel_kmgd
+#control_toolpanel_kmgd_left
 {
 	opacity:0.8;
     position: absolute;
@@ -118,7 +118,7 @@
 	color:#00FF00;
 	background:#000000;
     width: 400px;
-	height:490px;
+	height:520px;
 	display:none;
 	border:1px solid #00FF00;
 	font-size: 0.9em;
@@ -821,7 +821,7 @@ input[type="button"].btn-block {
 }
 
 
-.kmgd-icon-selectable {float: right;  list-style-type: none; margin: 0; padding: 2px; height:36px}
+.kmgd-icon-selectable {list-style-type: none; margin: 0; padding: 2px; height:36px}
 
 .kmgd-icon-selectable .ui-selecting { background: #009900; }
 .kmgd-icon-selectable .ui-selected { background: #009900; color: white; }
@@ -857,4 +857,15 @@ input[type="button"].btn-block {
 .webgis-colorpicker input
 {
 	color:#00FF00;
+}
+
+.bubblestylesuccess
+{
+	color:#00FF00;
+	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+}
+.bubblestylefail
+{
+	color:#FF0000;
+	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 }

@@ -17,6 +17,7 @@
 	<link rel="stylesheet" href="css/spectrum.css" />
 	<link rel="stylesheet" href="css/jquery.fileupload.css">
 	<link rel="stylesheet" href="css/jquery.fileupload-ui.css">
+	<link rel="stylesheet" href="css/jquery.jgrowl.css">
 	<link rel="stylesheet" href="css/kmgd-tools.css" />
 	<link rel="stylesheet" href="css/kmgd-icon.css" />
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
@@ -45,6 +46,7 @@
     <script type="text/javascript" src="js/jssor.utils.js"></script>
     <script type="text/javascript" src="js/jssor.slider.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
+	<script type="text/javascript" src="js/jquery/jquery.jgrowl.js"></script>
 	<script type="text/javascript" src="js/highcharts.js"></script>
 	<script type="text/javascript" src="js/webgis.js"></script>
 	<script type="text/javascript" src="js/spectrum.js"></script>
@@ -75,6 +77,7 @@
 					<div><input id='chb_search_webgis_type_point_tower' type='checkbox'><label for='chb_search_webgis_type_point_tower'>杆塔</label></div>
 					<div><input id='chb_search_webgis_type_point_marker' type='checkbox'><label for='chb_search_webgis_type_point_marker'>地标</label></div>
 					<div><input id='chb_search_webgis_type_point_hazard' type='checkbox'><label for='chb_search_webgis_type_point_hazard'>隐患点</label></div>
+					<div><input id='chb_search_webgis_type_point_dn' type='checkbox'><label for='chb_search_webgis_type_point_dn'>配网设备</label></div>
 				</div>
 			</fieldset>
 			<fieldset>
@@ -121,10 +124,10 @@
 
 <div id="control_toolpanel_kmgd_handle">&gt;
 </div>
-<div id="control_toolpanel_kmgd">
+<div id="control_toolpanel_kmgd_left">
 	<div id="accordion_tools">
 	  <h3>地图图层</h3>
-	  <div style="min-height:200px;">
+	  <div style="min-height:400px;">
 		<fieldset>
 			<legend>杆塔</legend>
 			<div>
@@ -145,12 +148,23 @@
 		</fieldset>
 	  </div>
 	  <h3>POI设置</h3>
-	  <div style="min-height:300px;">
+	  <div style="min-height:400px;">
 		 <div id='but_add_poi'></div>
 		 <div id='but_remove_poi'></div>
 	  </div>
+	  <h3>配电网络</h3>
+	  <div style="min-height:400px;">
+		 <div id='but_dn_add'></div>
+		 <!--<div id='but_remove_poi'></div>-->
+	  </div>
 	</div>	
 </div>
+
+
+<div id="dlg_dn_create" >
+	<form id="form_dn_create"></form>
+</div>
+
 
 <div id="dlg_buffer_analyze" >
 	<span>
@@ -178,6 +192,9 @@
 	</span>
 	<span>
 		<form id="form_poi_info_point_tower"></form>
+	</span>
+	<span>
+		<form id="form_poi_info_point_dn"></form>
 	</span>
 	<span>
 		<form id="form_poi_info_polyline_marker"></form>

@@ -21,6 +21,7 @@ var g_borders = {};
 var g_image_slider_tower_info;
 var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
+var g_dn_connect_mode = false;
 
 g_max_file_size = 5000000;
 
@@ -54,31 +55,30 @@ $(function() {
 	
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
 	LoadLineData(g_db_name, function(){
-		//ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔信息，请稍候...');
-		//LoadTowersData(g_db_name, function(){
-		//ShowProgressBar(true, 670, 200, '载入中', '正在载入杆塔引用信息，请稍候...');
-		//LoadTowerReferData(g_db_name, function(){
-			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
-			LoadSegments(g_db_name, function(){
-				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-				LoadModelsList(g_db_name, function(){
-					//var name = '永发I回线';
-					var name = '七罗I回';
-					LoadTowerByLineName(viewer, g_db_name,  name, function(){
-						LoadLineByLineName(viewer, g_db_name, name, function(){
-							var extent = GetExtentByCzml();
-							//console.log(extent);
-							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							ReloadCzmlDataSource(viewer, g_zaware);
-						});
-					});
-					//name = '永发II回线';
-					//LoadTowerByLineName(viewer, g_db_name,  name);
+		ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
+		LoadSegments(g_db_name, function(){
+			ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
+			LoadModelsList(g_db_name, function(){
+				//var name = '永发I回线';
+				//var name = '七罗I回';
+				//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+					//LoadLineByLineName(viewer, g_db_name, name, function(){
+						//var extent = GetExtentByCzml();
+						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						//ReloadCzmlDataSource(viewer, g_zaware);
+					//});
+				//});
 				
+				//var extent = GetDefaultExtent(g_db_name);
+				//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+				LoadAllDNNode(viewer, g_db_name, function(){
+					var extent = GetExtentByCzml();
+					FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+					ReloadCzmlDataSource(viewer, g_zaware);
 				});
+			
 			});
-		//});
-		//});
+		});
 	});
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
@@ -93,7 +93,23 @@ $(function() {
 });
 
 
-
+function LoadAllDNNode(viewer, db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'features', 'properties.webgis_type':'point_dn'};
+	MongoFind(cond, function(data){
+		//console.log(data);
+		if(data.length>0)
+		{
+			for(var i in data)
+			{
+				var id = data[i]['_id'];
+				if(!g_geojsons[id]) g_geojsons[id] = AddTerrainZOffset(data[i]);
+				if(!g_czmls[id]) g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+			}
+			if(callback) callback(data);
+		}
+	});
+}
 function InitCesiumViewer()
 {
 	var providerViewModels = [];
@@ -316,11 +332,34 @@ function InitCesiumViewer()
 function InitKeyboardEvent(viewer)
 {
 	$(document).on('keyup', function(e){
+		if(e.keyCode == 17)//ctrl
+		{
+			g_dn_connect_mode = !g_dn_connect_mode;
+			if(g_dn_connect_mode)
+			{
+				$.jGrowl("连接模式开启", { 
+					sticky:true,
+					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylesuccess'
+				});
+			
+			}
+			else
+			{
+				$(".jGrowl-notification:last-child").remove();
+				$.jGrowl("连接模式关闭", { 
+					life:3000,
+					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylesuccess'
+				});
+			}
+		}
 		if(e.keyCode == 46)//delete
 		{
 			if(g_selected_obj && g_selected_obj.id && (g_selected_obj.point || g_selected_obj.polyline || g_selected_obj.polygon) && g_geojsons[g_selected_obj.id]  && 
 			(  g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_marker'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_hazard'
+			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_dn'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_marker'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_hazard'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polygon_marker'
@@ -683,14 +722,14 @@ function InitTowerInfoDialog()
 }
 function InitToolPanel(viewer)
 {
-	$('#control_toolpanel_kmgd').css('display', 'none');
+	$('#control_toolpanel_kmgd_left').css('display', 'none');
 	$('#control_toolpanel_kmgd_handle').on( 'mouseenter', function(e){
-		$('#control_toolpanel_kmgd').show('slide',{}, 400, function(){
+		$('#control_toolpanel_kmgd_left').show('slide',{}, 400, function(){
 			$(e.target).css('display','none');
 		});
 	});
-	$('#control_toolpanel_kmgd').on( 'mouseleave', function(e){
-		$('#control_toolpanel_kmgd').hide('slide',{}, 400, function(){
+	$('#control_toolpanel_kmgd_left').on( 'mouseleave', function(e){
+		$('#control_toolpanel_kmgd_left').hide('slide',{}, 400, function(){
 			$('#control_toolpanel_kmgd_handle').css('display','block');
 		});
 	});
@@ -730,6 +769,11 @@ function InitToolPanel(viewer)
 	$('#but_remove_poi').button({label:'清空兴趣点'});
 	$('#but_remove_poi').on('click', function(){
 		ClearPoi(viewer);
+	});
+	
+	$('#but_dn_add').button({label:'新增配电网络'});
+	$('#but_dn_add').on('click', function(){
+		ShowDNAddDialog(viewer);
 	});
 }
 function ClearPoi(viewer)
@@ -2399,7 +2443,6 @@ function TowerInfoMixin(viewer)
 				g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
 			}
 		};
-		//clearselcolor();
 		viewer.selectedEntity = pickTrackedEntity(e);
 		if (Cesium.defined(viewer.selectedEntity)) 
 		{
@@ -2450,7 +2493,22 @@ function TowerInfoMixin(viewer)
 			{
 				clearselcolor();
 				console.log('selected marker id=' + id);
-				//console.log('prev selected id=' + g_prev_selected_obj.id);
+				if(g_prev_selected_obj && g_prev_selected_obj.id)
+				{
+					console.log('prev selected id=' + g_prev_selected_obj.id);
+				}
+				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn')
+				{
+					
+					if(!g_dn_connect_mode)
+					{
+						$.jGrowl("按CTRL键切换连接模式开关,选择下一个配电网节点,将依次连接这两个节点", { 
+							life: 4000,
+							position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+							theme: 'bubblestylesuccess'
+						});
+					}
+				}
 				if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
 				{
 					if(g_prev_selected_obj && g_prev_selected_obj.id)
@@ -2476,6 +2534,13 @@ function TowerInfoMixin(viewer)
 					}
 					else{
 						ShowTowerInfo(viewer, id);
+					}
+				}
+				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn' && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === 'point_dn')
+				{
+					if(g_dn_connect_mode)
+					{
+						DrawSegmentsBetweenTowDNNode(viewer, g_prev_selected_obj.id, id);
 					}
 				}
 			}
@@ -2665,6 +2730,7 @@ function TowerInfoMixin(viewer)
 	eventHelper.add(viewer.dataSources.dataSourceRemoved, dataSourceRemoved);
 
 	viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+	//viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(pickAndTrackObject, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(moveOverObject, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
@@ -3305,7 +3371,44 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 //}
 
 
-
+function DrawSegmentsBetweenTowDNNode(viewer, previd, nextid)
+{
+	var scene = viewer.scene;
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var polylines = new Cesium.PolylineCollection({
+		modelMatrix:Cesium.Matrix4.IDENTITY,
+		depthTest : false
+	});
+	var positions = [];
+	if(g_czmls[previd])
+	{
+		var a = g_czmls[previd]['position']['cartographicDegrees'];
+		if(!g_zaware) a[2] = 0;
+		var carto = Cesium.Cartographic.fromDegrees(a[0], a[1], a[2]);
+		var cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+	}
+	if(g_czmls[nextid])
+	{
+		var a = g_czmls[nextid]['position']['cartographicDegrees'];
+		if(!g_zaware) a[2] = 0;
+		var carto = Cesium.Cartographic.fromDegrees(a[0], a[1], a[2]);
+		var cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+	}
+	var color = Cesium.Color.fromCssColorString("rgba(255,255,0,1)");
+	var polyline = polylines.add({
+		positions : positions,
+		material : Cesium.Material.fromType('PolylineArrow', {
+		//material : Cesium.Material.fromType('Color', {
+			color : color
+		}),
+		width : 10.0
+	});
+	console.log(polyline);
+	scene.primitives.add(polylines);
+	g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines});
+}
 
 function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len, exist)
 {
@@ -3607,11 +3710,20 @@ function SavePoi(data, callback)
 		ShowProgressBar(false);
 		if(data1.result)
 		{
-			ShowMessage(null, 400, 200, '错误','保存出错:' + data1.result, callback);
+			//ShowMessage(null, 400, 200, '错误','保存出错:' + data1.result, callback);
+			$.jGrowl("保存失败" + data1.result, { 
+				life: 2000,
+				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+				theme: 'bubblestylefail'
+			});
 		}
 		else
 		{
-			//ShowMessage(null, 400, 200, '成功','保存成功', callback);
+			$.jGrowl("保存成功", { 
+				life: 2000,
+				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+				theme: 'bubblestylesuccess'
+			});
 		}
 		if(callback) callback(data1);
 	});
@@ -4526,6 +4638,105 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 }
 
 
+function ShowDNAddDialog(viewer)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	$('#dlg_dn_create').dialog({
+		width: 500,
+		height: 550,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		position:{at: "right center"},
+		title:'创建配电网络',
+		
+		show: {
+			effect: "slide",
+			direction: "right",
+			duration: 400
+		},
+		hide: {
+			effect: "slide",
+			direction: "right",
+			duration: 400
+		},		
+		buttons:[
+			{ 	text: "保存", 
+				click: function(){ 
+					if($('#form_dn_create').valid())
+					{
+						var that = this;
+						ShowConfirm(null, 500, 200,
+							'保存确认',
+							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+							function(){
+								SaveDN(viewer, function(){
+									$( that ).dialog( "close" );
+								});
+							},
+							function(){
+								$( that ).dialog( "close" );
+							}
+						);
+					}
+				}
+			},
+			{ 	text: "关闭", 
+				click: function(){ 
+					$( this ).dialog( "close" );
+				}
+			}
+		]
+	});
+	
+	var flds = [
+		{ display: "名称", id: "name", newline: true,  type: "text", group:'信息', width:250,labelwidth:90, validate:{required:true,minlength: 1}}
+	];
+	$("#form_dn_create" ).webgisform(flds, {
+			divorspan:"div",
+			prefix:"form_dn_create_",
+			maxwidth:400
+			//margin:10,
+			//groupmargin:10
+	});
+}
+
+function SaveDN(viewer, callback)
+{
+	var data = $("#form_dn_create" ).webgisform('getdata');
+	var geojson = {};
+	geojson['_id'] = null;
+	geojson['properties'] = {};
+	geojson['properties']['webgis_type'] = 'polyline_dn';
+	for (var k in data)
+	{
+		geojson['properties'][k] = data[k];
+	}
+	var cond = {'db':g_db_name, 'collection':'distribute_network', 'action':'save', 'data':geojson};
+	ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
+	MongoFind(cond, function(data1){
+		ShowProgressBar(false);
+		if(data1.length>0)
+		{
+			$.jGrowl("保存成功", { 
+				life: 2000,
+				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+				theme: 'bubblestylesuccess'
+			});
+		}else
+		{
+			$.jGrowl("保存失败", { 
+				life: 2000,
+				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+				theme: 'bubblestylefail'
+			});
+		}
+		if(callback) callback(data1);
+	});
+}
+
 function ShowPoiInfoDialog(viewer, title, type, position, id)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -4636,7 +4847,12 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	$('#select_poi_type').empty();
 	if(type == 'point')
 	{
-		poitypelist = [{value:'point_marker',label:'普通地标'},{value:'point_hazard',label:'隐患点'},{value:'point_tower',label:'杆塔'}];
+		poitypelist = [
+			{value:'point_marker',label:'普通地标'},
+			{value:'point_hazard',label:'隐患点'},
+			{value:'point_tower',label:'杆塔'},
+			{value:'point_dn',label:'配电网设备'}
+		];
 	}
 	if(type == 'polyline')
 	{
@@ -4647,7 +4863,6 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
 	}
 		
-	//$('#div_select_poi_type' ).append('<div style="margin:' + 10 + 'px;float:left;"><label for="select_poi_type" style="display:inline-block;text-align:right;width:100px;">兴趣点类型:' + '</label><select  style="width:300px;" id="select_poi_type" name="select_poi_type"></select></div>');
 	for(var i in poitypelist)
 	{
 		$('#select_poi_type').append('<option value="' + poitypelist[i]['value'] + '">' + poitypelist[i]['label'] + '</option>');
@@ -4691,7 +4906,7 @@ function CreateCzmlFromGeojson(geojson)
 function BuildPoiForms()
 {
 	var ret = {};
-	var vlist = ['point_marker', 'point_hazard', 'point_tower', 'polyline_marker', 'polyline_hazard', 'polygon_marker', 'polygon_hazard'];
+	var vlist = ['point_marker', 'point_hazard', 'point_tower', 'point_dn', 'polyline_marker', 'polyline_hazard', 'polygon_marker', 'polygon_hazard'];
 	for(var i in vlist)
 	{
 		v = vlist[i];
@@ -4723,7 +4938,7 @@ function BuildPoiForms()
 				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "尺寸", id: "pixel_size", defaultvalue:GetDefaultStyleValue(v, 'pixelSize'), newline: true,  type: "spinner", step:1, min:1,max:50, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 50]} },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: false,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: false,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(v === "point_hazard")
@@ -4740,7 +4955,20 @@ function BuildPoiForms()
 				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "尺寸", id: "pixel_size", defaultvalue:GetDefaultStyleValue(v, 'pixelSize'), newline: true,  type: "spinner", step:1, min:1,max:50, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 50]} },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
+			];
+		}
+		if(v === "point_dn")
+		{
+			fields = [	
+				//{ id: "id", type: "hidden" },
+				{ display: "显示图标", id: "icon", defaultvalue:"point_dn", newline: true,  type: "icon", defaultvalue:"point_marker" ,iconlist:['point_marker', 'point_tower', 'point_hazard','point_dn'], group:'信息'},
+				{ display: "名称", id: "name", newline: true,  type: "text", group:'信息', width:250, validate:{required:true,minlength: 1}},
+				{ display: "填充颜色", id: "fill_color", defaultvalue:GetDefaultStyleValue(v, 'color'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
+				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
+				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
+				{ display: "尺寸", id: "pixel_size", defaultvalue:GetDefaultStyleValue(v, 'pixelSize'), newline: true,  type: "spinner", step:1, min:1,max:50, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 50]} },
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(v === "polyline_marker")
@@ -4752,7 +4980,7 @@ function BuildPoiForms()
 				//{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "宽度", id: "pixel_width", defaultvalue:GetDefaultStyleValue(v, 'pixelWidth'), newline: true,  type: "spinner", step:1, min:1,max:50, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 50]} },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(v === "polyline_hazard")
@@ -4767,7 +4995,7 @@ function BuildPoiForms()
 				//{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "宽度", id: "pixel_width", defaultvalue:GetDefaultStyleValue(v, 'pixelWidth'), newline: true,  type: "spinner", step:1, min:1,max:50, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 50]} },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(v === "polygon_marker")
@@ -4778,7 +5006,7 @@ function BuildPoiForms()
 				{ display: "填充颜色", id: "fill_color", defaultvalue:GetDefaultStyleValue(v, 'color'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(v === "polygon_hazard")
@@ -4792,7 +5020,7 @@ function BuildPoiForms()
 				{ display: "填充颜色", id: "fill_color", defaultvalue:GetDefaultStyleValue(v, 'color'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
-				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:1, min:1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[1, 10]} }
+				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
 		if(!ret[v] && fields)
