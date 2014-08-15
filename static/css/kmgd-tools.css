@@ -869,3 +869,27 @@ input[type="button"].btn-block {
 	color:#FF0000;
 	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 }
+
+#btn_edge_save
+{
+	float:right;
+	color:#00FF00;
+	background: #000000 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+	border:1px #00FF00 solid;
+}
+
+#btn_edge_save:hover
+{
+	background: #004400 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+}
+#btn_edge_save:active
+{
+	background: #009900 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+	border:2px #00FF00 solid;
+}
+#btn_edge_save:disabled
+{
+	color:#777777;
+	background: #002200 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
+	border:1px #777777 solid;
+}

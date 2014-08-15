@@ -15,7 +15,7 @@ var g_geometry_lines = {};
 var g_use_catenary = true;
 var g_models = [];
 var g_is_tower_focus = false;
-var g_primitive_appearance, g_polyline_material_unselect, g_polygon_material_unselect;
+var g_primitive_material_unselect, g_polyline_material_unselect, g_polygon_material_unselect;
 var g_buffers = {};
 var g_borders = {};
 var g_image_slider_tower_info;
@@ -30,6 +30,7 @@ g_max_file_size = 5000000;
 	jquery全局初始化函数
 */
 $(function() {
+	$.jGrowl.defaults.closerTemplate = '<div class="bubblestylesuccess">关闭所有提示信息</div>';
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
 	var viewer = InitCesiumViewer();
@@ -72,9 +73,11 @@ $(function() {
 				//var extent = GetDefaultExtent(g_db_name);
 				//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 				LoadAllDNNode(viewer, g_db_name, function(){
-					var extent = GetExtentByCzml();
-					FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-					ReloadCzmlDataSource(viewer, g_zaware);
+					LoadAllDNEdge(viewer, g_db_name, function(){
+						var extent = GetExtentByCzml();
+						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						ReloadCzmlDataSource(viewer, g_zaware);
+					});
 				});
 			
 			});
@@ -93,6 +96,22 @@ $(function() {
 });
 
 
+function LoadAllDNEdge(viewer, db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'edges', 'properties.webgis_type':'edge_dn'};
+	MongoFind(cond, function(data){
+		if(data.length>0)
+		{
+			for(var i in data)
+			{
+				var id = data[i]['_id'];
+				if(!g_geojsons[id]) g_geojsons[id] = data[i];
+				DrawSegmentsBetweenTwoDNNode(viewer, g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
+			}
+			if(callback) callback(data);
+		}
+	});
+}
 function LoadAllDNNode(viewer, db_name, callback)
 {
 	var cond = {'db':db_name, 'collection':'features', 'properties.webgis_type':'point_dn'};
@@ -337,12 +356,39 @@ function InitKeyboardEvent(viewer)
 			g_dn_connect_mode = !g_dn_connect_mode;
 			if(g_dn_connect_mode)
 			{
-				$.jGrowl("连接模式开启", { 
+				$.jGrowl('<div>连接模式开启</div><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
 					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
-					theme: 'bubblestylesuccess'
+					theme: 'bubblestylesuccess',
+					glue:'before',
+					afterOpen:function(){
+						$('#btn_edge_save').off();
+						$('#btn_edge_save').on('click', function(){
+							//if(g_selected_obj)
+							//{
+								//console.log(g_selected_obj.id);
+							//}
+							SaveDNEdge(viewer, null, function(data){
+								$('#btn_edge_save').attr('disabled','disabled');
+								if(data.length>0)
+								{
+									for(var i in data)
+									{
+										var g = data[i];
+										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;
+									}
+									$.jGrowl("保存成功", { 
+										life: 2000,
+										position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+										theme: 'bubblestylesuccess',
+										glue:'before'
+									});
+								}
+							});
+						});
+						$('#btn_edge_save').attr('disabled','disabled');
+					}
 				});
-			
 			}
 			else
 			{
@@ -350,12 +396,67 @@ function InitKeyboardEvent(viewer)
 				$.jGrowl("连接模式关闭", { 
 					life:3000,
 					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
-					theme: 'bubblestylesuccess'
+					theme: 'bubblestylesuccess',
+					glue:'before'
 				});
 			}
 		}
 		if(e.keyCode == 46)//delete
 		{
+			if(g_selected_obj && g_selected_obj.id && g_selected_obj.id.properties && g_selected_obj.id.properties.webgis_type === 'edge_dn')
+			{
+				var get_name = function()
+				{
+					var s0 = '', s1 = '';
+					var id0 = g_selected_obj.id.properties.start;
+					var id1 = g_selected_obj.id.properties.end;
+					if(g_geojsons[id0]) s0 = g_geojsons[id0].properties.name;
+					if(g_geojsons[id1]) s1 = g_geojsons[id1].properties.name;
+					return s0 + '-' + s1;
+				};
+				var get_id = function()
+				{
+					var ret;
+					for(var k in g_geojsons)
+					{
+						var g = g_geojsons[k];
+						if(g.properties.start == g_selected_obj.id.properties.start && g.properties.end == g_selected_obj.id.properties.end)
+						{
+							ret = g['_id'];
+							break;
+						}
+					}
+					return ret;
+				};
+				var name = get_name();
+				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除[' + name + ']之间的联系吗?', function(){
+					//console.log(g_selected_obj.id);
+					var id = get_id();
+					if(id)
+					{
+						var cond = {'db':g_db_name, 'collection':'edges', 'action':'remove', '_id':id};
+						MongoFind( cond, 
+							function(data){
+								if(data.length>0)
+								{
+									if(data[0]['ok'] === 1)
+									{
+										$.jGrowl("删除成功", { 
+											life:2000,
+											position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+											theme: 'bubblestylesuccess',
+											glue:'before'
+										});
+									}else
+									{
+									}
+								}
+						});
+					}
+					RemoveSegmentsBetweenTwoNode(viewer, {id:g_selected_obj.id.properties.start},{id:g_selected_obj.id.properties.end});
+					
+				});
+			}
 			if(g_selected_obj && g_selected_obj.id && (g_selected_obj.point || g_selected_obj.polyline || g_selected_obj.polygon) && g_geojsons[g_selected_obj.id]  && 
 			(  g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_marker'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_hazard'
@@ -377,6 +478,13 @@ function InitKeyboardEvent(viewer)
 								//console.log(data[0]);
 								if(data[0]['ok'] === 1)
 								{
+									$.jGrowl("删除成功", { 
+										life:2000,
+										position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+										theme: 'bubblestylesuccess',
+										glue:'before'
+									});
+
 									if(g_geojsons[g_selected_obj.id])
 									{
 										delete g_geojsons[g_selected_obj.id];
@@ -774,6 +882,10 @@ function InitToolPanel(viewer)
 	$('#but_dn_add').button({label:'新增配电网络'});
 	$('#but_dn_add').on('click', function(){
 		ShowDNAddDialog(viewer);
+	});
+	$('#but_dn_remove').button({label:'清空配电网络'});
+	$('#but_dn_remove').on('click', function(){
+		RemoveSegmentsByType(viewer, 'edge_dn');
 	});
 }
 function ClearPoi(viewer)
@@ -2373,7 +2485,6 @@ function TowerInfoMixin(viewer)
 		}
 		
 		
-		
 		if (Cesium.defined(picked)) {
 			var id = Cesium.defaultValue(picked.id, picked.primitive.id);
 			//console.log(id);
@@ -2382,7 +2493,8 @@ function TowerInfoMixin(viewer)
 				return id;
 			}
 			
-			if (picked.primitive && picked.primitive instanceof Cesium.Primitive) {
+			//if (picked.primitive && picked.primitive instanceof Cesium.Primitive) {
+			if (picked.primitive) {
 				return picked;
 			}
 		}
@@ -2430,10 +2542,10 @@ function TowerInfoMixin(viewer)
 	
 	function pickAndSelectObject(e) {
 		var clearselcolor = function(){
-			//if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_prev_selected_obj.primitive instanceof Cesium.Primitive && g_primitive_appearance)
-			//{
-				//g_prev_selected_obj.primitive.appearance = g_primitive_appearance;
-			//}
+			if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_primitive_material_unselect)
+			{
+				g_prev_selected_obj.primitive.material = g_primitive_material_unselect;
+			}
 			if(g_prev_selected_obj && g_prev_selected_obj.polyline && g_polyline_material_unselect)
 			{
 				g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
@@ -2443,33 +2555,38 @@ function TowerInfoMixin(viewer)
 				g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
 			}
 		};
+		clearselcolor();
 		viewer.selectedEntity = pickTrackedEntity(e);
+		
+		$('#btn_edge_save').attr('disabled','disabled');
 		if (Cesium.defined(viewer.selectedEntity)) 
 		{
 			g_prev_selected_obj = g_selected_obj;
 			g_selected_obj = viewer.selectedEntity;
 			var id = g_selected_obj.id;
-			//if (viewer.selectedEntity.primitive && viewer.selectedEntity.primitive instanceof Cesium.Primitive)
-			//{
-				//var id = viewer.selectedEntity.id;
-				//g_primitive_appearance =  viewer.selectedEntity.primitive.appearance;
-				//if(g_primitive_appearance.material)
-				//{
-					//viewer.selectedEntity.primitive.appearance = new Cesium.PolylineMaterialAppearance({
-							////material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
-							//material : Cesium.Material.fromType('PolylineOutline',{
-								//color:	g_primitive_appearance.material.uniforms.color,
-								//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
-								//outlineWidth: 3.0
-							//})
-							////material : Cesium.Material.fromType('Color', {
-								////color : Cesium.Color.fromCssColorString(rgba)
-							////})
-						//});
-					//g_prev_selected_obj = viewer.selectedEntity;
-				//}
-			//}
-			if (g_selected_obj.polyline)
+			if (id && id.properties && id.properties.webgis_type === 'edge_dn')
+			{
+				clearselcolor();
+				g_primitive_material_unselect =  g_selected_obj.primitive.material;
+				if(g_primitive_material_unselect)
+				{
+					g_selected_obj.primitive.material = 
+					//Cesium.Material.fromType('PolylineOutline',{
+						//color:	g_primitive_material_unselect.uniforms.color,
+						//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
+						//outlineWidth: 1.0
+					//});
+					//Cesium.Material.fromType('Color', {
+						//color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
+					//});
+					Cesium.Material.fromType('PolylineArrow', {
+						color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
+					});
+					
+					
+				}
+			}
+			else if (g_selected_obj.polyline)
 			{
 				if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
 				{
@@ -2492,10 +2609,10 @@ function TowerInfoMixin(viewer)
 			else if (g_selected_obj.point)
 			{
 				clearselcolor();
-				console.log('selected marker id=' + id);
+				//console.log('selected marker id=' + id);
 				if(g_prev_selected_obj && g_prev_selected_obj.id)
 				{
-					console.log('prev selected id=' + g_prev_selected_obj.id);
+					//console.log('prev selected id=' + g_prev_selected_obj.id);
 				}
 				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn')
 				{
@@ -2503,9 +2620,10 @@ function TowerInfoMixin(viewer)
 					if(!g_dn_connect_mode)
 					{
 						$.jGrowl("按CTRL键切换连接模式开关,选择下一个配电网节点,将依次连接这两个节点", { 
-							life: 4000,
+							life: 2000,
 							position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
-							theme: 'bubblestylesuccess'
+							theme: 'bubblestylesuccess',
+							glue:'before'
 						});
 					}
 				}
@@ -2538,9 +2656,23 @@ function TowerInfoMixin(viewer)
 				}
 				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn' && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === 'point_dn')
 				{
-					if(g_dn_connect_mode)
+					if(g_dn_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
 					{
-						DrawSegmentsBetweenTowDNNode(viewer, g_prev_selected_obj.id, id);
+						var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
+						if(ring)
+						{
+							$.jGrowl("不能形成环路",{
+								life: 2000,
+								position: 'center', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+							
+						}else
+						{
+							$('#btn_edge_save').removeAttr('disabled');
+							DrawSegmentsBetweenTwoDNNode(viewer, g_prev_selected_obj.id, id, true);
+						}
 					}
 				}
 			}
@@ -2730,7 +2862,6 @@ function TowerInfoMixin(viewer)
 	eventHelper.add(viewer.dataSources.dataSourceRemoved, dataSourceRemoved);
 
 	viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-	//viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(pickAndTrackObject, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(moveOverObject, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
@@ -2795,6 +2926,8 @@ function TowerInfoMixin(viewer)
 		}
 	});
 }
+
+
 
 function ReloadLinePosition(viewer)
 {
@@ -2919,52 +3052,137 @@ function GetContactPointByIndex(tower, side, index)
 	return ret;
 }
 
-function GetSegmentsModel(tower0, tower1)
+function RemoveSegmentsByType(viewer, webgis_type)
 {
-	var ret = null;
-	for(var i in g_geometry_segments)
+	var remove_one = function()
 	{
-		var seg = g_geometry_segments[i];
-		if(
-			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
-		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
-		){
-			ret = seg['primitive'];
-			break;
+		var ret = false;
+		for(var i in g_geometry_segments)
+		{
+			var seg = g_geometry_segments[i];
+			if(seg.webgis_type === webgis_type)
+			{
+				scene.primitives.remove(seg.primitive);
+				g_geometry_segments.splice(i,1);
+				ret = true;
+				break;
+			}
+		}
+		return ret;
+	};
+	
+	if(type===undefined)
+	{
+		scene.primitives.removeAll();
+		g_geometry_segments.length = 0;
+	}else
+	{
+		var ok = remove_one();
+		while(ok)
+		{
+			ok = remove_one();
 		}
 	}
-	return ret;
 }
-function RemoveSegmentsFromArray(tower0, tower1)
+
+function RemoveSegmentsFromArray(node0, node1)
 {
-	var ret = null;
-	for(var i in g_geometry_segments)
+	var ret;
+	var id0, id1;
+	if(node0['_id'] && node1['_id'])
 	{
-		var seg = g_geometry_segments[i];
-		if(
-			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
-		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
-		){
-			ret = seg;
-			g_geometry_segments.splice(i,1);
-			break;
+		id0 = node0['_id'];
+		id1 = node1['_id']
+	}
+	if(node0['id'] && node1['id'])
+	{
+		id0 = node0['id'];
+		id1 = node1['id']
+	}
+	if(id0 && id1)
+	{
+		for(var i in g_geometry_segments)
+		{
+			var seg = g_geometry_segments[i];
+			if(
+				(seg['start'] == id0 && seg['end'] == id1)
+			|| 	(seg['end'] == id0 && seg['start'] == id1)
+			){
+				ret = seg;
+				g_geometry_segments.splice(i,1);
+				break;
+			}
 		}
 	}
 	return ret;
 }
 
-function CheckSegmentsExist(tower0, tower1)
+function CheckSegmentsRing(node0, node1)
+{
+	var find_prev = function(id, list)
+	{
+		for(var i in list)
+		{
+			var seg = list[i];
+			if(id == seg['end'] && seg['webgis_type'] == 'edge_dn') return seg['start'];
+		}
+		return undefined;
+	};
+	var ret = false;
+	var id0, id1;
+	if(node0['_id'] && node1['_id'])
+	{
+		id0 = node0['_id'];
+		id1 = node1['_id']
+	}
+	if(node0['id'] && node1['id'])
+	{
+		id0 = node0['id'];
+		id1 = node1['id']
+	}
+	if(id0 && id1)
+	{
+		var prev = id0;
+		while(prev)
+		{
+			oldprev = prev;
+			prev = find_prev(oldprev, g_geometry_segments);
+			if(prev && prev == id1)
+			{
+				ret = true;
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+function CheckSegmentsExist(node0, node1)
 {
 	var ret = false;
-	for(var i in g_geometry_segments)
+	var id0, id1;
+	if(node0['_id'] && node1['_id'])
 	{
-		var seg = g_geometry_segments[i];
-		if(
-			(seg['start'] == tower0['_id'] && seg['end'] == tower1['_id'])
-		|| 	(seg['end'] == tower0['_id'] && seg['start'] == tower1['_id'])
-		){
-			ret = true;
-			break;
+		id0 = node0['_id'];
+		id1 = node1['_id']
+	}
+	if(node0['id'] && node1['id'])
+	{
+		id0 = node0['id'];
+		id1 = node1['id']
+	}
+	if(id0 && id1)
+	{
+		for(var i in g_geometry_segments)
+		{
+			var seg = g_geometry_segments[i];
+			if(  seg['webgis_type'] == 'edge_dn' &&
+				((seg['start'] == id0 && seg['end'] == id1)
+			|| 	(seg['end'] == id0 && seg['start'] == id1)
+			)){
+				ret = true;
+				break;
+			}
 		}
 	}
 	return ret;
@@ -2993,17 +3211,17 @@ function RemoveLineModel(viewer, line_id)
 
 
 
-function RemoveSegmentsBetweenTow(viewer, tower0, tower1)
+function RemoveSegmentsBetweenTwoNode(viewer, node0, node1)
 {
 	var scene = viewer.scene;
-	if(CheckSegmentsExist(tower0, tower1))
+	if(CheckSegmentsExist(node0, node1))
 	{
-		var seg = RemoveSegmentsFromArray(tower0, tower1);
+		var seg = RemoveSegmentsFromArray(node0, node1);
 		if(seg)
 		{
-			while(!seg['primitive'].isDestroyed())
+			while(!seg.primitive.isDestroyed())
 			{
-				var ret = scene.primitives.remove(seg['primitive']);
+				var ret = scene.primitives.remove(seg.primitive);
 			}
 		}
 	}
@@ -3371,7 +3589,7 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 //}
 
 
-function DrawSegmentsBetweenTowDNNode(viewer, previd, nextid)
+function DrawSegmentsBetweenTwoDNNode(viewer, previd, nextid, fresh)
 {
 	var scene = viewer.scene;
 	var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -3397,17 +3615,19 @@ function DrawSegmentsBetweenTowDNNode(viewer, previd, nextid)
 		positions.push(cart3);
 	}
 	var color = Cesium.Color.fromCssColorString("rgba(255,255,0,1)");
+	if(!fresh) color = Cesium.Color.fromCssColorString("rgba(225,225,0,1)");
 	var polyline = polylines.add({
 		positions : positions,
 		material : Cesium.Material.fromType('PolylineArrow', {
 		//material : Cesium.Material.fromType('Color', {
 			color : color
 		}),
-		width : 10.0
+		width : 10.0,
+		id:{ properties:{'start':previd, 'end':nextid, webgis_type:'edge_dn'}}
 	});
-	console.log(polyline);
+	//console.log(polyline);
 	scene.primitives.add(polylines);
-	g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines});
+	g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:'edge_dn', properties:{'start':previd, 'end':nextid, webgis_type:'edge_dn'}});
 }
 
 function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len, exist)
@@ -3570,12 +3790,12 @@ function RemoveSegmentsTower(viewer, tower)
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
-		RemoveSegmentsBetweenTow(viewer, t, tower);
+		RemoveSegmentsBetweenTwoNode(viewer, t, tower);
 	}
 	for(var i in next_towers)
 	{
 		var t = next_towers[i];
-		RemoveSegmentsBetweenTow(viewer, tower, t);
+		RemoveSegmentsBetweenTwoNode(viewer, tower, t);
 	}
 }
 
@@ -3714,7 +3934,8 @@ function SavePoi(data, callback)
 			$.jGrowl("保存失败" + data1.result, { 
 				life: 2000,
 				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylefail'
+				theme: 'bubblestylefail',
+				glue:'before'
 			});
 		}
 		else
@@ -3722,7 +3943,8 @@ function SavePoi(data, callback)
 			$.jGrowl("保存成功", { 
 				life: 2000,
 				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylesuccess'
+				theme: 'bubblestylesuccess',
+				glue:'before'
 			});
 		}
 		if(callback) callback(data1);
@@ -4703,6 +4925,45 @@ function ShowDNAddDialog(viewer)
 	});
 }
 
+function GetPropertiesByTwoNodes(viewer, id0, id1)
+{
+	var ret;
+	//var scene = viewer.scene;
+	for(var i in g_geometry_segments)
+	{
+		var g = g_geometry_segments[i];
+		if(g.start == id0 && g.end == id1)
+		{
+			ret = g.properties;
+			break;
+		}
+	}
+	return ret
+}
+
+function SaveDNEdge(viewer, id, callback)
+{
+	
+	if(g_dn_connect_mode 
+	&& g_selected_obj 
+	&& g_czmls[g_selected_obj.id] 
+	&& g_czmls[g_selected_obj.id]['webgis_type'] === 'point_dn' 
+	&& g_prev_selected_obj 
+	&& g_czmls[g_prev_selected_obj.id] 
+	&& g_czmls[g_prev_selected_obj.id]['webgis_type'] === 'point_dn')
+	{
+		var geojson = {};
+		geojson['_id'] = id;
+		geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
+		var cond = {'db':g_db_name, 'collection':'edges', 'action':'save', 'data':geojson};
+		ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
+		MongoFind(cond, function(data1){
+			ShowProgressBar(false);
+			if(callback) callback(data1);
+		});
+	}
+}
+
 function SaveDN(viewer, callback)
 {
 	var data = $("#form_dn_create" ).webgisform('getdata');
@@ -4723,14 +4984,16 @@ function SaveDN(viewer, callback)
 			$.jGrowl("保存成功", { 
 				life: 2000,
 				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylesuccess'
+				theme: 'bubblestylesuccess',
+				glue:'before'
 			});
 		}else
 		{
 			$.jGrowl("保存失败", { 
 				life: 2000,
 				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylefail'
+				theme: 'bubblestylefail',
+				glue:'before'
 			});
 		}
 		if(callback) callback(data1);

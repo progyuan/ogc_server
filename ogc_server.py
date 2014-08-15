@@ -34,12 +34,6 @@ import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
 import czml
-#from wfs_server import WFSServer
-#import gmapcatcher.mapUtils as mapUtils
-#import gmapcatcher.mapConf as mapConf
-#import gmapcatcher.mapConst as mapConst
-#from gmapcatcher.mapServices import MapServ
-#from gmapcatcher.mapDownloader import MapDownloader, MapDownloaderGevent, MapDownloaderSocks5
 
 import pypyodbc
 import uuid
@@ -47,6 +41,12 @@ import db_util
 from module_locator import module_path, dec, dec1, enc, enc1
 from geventhttpclient import HTTPClient, URL
 
+from gevent.local import local
+from werkzeug.wrappers import Request, BaseResponse
+from werkzeug.local import LocalProxy
+from werkzeug.contrib.sessions import FilesystemSessionStore
+from werkzeug.utils import dump_cookie, parse_cookie
+from contextlib import contextmanager
 
 
 
@@ -75,9 +75,7 @@ gTerrainCache = {}
 
 gGreenlets = {}
 gClusterProcess = {}
-
-#gMapDownloader = None
-#gCtxMap = None
+gLoginToken = {}
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -85,6 +83,24 @@ _QSTR = '"(?:\\\\.|[^"])*"' # Quoted string
 _VALUE = '(?:[^%s]+|%s)' % (_SPECIAL, _QSTR) # Save or quoted string
 _OPTION = '(?:;|^)\s*([^%s]+)\s*=\s*(%s)' % (_SPECIAL, _VALUE)
 _RE_OPTION = re.compile(_OPTION) # key=value part of an Content-Type like header
+
+
+
+gSessionStore = None
+
+gRequests = None
+gRequest = None
+
+@contextmanager
+def session_manager(environ):
+    global gRequests, gRequest
+    if gRequests is None:
+        gRequests = local()
+        gRequest = LocalProxy(lambda: gRequests.request)
+    gRequests.request = Request(environ)
+    yield
+    gRequests.request = None
+
 
 
 def init_global():
@@ -202,18 +218,21 @@ def handle_static(environ, aUrl):
         contenttype = 'text/plain;charset=' + ENCODING
         statuscode = '500 Internal Server Error'
         body = '500 Internal Server Error'
-        
-    return statuscode, str(contenttype), body
+    headers = {}
+    headers['Content-Type'] = str(contenttype)
+    return statuscode, headers, body
 
-def handle_wfs_GetCapabilities(params, Start_response):
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING)])
+def handle_wfs_GetCapabilities(params):
+    headers = {}
+    headers['Content-Type'] = 'text/xml;charset=' + ENCODING
     s = create_wfs_GetCapabilities()
-    return [s]
+    return '200 OK', headers, s
 
-def handle_wfs_GetFeature(params, Start_response):
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING)])
+def handle_wfs_GetFeature(params):
+    headers = {}
+    headers['Content-Type'] = 'text/xml;charset=' + ENCODING
     s = create_wfs_GetFeature()
-    return [s]
+    return '200 OK', headers, s
 
 
 def create_wfs_GetCapabilities():
@@ -478,14 +497,11 @@ def create_wfs_GetCapabilities():
     return ret
 
 
-def handle_wmts_GetCapabilities(params, Start_response):
-    #clear_tmp()
-    Start_response('200 OK', [('Content-Type', 'text/xml;charset=' + ENCODING),])
+def handle_wmts_GetCapabilities(params):
+    headers = {}
+    headers['Content-Type'] = 'text/xml;charset=' + ENCODING
     s = create_wmts_GetCapabilities()
-    #s = ''
-    #with open(gConfig['wmts']['GetCapabilities']) as f:
-        #s = f.read()
-    return [s]
+    return '200 OK', headers, s
     
 def create_wmts_GetCapabilities():
     namespace = {'ows':"http://www.opengis.net/ows/1.1", 'xlink':"http://www.w3.org/1999/xlink", 'xsi':"http://www.w3.org/2001/XMLSchema-instance", 'gml':"http://www.opengis.net/gml", 'schemaLocation':"http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"}
@@ -617,9 +633,10 @@ def download_callback(*args, **kwargs):
                 gMapTileCache[key] = f1.read()
     
     
-#def handle_wmts_GetTile(params, Start_response):
+#def handle_wmts_GetTile(params):
     #global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
     #global STATICRESOURCE_IMG_DIR
+    #headers = {}
     #picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
     #root = gConfig['wmts']['tiles_sat_root']
     ##gMapConf.map_service = 'Google'
@@ -673,7 +690,7 @@ def download_callback(*args, **kwargs):
     #else:
         #key = '%d-%d-%d' % (zoom, col, row)
         #gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback)
-    #Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
+    #start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
     #if lyrtype == mapConst.LAYER_SAT:    
         #if not gSatTileCache.has_key(key):
             #try:
@@ -714,7 +731,7 @@ def download_callback(*args, **kwargs):
         #ret = gMapTileCache[key]
     #return [ret,]
 
-def handle_tiles(Env, Start_response):
+def handle_tiles(environ):
     global gConfig, gTileCache
     def get_blank_tile(image_type):
         blank_tile = ''
@@ -723,9 +740,9 @@ def handle_tiles(Env, Start_response):
             f1 = gevent.fileobject.FileObjectThread(f, 'rb')
             blank_tile = f1.read()
         return blank_tile
-        
-    path_info = Env['PATH_INFO']
-    d = cgi.parse(None, Env)
+    headers = {}    
+    path_info = environ['PATH_INFO']
+    d = cgi.parse(None, environ)
     ret = None
     mimetype = 'image/png'
     #key = path_info.replace('/tiles/','')
@@ -749,19 +766,17 @@ def handle_tiles(Env, Start_response):
         ret = gTileCache[image_type]['missing']
     if ret is None:
         ret = gTileCache[image_type]['missing']
-    #bytestr = bytearray(ret) 
-    #Start_response('200 OK', [('Content-Type', mimetype), ('Content-Length', str(len(bytestr)))])
-    #return [bytestr]
-    Start_response('200 OK', [('Content-Type', mimetype), ])
-    return [ret]
+    headers['Content-Type'] = mimetype
+    return '200 OK', headers, ret
         
             
 
-def handle_terrain(Env, Start_response):
+def handle_terrain(environ):
     global gConfig, gTileCache
-    path_info = Env['PATH_INFO']
-    d = cgi.parse(None, Env)
+    path_info = environ['PATH_INFO']
+    d = cgi.parse(None, environ)
     ret = None
+    headers = {}
     mimetype = str('application/octet-stream')
     key = path_info.replace('/terrain/','')
     terrain_type = 'quantized_mesh'
@@ -777,15 +792,15 @@ def handle_terrain(Env, Start_response):
         if tilepath == 'layer.json':
             mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
             gTileCache[terrain_type][key] = ret
-            Start_response('200 OK', [('Content-Type', mimetype),])
-            return [ret]
+            headers['Content-Type'] = mimetype
+            return '200 OK', headers, ret
         else:
             print('tilepath:%s' % tilepath)
             mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
             if ret:
                 gTileCache[terrain_type][key] = ret
-                Start_response('200 OK', [('Content-Type', mimetype),])
-                return [ret]
+                headers['Content-Type'] = mimetype
+                return '200 OK', headers, ret
             else:
                 if not gTileCache[terrain_type].has_key('missing'):
                     print('reading mongo blank_terrain...')
@@ -794,15 +809,16 @@ def handle_terrain(Env, Start_response):
                     gTileCache[terrain_type]['missing'] = ret
                 ret = gTileCache[terrain_type]['missing']
                 
-    Start_response('200 OK', [('Content-Type', mimetype),])
-    return [ret]
+    headers['Content-Type'] = mimetype
+    return '200 OK', headers, ret
 
         
-def handle_terrain1(Env, Start_response):
+def handle_terrain1(environ):
     global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
-    path_info = Env['PATH_INFO']
-    #d = cgi.parse(None, Env)
+    path_info = environ['PATH_INFO']
+    #d = cgi.parse(None, environ)
     ret = None
+    headers = {}
     key = path_info.replace('/terrain/','')
     if gTerrainCache.has_key(key):
         ret = gTerrainCache[key]
@@ -828,15 +844,16 @@ def handle_terrain1(Env, Start_response):
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     ret = f1.read()
                 gTerrainCache['missing'] = ret
-    Start_response('200 OK', [('Content-Type', 'application/octet-stream'),])
-    return [ret]
+    headers['Content-Type'] = 'application/octet-stream'
+    return '200 OK', headers, ret
     
     
-def handle_arcgistile(Env, Start_response):
+def handle_arcgistile(environ):
     global gConfig, gMapTileCache, gSatTileCache
     global STATICRESOURCE_IMG_DIR
     ret = None
-    dd = cgi.parse(None, Env)
+    headers = {}
+    dd = cgi.parse(None, environ)
     d = {}
     for k in dd.keys():
         d[k] = dd[k][0]
@@ -866,7 +883,7 @@ def handle_arcgistile(Env, Start_response):
         
         ret = gSatTileCache[key]
     elif d.has_key('is_esri') :
-        key = Env['PATH_INFO'].replace('/arcgistile/','')
+        key = environ['PATH_INFO'].replace('/arcgistile/','')
         if not gSatTileCache.has_key(key):
             try:
                 #picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['wmts']['format']))
@@ -895,67 +912,65 @@ def handle_arcgistile(Env, Start_response):
                 gSatTileCache['missing'] = f1.read()
         ret = gSatTileCache['missing']
         
-    Start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
-    return [ret]    
+    headers['Content-Type'] = str(gConfig['mime_type'][gConfig['wmts']['format']])
+    return '200 OK', headers, ret   
         
     
-def handle_wmts(Env, Start_response):
-    dd = cgi.parse(None, Env)
+def handle_wmts(environ):
+    dd = cgi.parse(None, environ)
     d = {}
-    #s = 'method=' + Env['REQUEST_METHOD'] + '\n'
+    headers = {}
+    #s = 'method=' + environ['REQUEST_METHOD'] + '\n'
     for k in dd.keys():
         d[k.upper()] = dd[k][0]
-    #print(d)
-    #Start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
     if d.has_key('SERVICE') and d['SERVICE'] in ['WMTS'] :
         #if d.has_key('VERSION') and d['VERSION'] in ['1.0.0', '1.0']:
         if d.has_key('REQUEST') :
             if d['REQUEST'] in ['GetCapabilities']:
-                return handle_wmts_GetCapabilities(d, Start_response)
+                return handle_wmts_GetCapabilities(d)
             elif d['REQUEST'] in ['GetTile']:
-                return handle_wmts_GetTile(d, Start_response)
+                return handle_wmts_GetTile(d)
             else:
-                Start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
-                s = 'Unsupported WMTS request'
+                headers['Content-Type'] = 'text/plain;charset=' + ENCODING
+                s =  'Unsupported WMTS request'
         else:
-            Start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
+            headers['Content-Type'] = 'text/plain;charset=' + ENCODING
             s = 'Unsupported WMTS version'
     else:
-        Start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
+        headers['Content-Type'] = 'text/plain;charset=' + ENCODING
         s = 'Unsupported service'
         
-    return [s]
+    return '200 OK', headers, s
 
-def handle_wfs(Env, Start_response):
-    global gWFSService
-    return gWFSService.dispatchRequest(Env, Start_response)
     
-def handle_cluster(Env, Start_response):
+def handle_cluster(environ):
     global gConfig
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
-    if int(Env['SERVER_PORT'])==int(gConfig['cluster']['manager_port']) and gConfig['cluster']['enable_cluster'] in ['true','True']:
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    if int(environ['SERVER_PORT'])==int(gConfig['cluster']['manager_port']) and gConfig['cluster']['enable_cluster'] in ['true','True']:
         op = ''
-        if Env['PATH_INFO']=='/create_cluster':
+        if environ['PATH_INFO']=='/create_cluster':
             if len(get_pid_from_name('nginx'))==0:
                 op = 'create ok'
                 create_cluster()
-        elif Env['PATH_INFO']=='/kill_cluster':
+        elif environ['PATH_INFO']=='/kill_cluster':
             op = 'kill ok'
             kill_cluster()
-        #print(Env)
-        return [json.dumps({'result':op})]
+        #print(environ)
+        return '200 OK', headers, json.dumps({'result':op})
     else:
-        return [json.dumps({'result':'cluster is disabled or not by manager'})]
+        return '200 OK', headers, json.dumps({'result':'cluster is disabled or not by manager'})
     
     
     
-def handle_test(Env, Start_response):
+def handle_test(environ):
     s = '测试OK'
-    d = cgi.parse(None, Env)
-    print(d)
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
-    print(s)
-    return [s]
+    headers = {}
+    d = cgi.parse(None, environ)
+    #print(d)
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    #print(s)
+    return '200 OK', headers, s
     
     
 def get_condition_from_dict(dct):
@@ -981,16 +996,17 @@ def mongo_get_condition_from_dict(dct):
     print(ret)
     return ret
     
-def handle_get_method(Env, Start_response):
+def handle_get_method(environ):
     global ENCODING
     global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
     global gConfig
     ret = {}
     s = ''
-    d = cgi.parse(None, Env)
+    d = cgi.parse(None, environ)
     isgrid = False
     area = ''
     data = {}
+    headers = {}
     if d.has_key('grid'):
         isgrid = True
         del d['grid']
@@ -1121,9 +1137,9 @@ def handle_get_method(Env, Start_response):
         elif op == "gridfs":
             ret = db_util.gridfs_find(d)
             if isinstance(ret, tuple) and ret[0] and ret[1]:
-                Start_response('200 OK', [('Content-Type', str(ret[0])),])
+                headers['Content-Type'] = str(ret[0])
                 s = ret[1]
-                return [s]
+                return '200 OK', headers , s
             if isinstance(ret, list):
                 s = json.dumps(ret, ensure_ascii=True, indent=4)
         elif op == "gridfs_delete":
@@ -1134,12 +1150,12 @@ def handle_get_method(Env, Start_response):
                 ret["result"] = sys.exc_info()[1].message
                 s = json.dumps(ret, ensure_ascii=True, indent=4)
         
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING),])
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
     if isinstance(ret, dict) and len(ret.keys())==0:
         ret["result"] = "ok"
     if isinstance(s, list) and len(s)==0:
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    return [s]
+    return '200 OK', headers, s
 
 def create_upload_xls_dir():
     global STATICRESOURCE_DIR
@@ -1209,7 +1225,7 @@ def create_pic_dir():
     if not os.path.exists(UPLOAD_PHOTOS_DIR):
         os.mkdir(UPLOAD_PHOTOS_DIR)
 
-def handle_upload_file(Env, qsdict, filedata):
+def handle_upload_file(environ, qsdict, filedata):
     global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
     
     def parse_options_header(header, options=None):
@@ -1306,7 +1322,7 @@ def handle_upload_file(Env, qsdict, filedata):
             ret = True
         if qsdict.has_key('db'):
             mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
-            filename, filedata1 = parse_form_data(Env, mimetype, filedata)
+            filename, filedata1 = parse_form_data(environ, mimetype, filedata)
             #with open(ur'd:\aaa.png','wb') as f:
                 #f.write(filedata)
             db_util.gridfs_save(qsdict, filename, filedata1)
@@ -1381,13 +1397,13 @@ def geojson_to_czml(aList):
     return cz
         
     
-def handle_post_method(Env, Start_response):
+def handle_post_method(environ):
     global ENCODING
-    buf = Env['wsgi.input'].read()
+    buf = environ['wsgi.input'].read()
     
     querydict = {}
-    if Env.has_key('QUERY_STRING'):
-        querydict = urlparse.parse_qs(Env['QUERY_STRING'])
+    if environ.has_key('QUERY_STRING'):
+        querydict = urlparse.parse_qs(environ['QUERY_STRING'])
     #for k in d.keys():
         #kv = pair.split('=')
         #try:
@@ -1399,6 +1415,7 @@ def handle_post_method(Env, Start_response):
     is_mongo = False
     use_czml = False
     get_extext = False
+    headers = {}
     try:
         ds_plus = urllib.unquote_plus(buf)
         obj = json.loads(dec(ds_plus))
@@ -1435,8 +1452,8 @@ def handle_post_method(Env, Start_response):
             elif isinstance(l, dict) and len(l.keys()) > 0:
                 ret = l
             elif isinstance(l, czml.CZML):
-                Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ])
-                return [enc(l.dumps()),]
+                headers['Content-Type'] = 'text/json;charset=' + ENCODING
+                return '200 OK', headers, enc(l.dumps())
             else:
                 ret["result"] = "%s.%s return 0 record" % (dbname, collection)
         else:
@@ -1445,10 +1462,10 @@ def handle_post_method(Env, Start_response):
     except:
         if len(querydict.keys())>0:
             try:
-                #forms, files = multipart.parse_form_data(Env)
+                #forms, files = multipart.parse_form_data(environ)
                 #with open(ur'd:\aaa.png','wb') as f:
                     #f.write(buf)
-                is_upload = handle_upload_file(Env, querydict, buf)
+                is_upload = handle_upload_file(environ, querydict, buf)
                 ret['result'] = ''
             except:
                 ret['result'] = sys.exc_info()[1]
@@ -1501,11 +1518,11 @@ def handle_post_method(Env, Start_response):
             ret["result"] = "unknown operation"
     else:    
         ret["result"] = "unknown operation"
-    Start_response('200 OK', [('Content-Type', 'text/json;charset=' + ENCODING), ])
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
     #time.sleep(6)
     #print(ret)
     #return [urllib.quote(enc(json.dumps(ret)))]
-    return [json.dumps(ret, ensure_ascii=True, indent=4)]
+    return '200 OK', headers, json.dumps(ret, ensure_ascii=True, indent=4)
 
 def handle_thunder_soap(obj):
     ret = {}
@@ -1529,11 +1546,11 @@ def dishen_ws_loop(aWebSocket, aHash):
             break
         gevent.sleep(1.0)
 
-def handle_websocket(environ, start_response):
+def handle_websocket(environ):
     global gCapture, gGreenlets
-    for k, v in environ.iteritems():
-        print('%s=%s' % (k,str(v)))
-
+    #for k, v in environ.iteritems():
+        #print('%s=%s' % (k,str(v)))
+    headers = {}
     ws = environ["wsgi.websocket"]
     print(dir(ws))
     #print(dir(ws.rfile))
@@ -1544,50 +1561,122 @@ def handle_websocket(environ, start_response):
         gGreenlets[str(ghash)] = (glet, ws)
         dishen_ws_loop(ws, ghash)
     s = 'version=%s' % ( environ['wsgi.websocket_version'])
-    start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
-    return [s]
+    headers['Content-Type'] = 'text/plain;charset=' + ENCODING
+    return '200 OK', headers, s
+
+
+
+def session_handle(environ, request, session_store):
+    global gConfig
+    def set_cookie(key, value):
+        secure = False
+        if gConfig['listen_port']['enable_ssl'].lower() == 'true':
+            secure = True
+        max_age = int(gConfig['web']['cookie']['max_age'])
+        cookie = ('Set-Cookie', dump_cookie(key, value, max_age=max_age, secure=secure))
+        return cookie
+    
+    sid = request.cookies.get('session_id')
+    #return "Hello " + gRequest.remote_addr
+    is_expire = False
+    if sid is None:
+        request.session = session_store.new()
+        session_store.save(request.session)
+        is_expire = True
+    else:
+        request.session = session_store.get(sid)
+    cookie = set_cookie('session_id', request.session.sid)
+    if request.session.should_save:
+        print('should_save')
+        session_store.save(request.session)
+    return cookie, is_expire
+        
+def get_token_from_env(environ):
+    global gConfig, gLoginToken
+    cookie = parse_cookie(environ)
+    session_id = None
+    ret = None
+    if cookie.has_key('session_id'):
+        session_id = cookie['session_id']
+        if gLoginToken.has_key(session_id):
+            ret = gLoginToken[session_id]
+    return session_id, ret
+    
     
 def application(environ, start_response):
-    global gConfig
+    global gConfig, gRequest, gSessionStore
+    headers = {}
+    headerslist = []
+    cookie_header = None
+        
     path_info = environ['PATH_INFO']
     if 'proxy.cgi' in path_info:
-        return handle_proxy_cgi(environ, start_response)
+        statuscode, headers, body = handle_proxy_cgi(environ)
     elif path_info == '/test':
-        return handle_test(environ, start_response)
+        statuscode, headers, body = handle_test(environ)
     elif path_info == '/get':
-        return handle_get_method(environ, start_response)
+        statuscode, headers, body = handle_get_method(environ)
     elif path_info == '/post':
-        return handle_post_method(environ, start_response)
+        statuscode, headers, body = handle_post_method(environ)
     #elif path_info == '/wmts':
-        #return handle_wmts(environ, start_response)
+        #return handle_wmts(environ)
     elif path_info == '/tiles':
-        return handle_tiles(environ, start_response)
+        statuscode, headers, body = handle_tiles(environ)
     elif '/arcgistile' in path_info:
-        return handle_arcgistile(environ, start_response)
+        statuscode, headers, body = handle_arcgistile(environ)
     elif path_info == '/terrain/layer.json' or path_info[-8:] == '.terrain':
-        return handle_terrain(environ, start_response)
+        statuscode, headers, body = handle_terrain(environ)
     #elif path_info[-8:] == '.terrain':
-        #return handle_terrain1(environ, start_response)
+        #return handle_terrain1(environ)
     elif path_info == '/wfs':
-        return handle_wfs(environ, start_response)
+        statuscode, headers, body = handle_wfs(environ)
     elif path_info =='/create_cluster' or  path_info =='/kill_cluster':
-        return handle_cluster(environ, start_response)
+        statuscode, headers, body = handle_cluster(environ)
     elif path_info == gConfig['websocket']['services']:
         #if p=='/control':
             #print('websocket_version=%s' % environ['wsgi.websocket_version'])
         try:
-            return handle_websocket(environ, start_response)
+            statuscode, headers, body = handle_websocket(environ)
         except geventwebsocket.WebSocketError,e:
             print('application Exception:%s' % str(e))
+        
     else:
+        if gConfig['web']['enable_session'].lower() == 'true' :
+            #if not path_info == gConfig['web']['expirepage']:
+            if gSessionStore is None:
+                gSessionStore = FilesystemSessionStore()
+            is_expire = False
+            with session_manager(environ):
+                #print(session_id)
+                #print(token)
+                #print(gSessionStore.get_session_filename(cookie['session_id']))
+                cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
+                if is_expire:
+                    headerslist.append(('Location', str(gConfig['web']['indexpage'])))
+                    headerslist.append(cookie_header)
+                    start_response('302 Redirect', headerslist)        
+                    return ['']
+                if path_info == gConfig['web']['mainpage']:
+                    session_id, token = get_token_from_env(environ)
+                    #401 Unauthorized
+                    if session_id is None or token is None:
+                        headerslist.append(('Location', str(gConfig['web']['indexpage'])))
+                        headerslist.append(cookie_header)
+                        start_response('302 Redirect', headerslist) 
+                        return ['']
+                    
         if path_info[-1:] == '/':
             path_info += gConfig['web']['indexpage']
-        statuscode, contenttype, body =  handle_static(environ, path_info)
-        if start_response:
-            start_response(statuscode, [('Content-Type', contenttype), ])
-            return [body]
+        statuscode, headers, body =  handle_static(environ, path_info)
         
-def handle_proxy_cgi(environ, start_response):
+    if cookie_header:
+        headerslist.append(cookie_header)
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    start_response(statuscode, headerslist)
+    return [body]
+        
+def handle_proxy_cgi(environ):
     global gConfig
     method = environ['REQUEST_METHOD']
     post_data = ''
@@ -1606,7 +1695,7 @@ def handle_proxy_cgi(environ, start_response):
         fs = cgi.FieldStorage()
         url = fs.getvalue('url', "http://XIEJUN-DESKTOP:88")
     s = ''
-    start_response('200 OK', [('Content-Type', 'text/plain;charset=' + ENCODING)])
+    headers = {'Content-Type': 'text/plain;charset=' + ENCODING}
     try:
         #host = url.split("/")[2]
         #if allowedHosts and not host in allowedHosts:
@@ -1622,7 +1711,7 @@ def handle_proxy_cgi(environ, start_response):
             urlobj = URL(url)
             if method == "POST":
                 #length = int(environ["CONTENT_LENGTH"])
-                headers = {"Content-Type": environ["CONTENT_TYPE"]}
+                headers["Content-Type"] = environ["CONTENT_TYPE"]
                 #body = sys.stdin.read(length)
                 #r = urllib2.Request(url, body, headers)
                 #request = urllib2.Request(url, post_data, headers=headers)
@@ -1661,9 +1750,8 @@ def handle_proxy_cgi(environ, start_response):
                 s = response.read()
                 #response.release()
                 http.close()
-                responseh.append(('Content-Length', str(len(s))))
+                headers['Content-Length'] = str(len(s))
                 #print(responseh)
-                start_response('200 OK', responseh)
         else:
             #print("Content-Type: text/plain")
             s += "Illegal request."
@@ -1672,7 +1760,7 @@ def handle_proxy_cgi(environ, start_response):
         s += "Status: 500 Unexpected Error"
         s += "Content-Type: text/plain"
         s += "Some unexpected error occurred. Error text was:%s" % E.message
-    return [s]
+    return '200 OK', headers, s
     
             
 
@@ -2125,6 +2213,7 @@ def gen_model_app_cache():
     with open(os.path.join(STATICRESOURCE_DIR, 'kmgd.appcache'), 'w') as f:
         f.write(s)
    
+
 
 
 
