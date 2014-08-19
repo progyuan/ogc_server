@@ -5,6 +5,7 @@ var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
 var g_lines = {};
+var g_codes = {};
 var g_segments = [];
 var g_gltf_models = {};
 var g_dlg_tower_info;
@@ -56,33 +57,37 @@ $(function() {
 	InitBird(viewer);
 	InitKeyboardEvent(viewer);
 	
-	ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
-	LoadLineData(g_db_name, function(){
-		ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
-		LoadSegments(g_db_name, function(){
-			ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-			LoadModelsList(g_db_name, function(){
-				//var name = '永发I回线';
-				//var name = '七罗I回';
-				//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-					//LoadLineByLineName(viewer, g_db_name, name, function(){
-						//var extent = GetExtentByCzml();
-						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						//ReloadCzmlDataSource(viewer, g_zaware);
+	
+	ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
+	LoadCodeData(g_db_name, function(){
+		ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
+		LoadLineData(g_db_name, function(){
+			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
+			LoadSegments(g_db_name, function(){
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
+				LoadModelsList(g_db_name, function(){
+					//var name = '永发I回线';
+					//var name = '七罗I回';
+					//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+						//LoadLineByLineName(viewer, g_db_name, name, function(){
+							//var extent = GetExtentByCzml();
+							//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+							//ReloadCzmlDataSource(viewer, g_zaware);
+						//});
 					//});
-				//});
+					
+					//var extent = GetDefaultExtent(g_db_name);
+					//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+					
+					LoadAllDNNode(viewer, g_db_name, function(){
+						LoadAllDNEdge(viewer, g_db_name, function(){
+							var extent = GetExtentByCzml();
+							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+							ReloadCzmlDataSource(viewer, g_zaware);
+						});
+					});
 				
-				//var extent = GetDefaultExtent(g_db_name);
-				//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-				
-				//LoadAllDNNode(viewer, g_db_name, function(){
-					//LoadAllDNEdge(viewer, g_db_name, function(){
-						//var extent = GetExtentByCzml();
-						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						//ReloadCzmlDataSource(viewer, g_zaware);
-					//});
-				//});
-			
+				});
 			});
 		});
 	});
@@ -111,8 +116,8 @@ function LoadAllDNEdge(viewer, db_name, callback)
 				if(!g_geojsons[id]) g_geojsons[id] = data[i];
 				DrawSegmentsBetweenTwoDNNode(viewer, g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
 			}
-			if(callback) callback(data);
 		}
+		if(callback) callback(data);
 	});
 }
 function LoadAllDNNode(viewer, db_name, callback)
@@ -359,8 +364,10 @@ function InitKeyboardEvent(viewer)
 			g_dn_connect_mode = !g_dn_connect_mode;
 			if(g_dn_connect_mode)
 			{
+				//$(".jGrowl-notification:last-child").remove();
 				$.jGrowl('<div>连接模式开启</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
+					//life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
 					glue:'before',
@@ -395,7 +402,8 @@ function InitKeyboardEvent(viewer)
 			}
 			else
 			{
-				$(".jGrowl-notification:last-child").remove();
+				//$(".jGrowl-notification:last").trigger('jGrowl.close');
+				$('.jGrowl-notification').trigger('jGrowl.close');
 				$.jGrowl("连接模式关闭", { 
 					life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -1501,10 +1509,28 @@ function CreatePointCzmlFromGeojson(geojson)
 	cz['billboard']['scale'] = {'number':1.0};
 	cz['billboard']['show'] = {'boolean':false};
 	var name = geojson['properties']['name'];
-	var style = g_style_point_mapping[cz['webgis_type']];
+	var subtype = cz['webgis_type'];
+	if(geojson['properties']['function_type'] === 'PAE')
+	{
+		subtype = 'point_dn_switch'
+	}
+	if(geojson['properties']['function_type'] === 'PAB')
+	{
+		subtype = 'point_dn_transform'
+	}
+	if(geojson['properties']['function_type'] === 'PLM')
+	{
+		subtype = 'point_dn_link'
+	}
+	if(geojson['properties']['function_type'] === 'T')
+	{
+		subtype = 'point_dn_transformarea'
+	}
+	//console.log(subtype);
+	var style = g_style_point_mapping[subtype];
 	var v;
 	var icon_img = 'img/marker30x48.png';
-	if(cz['webgis_type'] === 'point_tower')
+	if(subtype === 'point_tower')
 	{
 		icon_img = style['icon_img'];
 	}
@@ -1518,7 +1544,7 @@ function CreatePointCzmlFromGeojson(geojson)
 		}
 		else
 		{
-			icon_img = GetDefaultStyleValue(cz['webgis_type'], 'icon_img');
+			icon_img = GetDefaultStyleValue(subtype, 'icon_img');
 		}
 	}
 	cz['billboard']['image'] = {'uri':icon_img};
@@ -1527,28 +1553,28 @@ function CreatePointCzmlFromGeojson(geojson)
 	cz['position']['cartographicDegrees'] = [geojson['geometry']['coordinates'][0], geojson['geometry']['coordinates'][1], geojson['geometry']['coordinates'][2]];
 	cz['point'] = {};
 	if(style && style.color) v = style.color;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'color')
+	else v = GetDefaultStyleValue(subtype, 'color')
 	cz['point']['color'] = {'rgba':v};
 	if(style && style.outline_color) v = style.outline_color;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'outlineColor')
+	else v = GetDefaultStyleValue(subtype, 'outlineColor')
 	cz['point']['outlineColor'] = {'rgba': v};
 	if(style && style.outline_width) v = style.outline_width;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'outlineWidth')
+	else v = GetDefaultStyleValue(subtype, 'outlineWidth')
 	cz['point']['outlineWidth'] = {'number': v};
 	if(style && style.pixel_size) v = style.pixel_size;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'pixelSize')
+	else v = GetDefaultStyleValue(subtype, 'pixelSize')
 	cz['point']['pixelSize'] = {'number': v};
 	cz['point']['show'] = {'boolean':true};
 	cz['label'] = {};
 	if(style && style.label_fill_color) v = style.label_fill_color;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'labelFillColor')
+	else v = GetDefaultStyleValue(subtype, 'labelFillColor')
 	cz['label']['fillColor'] = {'rgba': v};
 	cz['label']['horizontalOrigin'] = 'LEFT';
 	cz['label']['verticalOrigin'] = 'BOTTOM';
 	cz['label']['outlineColor'] = {'rgba': 1};
 	cz['label']['pixelOffset'] = {'cartesian2':[20.0, 0.0]};
 	if(style && style.label_scale) v = style.label_scale;
-	else v = GetDefaultStyleValue(cz['webgis_type'], 'labelScale')
+	else v = GetDefaultStyleValue(subtype, 'labelScale')
 	cz['label']['scale'] = {'number': v};
 	cz['label']['show'] = {'boolean':false};
 	cz['label']['style'] = 'FILL';
@@ -1818,6 +1844,16 @@ function GetExtentByCzml()
 }
 
 
+function LoadCodeData(db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'codes'};
+	MongoFind( cond, 
+		function(data){
+			g_codes = data[0];
+			ShowProgressBar(false);
+			if (callback) callback();
+	});
+}
 function LoadLineData(db_name, callback)
 {
 	var line_cond = {'db':db_name, 'collection':'lines'};
@@ -5252,12 +5288,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	$( "#select_poi_type" ).on( "change", function( event) {
 		$("form[id^=form_poi_info_]").parent().css('display','none');
 		var v = event.target.value;
-		//if(v === "point_tower")
-		//{
 		webformlist[v].parent().css('display','block');
-		//webformlist[v].validate();
-		//}
-		//console.log(webformlist[v].parent().html());
 	});	
 }
 
@@ -5277,7 +5308,7 @@ function CreateCzmlFromGeojson(geojson)
 function BuildPoiForms()
 {
 	var ret = {};
-	var vlist = ['point_marker', 'point_hazard', 'point_tower', 'point_dn', 'polyline_marker', 'polyline_hazard', 'polygon_marker', 'polygon_hazard'];
+	var vlist = ['point_marker', 'point_hazard', 'point_tower', 'point_dn_switch','point_dn_link','point_dn_transform','point_dn_transformarea', 'polyline_marker', 'polyline_hazard', 'polygon_marker', 'polygon_hazard'];
 	for(var i in vlist)
 	{
 		v = vlist[i];
@@ -5329,12 +5360,24 @@ function BuildPoiForms()
 				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
-		if(v === "point_dn")
+		if(v.indexOf("point_dn_")>-1)
 		{
+			var function_list = [];
+			//console.log(g_codes['functional_type']);
+			for(var k in g_codes['functional_type'])
+			{
+				
+				if(k == 'PAE' || k == 'PAB' || k == 'PLM')
+				{
+					function_list.push({value:k, label:g_codes['functional_type'][k]});
+				}
+			}
+			function_list.push({value:'T', label:'变压器区域'});
 			fields = [	
 				//{ id: "id", type: "hidden" },
-				{ display: "显示图标", id: "icon", defaultvalue:"point_dn", newline: true,  type: "icon", defaultvalue:"point_marker" ,iconlist:['point_marker', 'point_tower', 'point_hazard','point_dn'], group:'信息'},
+				{ display: "显示图标", id: "icon", defaultvalue:"point_dn_switch", newline: true,  type: "icon", defaultvalue:"point_marker" ,iconlist:['point_marker', 'point_tower', 'point_hazard','point_dn_switch','point_dn_link','point_dn_transform','point_dn_transformarea'], group:'信息'},
 				{ display: "名称", id: "name", newline: true,  type: "text", group:'信息', width:250, validate:{required:true,minlength: 1}},
+				{ display: "功能分类", id: "function_type", newline: true,  type: "select",editor: {data:function_list}, group:'电气特性', width:250, validate:{required:true,minlength: 1}},
 				{ display: "填充颜色", id: "fill_color", defaultvalue:GetDefaultStyleValue(v, 'color'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "轮廓颜色", id: "outline_color", defaultvalue:GetDefaultStyleValue(v, 'outlineColor'), newline: false,  type: "color", group:'样式', width:50, labelwidth:120 },
 				{ display: "标签颜色", id: "label_fill_color",  defaultvalue:GetDefaultStyleValue(v, 'labelFillColor'), newline: true,  type: "color", group:'样式', width:50, labelwidth:120 },
@@ -5394,11 +5437,16 @@ function BuildPoiForms()
 				{ display: "标签尺寸", id: "label_scale", defaultvalue:GetDefaultStyleValue(v, 'labelScale'), newline: true,  type: "spinner", step:0.1, min:0.1,max:10, group:'样式', width:70, labelwidth:120, validate:{number: true, required:true, range:[0.1, 10]} }
 			];
 		}
-		if(!ret[v] && fields)
+		var webgis_type = v;
+		if(v.indexOf('point_dn_')>-1)
 		{
-			ret[v] = $("#form_poi_info_" + v).webgisform(fields, {
+			webgis_type = 'point_dn';
+		}
+		if(!ret[webgis_type] && fields)
+		{
+			ret[webgis_type] = $("#form_poi_info_" + webgis_type).webgisform(fields, {
 					divorspan:"span",
-					prefix:"form_poi_info_" + v + '_',
+					prefix:"form_poi_info_" + webgis_type + '_',
 					maxwidth:400
 					//margin:10,
 					//groupmargin:10
