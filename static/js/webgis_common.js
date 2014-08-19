@@ -592,12 +592,16 @@ function MongoFind(data, success, host)
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
 	var h = '';
 	if(host) h = host;
-	$.post(h + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+	var url = h + 'post';
+	if(data.url) url = h + data.url;
+	$.post(url, encodeURIComponent(JSON.stringify(data)), function( data1 ){
+		//console.log(data1);
+		//if(data.redirect) return;
 		ret = JSON.parse(decodeURIComponent(data1));
 		if(ret.result)
 		{
 			//ShowMessage(400, 250, '信息', ret.result);
-			success([]);
+			success([ret.result]);
 		}
 		else
 		{

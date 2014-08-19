@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<header>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> 
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
@@ -18,12 +19,118 @@
     <script type="text/javascript" src="js/webgis_common.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.jgrowl.js"></script>
-<body>
-<div >
-username:<input id="username" type="text">
-password:<input id="password" type="text">
-</div>
-<button id="login">login</button>
-<a href="webgis_index.html">aaa</a>
+	<script type="text/javascript">
+	function Login(username, password, callback)
+	{
+		var cond = {'db':g_db_name, 'collection':'userinfo', 'url':'/login', 'action':'login','username':username, 'password':password};
+		MongoFind(cond, function(data){
+			//console.log(data);
+			if(callback) callback(data);
+		});
+	}
+	
+	$(function(){
+		$( "#logindialog" ).dialog({
+			dialogClass: "login-no-close",
+			width: 400,
+			height: 300,
+			minWidth:200,
+			minHeight: 200,
+			draggable: false,
+			resizable: false, 
+			modal: true,
+			position:{at: "center"},
+			title:'登录',
+		  
+			buttons: [
+			{
+			  text: "登录",
+			  click: function() {
+				//$( this ).dialog( "close" );
+					$(this).attr('disabled', 'disabled');
+					var that = this;
+					if(!$('#loginform').valid()) return;
+					if($('#password').val().length==0) 
+					{
+						$('#password').tooltipster('show');
+						return;
+					}
+					ShowProgressBar(true, 670, 200, '登录中', '正在登录，请稍候...');
+					Login($('#username').val(),  $('#password').val(), function(data){
+						$(that).removeAttr('disabled');
+						ShowProgressBar(false);
+						if(data.length>0)
+						{
+							//window.location.href = '/webgis_unauthorized.html';-->
+							//console.log(data[0]);
+							if(data[0] == 'ok') {
+								window.location.href = '/webgis_index.html';
+							}
+							else
+							{
+								$.jGrowl(data[0],{
+									life: 2000,
+									position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+									theme: 'bubblestylefail',
+									glue:'before'
+								});
+							}
+								
+						}
+						else
+						{
+							$.jGrowl("网络异常",{
+								life: 2000,
+								position: 'center', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+						}
+					});
+				
+				
+				
+			  }
+			}
+		  ]
+		});	
+	
+		$('#loginform').validate({
+			errorPlacement: function(error, element) {
+				element.tooltipster('update', error.text());
+				element.tooltipster('show');				
+			},
+			success:function(label, element) {
+				$(element).tooltipster('hide');
+			}
+			//success:'valid'
+		});
+		$('#username').rules('add',{required:true});
+		$('#username').tooltipster({ 
+			trigger: 'custom',
+			onlyOne: false, 
+			position: 'right'
+		});					
+		$('#password').rules('add',{required:true});
+		$('#password').tooltipster({ 
+			trigger: 'custom',
+			onlyOne: false, 
+			position: 'left'
+		});					
+				
+	});
+	</script>
+</header>
+<body class="loginbackground">
+<div id='logindialog'>
+<form id="loginform">
+	<div style="margin:80px 0px 20px 30px;">
+		<label for="username">用户名:</label><input class="ui-widget" id="username" type="text">
+	</div>
+	<div style="margin:20px 0px 20px 30px;">
+		<label for="username">密&nbsp;&nbsp;&nbsp;码:</label><input class="ui-widget" id="password" type="password">
+	</div>
+</form>
+
 </body>
 </html>

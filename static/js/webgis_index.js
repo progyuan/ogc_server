@@ -35,6 +35,8 @@ $(function() {
 	//if(true) return;
 	var viewer = InitCesiumViewer();
 	$.viewer = viewer;
+	InitLogout(viewer);
+
 	InitWebGISFormDefinition();
 	InitDrawHelper(viewer);
 	g_drawhelper.close();
@@ -72,13 +74,14 @@ $(function() {
 				
 				//var extent = GetDefaultExtent(g_db_name);
 				//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-				LoadAllDNNode(viewer, g_db_name, function(){
-					LoadAllDNEdge(viewer, g_db_name, function(){
-						var extent = GetExtentByCzml();
-						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						ReloadCzmlDataSource(viewer, g_zaware);
-					});
-				});
+				
+				//LoadAllDNNode(viewer, g_db_name, function(){
+					//LoadAllDNEdge(viewer, g_db_name, function(){
+						//var extent = GetExtentByCzml();
+						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						//ReloadCzmlDataSource(viewer, g_zaware);
+					//});
+				//});
 			
 			});
 		});
@@ -356,9 +359,9 @@ function InitKeyboardEvent(viewer)
 			g_dn_connect_mode = !g_dn_connect_mode;
 			if(g_dn_connect_mode)
 			{
-				$.jGrowl('<div>连接模式开启</div><button  id="btn_edge_save">保存</button>', { 
+				$.jGrowl('<div>连接模式开启</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
-					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
 					glue:'before',
 					afterOpen:function(){
@@ -395,7 +398,7 @@ function InitKeyboardEvent(viewer)
 				$(".jGrowl-notification:last-child").remove();
 				$.jGrowl("连接模式关闭", { 
 					life:3000,
-					position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
 					glue:'before'
 				});
@@ -510,6 +513,110 @@ function InitKeyboardEvent(viewer)
 		}
 	});
 }
+
+
+
+
+
+function Logout(callback)
+{
+	var cond = {'db':g_db_name, 'collection':'userinfo', 'url':'/logout'};
+	MongoFind(cond, function(data){
+		if(callback) callback(data);
+	});
+
+}
+function InitLogout(viewer)
+{
+    var LogoutButtonViewModel = function() {
+        var that = this;
+        this._command = Cesium.createCommand(function() {
+            console.log('logout');
+			ShowConfirm(null, 500, 200,
+				'登出确认',
+				'确认要登出吗?',
+				function(){
+					Logout(function(data){
+						if(data.length>0)
+						{
+							if(data[0] == 'ok')
+							{
+								window.location.href = '/webgis_login.html';
+							}
+						}
+					});
+				},
+				function(){
+				}
+			);
+        });
+        this.tooltip = '退出';
+    };
+
+    Cesium.defineProperties(LogoutButtonViewModel.prototype, {
+        command : {
+            get : function() {
+                return this._command;
+            }
+        }
+    });
+	
+    var LogoutButton = function(options) {
+        if (!Cesium.defined(options) || !Cesium.defined(options.container)) {
+            throw new Cesium.DeveloperError('options.container is required.');
+        }
+        var container = Cesium.getElement(options.container);
+
+        var viewModel = new LogoutButtonViewModel();
+        viewModel._svgPath = 'M0 765.76q0 83.936 59.292 143.472t143.228 59.536h72.224q33.184 0 56.852 -23.668t23.668 -56.852 -23.668 -56.852 -56.852 -23.668h-72.224q-17.08 0 -29.524 -12.2t-12.444 -29.768v-531.92q0 -17.08 12.444 -29.28t29.524 -12.2h72.224q33.184 0 56.852 -23.668t23.668 -56.852 -23.668 -56.608 -56.852 -23.424h-72.224q-83.936 0 -143.228 59.048t-59.292 142.984v531.92zm238.144 -251.808q0 -33.184 23.668 -56.608t56.852 -23.424h344.04l-109.8 -110.776q-23.912 -23.424 -23.912 -56.852t23.912 -56.852q23.424 -23.424 56.608 -23.424t56.608 23.424l247.416 247.904q23.424 23.424 23.424 56.608t-23.424 56.608l-242.536 242.536q-23.424 23.424 -56.608 23.424t-57.096 -23.424q-23.424 -23.424 -23.424 -56.608t23.912 -57.096l104.92 -104.92h-344.04q-32.696 0 -56.608 -23.912t-23.912 -56.608z';
+        var wrapper = document.createElement('span');
+        wrapper.className = 'cesium-navigationHelpButton-wrapper';
+        container.appendChild(wrapper);
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cesium-button cesium-toolbar-button cesium-navigation-help-button';
+        button.setAttribute('data-bind', '\
+attr: { title: tooltip },\
+click: command,\
+cesiumSvgPath: { path: _svgPath, width: 1024, height: 1024 }');
+        wrapper.appendChild(button);
+        Cesium.knockout.applyBindings(viewModel, wrapper);
+
+        this._container = container;
+        this._viewModel = viewModel;
+        this._wrapper = wrapper;
+
+    };
+
+    Cesium.defineProperties(LogoutButton.prototype, {
+        container : {
+            get : function() {
+                return this._container;
+            }
+        },
+        viewModel : {
+            get : function() {
+                return this._viewModel;
+            }
+        }
+    });
+
+    LogoutButton.prototype.isDestroyed = function() {
+        return false;
+    };
+
+    LogoutButton.prototype.destroy = function() {
+        Cesium.knockout.cleanNode(this._wrapper);
+        this._container.removeChild(this._wrapper);
+        return Cesium.destroyObject(this);
+    };
+	var logoutButton = new LogoutButton({
+		container : $('.cesium-viewer-toolbar')[0]
+	});
+
+}
+
 function InitBird(viewer)
 {
 	$('#tower_info_test').drawChart({});
@@ -2621,7 +2728,7 @@ function TowerInfoMixin(viewer)
 					{
 						$.jGrowl("按CTRL键切换连接模式开关,选择下一个配电网节点,将依次连接这两个节点", { 
 							life: 2000,
-							position: 'bottom-left', //top-left, top-right, bottom-left, bottom-right, center
+							position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 							theme: 'bubblestylesuccess',
 							glue:'before'
 						});
@@ -2663,7 +2770,7 @@ function TowerInfoMixin(viewer)
 						{
 							$.jGrowl("不能形成环路",{
 								life: 2000,
-								position: 'center', //top-left, top-right, bottom-left, bottom-right, center
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 								theme: 'bubblestylefail',
 								glue:'before'
 							});
@@ -2671,6 +2778,7 @@ function TowerInfoMixin(viewer)
 						}else
 						{
 							$('#btn_edge_save').removeAttr('disabled');
+							$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
 							DrawSegmentsBetweenTwoDNNode(viewer, g_prev_selected_obj.id, id, true);
 						}
 					}

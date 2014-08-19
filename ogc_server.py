@@ -1399,6 +1399,7 @@ def geojson_to_czml(aList):
     
 def handle_post_method(environ):
     global ENCODING
+    global gRequest, gLoginToken
     buf = environ['wsgi.input'].read()
     
     querydict = {}
@@ -1447,15 +1448,15 @@ def handle_post_method(environ):
                 l = db_util.find_extent(l)
             if use_czml:
                 l = geojson_to_czml(l)
-            if isinstance(l, list) and len(l) > 0:
+            if isinstance(l, list) and len(l) >= 0:
                 ret = l
             elif isinstance(l, dict) and len(l.keys()) > 0:
                 ret = l
             elif isinstance(l, czml.CZML):
                 headers['Content-Type'] = 'text/json;charset=' + ENCODING
                 return '200 OK', headers, enc(l.dumps())
-            else:
-                ret["result"] = "%s.%s return 0 record" % (dbname, collection)
+            #else:
+                #ret["result"] = "%s.%s return 0 record" % (dbname, collection)
         else:
             ret["result"] = "unknown query operation"
         
@@ -1523,6 +1524,38 @@ def handle_post_method(environ):
     #print(ret)
     #return [urllib.quote(enc(json.dumps(ret)))]
     return '200 OK', headers, json.dumps(ret, ensure_ascii=True, indent=4)
+
+def handle_login(environ):
+    global ENCODING
+    global gRequest, gLoginToken
+    buf = environ['wsgi.input'].read()
+    ret = None
+    try:
+        ds_plus = urllib.unquote_plus(buf)
+        obj = json.loads(dec(ds_plus))
+        if obj.has_key(u'db') and obj.has_key(u'collection'):
+            is_mongo = True
+            dbname = obj[u'db']
+            collection = obj[u'collection']
+            action = None
+            data = None
+            if obj.has_key(u'action'):
+                action = obj[u'action']
+                del obj[u'action']
+            if obj.has_key(u'data'):
+                data = obj[u'data']
+                del obj[u'data']
+            if obj.has_key(u'url'):
+                del obj[u'url']
+            if obj.has_key(u'redirect'):
+                del obj[u'redirect']
+            del obj[u'db']
+            del obj[u'collection']
+            if action:
+                ret = db_util.mongo_action(dbname, collection, action, data, obj)
+    except:
+        raise
+    return ret
 
 def handle_thunder_soap(obj):
     ret = {}
@@ -1601,6 +1634,17 @@ def get_token_from_env(environ):
         if gLoginToken.has_key(session_id):
             ret = gLoginToken[session_id]
     return session_id, ret
+
+def get_userinfo_from_env(environ):
+    global gConfig, gLoginToken
+    cookie = parse_cookie(environ)
+    session_id = None
+    ret = None
+    if cookie.has_key('session_id'):
+        session_id = cookie['session_id']
+        if gLoginToken.has_key(session_id):
+            ret = gLoginToken[session_id]
+    return session_id, ret
     
     
 def application(environ, start_response):
@@ -1652,21 +1696,54 @@ def application(environ, start_response):
                 #print(gSessionStore.get_session_filename(cookie['session_id']))
                 cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
                 if is_expire:
-                    headerslist.append(('Location', str(gConfig['web']['indexpage'])))
+                    headerslist.append(('Location', str(gConfig['web']['expirepage'])))
                     headerslist.append(cookie_header)
                     start_response('302 Redirect', headerslist)        
                     return ['']
+                if path_info == '/logout':
+                    session_id, token = get_token_from_env(environ)
+                    if session_id and gLoginToken.has_key(session_id):
+                        del gLoginToken[session_id]
+                    headerslist.append(cookie_header)
+                    headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                    start_response('200 OK', headerslist)        
+                    return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
+                if path_info == '/login':
+                    session_id, token = get_token_from_env(environ)
+                    objlist = handle_login(environ)
+                    if session_id and len(objlist)>0:
+                        gLoginToken[session_id] = objlist[0]
+                        ##headerslist.append(('Location', str(gConfig['web']['mainpage'])))
+                        ##headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
+                        ##headerslist.append(cookie_header)
+                        ##start_response('302 Redirect', headerslist)        
+                        ##return ['']
+                        #path_info = gConfig['web']['mainpage']
+                        #statuscode, headers, body =  handle_static(environ, path_info)
+                        headerslist.append(cookie_header)
+                        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                        start_response('200 OK', headerslist)        
+                        return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
+                    else:
+                        headerslist.append(cookie_header)
+                        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                        start_response('200 OK', headerslist)        
+                        return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
+                        
                 if path_info == gConfig['web']['mainpage']:
                     session_id, token = get_token_from_env(environ)
                     #401 Unauthorized
                     if session_id is None or token is None:
-                        headerslist.append(('Location', str(gConfig['web']['indexpage'])))
+                        headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
                         headerslist.append(cookie_header)
-                        start_response('302 Redirect', headerslist) 
-                        return ['']
-                    
+                        statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
+                        statuscode = '401 Unauthorized'
+                        start_response(statuscode, headerslist) 
+                        return [body]
         if path_info[-1:] == '/':
             path_info += gConfig['web']['indexpage']
+        if path_info == '/login' and not gConfig['web']['enable_session'].lower() == 'true':
+            path_info = gConfig['web']['mainpage']
         statuscode, headers, body =  handle_static(environ, path_info)
         
     if cookie_header:

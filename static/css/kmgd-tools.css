@@ -893,3 +893,27 @@ input[type="button"].btn-block {
 	background: #002200 url(black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 	border:1px #777777 solid;
 }
+
+.loginbackground{
+	background:#000000 url(/img/logo_background.png)  100% 0% no-repeat;
+}
+
+.login-no-close .ui-dialog-titlebar-close {
+  display: none;
+}
+
+.login-no-close .ui-dialog-titlebar {
+  display: none;
+}
+
+.login-no-close .ui-dialog-buttonpane .ui-dialog-buttonset {
+	float: left;
+}
+.login-no-close .ui-dialog-buttonpane button {
+	/*margin: .5em .4em .5em 0;*/
+	cursor: pointer;
+	width:385px;
+	height:100%;
+}
+
+

@@ -6972,7 +6972,15 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
         mongo_init_client(clienttype)
         if dbname in gClientMongo[clienttype].database_names():      
             db = gClientMongo[clienttype][dbname]
-            if action.lower() == 'remove':
+            if action.lower() == 'login':
+                if collection_name in db.collection_names(): 
+                    if conditions.has_key('username') and conditions.has_key('password'):
+                        ret = mongo_find(dbname, collection_name, conditions)
+                    else:
+                        ret = []
+                else:
+                    ret = []
+            elif action.lower() == 'remove':
                 if collection_name in db.collection_names() :
                     if conditions.has_key('_id'):
                         if isinstance( conditions['_id'], list) or isinstance( conditions['_id'], tuple):
