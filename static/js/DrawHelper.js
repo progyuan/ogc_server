@@ -1075,7 +1075,7 @@ var DrawHelper = (function() {
             }
             extent.rectangle = value;
             // update the markers
-            var corners = ellipsoid.cartographicArrayToCartesianArray([Cesium.Rectangle.getNortheast(value), Cesium.Rectangle.getNorthwest(value), Cesium.Rectangle.getSoutheast(value), Cesium.Rectangle.getSouthwest(value)]);
+            var corners = ellipsoid.cartographicArrayToCartesianArray([Cesium.Rectangle.northeast(value), Cesium.Rectangle.northwest(value), Cesium.Rectangle.southeast(value), Cesium.Rectangle.southwest(value)]);
             // create if they do not yet exist
             if(markers == null) {
                 markers = new _.BillboardGroup(_self, defaultBillboard);

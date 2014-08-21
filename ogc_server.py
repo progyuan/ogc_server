@@ -1686,13 +1686,11 @@ def application(environ, start_response):
         
     else:
         if gConfig['web']['enable_session'].lower() == 'true' :
-            #if not path_info == gConfig['web']['expirepage']:
+            #return handle_session(environ, start_response)
             if gSessionStore is None:
                 gSessionStore = FilesystemSessionStore()
             is_expire = False
             with session_manager(environ):
-                #print(session_id)
-                #print(token)
                 #print(gSessionStore.get_session_filename(cookie['session_id']))
                 cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
                 if is_expire:
@@ -1752,7 +1750,12 @@ def application(environ, start_response):
         headerslist.append((k, headers[k]))
     start_response(statuscode, headerslist)
     return [body]
-        
+
+#def handle_session(environ, start_response):
+    
+    
+    
+    
 def handle_proxy_cgi(environ):
     global gConfig
     method = environ['REQUEST_METHOD']

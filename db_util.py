@@ -43,6 +43,7 @@ import shapely.wkt
 import pyproj
 import geojson
 from pinyin import PinYin
+from collections import OrderedDict
 
 
 
@@ -8828,7 +8829,129 @@ def test_httpclient1():
             f.write(f1.read())
             
             
+def test_generate_ODT(db_name):
+    def get_prev(id, alist):
+        ret = None
+        for i in alist:
+            if i['properties']['end'] == id:
+                ret = i['properties']['start']
+                break
+        return ret
+    def get_next(id, alist):
+        ret = None
+        for i in alist:
+            if i['properties']['start'] == id:
+                ret = i['properties']['end']
+                break
+        return ret
+    
+    def get_start(id, alist):
+        start = get_prev(id, alist)
+        startold = None
+        while start:
+            startold = start
+            start = get_prev(start, alist)
+        return startold
+    
+    def get_end(id, alist):
+        end = get_next(id, alist)
+        endold = None
+        while end:
+            endold = end
+            end = get_next(end, alist)
+        return endold
+    
+    def get_path(endid, alist):
+        ret = []
+        while endid:
+            ret.append(endid)
+            endid = get_prev(endid, alist)
+        ret.reverse()
+        return ret
+    
+    def get_node(id, alist):
+        ret = None
+        for i in alist:
+            if i['_id'] == id:
+                ret = i
+                break
+        return ret
+                
+    def get_by_type(alist, typ):
+        ret = []
+        for i in alist:
+            if i['properties']['function_type'] == typ:
+                ret.append(i)
+        return ret
+                
+    def slim_matrix(mapping):
+        l = []
+        rowexist = []
+        for k in mapping.keys():
+            ll = []
+            for kk in mapping[k].keys():
+                ll.append(mapping[k][kk])
+            lll = [i[1] for i in l]
+            namel = [i[0] for i in l]
+            if ll in lll:
+                idx = lll.index(ll)
+                rowexist.append(namel[idx], k)
+            else:
+                l.append((k,ll))
+        #while 
+                
+    def print_odt(odt):
+        colnames = [u'样本']
+        for i in odt[odt.keys()[0]].keys():
+            colnames.append(i)
+        colnames.append(u'故障元件')
+        print(colnames)
+        idx = 1
+        for k in odt.keys():
+            row = [idx]
+            for kk in odt[k].keys():
+                row.append(odt[k][kk])
+            row.append(k)
+            print(row)
+            idx += 1
             
+    
+    edges = mongo_find(db_name, 'edges', {'properties.webgis_type':'edge_dn'})
+    nodes = mongo_find(db_name, 'features', {'properties.webgis_type':'point_dn'})
+    odt = OrderedDict()
+    if len(edges)>0:
+        edge = edges[0]
+        start = get_start(edge['properties']['start'], edges)
+        if start is None:
+            start = edge['properties']['start']
+        #node = get_node(start, nodes)
+        #if node:
+            #print(node['properties']['name'])
+        #for i in get_by_type(nodes, 'T'):
+            #id = i['_id']
+            #path = get_path(id,  edges)
+            #names = map(lambda x:get_node(x, nodes)['properties']['name'],  path)
+            #print(names)
+        cols = get_by_type(nodes, 'T')
+        #switch
+        rows = get_by_type(nodes, 'PAE')
+        #transform
+        rows.extend(get_by_type(nodes, 'PAB'))
+        
+        for i in rows:
+            odt[i['properties']['name']] = OrderedDict()
+            for j in cols:
+                odt[i['properties']['name']][j['properties']['name']] = 0
+                prev = get_prev(j['_id'], edges)
+                while prev:
+                    if prev == i['_id']:
+                        odt[i['properties']['name']][j['properties']['name']] = 1
+                        break
+                    else:
+                        prev = get_prev(prev, edges)
+        print_odt(odt)
+        
+    
             
     
 if __name__=="__main__":
@@ -8871,14 +8994,14 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     db_name, area = 'kmgd', 'km'
-    db_name, area = 'ztgd', 'zt'
+    #db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)
     #mongo_import_same_tower_mapping(db_name, area)
     #test_mongo_import_code(db_name, area)
     #test_mongo_import_line(db_name, area)
-    test_mongo_import_towers(db_name, area)
+    #test_mongo_import_towers(db_name, area)
     #print(len(get_tower_refer_mapping(db_name).keys()))
     #test_mongo_import_segments(db_name, area)
     #test_mongo_import_models(db_name, area)
@@ -8905,6 +9028,7 @@ if __name__=="__main__":
     
     #test_import_shape_to_mongo()
     #merge_dem2()
+    #test_generate_ODT(db_name)
     
     
     

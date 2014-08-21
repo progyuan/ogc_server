@@ -78,7 +78,7 @@ $(function() {
 					
 					//var extent = GetDefaultExtent(g_db_name);
 					//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-					
+					//g_zaware = true;
 					LoadAllDNNode(viewer, g_db_name, function(){
 						LoadAllDNEdge(viewer, g_db_name, function(){
 							var extent = GetExtentByCzml();
@@ -132,6 +132,8 @@ function LoadAllDNNode(viewer, db_name, callback)
 				var id = data[i]['_id'];
 				if(!g_geojsons[id]) g_geojsons[id] = AddTerrainZOffset(data[i]);
 				if(!g_czmls[id]) g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+				//g_czmls[id]['position']['cartographicDegrees'][2] = g_geojsons[id]['geometry']['coordinates'][2];
+				//console.log(g_czmls[id]['position']['cartographicDegrees'][2]);
 			}
 			if(callback) callback(data);
 		}
@@ -358,6 +360,33 @@ function InitCesiumViewer()
 
 function InitKeyboardEvent(viewer)
 {
+	var get_current_edge = function(id0, id1)
+	{
+		var ret;
+		for(var i in g_geometry_segments)
+		{
+			var seg = g_geometry_segments[i];
+			if(  seg['webgis_type'] == 'edge_dn' && seg['start'] == id0 && seg['end'] == id1)
+			{
+				ret = seg['primitive'];
+				break;
+			}
+		}
+		return ret;
+	};
+	var change_color = function()
+	{
+		var c = Cesium.Color.fromCssColorString("rgba(200,200,0,1)");
+		var edge = get_current_edge(g_prev_selected_obj.id, g_selected_obj.id);
+		var m =	Cesium.Material.fromType('PolylineArrow', {
+						color : c
+				});
+		for(var i=0; i<edge.length; i++)
+		{
+			var p = edge.get(i);
+			p.material = m;
+		}
+	};
 	$(document).on('keyup', function(e){
 		if(e.keyCode == 17)//ctrl
 		{
@@ -387,6 +416,7 @@ function InitKeyboardEvent(viewer)
 										var g = data[i];
 										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;
 									}
+									change_color();
 									$.jGrowl("保存成功", { 
 										life: 2000,
 										position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -715,8 +745,11 @@ function InitDrawHelper(viewer)
 			radius: event.radius,
 			material: drawHelperCoverAreaMaterial
 		});
+		//console.log(circle.getGeometry());
 		viewer.scene.primitives.add(circle);
 		g_drawhelper.addPrimitive(circle);
+		ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
+		//ShowPoiInfoDialog(viewer, '添加圆形区域', 'circle', null, null);
 		//circle.setEditable();
 		//circle.addListener('onEdited', function(event) {
 			//console.log('Circle edited: radius is ' + event.radius.toFixed(1) + ' meters');
@@ -724,17 +757,66 @@ function InitDrawHelper(viewer)
 	});
 	toolbar.addListener('extentCreated', function(event) {
 		var extent = event.extent;
-		console.log('Extent created (N: ' + extent.north.toFixed(3) + ', E: ' + extent.east.toFixed(3) + ', S: ' + extent.south.toFixed(3) + ', W: ' + extent.west.toFixed(3) + ')');
+		console.log('Extent created (N: ' + Cesium.Math.toDegrees(extent.north).toFixed(3) + ', E: ' + Cesium.Math.toDegrees(extent.east).toFixed(3) + ', S: ' + Cesium.Math.toDegrees(extent.south).toFixed(3) + ', W: ' + Cesium.Math.toDegrees(extent.west).toFixed(3) + ')');
 		var extentPrimitive = new DrawHelper.ExtentPrimitive({
 			extent: extent,
 			material: drawHelperCoverAreaMaterial
 		});
 		viewer.scene.primitives.add(extentPrimitive);
 		g_drawhelper.addPrimitive(extentPrimitive);
+		var positions = [];
+		//console.log(extent);
+		var carto = Cesium.Cartographic.fromRadians(extent.west, extent.north, 0);
+		var cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+		carto = Cesium.Cartographic.fromRadians(extent.east, extent.north, 0);
+		cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+		carto = Cesium.Cartographic.fromRadians(extent.east, extent.south, 0);
+		cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+		carto = Cesium.Cartographic.fromRadians(extent.west, extent.south, 0);
+		cart3 = ellipsoid.cartographicToCartesian(carto);
+		positions.push(cart3);
+		ShowPoiInfoDialog(viewer, '添加矩形区域', 'polygon', positions);
 		//extentPrimitive.setEditable();
 		//extentPrimitive.addListener('onEdited', function(event) {
 			//console.log('Extent edited: extent is (N: ' + event.extent.north.toFixed(3) + ', E: ' + event.extent.east.toFixed(3) + ', S: ' + event.extent.south.toFixed(3) + ', W: ' + event.extent.west.toFixed(3) + ')');
 		//});
+	});
+
+}
+
+function ShowPoiInfoCircleDialog(viewer, title, center, radius)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var g = {};
+	g['geometry'] = {}
+	g['geometry']['type'] = 'Point';
+	//console.log(center);
+	var carto = ellipsoid.cartesianToCartographic(center);
+	g['geometry']['coordinates'] = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]
+	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':radius, 'res':8};
+	//ShowProgressBar(true, 670, 200, '生成缓冲区', '正在生成缓冲区，请稍候...');
+	MongoFind(cond, function(data){
+		//ShowProgressBar(false);
+		if(data.length>0)
+		{
+			var geometry = data[0];
+			var positions = [];
+			for(var i in geometry['coordinates'][0])
+			{
+				var coord = geometry['coordinates'][0][i];
+				var carto = Cesium.Cartographic.fromDegrees(coord[0], coord[1], 0);
+				var cart3 = ellipsoid.cartographicToCartesian(carto);
+				positions.push(cart3);
+			}
+			ShowPoiInfoDialog(viewer, title, 'polygon', positions);
+			
+		}else
+		{
+			ShowMessage(400, 250, '出错了', '服务器生成圆形错误:返回数据为空,请确认服务正在运行.');
+		}
 	});
 
 }
@@ -2143,6 +2225,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		//{
 			//obj['label']['show'] = {'boolean':false};
 		//}
+		//console.log(obj);
 		arr.push(obj);
 		if(viewer.selectedEntity)
 		{
@@ -2844,8 +2927,10 @@ function TowerInfoMixin(viewer)
 				g_zaware = true;
 				//console.log('yes terrain');			
 			}
+			//RemoveSegmentsByType(viewer, 'edge_dn');
 			ReloadCzmlDataSource(viewer, g_zaware, true);
 			ReloadModelPosition(viewer);
+			//ReloadSegments(viewer);
 		}
 	});
 	//console.log(viewer.baseLayerPicker.viewModel.selectedImagery.command.afterExecute);
@@ -3198,6 +3283,7 @@ function GetContactPointByIndex(tower, side, index)
 
 function RemoveSegmentsByType(viewer, webgis_type)
 {
+	var scene = viewer.scene;
 	var remove_one = function()
 	{
 		var ret = false;
@@ -3215,7 +3301,7 @@ function RemoveSegmentsByType(viewer, webgis_type)
 		return ret;
 	};
 	
-	if(type===undefined)
+	if(webgis_type===undefined)
 	{
 		scene.primitives.removeAll();
 		g_geometry_segments.length = 0;
@@ -3732,6 +3818,20 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 
 //}
 
+function ReloadSegments(viewer)
+{
+	//RemoveSegmentsByType(viewer, 'edge_dn');
+	for(var k in g_geojsons)
+	{
+		if(g_geojsons[k])
+		{
+			if(g_geojsons[k]['properties']['webgis_type'] == 'edge_dn')
+			{
+				DrawSegmentsBetweenTwoDNNode(viewer, g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
+			}
+		}
+	}
+}
 
 function DrawSegmentsBetweenTwoDNNode(viewer, previd, nextid, fresh)
 {
@@ -3759,7 +3859,7 @@ function DrawSegmentsBetweenTwoDNNode(viewer, previd, nextid, fresh)
 		positions.push(cart3);
 	}
 	var color = Cesium.Color.fromCssColorString("rgba(255,255,0,1)");
-	if(!fresh) color = Cesium.Color.fromCssColorString("rgba(225,225,0,1)");
+	if(!fresh) color = Cesium.Color.fromCssColorString("rgba(200,200,0,1)");
 	var polyline = polylines.add({
 		positions : positions,
 		material : Cesium.Material.fromType('PolylineArrow', {
@@ -4921,20 +5021,20 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 						}
 					}
 				},
-				{ 	text: "保存", 
-					click: function(){
-						ShowConfirm(null, 500, 200,
-							'保存确认',
-							'确认保存吗? 确认的话该缓冲区域将会提交到服务器上，以便所有人都能利用该缓冲区做分析。',
-							function(){
-								clear_tmp_buffer();
-							},
-							function(){
-								clear_tmp_buffer();
-							}
-						);
-					}
-				},
+				//{ 	text: "保存", 
+					//click: function(){
+						//ShowConfirm(null, 500, 200,
+							//'保存确认',
+							//'确认保存吗? 确认的话该缓冲区域将会提交到服务器上，以便所有人都能利用该缓冲区做分析。',
+							//function(){
+								//clear_tmp_buffer();
+							//},
+							//function(){
+								//clear_tmp_buffer();
+							//}
+						//);
+					//}
+				//},
 				{ 	text: "关闭", 
 					click: function(){
 						clear_tmp_buffer();
@@ -5172,6 +5272,8 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 			{ 	text: "缓冲区分析", 
 				click: function(){ 
 					$( this ).dialog( "close" );
+					//if(type == 'circle') type = 'polygon'
+					//console.log(position);
 					ShowBufferAnalyzeDialog(viewer, type, position);
 				}
 			},
@@ -5269,6 +5371,11 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	{
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
 	}
+	//if(type == 'circle')
+	//{
+		//poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
+		//type = 'polygon';
+	//}
 		
 	for(var i in poitypelist)
 	{
