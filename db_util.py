@@ -57,6 +57,7 @@ CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
 gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
 gClientMongo = {'default':None, 'geofeature':None,}
 gClientMongoTiles = {}
+gClientMetadata = {}
 ODBC_STRING = {}
 #print(gConfig.keys())
 for k in gConfig['odbc'].keys():
@@ -8634,7 +8635,7 @@ def gridfs_find(qsdict, clienttype='default'):
         raise
     
 def gridfs_tile_find(tiletype, subtype, tilepath, params):
-    global gClientMongoTiles, gConfig
+    global gClientMongoTiles, gConfig, gClientMetadata
     dbname = gConfig[tiletype][subtype]['database']
     collection = gConfig[tiletype][subtype]['gridfs_collection']
     host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
@@ -8670,6 +8671,9 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                         href += k + '=' + params[k][0] + '&'
                     href += 'f=TerrainTile'
                 print('downloading terrain %s' % href)
+            elif tiletype == 'tiles' and 'bing_' in subtype:
+                x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
+                mimetype, ret = bing_tile(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'][0], params['y'][0], params['level'][0]
                 s = gConfig[tiletype][subtype]['url_template']
@@ -8677,38 +8681,110 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
                 href = str(s)
                 print('downloading tile %s' % href)
-            url = URL(href)    
-            http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-            response = None
-            try:
-                #response = http.get(url.request_uri)
-                g = gevent.spawn(http.get, url.request_uri)
-                #g.start()
-                #while not g.ready():
-                    #if g.exception:
-                        #break
-                    #gevent.sleep(0.1)
-                g.join()
-                response = g.value
-                if response and response.status_code == 200:
-                    if '.terrain' in tilepath:
-                        with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
-                            ret = f1.read()
-                    else:
-                        ret = response.read()
-                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
-                    
-            except:
-                pass
-            #finally:
-                #if response:
-                    #response.release()
-                #if http:
-                    #http.close()
+            if not 'bing_' in subtype:
+                url = URL(href)    
+                http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+                response = None
+                try:
+                    #response = http.get(url.request_uri)
+                    g = gevent.spawn(http.get, url.request_uri)
+                    #g.start()
+                    #while not g.ready():
+                        #if g.exception:
+                            #break
+                        #gevent.sleep(0.1)
+                    g.join()
+                    response = g.value
+                    if response and response.status_code == 200:
+                        if '.terrain' in tilepath:
+                            with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
+                                ret = f1.read()
+                        else:
+                            ret = response.read()
+                        gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+                        
+                except:
+                    pass
+            
     except:
-        #traceback.print_exc()
         raise
     return mimetype, ret
+
+def bing_tile(tiletype, subtype, tilepath, x, y, level):
+    global gClientMongoTiles, gConfig, gClientMetadata
+    
+    def tileXYToQuadKey(x, y, level):
+        quadkey = ''
+        for i in range(level, -1, -1):
+            bitmask = 1 << i
+            digit = 0
+            if (x & bitmask) != 0:
+                digit |= 1
+    
+            if (y & bitmask) != 0:
+                digit |= 2
+            quadkey += str(digit)
+        return quadkey
+    
+    def quadKeyToTileXY(quadkey):
+        x = 0
+        y = 0
+        level = len(quadkey) - 1
+        for i in range(level, -1, -1):
+            bitmask = 1 << i
+            digit = quadkey[level - i]
+    
+            if (digit & 1) != 0 :
+                x |= bitmask
+    
+            if (digit & 2) != 0:
+                y |= bitmask
+        return {
+            'x' : x,
+            'y' : y,
+            'level' : level
+        }
+    connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
+    #tilepath = '%s/%s/%s%s' % (level, x, y, gConfig[tiletype][subtype]['mimetype'])
+    mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
+    ret = None
+    if not gClientMetadata.has_key(tiletype):
+        gClientMetadata[tiletype] = {}
+    if not gClientMetadata[tiletype].has_key(subtype):
+        gClientMetadata[tiletype][subtype] = {}
+    if len(gClientMetadata[tiletype][subtype].keys()) == 0:
+        url_metadata_template = gConfig[tiletype][subtype]['url_template']
+        href = url_metadata_template.replace('{key}', gConfig[tiletype][subtype]['key'])
+        url = URL(href) 
+        http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+        response = http.get(url.request_uri)
+        if response and response.status_code == 200:
+            obj = json.load(response)
+            if obj.has_key('resourceSets') and len(obj['resourceSets'])>0 and obj['resourceSets'][0].has_key('resources') and len(obj['resourceSets'][0]['resources'])>0:
+                gClientMetadata[tiletype][subtype] = obj['resourceSets'][0]['resources'][0]
+            #print(gClientMetadata[tiletype][subtype])
+    quadkey = tileXYToQuadKey(x, y, level)
+    href = gClientMetadata[tiletype][subtype]['imageUrl']
+    href = href.replace('{quadkey}', quadkey).replace('{culture}', '')
+    subdomains = gClientMetadata[tiletype][subtype]['imageUrlSubdomains']
+    subdomainIndex = (x + y + level) % len(subdomains)
+    href = href.replace('{subdomain}', subdomains[subdomainIndex]);
+    print('downloading from %s' % href)
+    url = URL(href)    
+    http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+    response = None
+    try:
+        g = gevent.spawn(http.get, url.request_uri)
+        g.join()
+        response = g.value
+        if response and response.status_code == 200:
+            ret = response.read()
+            gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+    except:
+        pass
+    return mimetype, ret
+    
+    
 
 def gridfs_tile_save(tiletype, subtype, tilepath, mimetype, data):
     global gClientMongoTiles, gConfig
@@ -8951,7 +9027,12 @@ def test_generate_ODT(db_name):
                         prev = get_prev(prev, edges)
         print_odt(odt)
         
-    
+def test_bing_map():
+    tiletype = 'tiles'
+    subtype = 'bing_sat'
+    tilepath = '11/3221/1755.jpeg'
+    params = {'level':['11',], 'x':['3221',], 'y':['1755',]}
+    gridfs_tile_find(tiletype, subtype, tilepath, params)
             
     
 if __name__=="__main__":
@@ -9029,6 +9110,6 @@ if __name__=="__main__":
     #test_import_shape_to_mongo()
     #merge_dem2()
     #test_generate_ODT(db_name)
-    
+    #test_bing_map()
     
     

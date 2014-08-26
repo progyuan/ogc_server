@@ -197,28 +197,28 @@ function InitCesiumViewer()
 					//});
 				//}
 			//}));
-	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : 'CTF卫星图',
-				iconUrl : 'img/wmts-sat.png',
-				tooltip : 'CTF卫星图',
-				creationFunction : function() {
-					return new CFTTileImageryProvider({
-						url :  g_host + 'tiles',
-						imageType:'google_sat'
-					});
-				}
-			}));
-	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : 'CTF地图',
-				iconUrl : 'img/wmts-map.png',
-				tooltip : 'CTF地图',
-				creationFunction : function() {
-					return new CFTTileImageryProvider({
-						url :  g_host + 'tiles',
-						imageType:'google_map'
-					});
-				}
-			}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : 'CTF卫星图',
+				//iconUrl : 'img/wmts-sat.png',
+				//tooltip : 'CTF卫星图',
+				//creationFunction : function() {
+					//return new CFTTileImageryProvider({
+						//url :  g_host + 'tiles',
+						//imageType:'google_sat'
+					//});
+				//}
+			//}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : 'CTF地图',
+				//iconUrl : 'img/wmts-map.png',
+				//tooltip : 'CTF地图',
+				//creationFunction : function() {
+					//return new CFTTileImageryProvider({
+						//url :  g_host + 'tiles',
+						//imageType:'google_map'
+					//});
+				//}
+			//}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
 				//name : '地图',
 				//iconUrl : 'img/wmts-map.png',
@@ -231,18 +231,34 @@ function InitCesiumViewer()
 					//});
 				//}
 			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-		//name : 'Bing Maps Aerial',
-		//iconUrl : 'img/bingAerial.png',
-		//tooltip : 'Bing Maps aerial imagery \nhttp://www.bing.com/maps',
-		//creationFunction : function() {
-			//return new Cesium.BingMapsImageryProvider({
+	providerViewModels.push(new Cesium.ProviderViewModel({
+				name : '高德地图',
+				iconUrl : 'img/wmts-map.png',
+				tooltip : '高德地图',
+				creationFunction : function() {
+					return new AMapTileImageryProvider({
+						//url :  'http://webrd03.is.autonavi.com/appmaptile',
+						url :  g_host + 'tiles',
+						imageType: 'amap_map',
+						queryType: 'server'
+					});
+				}
+			}));
+	providerViewModels.push(new Cesium.ProviderViewModel({
+		name : 'Bing卫星图',
+		iconUrl : 'img/bingAerial.png',
+		tooltip : 'Bing卫星图',
+		creationFunction : function() {
+			return new BingImageryFromServerProvider({
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-			//});
-		//}
-	//}));
+				url :  g_host + 'tiles',
+				imageType: 'bing_sat',
+				queryType: 'server'
+			});
+		}
+	}));
 	
 	//providerViewModels.push(new Cesium.ProviderViewModel({
 		//name : 'Bing Maps Aerial with Labels',
@@ -1046,6 +1062,10 @@ function InitToolPanel(viewer)
 	$('input[id^=chb_show_label_]').iCheck({
 		checkboxClass: 'icheckbox_flat-green'
 	});
+	$('input[id^=chb_show_icon_]').iCheck({
+		checkboxClass: 'icheckbox_flat-green'
+	});
+	$('input[id^=chb_show_icon_]').iCheck('check');
 	
 	//$('#chb_show_label').on('click', function(){
 	$('input[id^=chb_show_label_]').on("ifChanged", function(e){
@@ -1056,6 +1076,16 @@ function InitToolPanel(viewer)
 		}else
 		{
 			console.log('turn off label:' + webgis_type);
+		}
+		ReloadCzmlDataSource(viewer, g_zaware);
+	});
+	$('input[id^=chb_show_icon_]').on("ifChanged", function(e){
+		if($(this).is(':checked'))
+		{
+			console.log('turn on icon:' + 'point');
+		}else
+		{
+			console.log('turn off icon:' + 'point');
 		}
 		ReloadCzmlDataSource(viewer, g_zaware);
 	});
@@ -2129,6 +2159,15 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		});
 		return r;
 	};
+	var get_icon_show_opt = function(){
+		var r = {};
+		$('input[id^=chb_show_icon_]').each(function(){
+			var t = $(this).attr('id').replace('chb_show_icon_', '');
+			r[t] = false;
+			if($(this).is(':checked')) r[t] = true;
+		});
+		return r;
+	};
 	
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	var arr = [];
@@ -2213,12 +2252,43 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		var opt = get_label_show_opt();
 		for(var k in opt)
 		{
-			if(k===obj['webgis_type'])
+			if(k.indexOf('point_')>-1)
+			{
+				if(obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
+				{
+					if(opt[k] === true)
+						obj['label']['show'] = {'boolean':true};
+					if(opt[k] === false)
+						obj['label']['show'] = {'boolean':false};
+				}
+			}
+			else if(k===obj['webgis_type'])
 			{
 				if(opt[k] === true)
 					obj['label']['show'] = {'boolean':true};
 				if(opt[k] === false)
 					obj['label']['show'] = {'boolean':false};
+			}
+		}
+		opt = get_icon_show_opt();
+		for(var k in opt)
+		{
+			if(k.indexOf('point_')>-1 && obj['billboard'])
+			{
+				if(obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
+				{
+					if(opt[k] === true)
+						obj['billboard']['show'] = {'boolean':true};
+					if(opt[k] === false)
+						obj['billboard']['show'] = {'boolean':false};
+				}
+			}
+			else if(k===obj['webgis_type'] && obj['billboard'])
+			{
+				if(opt[k] === true)
+					obj['billboard']['show'] = {'boolean':true};
+				if(opt[k] === false)
+					obj['billboard']['show'] = {'boolean':false};
 			}
 		}
 		//}else

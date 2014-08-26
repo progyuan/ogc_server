@@ -1,19 +1,18 @@
 
-var CFTTileImageryProvider = function CFTTileImageryProvider(description) {
+var AMapTileImageryProvider = function AMapTileImageryProvider(description) {
     var trailingSlashRegex = /\/$/;
-    var defaultCredit = new Cesium.Credit('CFT');
+    var defaultCredit = new Cesium.Credit('AMap');
     description = Cesium.defaultValue(description, {});
 
-    var url = Cesium.defaultValue(description.url, 'http://localhost:88/tiles');
-    if (!trailingSlashRegex.test(url)) {
-        //url = url + '/';
-    }
+    var url = Cesium.defaultValue(description.url, 'http://webrd03.is.autonavi.com/appmaptile');
 
     this._url = url;
-    this._imageType = Cesium.defaultValue(description.imageType, 'google_sat');
+    this._imageType = Cesium.defaultValue(description.imageType, 'amap_map');
     this._fileExtension = Cesium.defaultValue(description.fileExtension, 'png');
     this._proxy = description.proxy;
     this._tileDiscardPolicy = description.tileDiscardPolicy;
+    this._queryType = Cesium.defaultValue(description.queryType, 'client');
+    this._imageType = Cesium.defaultValue(description.imageType, 'amap_map');
 
     
     this._tilingScheme = new Cesium.WebMercatorTilingScheme({
@@ -29,15 +28,6 @@ var CFTTileImageryProvider = function CFTTileImageryProvider(description) {
     this._extent = Cesium.defaultValue(description.extent, this._tilingScheme.extent);
     this._rectangle = Cesium.defaultValue(description.rectangle, this._tilingScheme.rectangle);
 
-    // Check the number of tiles at the minimum level.  If it's more than four,
-    // throw an exception, because starting at the higher minimum
-    // level will cause too many tiles to be downloaded and rendered.
-    //var swTile = this._tilingScheme.positionToTileXY(this._extent.getSouthwest(), this._minimumLevel);
-    //var neTile = this._tilingScheme.positionToTileXY(this._extent.getNortheast(), this._minimumLevel);
-    //var tileCount = (Math.abs(neTile.x - swTile.x) + 1) * (Math.abs(neTile.y - swTile.y) + 1);
-    //if (tileCount > 4) {
-        //throw new Cesium.DeveloperError('The imagery provider\'s extent and minimumLevel indicate that there are ' + tileCount + ' tiles at the minimum level. Imagery providers with more than four tiles at the minimum level are not supported.');
-    //}
 
     this._errorEvent = new Cesium.Event();
 
@@ -53,9 +43,16 @@ var CFTTileImageryProvider = function CFTTileImageryProvider(description) {
 
 
 
-CFTTileImageryProvider.prototype.buildImageUrl = function(imageryProvider, imageType, x, y, level) {
+AMapTileImageryProvider.prototype.buildImageUrl = function(imageryProvider, imageType, x, y, level) {
     var url = imageryProvider._url ;
-    url += '?image_type=' + imageType + '&x=' + x + '&y=' + y + '&level=' + level;
+    //url += '?image_type=' + imageType + '&x=' + x + '&y=' + y + '&level=' + level;
+    if(imageryProvider._queryType === 'server')
+    {
+        url += '?image_type=' + imageryProvider._imageType + '&x=' + x + '&y=' + y + '&level=' + level;
+    }else
+    {
+        url += '?lang=zh_cn&size=1&scale=1&style=7' + '&x=' + x + '&y=' + y + '&z=' + level;
+    }
     //console.log("url=" + url);
     var proxy = imageryProvider._proxy;
     if (Cesium.defined(proxy)) {
@@ -64,7 +61,7 @@ CFTTileImageryProvider.prototype.buildImageUrl = function(imageryProvider, image
     return url;
 }
 
-Cesium.defineProperties(CFTTileImageryProvider.prototype, {
+Cesium.defineProperties(AMapTileImageryProvider.prototype, {
     url : {
         get : function() {
             return this._url;
@@ -170,17 +167,16 @@ Cesium.defineProperties(CFTTileImageryProvider.prototype, {
     }
 });
 
-CFTTileImageryProvider.prototype.getTileCredits = function(x, y, level) {
+AMapTileImageryProvider.prototype.getTileCredits = function(x, y, level) {
     return undefined;
 };
 
-CFTTileImageryProvider.prototype.requestImage = function(x, y, level) {
+AMapTileImageryProvider.prototype.requestImage = function(x, y, level) {
     if (!this._ready) {
         throw new Cesium.DeveloperError('requestImage must not be called before the imagery provider is ready.');
     }
 
-    var url = CFTTileImageryProvider.prototype.buildImageUrl(this, this._imageType, x, y, level);
+    var url = AMapTileImageryProvider.prototype.buildImageUrl(this, this._imageType, x, y, level);
     return Cesium.ImageryProvider.loadImage(this, url);
 };
 
-//http://restapi.amap.com/v3/staticmap?location=116.37359,39.92437&zoom=0&size=256*256&key=ee95e52bf08006f63fd29bcfbcf21df0

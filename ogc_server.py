@@ -745,6 +745,7 @@ def handle_tiles(environ):
     d = cgi.parse(None, environ)
     ret = None
     mimetype = 'image/png'
+    image_type = None
     #key = path_info.replace('/tiles/','')
     if d.has_key('image_type') and d.has_key('x') and d.has_key('y') and d.has_key('level'):
         image_type = d['image_type'][0]
@@ -763,7 +764,12 @@ def handle_tiles(environ):
             except:
                 ret = gTileCache[image_type]['missing']
     else:
-        ret = gTileCache[image_type]['missing']
+        if image_type:
+            if not gTileCache.has_key(image_type):
+                gTileCache[image_type] = {}
+            if not gTileCache[image_type].has_key('missing'):
+                gTileCache[image_type]['missing'] = get_blank_tile(image_type)
+            ret = gTileCache[image_type]['missing']
     if ret is None:
         ret = gTileCache[image_type]['missing']
     headers['Content-Type'] = mimetype
