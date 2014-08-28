@@ -14,7 +14,8 @@ var g_selected_metal_item;
 var g_geometry_segments = [];
 var g_geometry_lines = {};
 var g_use_catenary = true;
-var g_models = [];
+var g_models_gltf_files = [];
+var g_models_mapping = {};
 var g_is_tower_focus = false;
 var g_primitive_material_unselect, g_polyline_material_unselect, g_polygon_material_unselect;
 var g_buffers = {};
@@ -66,26 +67,30 @@ $(function() {
 			LoadSegments(g_db_name, function(){
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
 				LoadModelsList(g_db_name, function(){
-					//var name = '永发I回线';
-					//var name = '七罗I回';
-					//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-						//LoadLineByLineName(viewer, g_db_name, name, function(){
+					
+					ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
+					LoadModelsMapping(g_db_name, function(){
+						//var name = '永发I回线';
+						var name = '七罗I回';
+						LoadTowerByLineName(viewer, g_db_name,  name, function(){
+							LoadLineByLineName(viewer, g_db_name, name, function(){
+								var extent = GetExtentByCzml();
+								FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+								ReloadCzmlDataSource(viewer, g_zaware);
+							});
+						});
+					});
+					
+					//var extent = GetDefaultExtent(g_db_name);
+					//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+					//g_zaware = true;
+					//LoadAllDNNode(viewer, g_db_name, function(){
+						//LoadAllDNEdge(viewer, g_db_name, function(){
 							//var extent = GetExtentByCzml();
 							//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 							//ReloadCzmlDataSource(viewer, g_zaware);
 						//});
 					//});
-					
-					//var extent = GetDefaultExtent(g_db_name);
-					//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-					//g_zaware = true;
-					LoadAllDNNode(viewer, g_db_name, function(){
-						LoadAllDNEdge(viewer, g_db_name, function(){
-							var extent = GetExtentByCzml();
-							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							ReloadCzmlDataSource(viewer, g_zaware);
-						});
-					});
 				
 				});
 			});
@@ -163,17 +168,17 @@ function InitCesiumViewer()
 					//});
 				//}
 			//}));
-	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : 'YN_SAT',
-				iconUrl : 'img/wmts-sat.png',
-				tooltip : 'YN_SAT',
-				creationFunction : function() {
-					return new Cesium.ArcGisMapServerImageryProvider({
-						url : 'http://localhost:6080/arcgis/rest/services/YN_SAT/ImageServer'
-						//usePreCachedTilesIfAvailable:false
-					});
-				}
-			}));
+	//providerViewModels.push(new Cesium.ProviderViewModel({
+				//name : 'YN_SAT',
+				//iconUrl : 'img/wmts-sat.png',
+				//tooltip : 'YN_SAT',
+				//creationFunction : function() {
+					//return new Cesium.ArcGisMapServerImageryProvider({
+						//url : 'http://localhost:6080/arcgis/rest/services/YN_SAT/ImageServer'
+						////usePreCachedTilesIfAvailable:false
+					//});
+				//}
+			//}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
 				//name : '卫星图',
 				//iconUrl : 'img/wmts-sat.png',
@@ -232,19 +237,6 @@ function InitCesiumViewer()
 				//}
 			//}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
-				name : '高德地图',
-				iconUrl : 'img/wmts-map.png',
-				tooltip : '高德地图',
-				creationFunction : function() {
-					return new AMapTileImageryProvider({
-						//url :  'http://webrd03.is.autonavi.com/appmaptile',
-						url :  g_host + 'tiles',
-						imageType: 'amap_map',
-						queryType: 'server'
-					});
-				}
-			}));
-	providerViewModels.push(new Cesium.ProviderViewModel({
 		name : 'Bing卫星图',
 		iconUrl : 'img/bingAerial.png',
 		tooltip : 'Bing卫星图',
@@ -255,6 +247,19 @@ function InitCesiumViewer()
 				////proxy : proxyIfNeeded
 				url :  g_host + 'tiles',
 				imageType: 'bing_sat',
+				queryType: 'server'
+			});
+		}
+	}));
+	providerViewModels.push(new Cesium.ProviderViewModel({
+		name : '高德地图',
+		iconUrl : 'img/wmts-map.png',
+		tooltip : '高德地图',
+		creationFunction : function() {
+			return new AMapTileImageryProvider({
+				//url :  'http://webrd03.is.autonavi.com/appmaptile',
+				url :  g_host + 'tiles',
+				imageType: 'amap_map',
 				queryType: 'server'
 			});
 		}
@@ -410,7 +415,7 @@ function InitKeyboardEvent(viewer)
 			if(g_dn_connect_mode)
 			{
 				//$(".jGrowl-notification:last-child").remove();
-				$.jGrowl('<div>连接模式开启</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
+				$.jGrowl('<div>连接模式开启(Ctrl键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
 					//life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -450,7 +455,7 @@ function InitKeyboardEvent(viewer)
 			{
 				//$(".jGrowl-notification:last").trigger('jGrowl.close');
 				$('.jGrowl-notification').trigger('jGrowl.close');
-				$.jGrowl("连接模式关闭", { 
+				$.jGrowl("连接模式关闭(Ctrl键开启)", { 
 					life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
@@ -460,6 +465,13 @@ function InitKeyboardEvent(viewer)
 		}
 		if(e.keyCode == 46)//delete
 		{
+			try{
+				$('#dlg_tower_info').dialog("close");
+				$('#dlg_poi_info').dialog("close");
+			}catch(e)
+			{
+				//console.log(e);
+			}
 			if(g_selected_obj && g_selected_obj.id && g_selected_obj.id.properties && g_selected_obj.id.properties.webgis_type === 'edge_dn')
 			{
 				var get_name = function()
@@ -486,9 +498,11 @@ function InitKeyboardEvent(viewer)
 					return ret;
 				};
 				var name = get_name();
+				
 				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除[' + name + ']之间的联系吗?', function(){
 					//console.log(g_selected_obj.id);
 					var id = get_id();
+					//console.log(id);
 					if(id)
 					{
 						var cond = {'db':g_db_name, 'collection':'edges', 'action':'remove', '_id':id};
@@ -504,6 +518,7 @@ function InitKeyboardEvent(viewer)
 											theme: 'bubblestylesuccess',
 											glue:'before'
 										});
+										
 									}else
 									{
 									}
@@ -517,6 +532,7 @@ function InitKeyboardEvent(viewer)
 			if(g_selected_obj && g_selected_obj.id && (g_selected_obj.point || g_selected_obj.polyline || g_selected_obj.polygon) && g_geojsons[g_selected_obj.id]  && 
 			(  g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_marker'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_hazard'
+			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_dn'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_marker'
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_hazard'
@@ -526,7 +542,10 @@ function InitKeyboardEvent(viewer)
 			))
 			{
 				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + g_geojsons[g_selected_obj.id]['properties']['name'] + ']吗?', function(){
-					//console.log(g_selected_obj.id);
+					if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
+					{
+						return;
+					}
 					var cond = {'db':g_db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj.id};
 					MongoFind( cond, 
 						function(data){
@@ -686,7 +705,7 @@ function InitDrawHelper(viewer)
 	
 	
     var drawHelperCoverAreaMaterial = Cesium.Material.fromType('Color', {
-		color : new Cesium.Color(1.0, 1.0, 0.0, 0.5)
+		color : new Cesium.Color(1.0, 1.0, 0.0, 0.35)
 	});
 	
 	
@@ -1127,7 +1146,7 @@ function ClearPoi(viewer)
 		if(scene.primitives.contains(m))
 		{
 			var b = scene.primitives.remove(m);
-			console.log(b);
+			//console.log(b);
 		}
 	}
 }
@@ -1160,13 +1179,13 @@ function InitModelList(viewer)
 	$('#tower_info_model_list_toggle').on('click', function(e) {
 		if($('#tower_info_model_list').css('display') == 'block')
 		{
-			$(e.target).find('a').html('>>显示列表');
+			$(e.target).html('>>显示列表');
 			$('#tower_info_model_list').css('display', 'none');
 			$('#tower_info_model').find('iframe').css('width', '99%');
 		}
 		else
 		{
-			$(e.target).find('a').html('<<隐藏列表');
+			$(e.target).html('<<隐藏列表');
 			$('#tower_info_model_list').css('display', 'block');
 			$('#tower_info_model').find('iframe').css('width', '79%');
 		}
@@ -1620,6 +1639,10 @@ function CreatePointCzmlFromGeojson(geojson)
 	cz['billboard']['verticalOrigin'] = 'BOTTOM';
 	cz['billboard']['scale'] = {'number':1.0};
 	cz['billboard']['show'] = {'boolean':false};
+	if(geojson['properties']['model'] === undefined)
+	{
+		cz['billboard']['show'] = {'boolean':true};
+	}
 	var name = geojson['properties']['name'];
 	var subtype = cz['webgis_type'];
 	if(geojson['properties']['function_type'] === 'PAE')
@@ -1705,26 +1728,26 @@ function FilterModelList(str)
 	}catch(e)
 	{
 	}
-	//console.log('str=' + str + ', len=' + g_models.length);
-	for(var i in g_models)
+	$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + '(无)' + '</li>');
+	for(var i in g_models_gltf_files)
 	{
 		if(str.length > 0)
 		{
-			if(g_models[i].toLowerCase().indexOf(str.toLowerCase())>-1)
+			if(g_models_gltf_files[i].toLowerCase().indexOf(str.toLowerCase())>-1)
 			{
-				$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models[i] + '</li>');
+				$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models_gltf_files[i] + '</li>');
 			}
 		}else{
-			$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models[i] + '</li>');
+			$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models_gltf_files[i] + '</li>');
 		}
 	}
 	$("#tower_info_model_list_selectable").selectable({
 		selected: function( event, ui ) {
 			var model_code_height = $(ui.selected).html();
 			var url = GetModelUrl1(model_code_height);
+			var iframe = $('#tower_info_model').find('iframe');
 			if(url.length>0)
 			{
-				var iframe = $('#tower_info_model').find('iframe');
 				var obj = {};
 				obj['url'] = '/' + url;
 				//obj['data'] = {};
@@ -1732,6 +1755,29 @@ function FilterModelList(str)
 				//obj['denomi_height'] = tower['properties']['denomi_height'];
 				var json = encodeURIComponent(JSON.stringify(obj));
 				iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
+				var get_code_height = function(code_height)
+				{
+					var idx = code_height.lastIndexOf("_");
+					var num1 = code_height.substr(idx+1);
+					var rest = code_height.slice(0, idx);
+					idx = rest.lastIndexOf("_");
+					var num2 = rest.substr(idx+1);
+					var h = num2 + '.' + num1;
+					var mc = rest.slice(0, idx);
+					//console.log(h);
+					//console.log(mc);
+					return [mc, h];
+				};
+				var arr = get_code_height(model_code_height);
+				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
+				
+			}else
+			{
+				iframe.attr('src', g_host + 'threejs/editor/index.html' );
+				if(g_selected_obj && g_geojsons[g_selected_obj.id] && g_geojsons[g_selected_obj.id]['properties'])
+				{
+					delete g_geojsons[g_selected_obj.id]['properties']['model'];
+				}
 			}
 			
 			
@@ -1904,7 +1950,27 @@ function LoadModelsList(db_name, callback)
 	var cond = {'db':db_name, 'collection':'-', 'action':'modelslist', 'data':{}};
 	MongoFind( cond, 
 		function(data){
-			g_models = data;
+			g_models_gltf_files = data;
+			ShowProgressBar(false);
+			if(callback) callback();
+	});
+}
+function LoadModelsMapping(db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'models'};
+	MongoFind( cond, 
+		function(data){
+			for(var i in data)
+			{
+				var model_code_height = data[i];
+				if(g_models_mapping[model_code_height] === undefined)
+				{
+					var d = data[i];
+					delete d['_id'];
+					g_models_mapping[model_code_height] = d;
+				}
+			}
+			console.log(g_models_mapping);
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
@@ -2209,7 +2275,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 			}
 			if(obj['polygon'] && obj['polygon']['extrudedHeight'])
 			{
-				obj['polygon']['extrudedHeight'] = 0;
+				obj['polygon']['extrudedHeight'] = {'number': 0};
 			}
 		
 		}else
@@ -2252,17 +2318,15 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		var opt = get_label_show_opt();
 		for(var k in opt)
 		{
-			if(k.indexOf('point_')>-1)
+			if(k.indexOf('point_')>-1 && k != 'point_tower' && obj['webgis_type'] != 'point_tower' && obj['webgis_type'] &&  obj['webgis_type'].indexOf('point_')>-1 )
 			{
-				if(obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
-				{
-					if(opt[k] === true)
-						obj['label']['show'] = {'boolean':true};
-					if(opt[k] === false)
-						obj['label']['show'] = {'boolean':false};
-				}
+				if(opt[k] === true)
+					obj['label']['show'] = {'boolean':true};
+				if(opt[k] === false)
+					obj['label']['show'] = {'boolean':false};
 			}
-			else if(k===obj['webgis_type'])
+			
+			if(k===obj['webgis_type'])
 			{
 				if(opt[k] === true)
 					obj['label']['show'] = {'boolean':true};
@@ -2275,7 +2339,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		{
 			if(k.indexOf('point_')>-1 && obj['billboard'])
 			{
-				if(obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
+				if(obj['webgis_type'] && obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
 				{
 					if(opt[k] === true)
 						obj['billboard']['show'] = {'boolean':true};
@@ -2283,7 +2347,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 						obj['billboard']['show'] = {'boolean':false};
 				}
 			}
-			else if(k===obj['webgis_type'] && obj['billboard'])
+			else if(obj['webgis_type'] && k===obj['webgis_type'] && obj['billboard'])
 			{
 				if(opt[k] === true)
 					obj['billboard']['show'] = {'boolean':true};
@@ -2488,7 +2552,7 @@ function LoadTowerModelByTower(viewer, tower)
 		var id = tower['_id'];
 		if(!g_gltf_models[id])
 		{
-			if(tower['properties']['model']['model_code_height'])
+			if(tower['properties']['model'] && tower['properties']['model']['model_code_height'])
 			{
 				var lng = parseFloat($('#form_tower_info_base').webgisform('get','lng').val()),
 					lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
@@ -2594,6 +2658,10 @@ function GetModelUrl(model_code_height)
 function GetModelUrl1(model_code_height)
 {
 	if(!model_code_height)
+	{
+		return '';
+	}
+	if(model_code_height === '(无)')
 	{
 		return '';
 	}
@@ -2910,9 +2978,12 @@ function TowerInfoMixin(viewer)
 				{
 					//console.log('prev selected id=' + g_prev_selected_obj.id);
 				}
+				if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1 && g_czmls[id]['webgis_type'] != 'point_tower')
+				{
+					ShowPoiInfoDialog(viewer, '编辑', 'point', [], id);
+				}
 				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn')
 				{
-					
 					if(!g_dn_connect_mode)
 					{
 						$.jGrowl("按CTRL键切换连接模式开关,选择下一个配电网节点,将依次连接这两个节点", { 
@@ -2997,10 +3068,8 @@ function TowerInfoMixin(viewer)
 				g_zaware = true;
 				//console.log('yes terrain');			
 			}
-			//RemoveSegmentsByType(viewer, 'edge_dn');
 			ReloadCzmlDataSource(viewer, g_zaware, true);
 			ReloadModelPosition(viewer);
-			//ReloadSegments(viewer);
 		}
 	});
 	//console.log(viewer.baseLayerPicker.viewModel.selectedImagery.command.afterExecute);
@@ -3139,15 +3208,15 @@ function TowerInfoMixin(viewer)
 		entities.collectionChanged.removeEventListener(onDynamicCollectionChanged);
 
 		if (Cesium.defined(viewer.trackedEntity)) {
-			if (entities.getById(viewer.trackedEntity.id) === viewer.trackedEntity) {
-				//viewer.homeButton.viewModel.command();
-			}
+			//if (entities.getById(viewer.trackedEntity.id) === viewer.trackedEntity) {
+				////viewer.homeButton.viewModel.command();
+			//}
 		}
 
 		if (Cesium.defined(viewer.selectedEntity)) {
-			if (entities.getById(viewer.selectedEntity.id) === viewer.selectedEntity) {
-				//viewer.selectedEntity = undefined;
-			}
+			//if (entities.getById(viewer.selectedEntity.id) === viewer.selectedEntity) {
+				////viewer.selectedEntity = undefined;
+			//}
 		}
 	}
 
@@ -3270,13 +3339,12 @@ function ReloadModelPosition(viewer)
 			if(t)
 			{
 				RemoveSegmentsTower(viewer, t);
-			//}
-			//var carto = Cesium.Cartographic.fromDegrees(g_czmls[k]['position']['cartographicDegrees'][0], g_czmls[k]['position']['cartographicDegrees'][1], g_czmls[k]['position']['cartographicDegrees'][2]);
-			//var cart3 = ellipsoid.cartographicToCartesian(carto);
-			//var mat4 = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.IDENTITY, cart3);
-			//var m = Cesium.Matrix4.multiplyTransformation(g_gltf_models[k].modelMatrix, mat4, mat4);
-			//g_gltf_models[k].modelMatrix = m;
-				
+				//}
+				//var carto = Cesium.Cartographic.fromDegrees(g_czmls[k]['position']['cartographicDegrees'][0], g_czmls[k]['position']['cartographicDegrees'][1], g_czmls[k]['position']['cartographicDegrees'][2]);
+				//var cart3 = ellipsoid.cartographicToCartesian(carto);
+				//var mat4 = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.IDENTITY, cart3);
+				//var m = Cesium.Matrix4.multiplyTransformation(g_gltf_models[k].modelMatrix, mat4, mat4);
+				//g_gltf_models[k].modelMatrix = m;
 				
 				var lng = t['geometry']['coordinates'][0],
 					lat = t['geometry']['coordinates'][1],
@@ -3471,15 +3539,24 @@ function CheckSegmentsExist(node0, node1)
 		id0 = node0['id'];
 		id1 = node1['id']
 	}
+	//console.log(id0);
+	//console.log(id1);
+	
 	if(id0 && id1)
 	{
 		for(var i in g_geometry_segments)
 		{
 			var seg = g_geometry_segments[i];
-			if(  seg['webgis_type'] == 'edge_dn' &&
-				((seg['start'] == id0 && seg['end'] == id1)
-			|| 	(seg['end'] == id0 && seg['start'] == id1)
-			)){
+			//if(seg['webgis_type'] &&  seg['webgis_type'] == 'edge_dn' &&
+				//((seg['start'] == id0 && seg['end'] == id1)
+			//|| 	(seg['end'] == id0 && seg['start'] == id1)
+			//)){
+				//ret = true;
+				//break;
+			//}
+			if((seg['start'] == id0 && seg['end'] == id1)
+				|| 	(seg['end'] == id0 && seg['start'] == id1)
+			) {
 				ret = true;
 				break;
 			}
@@ -4542,10 +4619,6 @@ function ShowTowerInfoDialog(viewer, tower)
 							//console.log('pos.height=' + pos.height);
 							FlyToPoint(viewer, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
 						}
-						
-						
-						
-						
 					}
 				}
 			},
@@ -4589,12 +4662,16 @@ function ShowTowerInfoDialog(viewer, tower)
 			{
 				$('#tower_info_model_list_filter').focus();
 				var iframe = $(ui.newPanel.context).find('#tower_info_model').find('iframe');
-				var url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+				var url = '';
+				if(tower['properties']['model'])
+				{
+					url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+				}
 				$('#tower_info_model_list_toggle').find('a').html('>>显示列表');
 				$('#tower_info_model_list').css('display', 'none');
 				$('#tower_info_model').find('iframe').css('width', '99%');
 				var obj = {};
-				if(!CheckModelCode(tower['properties']['model']['model_code_height']) || url.length==0)
+				if(url.length==0 || !CheckModelCode(tower['properties']['model']['model_code_height']))
 				{
 					obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
@@ -4670,13 +4747,13 @@ function ShowTowerInfoDialog(viewer, tower)
 	{
 		var data = {
 			'id':tower['_id'], 
-			'lng':tower['geometry']['coordinates'][0],
-			'lat':tower['geometry']['coordinates'][1],
+			'lng':tower['geometry']['coordinates'][0].toFixed(5),
+			'lat':tower['geometry']['coordinates'][1].toFixed(5),
 			'alt':tower['geometry']['coordinates'][2],
 			'rotate':tower['properties']['rotate'],
 			'name':title,
 			'tower_code':tower['properties']['tower_code'],
-			'model_code':tower['properties']['model']['model_code'],
+			'model_code':tower['properties']['model']?tower['properties']['model']['model_code']:null,
 			'denomi_height':tower['properties']['denomi_height'],
 			'grnd_resistance':tower['properties']['grnd_resistance'],
 			'horizontal_span':tower['properties']['horizontal_span'],
@@ -4715,7 +4792,7 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 	if(!g_contextmenu_metal)
 	{
-		g_contextmenu_metal = $.ligerMenu({ top: 100, left: 100, width: 120, items:
+		g_contextmenu_metal = $.ligerMenu({ top: 100, left: 100, width: 150, items:
 			[
 			{ text: '增加金具', icon:'add',
 				children:[
@@ -4726,7 +4803,8 @@ function ShowTowerInfoDialog(viewer, tower)
 					{ text:'拉线',click: AddMetal},
 					{ text:'防鸟刺',click: AddMetal},
 					{ text:'在线监测装置',click: AddMetal},
-					{ text:'雷电计数器',click: AddMetal}
+					{ text:'雷电计数器',click: AddMetal},
+					{ text:'超声波驱鸟装置',click: AddMetal}
 				]
 			},
 			{ text: '删除金具', click: DeleteMetal,icon:'delete' }
@@ -4766,30 +4844,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				var formdata = {};
 				if(o['type'] == '绝缘子串')
 				{
-					//var insulator_type_list = [
-						//{'value':'导线绝缘子','text':'导线绝缘子'},
-						//{'value':'跳线绝缘子','text':'跳线绝缘子'},
-						//{'value':'地线绝缘子','text':'地线绝缘子'},
-						//{'value':'OPGW绝缘子串','text':'OPGW绝缘子串'}
-					//];
-					//var mat_type_list = [
-						//{'value':'未知','text':'陶瓷'},
-						//{'value':'玻璃','text':'玻璃'},
-						//{'value':'合成','text':'合成'},
-						//{'value':'未知','text':'未知'}
-					//];
-					//var insulator_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true}, width:275, validate:{required:true}},
-						//{display: "绝缘子类型", name: "insulator_type", newline: true,  type: "select", editor: {data:insulator_type_list},  width:275},
-						//{display: "绝缘子材料", name: "material", newline: true,  type: "select", editor: {data:mat_type_list},  width:275},
-						//{display: "绝缘子型号", name: "model", newline: true,  type: "text", width:275},
-						//{display: "串数", name: "strand", newline: true,  type: "digits", width:70},
-						//{display: "片数", name: "slice", newline: false,  type: "digits", width:70},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
-					
-					
 					flds = g_insulator_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4799,21 +4853,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '防振锤')
 				{
-					//var damper_list = [
-						//{'value':'导线大号侧','text':'导线大号侧'},
-						//{'value':'导线小号侧','text':'导线小号侧'},
-						//{'value':'地线大号侧','text':'地线大号侧'},
-						//{'value':'地线小号侧','text':'地线小号侧'}
-					//];
-					//var damper_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
-						//{display: "安装部位", name: "side", newline: true,  type: "select", editor: {data:damper_list},  width:275},
-						//{display: "防振锤型号", name: "model", newline: true,  type: "text", width:275},
-						//{display: "防振锤数量", name: "count", newline: true,  type: "digits", width:70},
-						//{display: "安装距离", name: "distance", newline: false,  type: "number", width:80},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
 					flds = g_damper_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4823,14 +4862,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '接地装置')
 				{
-					//var grd_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
-						//{display: "型号", name: "model", newline: true,  type: "text", width:275},
-						//{display: "数量", name: "count", newline: true,  type: "digits", width:70},
-						//{display: "埋深", name: "depth", newline: false,  type: "number", width:80},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
 					flds = g_grd_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4840,19 +4871,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '基础')
 				{
-					//var platform_model_list = [
-						//{'value':'铁塔','text':'铁塔'},
-						//{'value':'水泥塔','text':'水泥塔'}
-					//];
-					//var base_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
-						//{display: "平台类型", name: "platform_model", newline: true,  type: "select", editor: {data:platform_model_list}, width:275},
-						//{display: "数量", name: "count", newline: true,  type: "digits", width:70},
-						//{display: "埋深", name: "depth", newline: false,  type: "number", width:80},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
-					//flds = grd_flds;
 					flds = g_base_flds_1;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4860,15 +4878,8 @@ function ShowTowerInfoDialog(viewer, tower)
 						formdata[k] = metal[k];
 					}
 				}
-				if(o['type'] == '拉线' || o['type'] == '防鸟刺' || o['type'] == '在线监测装置')
+				if(o['type'] == '拉线' || o['type'] == '防鸟刺' || o['type'] == '在线监测装置' )
 				{
-					//var base_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
-						//{display: "型号", name: "model", newline: true,  type: "text", width:275},
-						//{display: "数量", name: "count", newline: true,  type: "digits", width:70},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
 					flds = g_base_flds_2_3_4;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4876,15 +4887,8 @@ function ShowTowerInfoDialog(viewer, tower)
 						formdata[k] = metal[k];
 					}
 				}
-				if(o['type'] == '雷电计数器')
+				if(o['type'] == '雷电计数器' || o['type'] == '超声波驱鸟装置')
 				{
-					//var base_flds = [
-						//{display: "类型", name: "type", newline: true,  type: "text", editor:{readonly:true},  width:275, validate:{required:true}},
-						//{display: "型号", name: "model", newline: true,  type: "text", width:275},
-						//{display: "读数", name: "counter", newline: true,  type: "digits", width:70},
-						//{display: "生产厂家", name: "manufacturer", newline: true,  type: "text", width:275},
-						//{display: "组装图号", name: "assembly_graph", newline: true,  type: "text", width:275}
-					//];
 					flds = g_base_flds_5;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -4893,7 +4897,10 @@ function ShowTowerInfoDialog(viewer, tower)
 					}
 				}
 				
-				$('#form_tower_info_metal').webgisform(flds, {prefix:'tower_metal_'});
+				$('#form_tower_info_metal').webgisform(flds, {
+					prefix:'tower_metal_',
+					maxwidth:500
+				});
 				$('#form_tower_info_metal').webgisform('setdata', formdata);
 			}
 		}
@@ -5342,8 +5349,35 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 			{ 	text: "缓冲区分析", 
 				click: function(){ 
 					$( this ).dialog( "close" );
-					//if(type == 'circle') type = 'polygon'
-					//console.log(position);
+					if(id && g_geojsons[id])
+					{
+						if(type === 'point')
+						{
+							var arr = g_geojsons[id]['geometry']['coordinates'];
+							var carto =  Cesium.Cartographic.fromDegrees(arr[0], arr[1], arr[2]);
+							position = ellipsoid.cartographicToCartesian(carto);
+						}
+						else if(type === 'polyline')
+						{
+							var arr = g_geojsons[id]['geometry']['coordinates'];
+							position = [];
+							for(var i in arr)
+							{
+								var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
+								position.push(ellipsoid.cartographicToCartesian(carto));
+							}
+						}
+						else if(type === 'polygon')
+						{
+							var arr = g_geojsons[id]['geometry']['coordinates'][0];
+							position = [];
+							for(var i in arr)
+							{
+								var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
+								position.push(ellipsoid.cartographicToCartesian(carto));
+							}
+						}
+					}
 					ShowBufferAnalyzeDialog(viewer, type, position);
 				}
 			},
@@ -5382,27 +5416,33 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								{
 									t = 'Polygon';
 								}
-								data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position, t)};
+								if(id === undefined)
+								{
+									data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position, t)};
+								}
 								SavePoi(data, function(data1){
 									//console.log(data1);
 									that.dialog( "close" );
-									g_drawhelper.clearPrimitive();
-									if(data1 && data1.length>0)
+									if(id === undefined)
 									{
-										for(var i in data1)
+										g_drawhelper.clearPrimitive();
+										if(data1 && data1.length>0)
 										{
-											var geojson = data1[i];
-											var id = geojson['_id'];
-											if(!g_geojsons[id])
+											for(var i in data1)
 											{
-												g_geojsons[id] = AddTerrainZOffset(geojson);
+												var geojson = data1[i];
+												var id = geojson['_id'];
+												if(!g_geojsons[id])
+												{
+													g_geojsons[id] = AddTerrainZOffset(geojson);
+												}
+												if(!g_czmls[id])
+												{
+													g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+												}
 											}
-											if(!g_czmls[id])
-											{
-												g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
-											}
+											ReloadCzmlDataSource(viewer, g_zaware);
 										}
-										ReloadCzmlDataSource(viewer, g_zaware);
 									}
 								});
 							},
@@ -5440,12 +5480,11 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	if(type == 'polygon')
 	{
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
+		if(id === undefined)
+		{
+			AddToCzml(ellipsoid, type, position);
+		}
 	}
-	//if(type == 'circle')
-	//{
-		//poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
-		//type = 'polygon';
-	//}
 		
 	for(var i in poitypelist)
 	{
@@ -5460,13 +5499,95 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	$("form[id^=form_poi_info_]").empty();
 	var webformlist = BuildPoiForms();
 	$("form[id^=form_poi_info_]").parent().css('display','none');
-	$("#form_poi_info_" + type + "_marker").parent().css('display','block');
-	//$("#form_poi_info_point_marker").validate();
+	if(id && g_geojsons[id])
+	{
+		var wt = g_geojsons[id]['properties']['webgis_type'];
+		$("#form_poi_info_" + wt).parent().css('display','block');
+	}
+	else
+	{
+		$("#form_poi_info_" + type + "_marker").parent().css('display','block');
+	}
 	$( "#select_poi_type" ).on( "change", function( event) {
 		$("form[id^=form_poi_info_]").parent().css('display','none');
 		var v = event.target.value;
 		webformlist[v].parent().css('display','block');
-	});	
+	});
+	if(id && g_geojsons[id])
+	{
+		var data = g_geojsons[id]['properties'];
+		var wt = g_geojsons[id]['properties']['webgis_type'];
+		$("#form_poi_info_" + wt).webgisform('setdata', data);
+	}
+}
+
+function AddToCzml(ellipsoid, type, positions)
+{
+	var cnt = 0;
+	var id;
+	var g = {};
+	g['geometry'] = {};
+	g['geometry']['type'] = '';
+	g['geometry']['coordinates'] = [];
+	g['properties'] = {};
+	g['properties']['webgis_type'] = '';
+	if(type === 'polyline')
+	{
+		for(var k in g_czmls)
+		{
+			if(k.indexOf('tmp_polyline_')>-1)
+			{
+				cnt += 1;
+			}
+		}
+		id = 'tmp_polyline_' + cnt;
+		g['geometry']['type'] = 'LineString';
+		g['properties']['webgis_type'] = 'polyline_marker';
+		for(var i in positions)
+		{
+			var cart3 = positions[i];
+			var carto = ellipsoid.cartesianToCartographic(cart3);
+			g['geometry']['coordinates'].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
+		}
+		
+	}
+	if(type === 'polygon')
+	{
+		for(var k in g_czmls)
+		{
+			if(k.indexOf('tmp_polygon_')>-1)
+			{
+				cnt += 1;
+			}
+		}
+		id = 'tmp_polygon_' + cnt;
+		g['geometry']['type'] = 'Polygon';
+		g['properties']['webgis_type'] = 'polygon_marker';
+		g['geometry']['coordinates'].push([]);
+		var carto_0;
+		for(var i in positions)
+		{
+			var cart3 = positions[i];
+			var carto = ellipsoid.cartesianToCartographic(cart3);
+			if(i == 0)
+			{
+				carto_0 = carto;
+			}
+			g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
+		}
+		g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto_0.longitude), Cesium.Math.toDegrees(carto_0.latitude)]);
+	}
+	g['_id'] = id;
+	if(!g_czmls[id])
+	{
+		g_czmls[id] = CreateCzmlFromGeojson(g);
+		if(type === 'polygon')
+		{
+			g_czmls[id]['polygon']['extrudedHeight'] = {'number': 3000};
+			g_czmls[id]['polygon']['material']['solidColor']['color'] = {'rgba':[255,255,0, 80]};
+		}
+	}
+	//console.log(g);
 }
 
 function CreateCzmlFromGeojson(geojson)
@@ -5668,9 +5789,9 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 function CheckModelCode(modelcode)
 {
 	var ret = false;
-	for(var i in g_models)
+	for(var i in g_models_gltf_files)
 	{
-		if (g_models[i] == modelcode)
+		if (g_models_gltf_files[i] == modelcode)
 		{
 			ret = true;
 			break;

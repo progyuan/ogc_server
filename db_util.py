@@ -7058,8 +7058,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 #print(ret)
             elif action.lower() == 'modelslist':
                 for i in os.listdir(SERVERGLTFROOT):
-                    if i[-4:].lower() == '.bin':
-                        ret.append(i[:-4])
+                    if i[-5:].lower() == '.gltf':
+                        ret.append(i[:-5])
             elif action.lower() == 'buffer':
                 if isinstance(data, dict):
                     geojsonobj = data

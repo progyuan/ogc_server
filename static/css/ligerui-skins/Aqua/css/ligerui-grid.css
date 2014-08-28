@@ -83,7 +83,7 @@ position:relative;
 .l-grid
 {
 	border:1px solid #00FF00;
-	background: #000000; 
+	background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 	color: #00FF00; 
 	position:relative;
 	text-align:left;

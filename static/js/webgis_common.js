@@ -247,6 +247,9 @@ function InitWebGISFormDefinition()
 								$(ui.selected).removeClass('ui-selected');
 								$('#' + fldid2).attr('class', '');
 								var cls = $(ui.selected).attr('class');
+								//console.log('[' + cls + ']');
+								//cls = cls.replace('ui-selectee', '');
+								//console.log(fldid2 + '[' + cls + ']');
 								$('#' + fldid2 ).addClass(cls);
 								$('#ol_' + fldid2 ).css('display', 'none');
 							}
@@ -380,8 +383,15 @@ function InitWebGISFormDefinition()
 				var typ = fields[k]['type'];
 				if(typ === 'icon')
 				{
+					//console.log(data);
 					if(data['style'] && data['style']['icon'] && data['style']['icon']['uri'])
-					this.find('#' + prefix + id).css('background', '#000000 url(/' + data['style']['icon']['uri'] + ') 100% 100% no-repeat' );
+					{
+						//this.find('#' + prefix + id).css('background', '#000000 url(/' + data['style']['icon']['uri'] + ') 100% 100% no-repeat' );
+						var cls = 'icon-selector-' + data['webgis_type'] + ' ui-selectee';
+						this.find('#' + prefix + id).attr('class', '');
+						this.find('#' + prefix + id).addClass(cls);
+					}
+				
 				}
 				else if(typ === 'color')
 				{

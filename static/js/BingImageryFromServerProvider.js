@@ -102,7 +102,7 @@ var BingImageryFromServerProvider = function BingImageryFromServerProvider(optio
     this._mapStyle = Cesium.defaultValue(options.mapStyle, Cesium.BingMapsStyle.AERIAL);
     this._tileDiscardPolicy = options.tileDiscardPolicy;
     this._proxy = options.proxy;
-    this._credit = new Cesium.Credit('Bing Imagery', BingImageryFromServerProvider._logoData, 'http://www.bing.com');
+    this._credit = new Cesium.Credit('');//, BingImageryFromServerProvider._logoData, 'http://www.bing.com');
     this._queryType = Cesium.defaultValue(options.queryType, 'client');
     this._imageType = Cesium.defaultValue(options.imageType, 'bing_sat');
 
@@ -134,7 +134,7 @@ var BingImageryFromServerProvider = function BingImageryFromServerProvider(optio
     this._errorEvent = new Cesium.Event();
 
     this._ready = false;
-    
+    //The key is taken from openmap3
     this._key = 'Ak-dzM4wZjSqTlzveKz5u0d4IQ4bRzVI309GxmkgSVr1ewS6iPSrOvOKhA-CJlm3';
 
     var metadataUrl = this._url + '/REST/v1/Imagery/Metadata/' + this._mapStyle + '?incl=ImageryProviders&key=' + this._key;

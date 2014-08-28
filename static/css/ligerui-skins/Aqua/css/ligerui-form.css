@@ -260,7 +260,7 @@ color: #2A66BB;
 .l-listbox {
 	color:#00FF00;
 	border:1px solid #00FF00; 
-	background:#000000;
+	background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
     width:130px; 
 	height:120px;
 	font-size:16px;
@@ -272,7 +272,7 @@ color: #2A66BB;
 	/*border-bottom:1px solid #A3C0E8;*/
 	/*border-right:1px solid #A3C0E8;*/
 	color:#00FF00;
-	background:#000000;
+	background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;
 	border:1px solid #00FF00;
 }
 .l-listbox-grid thead td,.l-listbox-grid tr.l-table-headerow td{ 
@@ -285,8 +285,8 @@ color: #2A66BB;
 .l-listbox-grid td{padding:0;margin:0;height:22px; line-height:20px; border-left:1px solid #00FF00;border-top:1px solid #00FF00; font-weight:normal;font-size:14px;}
 .l-listbox-inner{ margin:0; padding:0; width:100%;overflow:auto; height:100%;color:#333;}
 .l-listbox-inner .l-listbox-table{margin:0; padding:0; width:100%; }
-.l-listbox tr:hover td,.l-listbox tr.l-over td{ background-color:#DFE8F6; cursor:pointer; border-bottom:1px dotted #00FF00;border-top:1px dotted #00FF00;  }
-.l-listbox tr.l-selected td{ background-color:#DDFFDD;border-bottom:1px dotted #00FF00;border-top:1px dotted #00FF00;}
+.l-listbox tr:hover td,.l-listbox tr.l-over td{ background-color:#005500; cursor:pointer; border-bottom:1px dotted #00FF00;border-top:1px dotted #00FF00;  }
+.l-listbox tr.l-selected td{ background-color:#009900;border-bottom:1px dotted #00FF00;border-top:1px dotted #00FF00;}
 .l-listbox td{ padding:2px; text-align:left;border-top:1px solid #00FF00;border-bottom:1px solid #00FF00;}
 .l-listbox .l-listbox-grid td{border-top:1px solid #00FF00;border-bottom:1px solid #00FF00;}
 .l-listbox .l-table-nocheckbox .l-checkboxrow { display:none;width:0px;}

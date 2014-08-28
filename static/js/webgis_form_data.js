@@ -31,22 +31,22 @@ var g_damper_list = [
 	{'value':'地线小号侧','label':'地线小号侧'}
 ];
 var g_damper_flds = [
-	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'防振锤',  width:275},
-	{display: "安装部位", id: "side", newline: true,  type: "select", editor: {data:g_damper_list}, group:'防振锤',  width:275},
-	{display: "防振锤型号", id: "model", newline: true,  type: "text", group:'防振锤', width:275},
+	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'防振锤',  width:350},
+	{display: "安装部位", id: "side", newline: true,  type: "select", editor: {data:g_damper_list}, group:'防振锤',  width:350},
+	{display: "防振锤型号", id: "model", newline: true,  type: "text", group:'防振锤', width:350},
 	{display: "防振锤数量", id: "count", newline: true,  type: "spinner", step:1, min:0,max:100, group:'防振锤', width:70, validate:{number: true, range:[0, 100]}},
 	{display: "安装距离", id: "distance", newline: false,  type: "spinner", step:0.1, min:0,max:100, group:'防振锤', width:80, validate:{number: true, range:[0, 100]}},
-	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'防振锤', width:275},
-	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'防振锤', width:275}
+	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'防振锤', width:350},
+	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'防振锤', width:350}
 ];
 
 var g_grd_flds = [
-	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'接地装置',  width:275},
-	{display: "型号", id: "model", newline: true,  type: "text", group:'接地装置', width:275},
+	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'接地装置',  width:350},
+	{display: "型号", id: "model", newline: true,  type: "text", group:'接地装置', width:350},
 	{display: "数量", id: "count", newline: true,  type: "spinner", step:1, min:0,max:100, group:'接地装置', width:70, validate:{number: true, range:[0, 100]}},
 	{display: "埋深", id: "depth", newline: false,  type: "spinner", step:0.1, min:0.0,max:100.0, group:'接地装置', width:80, validate:{number: true, range:[0, 100]}},
-	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'接地装置', width:275},
-	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'接地装置', width:275}
+	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'接地装置', width:350},
+	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'接地装置', width:350}
 ];
 
 var g_platform_model_list = [
@@ -54,26 +54,26 @@ var g_platform_model_list = [
 	{'value':'水泥塔','label':'水泥塔'}
 ];
 var g_base_flds_1 = [//基础
-	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'基础',  width:275},
-	{display: "平台类型", id: "platform_model", newline: true,  type: "select", editor: {data:g_platform_model_list}, group:'基础', width:275},
+	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'基础',  width:350},
+	{display: "平台类型", id: "platform_model", newline: true,  type: "select", editor: {data:g_platform_model_list}, group:'基础', width:350},
 	{display: "数量", id: "count", newline: true,  type: "spinner", step:1, min:0,max:100, group:'基础', width:70, validate:{number: true, range:[0, 100]}},
 	{display: "埋深", id: "depth", newline: false,  type: "spinner", step:0.1, min:0,max:100, group:'基础', width:80, validate:{number: true, range:[0, 100]}},
-	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'基础', width:275},
-	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'基础', width:275}
+	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'基础', width:350},
+	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'基础', width:350}
 ];
 var g_base_flds_2_3_4 = [//拉线  防鸟刺  在线监测装置
-	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'在线监测装置',  width:275},
-	{display: "型号", id: "model", newline: true,  type: "text", group:'在线监测装置', width:275},
+	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'在线监测装置',  width:350},
+	{display: "型号", id: "model", newline: true,  type: "text", group:'在线监测装置', width:350},
 	{display: "数量", id: "count", newline: true,  type: "spinner", step:1, min:0,max:999, group:'在线监测装置', width:70, validate:{number: true, range:[0, 999]}},
-	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'在线监测装置', width:275},
-	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'在线监测装置', width:275}
+	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'在线监测装置', width:350},
+	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'在线监测装置', width:350}
 ];
 var g_base_flds_5 = [ //雷电计数器
-	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'雷电计数器',  width:275},
-	{display: "型号", id: "model", newline: true,  type: "text", group:'雷电计数器', width:275},
+	{display: "类型", id: "type", newline: true,  type: "text", editor:{readonly:true}, group:'雷电计数器',  width:350},
+	{display: "型号", id: "model", newline: true,  type: "text", group:'雷电计数器', width:350},
 	{display: "读数", id: "counter", newline: true,  type: "spinner", step:1, min:0,max:999, group:'雷电计数器', width:70, validate:{number: true, range:[0, 999]}},
-	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'雷电计数器', width:275},
-	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'雷电计数器', width:275}
+	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'雷电计数器', width:350},
+	{display: "组装图号", id: "assembly_graph", newline: true,  type: "text", group:'雷电计数器', width:350}
 ];
 
 

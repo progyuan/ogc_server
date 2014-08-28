@@ -15,6 +15,7 @@ var DrawHelper = (function() {
 
     // constructor
     function _(cesiumWidget, toolbar_id) {
+        this._viewer = cesiumWidget;
         this._scene = cesiumWidget.scene;
         this._tooltip = createTooltip(cesiumWidget.container);
         this._surfaces = [];
@@ -91,6 +92,23 @@ var DrawHelper = (function() {
 			try
 			{
 				this._scene.primitives.remove(this._primitives[i]);
+				if(g_czmls)
+				{
+					var modified = false;
+					for(var k in g_czmls)
+					{
+						if(k.indexOf('tmp_polyline_')>-1 || k.indexOf('tmp_polygon_')>-1)
+						{
+							delete g_czmls[k];
+							g_czmls[k] = undefined;
+							modified = true;
+						}
+					}
+					if(modified)
+					{
+						ReloadCzmlDataSource(this._viewer, g_zaware, true);
+					}
+				}
 			}catch(e){
 			}
 		}
