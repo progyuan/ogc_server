@@ -7020,15 +7020,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if data['properties']['webgis_type'] == 'polygon_buffer':
                                 z_aware = False
                             data = update_geometry2d(data, z_aware)
-                        _id = db[collection_name].save(data)
-                        ids.append(str(_id))
+                        if not check_edge_exist(dbname, collection_name, data) and not check_edge_ring(dbname, collection_name, data):
+                            _id = db[collection_name].save(data)
+                            ids.append(str(_id))
                     ret = []
                     if len(ids) > 0:
                         ret = mongo_find(dbname, collection_name, conditions={'_id':ids})
                 else:
                     s = 'collection [%s] does not exist.' % collection_name
                     raise Exception(s)
-            elif action.lower() == 'pinyinsearch':
+            elif action.lower() == 'pinyin_search':
                 arr = []
                 tyarr = []
                 limit = 100
@@ -7056,10 +7057,13 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 if len(tyarr)>0:
                     ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 #print(ret)
-            elif action.lower() == 'modelslist':
+            elif action.lower() == 'models_list':
                 for i in os.listdir(SERVERGLTFROOT):
                     if i[-5:].lower() == '.gltf':
                         ret.append(i[:-5])
+            #elif action.lower() == 'check_edge_exist':
+                #if conditions.has_key('id0') and conditions.has_key('id1'):
+                    #ret = mongo_find(dbname, 'edges', conditions = {'$or':[{"properties.start":conditions['id0'],"properties.end":conditions['id1']}, {"properties.start":conditions['id1'],"properties.end":conditions['id0']}]})
             elif action.lower() == 'buffer':
                 if isinstance(data, dict):
                     geojsonobj = data
@@ -7104,123 +7108,38 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
     return ret
 
 
-def get_line_geojson1(db_name, line):
-    def getnext(id, alist):
-        for i in alist:
-            if i[0] == id:
-                return i[1]
-        return None
-    def deletebynext(id, alist):
-        for i in alist:
-            if i[1] == id:
-                alist.remove(i)
-                return alist
-        return alist
-    ret = ''
-    if line.has_key('properties') and line['properties'].has_key('towers_pair'):
-        if isinstance(line['properties']['towers_pair'], list) and len(line['properties']['towers_pair'])>0:
-            candidates = []
-            for i in line['properties']['towers_pair']:
-                l = line['properties']['towers_pair']
-                candidate = []
-                candidate.append(i[0])
-                nextid = i[1]
-                while nextid:
-                    candidate.append(nextid)
-                    #l = deletebynext(nextid, l)
-                    nextid = getnext(nextid, l)
-                candidates.append(candidate)
-            maxlen = 0
-            idx = -1
-            for i in candidates:
-                if maxlen < len(i):
-                    maxlen = len(i)
-                    idx = candidates.index(i)
-                #print(i)
-            if idx > -1:
-                base = candidates[idx]
-                l = []
-                l.append(base)
-                for i in candidates:
-                    istr = str(i).replace('[','').replace(']','')
-                    if not istr in str(base):
-                        l.append(i)
-                for i in l:
-                    print(i)
-                
-                        
-        #towers_refer = mongo_find(db_name, 'towers_refer')
-        #mapping = {}
-        #for i in towers_refer:
-            #mapping[i['id']] = i['refer']
-        #l = line['properties']['towers_pair']
-        #s = set()
-        #ll = []
-        #for i in l:
-            #id0, id1 = i[0], i[1]
-            #if mapping.has_key(id0): id0 = mapping[id0]
-            #if mapping.has_key(id1): id1 = mapping[id1]
-            #s.add(id0)
-            #s.add(id1)
-            #ll.append([id0, id1])
-            
-        #tids = list(s)
-        #towers = mongo_find(db_name, 'towers', {'_id':tids})
-        #m = {}
-        #for i in towers:
-            #m[i['_id']] = i['geometry']['coordinates']
-        #obj = {}
-        #obj['_id'] = line['_id']
-        #obj['geometry'] = {'type':'MultiLineString', 'coordinates':[]}
-        #obj['type'] = 'Feature'
-        #obj['properties'] = line['properties']
-        #del obj['properties']['towers']
-        #del obj['properties']['towers_pair']
-        #for i in ll:
-            #id0, id1 = i[0], i[1]
-            #obj['geometry']['coordinates'].append([m[id0], m[id1]])
-        #ret = obj
-    return ret
+def check_edge_exist(db_name, collection_name, data):
+    if collection_name == 'edges':
+        ret = mongo_find(db_name, collection_name, conditions = {'$or':[{"properties.start":data['properties']['start'],"properties.end":data['properties']['end']}, {"properties.start":data['properties']['end'],"properties.end":data['properties']['start']}]})
+        if len(ret)>0:
+            return True
+    return False
     
-def get_line_geojson(db_name, line):
-    ret = ''
-    if line.has_key('properties') and line['properties'].has_key('towers_pair'):
-        #towers_refer = mongo_find(db_name, 'towers_refer')
-        #mapping = {}
-        #for i in towers_refer:
-            #mapping[i['id']] = i['refer']
-        l = line['properties']['towers_pair']
-        s = set()
-        ll = []
-        for i in l:
-            id0, id1 = i[0], i[1]
-            #if mapping.has_key(id0): id0 = mapping[id0]
-            #if mapping.has_key(id1): id1 = mapping[id1]
-            s.add(id0)
-            s.add(id1)
-            ll.append([id0, id1])
-            
-        tids = list(s)
-        towers = mongo_find(db_name, 'features', {'_id':tids})
-        m = {}
-        for i in towers:
-            lng, lat, alt = i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['geometry']['coordinates'][2]
-            id = i['_id']
-            m[id] = [lng, lat, alt]
-        obj = {}
-        obj['_id'] = line['_id']
-        obj['geometry'] = {'type':'MultiLineString', 'coordinates':[]}
-        obj['type'] = 'Feature'
-        obj['properties'] = line['properties']
-        del obj['properties']['towers']
-        
-        
-        obj['properties']['towers_pair'] = ll
-        for i in ll:
-            id0, id1 = i[0], i[1]
-            obj['geometry']['coordinates'].append([m[id0], m[id1]])
-        ret = obj
-    return ret
+def check_edge_ring(db_name, collection_name, data):
+    def get_next(id, alist):
+        ret = []
+        for i in alist:
+            if i['properties']['start'] == id:
+                ret.append(i['properties']['end'])
+        return ret
+    step = 0   
+    if collection_name == 'edges':
+        alist = mongo_find(db_name, collection_name)
+        nl = get_next(data['properties']['end'], alist)
+        while len(nl)>0:
+            if data['properties']['start'] in nl:
+                print('found iteration:%d' % step)
+                return True
+            l = []
+            for i in nl:
+                nextlist = get_next(i, alist)
+                for j in nextlist:
+                    if not j in l:
+                        l.append(j)
+            nl = l
+            step += len(nl)
+        print('not found iteration:%d' % step)
+    return False
 
 def calc_buffer_ogr(geojsonobj, dist):
     obj = geojsonobj
@@ -7379,19 +7298,11 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='defa
                 towers = db['features'].find({'_id':{'$in':towerids}}).limit(limit)
                 for i in towers:
                     ret.append(remove_mongo_id(i))
-                    #ret.append(i)
-            #elif collection_name == 'get_towers_refer_data':
-                #towers_refer = db['towers_refer'].find()
-                #for tr in towers_refer:
-                    #o = {}
-                    #o['id'] = remove_mongo_id(tr['id'])
-                    #o['refer'] = db['towers'].find_one({'_id':tr['refer']})
-                    #if o['refer']:
-                        #o['refer'] = remove_mongo_id(o['refer'])
-                        #ret.append(o)
             elif collection_name == 'get_line_geojson':
                 line = remove_mongo_id(db['lines'].find_one(conds))
-                ret.append(get_line_geojson(dbname, line))
+                obj = get_line_geojson(dbname, line)
+                if obj:
+                    ret.append(obj)
             else:
                 s = 'collection [%s] does not exist.' % collection_name
                 raise Exception(s)
@@ -7437,7 +7348,7 @@ def build_mongo_conditions(obj):
         return obj
     elif isinstance(obj, dict):
         for k in obj.keys():
-            if k in ['geometry2d','$geoWithin', '$geometry']:
+            if k in ['geometry2d','$geoWithin', '$geoIntersects', '$geometry', '$or', '$and', '$not', '$nor', '$nin', '$in', '$ne']:
                 pass
             else:
                 obj[k] = build_mongo_conditions(obj[k])
@@ -7884,6 +7795,12 @@ def test_mongo_import_line(db_name, area):
         if 'lines' in db.collection_names(False):
             db.drop_collection('lines')
         collection = db.create_collection('lines')
+        collection_edges = None
+        if not 'edges' in db.collection_names(False):
+            collection_edges = db.create_collection('edges')
+        else:
+            collection_edges = db['edges']
+            mongo_remove(db_name, 'edges', conditions={'properties.webgis_type':'edge_tower'})
         line_mapping = get_line_id_mapping(db_name)
         tower_mapping = get_tower_id_mapping(db_name)
         towers_refer_mapping = get_tower_refer_mapping(db_name)
@@ -7900,7 +7817,7 @@ def test_mongo_import_line(db_name, area):
                 del line['box_west']
                 del line['id']
                 lineobj['properties']['towers'] = []
-                lineobj['properties']['towers_pair'] = []
+                towers_pair_list = []
                 for i in towers_sort:
                     if tower_mapping.has_key(i['id']):
                         id = tower_mapping[i['id']]
@@ -7917,7 +7834,6 @@ def test_mongo_import_line(db_name, area):
                             prev, tower, nextt = None, towers_sort[i], None
                         else:    
                             prev, tower, nextt = None, towers_sort[i], towers_sort[i + 1]
-                            #lineobj['properties']['towers_pair'].append([tower_mapping[tower['id']], tower_mapping[nextt['id']]])
                     elif i == len(towers_sort) - 1:
                         prev, tower, nextt = towers_sort[i - 1], towers_sort[i], None
                         if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
@@ -7926,7 +7842,7 @@ def test_mongo_import_line(db_name, area):
                                 id0 = towers_refer_mapping[id0]
                             if towers_refer_mapping.has_key(id1):
                                 id1 = towers_refer_mapping[id1]
-                            lineobj['properties']['towers_pair'].append([id0, id1])
+                            towers_pair_list.append({"properties":{"start":id0, "end":id1, "webgis_type":"edge_tower"}})
                     else:    
                         prev, tower, nextt = towers_sort[i - 1], towers_sort[i], towers_sort[i + 1]
                         if tower_mapping.has_key(prev['id']) and tower_mapping.has_key(tower['id']):
@@ -7935,8 +7851,7 @@ def test_mongo_import_line(db_name, area):
                                 id0 = towers_refer_mapping[id0]
                             if towers_refer_mapping.has_key(id1):
                                 id1 = towers_refer_mapping[id1]
-                            lineobj['properties']['towers_pair'].append([id0, id1])
-                        #lineobj['properties']['towers_pair'].append([tower_mapping[tower['id']], tower_mapping[nextt['id']]])
+                            towers_pair_list.append({"properties":{"start":id0, "end":id1, "webgis_type":"edge_tower"}})
                     
                     
                     
@@ -7949,6 +7864,8 @@ def test_mongo_import_line(db_name, area):
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                 lineobj['properties']['webgis_type'] = 'polyline_line'
                 collection.save(add_mongo_id(lineobj))
+                for edgeobj in towers_pair_list:
+                    collection_edges.save(add_mongo_id(edgeobj))
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message
@@ -7986,7 +7903,7 @@ def test_mongo_import_code(db_name, area):
 def test_pinyin_search():
     dbname = 'kmgd'
     collection_name = '*'
-    action = 'pinyinsearch'
+    action = 'pinyin_search'
     data = {'py':'qly'}
     conditions = {}
     ret = mongo_action(dbname, collection_name, action, data)
@@ -8903,7 +8820,101 @@ def test_httpclient1():
     with open(os.path.join(ur'd:', 'test_httpclient1_0_1_0.terrain'), 'wb') as f:
         with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
             f.write(f1.read())
+
+def get_line_geojson(db_name, line):
+    ret = None
+    if line.has_key('properties') and line['properties'].has_key('towers'):
+        tids = line['properties']['towers']
+        towers_order_list = get_orderlist_by_edges(db_name, 'edge_tower', 'point_tower', tids)
+        towers = [i['_id'] for i in towers_order_list]
+        obj = {}
+        obj['_id'] = line['_id']
+        obj['geometry'] = {'type':'LineString', 'coordinates':[]}
+        obj['type'] = 'Feature'
+        obj['properties'] = line['properties']
+        for i in towers_order_list:
+            lng, lat, alt = i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['geometry']['coordinates'][2]
+            obj['geometry']['coordinates'].append([lng, lat, alt])
+        obj['properties']['towers'] = towers
+        ret = obj
+    return ret
             
+def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_list=[]):
+    def get_prev(id, alist):
+        ret = None
+        for i in alist:
+            if i['properties']['end'] == id:
+                ret = i['properties']['start']
+                break
+        return ret
+    def get_next(id, alist):
+        ret = None
+        for i in alist:
+            if i['properties']['start'] == id:
+                ret = i['properties']['end']
+                break
+        return ret
+    
+    def get_start(id, alist):
+        start = get_prev(id, alist)
+        startold = None
+        while start:
+            startold = start
+            start = get_prev(start, alist)
+        return startold
+    
+    def get_end(id, alist):
+        end = get_next(id, alist)
+        endold = None
+        while end:
+            endold = end
+            end = get_next(end, alist)
+        return endold
+    
+    def get_path(endid, alist):
+        ret = []
+        while endid:
+            ret.append(endid)
+            endid = get_prev(endid, alist)
+        ret.reverse()
+        return ret
+    
+    def get_node(id, alist):
+        ret = None
+        for i in alist:
+            if i['_id'] == id or i[u'_id'] == id:
+                ret = i
+                break
+        return ret
+                
+    def get_by_function_type(alist, typ):
+        ret = []
+        for i in alist:
+            if i['properties']['function_type'] == typ:
+                ret.append(i)
+        return ret
+                
+    edges = mongo_find(db_name, 'edges', {'properties.webgis_type':edge_webgis_type})
+    cond = {'properties.webgis_type':node_webgis_type, }
+    if len(node_id_list)>0:
+        cond['_id'] = node_id_list
+    nodes = mongo_find(db_name, 'features', cond)
+    #print(nodes)
+    ret = []
+    if len(edges)>0 and len(nodes)>0:
+        node0 = nodes[0]
+        end = get_end(node0['_id'], edges)
+        if end is None:
+            end = edge['properties']['end']
+        path = get_path(end,  edges)
+        #print(path)
+        for i in path:
+            node = get_node(i, nodes)
+            if node:
+                ret.append(node)
+    return ret
+
+
             
 def test_generate_ODT(db_name):
     def get_prev(id, alist):
@@ -9033,7 +9044,23 @@ def test_bing_map():
     tilepath = '11/3221/1755.jpeg'
     params = {'level':['11',], 'x':['3221',], 'y':['1755',]}
     gridfs_tile_find(tiletype, subtype, tilepath, params)
-            
+
+
+def test_edge_exist():
+    db_name, area = 'kmgd', 'km'
+    id0 = '53f2ff35ca49c822ece7663b'
+    #id0 = '53f3021cca49c822ece7663d'
+    id0 = '53f302a8ca49c822ece76640'
+    id1 = '53f3027aca49c822ece7663f'
+    ret = mongo_action(db_name, '-', 'check_edge_exist',[], conditions={'id0':id0, 'id1':id1})
+    print(ret)
+    
+def test_edge_ring():
+    db_name, area = 'kmgd', 'km'
+    exist = check_edge_exist(db_name, 'edges', {'properties':{'start':'53f301e4ca49c822ece7663c','end':'53f2ff35ca49c822ece7663b'}})
+    print(exist)
+    ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a633','end':'533e88cbca49c8156025a61a'}})
+    print(ring)
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -9111,5 +9138,6 @@ if __name__=="__main__":
     #merge_dem2()
     #test_generate_ODT(db_name)
     #test_bing_map()
+    test_edge_ring()
     
     

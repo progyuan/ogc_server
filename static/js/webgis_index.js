@@ -1,6 +1,7 @@
 var g_drawhelper;
 var g_selected_obj;
 var g_prev_selected_obj;
+var g_selected_geojson;
 var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
@@ -23,7 +24,7 @@ var g_borders = {};
 var g_image_slider_tower_info;
 var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
-var g_dn_connect_mode = false;
+var g_node_connect_mode = false;
 
 g_max_file_size = 5000000;
 
@@ -74,11 +75,24 @@ $(function() {
 						var name = '七罗I回';
 						LoadTowerByLineName(viewer, g_db_name,  name, function(){
 							LoadLineByLineName(viewer, g_db_name, name, function(){
-								var extent = GetExtentByCzml();
-								FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-								ReloadCzmlDataSource(viewer, g_zaware);
+								name = '七罗II回';
+								LoadTowerByLineName(viewer, g_db_name,  name, function(){
+									LoadLineByLineName(viewer, g_db_name, name, function(){
+										var extent = GetExtentByCzml();
+										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+										ReloadCzmlDataSource(viewer, g_zaware);
+									});
+								});
 							});
 						});
+						//name = '七罗II回';
+						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+							//LoadLineByLineName(viewer, g_db_name, name, function(){
+								//var extent = GetExtentByCzml();
+								//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+								//ReloadCzmlDataSource(viewer, g_zaware);
+							//});
+						//});
 					});
 					
 					//var extent = GetDefaultExtent(g_db_name);
@@ -411,8 +425,8 @@ function InitKeyboardEvent(viewer)
 	$(document).on('keyup', function(e){
 		if(e.keyCode == 17)//ctrl
 		{
-			g_dn_connect_mode = !g_dn_connect_mode;
-			if(g_dn_connect_mode)
+			g_node_connect_mode = !g_node_connect_mode;
+			if(g_node_connect_mode)
 			{
 				//$(".jGrowl-notification:last-child").remove();
 				$.jGrowl('<div>连接模式开启(Ctrl键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
@@ -424,11 +438,7 @@ function InitKeyboardEvent(viewer)
 					afterOpen:function(){
 						$('#btn_edge_save').off();
 						$('#btn_edge_save').on('click', function(){
-							//if(g_selected_obj)
-							//{
-								//console.log(g_selected_obj.id);
-							//}
-							SaveDNEdge(viewer, null, function(data){
+							SaveEdge(viewer, null, function(data){
 								$('#btn_edge_save').attr('disabled','disabled');
 								if(data.length>0)
 								{
@@ -1282,7 +1292,7 @@ function InitSearchBox(viewer)
 		source:function(request,  response)
 		{
 			var tylist = GetCheckedBoxList('chb_search_webgis_type_');
-			var py_cond = {'db':g_db_name, 'collection':'features;lines', 'action':'pinyinsearch', 'py':request.term, 'type':tylist};
+			var py_cond = {'db':g_db_name, 'collection':'features;lines', 'action':'pinyin_search', 'py':request.term, 'type':tylist};
 			$('#text_search_waiting').css('display','block');
 			$('#text_search_waiting').html('正在查询，请稍候...');
 			MongoFind( py_cond, 
@@ -1571,9 +1581,12 @@ function CreatePolyLineCzmlFromGeojson(geojson)
 	cz['position'] = {};
 	cz['polyline'] = {};
 	cz['polyline']['positions'] = {};
+	
+	//console.log(geojson);
 	if(cz['webgis_type']==='polyline_line')
 	{
-		var positions = GetVertexPositionsByTowerPairs(geojson['properties']['towers_pair']);
+		
+		var positions = GetVertexPositionsByGeojsonPolyline(geojson['geometry']);
 		cz['polyline']['positions']['cartographicDegrees'] = positions;
 		cz['position']['cartographicDegrees'] = get_center(positions);
 	}
@@ -1770,19 +1783,20 @@ function FilterModelList(str)
 				};
 				var arr = get_code_height(model_code_height);
 				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
-				
+				if(g_selected_geojson && g_models_mapping[model_code_height])
+				{
+					g_selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
+				}
 			}else
 			{
 				iframe.attr('src', g_host + 'threejs/editor/index.html' );
-				if(g_selected_obj && g_geojsons[g_selected_obj.id] && g_geojsons[g_selected_obj.id]['properties'])
+				if(g_selected_geojson)
 				{
-					delete g_geojsons[g_selected_obj.id]['properties']['model'];
+					delete g_selected_geojson['properties']['model'];
+					g_selected_geojson['properties']['model'] = undefined;
 				}
 			}
-			
-			
-			
-			
+			//console.log(g_geojsons[g_selected_obj.id]);
 		},
 		selecting: function( event, ui ) {
 			if( $(".ui-selected, .ui-selecting").length > 1){
@@ -1947,7 +1961,7 @@ function LoadSegments(db_name, callback)
 }
 function LoadModelsList(db_name, callback)
 {
-	var cond = {'db':db_name, 'collection':'-', 'action':'modelslist', 'data':{}};
+	var cond = {'db':db_name, 'collection':'-', 'action':'models_list', 'data':{}};
 	MongoFind( cond, 
 		function(data){
 			g_models_gltf_files = data;
@@ -1962,7 +1976,7 @@ function LoadModelsMapping(db_name, callback)
 		function(data){
 			for(var i in data)
 			{
-				var model_code_height = data[i];
+				var model_code_height = data[i]['model_code_height'];
 				if(g_models_mapping[model_code_height] === undefined)
 				{
 					var d = data[i];
@@ -1970,7 +1984,7 @@ function LoadModelsMapping(db_name, callback)
 					g_models_mapping[model_code_height] = d;
 				}
 			}
-			console.log(g_models_mapping);
+			//console.log(g_models_mapping);
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
@@ -2589,17 +2603,11 @@ function LoadTowerModelByTower(viewer, tower)
 							g_gltf_models[id] = model;
 							console.log("load model for [" + id + "]");
 						}
-						//g_czmls[id]['billboard']['show'] = {'boolean':false};
-						//ReloadCzmlDataSource(viewer, g_zaware);
 					}else
 					{
 						console.log("model " + url + " does not exist");
 						g_czmls[id]['billboard']['show'] = {'boolean':true};
-						//if(g_czmls[id])
-						//{
-							//g_czmls[id]['billboard']['image'] = {'uri':g_style_point_mapping['point_tower']['icon_img']};
 						ReloadCzmlDataSource(viewer, g_zaware);
-						//}
 					}
 				}
 			}
@@ -2649,6 +2657,10 @@ function GetNextModelUrl(ids)
 function GetModelUrl(model_code_height)
 {
 	if(!model_code_height)
+	{
+		return '';
+	}
+	if(model_code_height === '(无)')
 	{
 		return '';
 	}
@@ -2982,11 +2994,14 @@ function TowerInfoMixin(viewer)
 				{
 					ShowPoiInfoDialog(viewer, '编辑', 'point', [], id);
 				}
-				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn')
+				if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1)
 				{
-					if(!g_dn_connect_mode)
+					var webgis_type_title = '';
+					if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type_title = '杆塔';
+					if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type_title = '配电网';
+					if(!g_node_connect_mode)
 					{
-						$.jGrowl("按CTRL键切换连接模式开关,选择下一个配电网节点,将依次连接这两个节点", { 
+						$.jGrowl("按CTRL键切换连接模式开关,选择下一个" + webgis_type_title + "节点,将依次连接这两个节点", { 
 							life: 2000,
 							position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 							theme: 'bubblestylesuccess',
@@ -3021,9 +3036,9 @@ function TowerInfoMixin(viewer)
 						ShowTowerInfo(viewer, id);
 					}
 				}
-				if(g_czmls[id] && g_czmls[id]['webgis_type'] === 'point_dn' && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === 'point_dn')
+				if(g_czmls[id]  && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === g_czmls[id]['webgis_type'])
 				{
-					if(g_dn_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
+					if(g_node_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
 					{
 						var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
 						if(ring)
@@ -3492,7 +3507,7 @@ function CheckSegmentsRing(node0, node1)
 		for(var i in list)
 		{
 			var seg = list[i];
-			if(id == seg['end'] && seg['webgis_type'] == 'edge_dn') return seg['start'];
+			if(id == seg['end']) return seg['start'];
 		}
 		return undefined;
 	};
@@ -3525,7 +3540,7 @@ function CheckSegmentsRing(node0, node1)
 	return ret;
 }
 
-function CheckSegmentsExist(node0, node1)
+function CheckSegmentsExist(node0, node1, callback)
 {
 	var ret = false;
 	var id0, id1;
@@ -3539,30 +3554,45 @@ function CheckSegmentsExist(node0, node1)
 		id0 = node0['id'];
 		id1 = node1['id']
 	}
-	//console.log(id0);
-	//console.log(id1);
-	
-	if(id0 && id1)
+	if(callback === undefined)
 	{
-		for(var i in g_geometry_segments)
+		if(id0 && id1)
 		{
-			var seg = g_geometry_segments[i];
-			//if(seg['webgis_type'] &&  seg['webgis_type'] == 'edge_dn' &&
-				//((seg['start'] == id0 && seg['end'] == id1)
-			//|| 	(seg['end'] == id0 && seg['start'] == id1)
-			//)){
-				//ret = true;
-				//break;
-			//}
-			if((seg['start'] == id0 && seg['end'] == id1)
-				|| 	(seg['end'] == id0 && seg['start'] == id1)
-			) {
-				ret = true;
-				break;
+			for(var i in g_geometry_segments)
+			{
+				var seg = g_geometry_segments[i];
+				if((seg['start'] == id0 && seg['end'] == id1)
+					|| 	(seg['end'] == id0 && seg['start'] == id1)
+				) {
+					ret = true;
+					break;
+				}
 			}
 		}
+		return ret;
 	}
-	return ret;
+	else
+	{
+		var cond = {'db':g_db_name, 'collection':'-', 'action':'check_edge_exist', 'id0':id0, 'id1':id1};
+		MongoFind(cond, function(data){
+			//if(id0 && id1)
+			//{
+				//for(var i in g_geometry_segments)
+				//{
+					//var seg = g_geometry_segments[i];
+					//if((seg['start'] == id0 && seg['end'] == id1)
+						//|| 	(seg['end'] == id0 && seg['start'] == id1)
+					//) {
+						//ret = true;
+						//break;
+					//}
+				//}
+			//}
+			ret = false;
+			if(data.length>0) ret = true;
+			callback(ret);
+		});
+	}
 }
 
 
@@ -4196,23 +4226,28 @@ function GetPrevNextTowerIds(tower)
 	var nexts = [];
 	for(var i in g_lines)
 	{
-		var towers_pair = g_lines[i]['properties']['towers_pair'];
-		for(var j in towers_pair)
+		var towersid = g_lines[i]['properties']['towers'];
+		var j = 0;
+		for(j=0; j<towersid.length; j++)
 		{
-			var pair = towers_pair[j];
-			
-			if(pair[0] === tower['_id'])
+			var tid = towersid[j];
+			if(tid === tower['_id'])
 			{
-				if(nexts.indexOf(pair[1])<0)
+				if(j+1<towersid.length)
 				{
-					nexts.push(pair[1]);
+					var id = towersid[j+1];
+					if(nexts.indexOf(id)<0)
+					{
+						nexts.push(id);
+					}
 				}
-			}
-			if(pair[1] === tower['_id'])
-			{
-				if(prevs.indexOf(pair[0])<0)
+				if(j>0)
 				{
-					prevs.push(pair[0]);
+					var id = towersid[j-1];
+					if(prevs.indexOf(id)<0)
+					{
+						prevs.push(id);
+					}
 				}
 			}
 		}
@@ -4220,11 +4255,6 @@ function GetPrevNextTowerIds(tower)
 	return [prevs, nexts];
 }
 
-
-//function CheckHasMoreNext(id)
-//{
-
-//}
 
 
 function DrawSegmentsByTower(viewer, tower)
@@ -4299,15 +4329,18 @@ function CheckTowerInfoModified()
 	return false;
 }
 
-function SaveTower(id)
+function SaveTower(callback)
 {
-	if(id)
+	if(g_selected_geojson)
 	{
-		console.log('save tower ' + id);
-	}else
-	{
-		var id = $('#form_tower_info_base').webgisform('get','id').val();
-		console.log('save form tower ' + id);
+		//console.log('save tower ' + id);
+		var data = $('#form_tower_info_base').webgisform('getdata');
+		//console.log(data);
+		for(var k in data)
+		{
+			g_selected_geojson['properties'][k] = data[k];
+		}
+		console.log(g_selected_geojson);
 	}
 }
 
@@ -4350,10 +4383,16 @@ function ShowTowerInfo(viewer, id)
 	
 	if(tower)
 	{
+		g_selected_geojson = $.extend(true, {}, tower);
 		FilterModelList('');
-		ShowTowerInfoDialog(viewer, tower);
-		LoadTowerModelByTower(viewer, tower);
-		DrawSegmentsByTower(viewer, tower);
+		ShowTowerInfoDialog(viewer, g_selected_geojson);
+		LoadTowerModelByTower(viewer, g_selected_geojson);
+		DrawSegmentsByTower(viewer, g_selected_geojson);
+	}
+	else
+	{
+		delete g_selected_geojson;
+		g_selected_geojson = undefined;
 	}
 
 }
@@ -4572,6 +4611,8 @@ function ShowTowerInfoDialog(viewer, tower)
 				$('#tower_info_photo_container').empty();
 				g_image_thumbnail_tower_info.length = 0;
 			}
+			delete g_selected_geojson;
+			g_selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -4695,7 +4736,11 @@ function ShowTowerInfoDialog(viewer, tower)
 			if(title == '架空线段')
 			{
 				var iframe = $(ui.newPanel.context).find('#tower_info_segment').find('iframe');
-				var url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+				var url = '';
+				if(tower['properties']['model'])
+				{
+					url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+				}
 				var arr = GetPrevNextTowerIds(tower);
 				var next_ids = arr[1]
 				//console.log(next_ids);
@@ -4745,12 +4790,14 @@ function ShowTowerInfoDialog(viewer, tower)
 	});
 	if(tower)
 	{
+		var rotate = tower['properties']['rotate'];
+		if(rotate===undefined || rotate===null ) rotate = "0";
 		var data = {
 			'id':tower['_id'], 
-			'lng':tower['geometry']['coordinates'][0].toFixed(5),
-			'lat':tower['geometry']['coordinates'][1].toFixed(5),
+			'lng':tower['geometry']['coordinates'][0].toFixed(6),
+			'lat':tower['geometry']['coordinates'][1].toFixed(6),
 			'alt':tower['geometry']['coordinates'][2],
-			'rotate':tower['properties']['rotate'],
+			'rotate':rotate,
 			'name':title,
 			'tower_code':tower['properties']['tower_code'],
 			'model_code':tower['properties']['model']?tower['properties']['model']['model_code']:null,
@@ -4760,13 +4807,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			'vertical_span':tower['properties']['vertical_span'],
 			'project':GetProjectNameByTowerId(tower['_id'])
 		};	
-		//SetFormData('form_tower_info_base', data);
-		//var SetFormData = $('#form_tower_info_base').webgisform.SetFormData;
-		//console.log(SetFormData);
-		//SetFormData(data);
 		$('#form_tower_info_base').webgisform('setdata', data);
-		//var d = $('#form_tower_info_base').webgisform('getdata');
-		//console.log(d);
 	}
 	if(tower)
 	{
@@ -5134,7 +5175,10 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 		modal: false,
 		position:{at: "right center"},
 		title:'缓冲区分析',
-		
+		close:function(event, ui){
+			//delete g_selected_geojson;
+			//g_selected_geojson = undefined;
+		},
 		show: {
 			effect: "slide",
 			direction: "right",
@@ -5194,7 +5238,10 @@ function ShowDNAddDialog(viewer)
 		modal: false,
 		position:{at: "right center"},
 		title:'创建配电网络',
-		
+		close:function(event, ui){
+			delete g_selected_geojson;
+			g_selected_geojson = undefined;
+		},
 		show: {
 			effect: "slide",
 			direction: "right",
@@ -5262,10 +5309,10 @@ function GetPropertiesByTwoNodes(viewer, id0, id1)
 	return ret
 }
 
-function SaveDNEdge(viewer, id, callback)
+function SaveEdge(viewer, id, callback)
 {
 	
-	if(g_dn_connect_mode 
+	if(g_node_connect_mode 
 	&& g_selected_obj 
 	&& g_czmls[g_selected_obj.id] 
 	&& g_czmls[g_selected_obj.id]['webgis_type'] === 'point_dn' 
@@ -5334,7 +5381,10 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		modal: false,
 		position:{at: "right center"},
 		title:title,
-		
+		close:function(event, ui){
+			delete g_selected_geojson;
+			g_selected_geojson = undefined;
+		},
 		show: {
 			effect: "slide",
 			direction: "right",
@@ -5854,9 +5904,8 @@ function GetProjectNameByTowerId(id)
 
 function AddMetal(e)
 {
-	if(g_selected_obj && g_selected_obj.id && g_geojsons[g_selected_obj.id])
+	if(g_selected_geojson)
 	{
-		var tower = g_geojsons[g_selected_obj.id];
 		var o = {};
 		o['type'] = e.text;
 		o['assembly_graph'] = '';
@@ -5895,15 +5944,19 @@ function AddMetal(e)
 			o['anchor_model'] = '';
 			o['depth'] = 0;
 		}
-		tower['properties']['metals'].push(o);
+		if(g_selected_geojson['properties']['metals'] === undefined)
+		{
+			g_selected_geojson['properties']['metals'] = [];
+		}
+		g_selected_geojson['properties']['metals'].push(o);
 		var data = [];
 		var idx = 1;
-		for(var i in tower['properties']['metals'])
+		for(var i in g_selected_geojson['properties']['metals'])
 		{
 			data.push({
 				'idx':idx, 
-				'type':tower['properties']['metals'][i]['type'],
-				'model':tower['properties']['metals'][i]['model']
+				'type':g_selected_geojson['properties']['metals'][i]['type'],
+				'model':g_selected_geojson['properties']['metals'][i]['model']
 				});
 			idx += 1;
 		}
@@ -5915,27 +5968,29 @@ function AddMetal(e)
 
 function DeleteMetal()
 {
-	if(g_selected_obj &&  g_selected_obj.id && g_geojsons[g_selected_obj.id])
+	if(g_selected_geojson)
 	{
-		var tower = g_geojsons[g_selected_obj.id];
-		if(g_selected_metal_item)
+		if(g_selected_geojson['properties']['metals'] && g_selected_geojson['properties']['metals'].length>0)
 		{
-			var o = g_selected_metal_item;
-			tower['properties']['metals'].splice(o['idx']-1, 1);
+			if(g_selected_metal_item )
+			{
+				var o = g_selected_metal_item;
+				g_selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+			}
+			var data = [];
+			var idx = 1;
+			for(var i in g_selected_geojson['properties']['metals'])
+			{
+				data.push({
+					'idx':idx, 
+					'type':g_selected_geojson['properties']['metals'][i]['type'],
+					'model':g_selected_geojson['properties']['metals'][i]['model']
+					});
+				idx += 1;
+			}
+			g_selected_metal_item = undefined;
+			$("#listbox_tower_info_metal").ligerListBox().setData(data);
 		}
-		var data = [];
-		var idx = 1;
-		for(var i in tower['properties']['metals'])
-		{
-			data.push({
-				'idx':idx, 
-				'type':tower['properties']['metals'][i]['type'],
-				'model':tower['properties']['metals'][i]['model']
-				});
-			idx += 1;
-		}
-		g_selected_metal_item = undefined;
-		$("#listbox_tower_info_metal").ligerListBox().setData(data);
 	}
 }
 
