@@ -7062,7 +7062,10 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 #print(ret)
             elif action.lower() == 'models_list':
-                for i in os.listdir(SERVERGLTFROOT):
+                p = SERVERGLTFROOT
+                if not os.path.exists(p):
+                    p = os.path.join(gConfig['web']['webroot'], 'gltf')
+                for i in os.listdir(p):
                     if i[-5:].lower() == '.gltf':
                         ret.append(i[:-5])
             #elif action.lower() == 'check_edge_exist':

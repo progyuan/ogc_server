@@ -2608,6 +2608,7 @@ function LoadTowerModelByTower(viewer, tower)
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
 					var url = GetModelUrl(tower['properties']['model']['model_code_height']);
+					//console.log(url);
 					if(url_exist(url))
 					{
 						var model = CreateTowerModel(
@@ -4735,19 +4736,18 @@ function ShowTowerInfoDialog(viewer, tower)
 				{
 					url = GetModelUrl1(tower['properties']['model']['model_code_height']);
 				}
+				//console.log(tower['properties']['model']);
+				//console.log(url);
 				$('#tower_info_model_list_toggle').find('a').html('>>显示列表');
 				$('#tower_info_model_list').css('display', 'none');
 				$('#tower_info_model').find('iframe').css('width', '99%');
 				var obj = {};
-				if(url.length==0 || !CheckModelCode(tower['properties']['model']['model_code_height']))
+				if(url.length==0)// || !CheckModelCode(tower['properties']['model']['model_code_height']))
 				{
 					obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
 					obj['denomi_height'] = tower['properties']['denomi_height'];
 					$('#tower_info_title_model_code').html('杆塔型号：' + '无' + ' 呼称高：' + '无');
-					//$('#tower_info_model_list_toggle').find('a').html('<<隐藏列表');
-					//$('#tower_info_model_list').css('display', 'block');
-					//$('#tower_info_model').find('iframe').css('width', '79%');
 				}
 				else if(url.length>0)
 				{
@@ -4758,6 +4758,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					$('#tower_info_title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + tower['properties']['denomi_height']);
 				}
 				var json = encodeURIComponent(JSON.stringify(obj));
+				//console.log(json);
 				iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
 			}
 			if(title == '架空线段')
