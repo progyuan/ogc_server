@@ -133,7 +133,7 @@ function LoadAllDNEdge(viewer, db_name, callback)
 			{
 				var id = data[i]['_id'];
 				if(!g_geojsons[id]) g_geojsons[id] = data[i];
-				DrawSegmentsBetweenTwoDNNode(viewer, g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
+				DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
 			}
 		}
 		if(callback) callback(data);
@@ -401,7 +401,7 @@ function InitKeyboardEvent(viewer)
 		for(var i in g_geometry_segments)
 		{
 			var seg = g_geometry_segments[i];
-			if(  seg['webgis_type'] == 'edge_dn' && seg['start'] == id0 && seg['end'] == id1)
+			if(  (seg['webgis_type'] == 'edge_dn' || seg['webgis_type'] == 'edge_tower') && seg['start'] == id0 && seg['end'] == id1)
 			{
 				ret = seg['primitive'];
 				break;
@@ -442,18 +442,30 @@ function InitKeyboardEvent(viewer)
 								$('#btn_edge_save').attr('disabled','disabled');
 								if(data.length>0)
 								{
-									for(var i in data)
+									if(data[0]['result'])
 									{
-										var g = data[i];
-										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;
+										$.jGrowl(data[0]['result'], { 
+											life: 2000,
+											position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+											theme: 'bubblestylefail',
+											glue:'before'
+										});
 									}
-									change_color();
-									$.jGrowl("保存成功", { 
-										life: 2000,
-										position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-										theme: 'bubblestylesuccess',
-										glue:'before'
-									});
+									else
+									{
+										for(var i in data)
+										{
+											var g = data[i];
+											if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;
+										}
+										change_color();
+										$.jGrowl("保存成功", { 
+											life: 2000,
+											position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+											theme: 'bubblestylesuccess',
+											glue:'before'
+										});
+									}
 								}
 							});
 						});
@@ -3054,7 +3066,10 @@ function TowerInfoMixin(viewer)
 						{
 							$('#btn_edge_save').removeAttr('disabled');
 							$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
-							DrawSegmentsBetweenTwoDNNode(viewer, g_prev_selected_obj.id, id, true);
+							var webgis_type;
+							if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
+							if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
+							DrawEdgeBetweenTwoNode(viewer, webgis_type, g_prev_selected_obj.id, id, true);
 						}
 					}
 				}
@@ -4004,14 +4019,18 @@ function ReloadSegments(viewer)
 		{
 			if(g_geojsons[k]['properties']['webgis_type'] == 'edge_dn')
 			{
-				DrawSegmentsBetweenTwoDNNode(viewer, g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
+				DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
 			}
 		}
 	}
 }
 
-function DrawSegmentsBetweenTwoDNNode(viewer, previd, nextid, fresh)
+function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 {
+	if(!webgis_type)
+	{
+		return;
+	}
 	var scene = viewer.scene;
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	var polylines = new Cesium.PolylineCollection({
@@ -4046,12 +4065,11 @@ function DrawSegmentsBetweenTwoDNNode(viewer, previd, nextid, fresh)
 		width : 10.0,
 		id:{ properties:{'start':previd, 'end':nextid, webgis_type:'edge_dn'}}
 	});
-	//console.log(polyline);
 	scene.primitives.add(polylines);
-	g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:'edge_dn', properties:{'start':previd, 'end':nextid, webgis_type:'edge_dn'}});
+	g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:webgis_type, properties:{'start':previd, 'end':nextid, webgis_type:webgis_type}});
 }
 
-function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len, exist)
+function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len, exist)
 {
 	var scene = viewer.scene;
 	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
@@ -4153,7 +4171,7 @@ function DrawSegmentsBetweenTowTower(viewer, tower0, tower1, prev_len, next_len,
 			}
 		}
 		scene.primitives.add(polylines);
-		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines});
+		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines, webgis_type:'edge_segment', properties:{'start':tower0['_id'], 'end':tower1['_id'], webgis_type:'edge_segment'}});
 	}
 	return exist;
 }
@@ -4282,12 +4300,12 @@ function DrawSegmentsByTower(viewer, tower)
 		for(var i in prev_towers)
 		{
 			var t = prev_towers[i];
-			exist = DrawSegmentsBetweenTowTower(viewer, t, tt, prev_towers.length, 1, exist);
+			exist = DrawSegmentsBetweenTwoTower(viewer, t, tt, prev_towers.length, 1, exist);
 		}
 		for(var i in next_towers)
 		{
 			var t = next_towers[i];
-			exist = DrawSegmentsBetweenTowTower(viewer, tt, t, 1, next_towers.length, exist);
+			exist = DrawSegmentsBetweenTwoTower(viewer, tt, t, 1, next_towers.length, exist);
 		}
 	}
 }
@@ -5314,13 +5332,14 @@ function SaveEdge(viewer, id, callback)
 	
 	if(g_node_connect_mode 
 	&& g_selected_obj 
-	&& g_czmls[g_selected_obj.id] 
-	&& g_czmls[g_selected_obj.id]['webgis_type'] === 'point_dn' 
 	&& g_prev_selected_obj 
+	&& g_czmls[g_selected_obj.id] 
 	&& g_czmls[g_prev_selected_obj.id] 
-	&& g_czmls[g_prev_selected_obj.id]['webgis_type'] === 'point_dn')
+	&& g_czmls[g_selected_obj.id]['webgis_type'] === g_czmls[g_prev_selected_obj.id]['webgis_type']
+	)
 	{
 		var geojson = {};
+		var webgis_type = g_czmls[g_selected_obj.id]['webgis_type'];
 		geojson['_id'] = id;
 		geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
 		var cond = {'db':g_db_name, 'collection':'edges', 'action':'save', 'data':geojson};

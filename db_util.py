@@ -7007,6 +7007,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     data = add_mongo_id(data)
                     z_aware = True
                     ids = [] 
+                    ret = []
                     if isinstance( data, list):
                         for i in data:
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
@@ -7020,10 +7021,13 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if data['properties']['webgis_type'] == 'polygon_buffer':
                                 z_aware = False
                             data = update_geometry2d(data, z_aware)
-                        if not check_edge_exist(dbname, collection_name, data) and not check_edge_ring(dbname, collection_name, data):
+                        if check_edge_exist(dbname, collection_name, data) :
+                            ret.append({'result':u'保存失败:该节点间关联已存在'});
+                        elif check_edge_ring(dbname, collection_name, data):
+                            ret.append({'result':u'保存失败:存在回路'});
+                        else:    
                             _id = db[collection_name].save(data)
                             ids.append(str(_id))
-                    ret = []
                     if len(ids) > 0:
                         ret = mongo_find(dbname, collection_name, conditions={'_id':ids})
                 else:
@@ -9138,6 +9142,6 @@ if __name__=="__main__":
     #merge_dem2()
     #test_generate_ODT(db_name)
     #test_bing_map()
-    test_edge_ring()
+    #test_edge_ring()
     
     
