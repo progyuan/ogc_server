@@ -56,7 +56,7 @@ $(function() {
 	InitSearchBox(viewer);
 	InitToolPanel(viewer);
 	InitModelList(viewer);
-	InitBird(viewer);
+	//InitBird(viewer);
 	InitKeyboardEvent(viewer);
 	
 	
