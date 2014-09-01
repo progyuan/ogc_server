@@ -42,26 +42,29 @@ def build(is_include_web=False):
                     'ogc_server_task_schedule.xml', 
                     'pinyin_word.data',
                     'static/img',
-                    'static/geojson',
+                    #'static/geojson',
                     'gdal-bin',
                     ]
     
     if is_include_web:
         include_files.extend(
             [
-                'static/api',
+                #'static/api',
                 'static/css',
-                'static/gltf',
+                #'static/gltf',
                 'static/img',
                 'static/js',
-                'static/lab',
-                'static/lib',
-                'static/demos',
-                'static/theme',
+                #'static/lab',
+                #'static/lib',
+                #'static/demos',
+                #'static/theme',
                 'static/threejs',
-                'static/indexdata.js',
+                #'static/indexdata.js',
                 'static/webgis_index.html',
                 'static/webgis_login.html',
+                'static/webgis_bootstrap.html',
+                'static/webgis_expire.html',
+                'static/webgis_unauthorized.html',
             ]
         )
     

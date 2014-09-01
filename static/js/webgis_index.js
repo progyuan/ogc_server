@@ -75,14 +75,14 @@ $(function() {
 						var name = '七罗I回';
 						LoadTowerByLineName(viewer, g_db_name,  name, function(){
 							LoadLineByLineName(viewer, g_db_name, name, function(){
-								name = '七罗II回';
-								LoadTowerByLineName(viewer, g_db_name,  name, function(){
-									LoadLineByLineName(viewer, g_db_name, name, function(){
+								//name = '七罗II回';
+								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+									//LoadLineByLineName(viewer, g_db_name, name, function(){
 										var extent = GetExtentByCzml();
 										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 										ReloadCzmlDataSource(viewer, g_zaware);
-									});
-								});
+									//});
+								//});
 							});
 						});
 						//name = '七罗II回';
@@ -1145,6 +1145,15 @@ function InitToolPanel(viewer)
 	$('#but_remove_poi').button({label:'清空兴趣点'});
 	$('#but_remove_poi').on('click', function(){
 		ClearPoi(viewer);
+	});
+	
+	$('#but_line_add').button({label:'新增输电线路工程'});
+	$('#but_line_add').on('click', function(){
+		ShowLineDialog(viewer);
+	});
+	$('#but_line_remove').button({label:'删除输电线路工程'});
+	$('#but_line_remove').on('click', function(){
+		
 	});
 	
 	$('#but_dn_add').button({label:'新增配电网络'});
@@ -5242,6 +5251,9 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 
 }
 
+function ShowLineDialog(viewer)
+{
+}
 
 function ShowDNAddDialog(viewer)
 {
