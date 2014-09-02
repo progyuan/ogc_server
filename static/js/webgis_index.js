@@ -74,7 +74,7 @@ $(function() {
 						//var name = '永发I回线';
 						var name = '七罗I回';
 						LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							LoadLineByLineName(viewer, g_db_name, name, function(){
+							//LoadLineByLineName(viewer, g_db_name, name, function(){
 								//name = '七罗II回';
 								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
 									//LoadLineByLineName(viewer, g_db_name, name, function(){
@@ -83,7 +83,7 @@ $(function() {
 										ReloadCzmlDataSource(viewer, g_zaware);
 									//});
 								//});
-							});
+							//});
 						});
 						//name = '七罗II回';
 						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
@@ -183,17 +183,6 @@ function InitCesiumViewer()
 				//}
 			//}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'YN_SAT',
-				//iconUrl : 'img/wmts-sat.png',
-				//tooltip : 'YN_SAT',
-				//creationFunction : function() {
-					//return new Cesium.ArcGisMapServerImageryProvider({
-						//url : 'http://localhost:6080/arcgis/rest/services/YN_SAT/ImageServer'
-						////usePreCachedTilesIfAvailable:false
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
 				//name : '卫星图',
 				//iconUrl : 'img/wmts-sat.png',
 				//tooltip : '卫星图',
@@ -217,9 +206,9 @@ function InitCesiumViewer()
 				//}
 			//}));
 	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'CTF卫星图',
+				//name : 'Google卫星图',
 				//iconUrl : 'img/wmts-sat.png',
-				//tooltip : 'CTF卫星图',
+				//tooltip : 'Google卫星图',
 				//creationFunction : function() {
 					//return new CFTTileImageryProvider({
 						//url :  g_host + 'tiles',
@@ -265,6 +254,17 @@ function InitCesiumViewer()
 			});
 		}
 	}));
+	providerViewModels.push(new Cesium.ProviderViewModel({
+				name : 'YN_SAT',
+				iconUrl : 'img/wmts-sat.png',
+				tooltip : 'YN_SAT',
+				creationFunction : function() {
+					return new Cesium.ArcGisMapServerImageryProvider({
+						url : 'http://localhost:6080/arcgis/rest/services/YN_SAT/ImageServer'
+						//usePreCachedTilesIfAvailable:false
+					});
+				}
+			}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
 		name : '高德地图',
 		iconUrl : 'img/wmts-map.png',
@@ -2150,7 +2150,7 @@ function LoadLineByLineName(viewer, db_name, name, callback)
 		return ret;
 	};
 	var _id = get_line_id(name);
-	//console.log(g_lines);
+	
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	
 	if(!_id)
@@ -2569,16 +2569,16 @@ function GetTowerInfoByTowerId(id)
 	}
 	return ret;
 }
+function CheckUrlExist(url)
+{
+	var http = new XMLHttpRequest();
+	http.open('HEAD', url, false);
+	http.send();
+	return http.status!=404;
+}
 
 function LoadTowerModelByTower(viewer, tower)
 {
-	var url_exist = function(url)
-	{
-		var http = new XMLHttpRequest();
-		http.open('HEAD', url, false);
-		http.send();
-		return http.status!=404;
-	};
 	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
 	
@@ -2609,7 +2609,7 @@ function LoadTowerModelByTower(viewer, tower)
 				{
 					var url = GetModelUrl(tower['properties']['model']['model_code_height']);
 					//console.log(url);
-					if(url_exist(url))
+					if(CheckUrlExist(url))
 					{
 						var model = CreateTowerModel(
 							viewer, 
@@ -2699,7 +2699,9 @@ function GetModelUrl1(model_code_height)
 	{
 		return '';
 	}
-	return g_host + "gltf1/" + model_code_height + ".json" ;
+	var url = g_host + "gltf1/" + model_code_height + ".json" ;
+	if(!CheckUrlExist(url)) url = '';
+	return url;
 }
 
 function CreateTowerModel(viewer, modelurl,  lng,  lat,  height, rotate, scale) 
@@ -3021,15 +3023,15 @@ function TowerInfoMixin(viewer)
 					var webgis_type_title = '';
 					if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type_title = '杆塔';
 					if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type_title = '配电网';
-					if(!g_node_connect_mode)
-					{
-						$.jGrowl("按CTRL键切换连接模式开关,选择下一个" + webgis_type_title + "节点,将依次连接这两个节点", { 
-							life: 2000,
-							position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-							theme: 'bubblestylesuccess',
-							glue:'before'
-						});
-					}
+					//if(!g_node_connect_mode)
+					//{
+						//$.jGrowl("按CTRL键切换连接模式开关,选择下一个" + webgis_type_title + "节点,将依次连接这两个节点", { 
+							//life: 2000,
+							//position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+							//theme: 'bubblestylesuccess',
+							//glue:'before'
+						//});
+					//}
 				}
 				if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
 				{
@@ -4810,7 +4812,15 @@ function ShowTowerInfoDialog(viewer, tower)
 		}
 		//threejs/editor/index.html
 	});
-		
+	for(var i in g_tower_baseinfo_fields)
+	{
+		var fld = g_tower_baseinfo_fields[i];
+		if(fld.id === 'project' && fld.type === 'multiselect')
+		{
+			g_tower_baseinfo_fields[i].editor.data = CreateProjectSelectOption();
+			g_tower_baseinfo_fields[i].editor.position = 'top';
+		}
+	}
 	var form = $('#form_tower_info_base').webgisform(g_tower_baseinfo_fields,
 	{
 		prefix:'tower_baseinfo_',
@@ -4833,7 +4843,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			'grnd_resistance':tower['properties']['grnd_resistance'],
 			'horizontal_span':tower['properties']['horizontal_span'],
 			'vertical_span':tower['properties']['vertical_span'],
-			'project':GetProjectNameByTowerId(tower['_id'])
+			'project':GetProjectListByTowerId(tower['_id'])
 		};	
 		$('#form_tower_info_base').webgisform('setdata', data);
 	}
@@ -5907,30 +5917,16 @@ function PositionModel(ellipsoid, model, lng, lat, height, rotate)
 }
 
 
-function GetProjectNameByTowerId(id)
+function GetProjectListByTowerId(id)
 {
-	var ret = '';
-	var l = [];
-	var _ids = [];
-	if(g_geojsons[id])
+	var ret = [];
+	for(var k in g_lines)
 	{
-		_ids.push(id);
-	}
-	for(var i in g_lines)
-	{
-		for(var j in _ids)
+		if(g_lines[k]['properties']['towers'].indexOf(id)>-1)
 		{
-			if(g_lines[i]['properties']['towers'].indexOf(_ids[j])>-1)
-			{
-				l.push(g_lines[i]['properties']['name']);
-			}
+			ret.push(k);
 		}
 	}
-	for(var i in l)
-	{
-		ret += l[i] + ',';
-	}
-	
 	return ret;
 }
 
@@ -6026,5 +6022,13 @@ function DeleteMetal()
 	}
 }
 
-
+function CreateProjectSelectOption()
+{
+	var ret = [];
+	for(var k in g_lines)
+	{
+		ret.push({value:k, label:g_lines[k]['properties']['name']});
+	}
+	return ret;
+}
 

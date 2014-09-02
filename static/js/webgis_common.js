@@ -124,11 +124,11 @@ function InitWebGISFormDefinition()
 					var fldid = prefix + fld.id;
 					
 					if(fld.labelwidth) this.options.labelwidth = fld.labelwidth;
-					var newline = "float:left;";
+					var newline = '';
 					var stylewidth = '';
 					if(fld.newline === false)
 					{
-						newline = '';
+						newline = 'float:left;';
 					}
 					if(fld.newline === true)
 					{
@@ -191,6 +191,31 @@ function InitWebGISFormDefinition()
 							source:source
 						});
 						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
+						
+					}
+					if(fld.type == 'multiselect' && fld.group == group)
+					{
+						var source = [];
+						if(fld.editor && fld.editor.data) source = fld.editor.data;
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><select  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '"></select>' + required + '</' + divorspan + '>');
+						for(var ii in source)
+						{
+							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
+						}
+						var position = 'bottom';
+						if(fld.editor && fld.editor.position) position = fld.editor.position;
+						var auto = $('#' + fldid).multipleSelect({
+							selectAll: false,
+							single: false,
+							position: position,
+							styler: function(value) {
+								return 'color: #00FF00;background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;';
+							}
+						});
+						if(fld.defaultvalue && fld.defaultvalue instanceof Array && fld.defaultvalue.length>0)
+						{
+							$('#' + fldid).multipleSelect("setSelects", fld.defaultvalue);
+						}
 						
 					}
 					if(fld.type == 'date' && fld.group == group)
@@ -381,6 +406,7 @@ function InitWebGISFormDefinition()
 			{
 				var id = fields[k]['id'];
 				var typ = fields[k]['type'];
+				var editor = fields[k]['editor'];
 				if(typ === 'icon')
 				{
 					//console.log(data);
@@ -405,6 +431,13 @@ function InitWebGISFormDefinition()
 					if(data[id])
 					{
 						this.find('#' + prefix + id).datepicker("setDate",  data[id]);
+					}
+				}
+				else if(typ === 'multiselect')
+				{
+					if(editor && editor.data && editor.data.length>0 && data[id] && data[id] instanceof Array)
+					{
+						this.find('#' + prefix + id).multipleSelect("setSelects", data[id]);
 					}
 				}
 				else if(data[id])
@@ -491,7 +524,12 @@ function InitWebGISFormDefinition()
 						}else
 							delete ret[id] ;
 					}
-				}else
+				}
+				else if(typ === 'multiselect')
+				{
+					ret[id] = this.find('#' + prefix + id).multipleSelect("getSelects");
+				}
+				else
 				{
 					ret[id] = this.find('#' + prefix + id).val();
 				}
@@ -841,4 +879,6 @@ function ShowGeoTip(id, position, msg)
 		//});
 	}
 }
+
+
 

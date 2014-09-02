@@ -9068,6 +9068,31 @@ def test_edge_ring():
     print(exist)
     ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a633','end':'533e88cbca49c8156025a61a'}})
     print(ring)
+
+
+
+def remove_blank_tiles(tiletype, subtype, dbname, collection):
+    global gClientMongoTiles
+    mongo_init_client(tiletype, subtype)
+    db = gClientMongoTiles[tiletype][subtype][dbname]
+    fs = gridfs.GridFS(db, collection=collection)
+    for i in fs.find():
+        if i.filename[:3] in ['17/','18/', '19/', '20/']:
+            s = i.read()
+            if len(s) < 2048:
+                print(i.filename)
+                #fs.delete(i._id)
+                #with open(ur'd:\tmp\%s' % i.filename.replace('/', '_'), 'wb') as f:
+                    #f.write(s)
+            #break
+    
+    
+def test_remove_blank_tile():
+    global gClientMongoTiles
+    tiletype, subtype, dbname, collection = 'tiles', 'bing_sat', 'tiles_bing_sat', 'bing_sat'
+    #tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
+    remove_blank_tiles(tiletype, subtype, dbname, collection)
+
     
 if __name__=="__main__":
     #test_insert_thunder_counter_attach()
@@ -9146,5 +9171,6 @@ if __name__=="__main__":
     #test_generate_ODT(db_name)
     #test_bing_map()
     #test_edge_ring()
+    #test_remove_blank_tile()
     
     

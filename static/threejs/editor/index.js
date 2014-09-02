@@ -226,7 +226,7 @@ $(function() {
 
 	
 	$(document).mousedown(function() {
-		ClearRoundCamera();
+		ClearRoundCamera(viewport);
 	});
 	//$(window).on('message',function(e) {
 		//console.log('recv:' + e.originalEvent.data);
@@ -253,7 +253,7 @@ $(function() {
 				editor.deselect();
 				break;
 			case 27: // esc
-				ClearRoundCamera();
+				ClearRoundCamera(viewport);
 				ClearAllLabels(editor);
 				break;
 		}
@@ -342,7 +342,7 @@ $(function() {
 							LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
 						}
 						
-						SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, null);
+						SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0);
 						ShowProgressBar(false);
 				});
 			}
@@ -353,7 +353,7 @@ $(function() {
 		{
 			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
 				function(target){
-					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 60.0, target);
+					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, target);
 					ShowProgressBar(false);
 			});
 		}
@@ -923,19 +923,21 @@ function SetSelectObjectPosition(pos)
 	}
 }
 
-function ClearRoundCamera()
+function ClearRoundCamera(viewport)
 {
-	//console.log(g_camera_move_around_int);
+	//console.log(viewport);
 	if(g_camera_move_around_int)
 	{
 		clearInterval(g_camera_move_around_int);
 		g_camera_move_around_int = undefined;
 		g_elapsedTime = 0.0;
+		viewport.camera.position.set( 120, 120, 120 );
+		//camera.up = new THREE.Vector3(0,1,0);
+		viewport.camera.lookAt(new THREE.Vector3(0,0,0));
 	}
 }
 function SetupRoundCamera(scene, renderer, camera, radius, target)
 {
-	//var radius = 60.0;
 	var constant = 0.5;
 	var inteval = 0.05;
 	var height = 60.0;

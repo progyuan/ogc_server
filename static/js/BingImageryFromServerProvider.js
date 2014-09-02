@@ -219,7 +219,7 @@ var BingImageryFromServerProvider = function BingImageryFromServerProvider(optio
         this._ready = true;
         this._tileWidth = 256;
         this._tileHeight = 256;
-        this._maximumLevel = 21 - 1;
+        this._maximumLevel = 19 - 1;
     }
 };
 

@@ -80,7 +80,7 @@ var g_base_flds_5 = [ //雷电计数器
 var g_tower_baseinfo_fields = [
 	{ id: "id", type: "hidden" },
 	//地理信息
-	{ display: "经度", id: "lng", newline: true,  type: "geographic", group:'地理信息', width:300 , validate:{required:true, number: true}, 
+	{ display: "经度", id: "lng", newline: false,  type: "geographic", group:'地理信息', width:110 , validate:{required:true, number: true}, 
 		change:function( event, ui ) {
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get', 'id').val();
@@ -125,7 +125,7 @@ var g_tower_baseinfo_fields = [
 			}
 		}
 	},
-	{ display: "纬度", id: "lat", newline: true, type: "geographic",  group:'地理信息', width:300 , validate:{required:true, number: true},
+	{ display: "纬度", id: "lat", newline: false, type: "geographic",  group:'地理信息', width:110 , validate:{required:true, number: true},
 		change:function( event, ui ) {
 			var viewer = $.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -170,7 +170,7 @@ var g_tower_baseinfo_fields = [
 			}
 		}
 	},
-	{ display: "海拔(米)", id: "alt", newline: true, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:300 , validate:{required:true, number: true, range:[0, 9999]},
+	{ display: "海拔(米)", id: "alt", newline: false, type: "spinner", step:0.5, min:0,max:9999, group:'地理信息', width:110 , validate:{required:true, number: true, range:[0, 9999]},
 		change:function( event, ui ) {
 			if(event.currentTarget)
 			{
@@ -217,7 +217,7 @@ var g_tower_baseinfo_fields = [
 		attach:'<img src=""/>',
 		attachclick:null
 	},
-	{ display: "旋转角度", id: "rotate", newline: true, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:300 , validate:{required:true, number: true, range:[-180, 180]},
+	{ display: "旋转角度", id: "rotate", newline: false, type: "spinner", step:0.5, min:-180,max:180, group:'地理信息', width:110 , validate:{required:true, number: true, range:[-180, 180]},
 		change:function( event, ui ) {
 			if(event.currentTarget)
 			{
@@ -274,6 +274,7 @@ var g_tower_baseinfo_fields = [
 	{ display: "水平档距", id: "horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true, range:[0, 9999]} },
 	{ display: "垂直档距", id: "vertical_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true, range:[0, 9999]} },
 	//工程
-	{ display: "所属工程", id: "project", newline: true,  type: "text", group:'工程', width:330 }
+	{ display: "所属工程", id: "project", newline: true,  type: "multiselect", editor:{data:[]},  group:'工程', width:330 }
 ];
+
 
