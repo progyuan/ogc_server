@@ -133,6 +133,7 @@ function InitWebGISFormDefinition()
 					if(fld.newline === true)
 					{
 						stylewidth = 'width:' + maxwidth + 'px;';
+						newline = 'display:block;';
 					}
 					var required = '';
 					if(fld.validate && fld.validate.required)
@@ -184,14 +185,38 @@ function InitWebGISFormDefinition()
 						{
 							$('#' + fldid).append('<option value="' + source[ii]['value'] + '">' + source[ii]['label'] + '</option>');
 						}
-						var auto = $('#' + fldid).autocomplete({
-							//appendTo:'#' + fldid,
-							//position: { my: "left top", at: "left bottom", collision: "none" },
-							autoFocus: false,
-							source:source
+						//var auto = $('#' + fldid).autocomplete({
+							////appendTo:'#' + fldid,
+							////position: { my: "left top", at: "left bottom", collision: "none" },
+							//autoFocus: false,
+							//source:source
+						//});
+						var position = 'bottom';
+						if(fld.editor && fld.editor.position) position = fld.editor.position;
+						var auto = $('#' + fldid).multipleSelect({
+							selectAll: false,
+							selectAllText: '全部',
+							selectAllDelimiter: ['(', ')'],
+							allSelected: '(全部)',
+							//minumimCountSelected: 3,
+							countSelected: '(选择#个,共%个)',
+							noMatchesFound: '(无匹配)',
+							single: true,
+							position: position,
+							styler: function(value) {
+								return 'color: #00FF00;background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;';
+							}
 						});
-						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
-						
+						//if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
+						if(fld.defaultvalue)
+						{
+							$('#' + fldid).multipleSelect("setSelects", [fld.defaultvalue]);
+						}
+						auto.css('border', '1px #00FF00 solid');
+						auto.css('display', 'inline-block');
+						auto.css('color', '#00FF00');
+						auto.css('background', '#000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat');
+						//auto.find('option').css('background', '#000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat');
 					}
 					if(fld.type == 'multiselect' && fld.group == group)
 					{
@@ -440,6 +465,13 @@ function InitWebGISFormDefinition()
 						this.find('#' + prefix + id).datepicker("setDate",  data[id]);
 					}
 				}
+				else if(typ === 'select')
+				{
+					if(editor && editor.data && editor.data.length>0 && data[id])
+					{
+						this.find('#' + prefix + id).multipleSelect("setSelects", [data[id]]);
+					}
+				}
 				else if(typ === 'multiselect')
 				{
 					if(editor && editor.data && editor.data.length>0 && data[id] && data[id] instanceof Array)
@@ -530,6 +562,15 @@ function InitWebGISFormDefinition()
 							}
 						}else
 							delete ret[id] ;
+					}
+				}
+				else if(typ === 'select')
+				{
+					ret[id] = null;
+					var arr = this.find('#' + prefix + id).multipleSelect("getSelects");
+					if(arr.length>0)
+					{
+						ret[id] = arr[0];
 					}
 				}
 				else if(typ === 'multiselect')

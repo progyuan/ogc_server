@@ -826,6 +826,10 @@ input[type="button"].btn-block {
 .kmgd-icon-selectable .ui-selecting { background: #009900; }
 .kmgd-icon-selectable .ui-selected { background: #009900; color: white; }
 .kmgd-icon-selectable li { margin: 2px; padding: 0px; float: left; width: 32px; height: 32px; }
+.kmgd-icon-selectable li:hover 
+{
+	border:#00FF00 1px solid;
+}
 .kmgd-icon-highlight{
 	background-color: #005500;
 }
