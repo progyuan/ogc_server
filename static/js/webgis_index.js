@@ -74,16 +74,16 @@ $(function() {
 						//var name = '永发I回线';
 						var name = '七罗I回';
 						LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							//LoadLineByLineName(viewer, g_db_name, name, function(){
-								//name = '七罗II回';
-								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-									//LoadLineByLineName(viewer, g_db_name, name, function(){
+							LoadLineByLineName(viewer, g_db_name, name, function(){
+								name = '七罗II回';
+								LoadTowerByLineName(viewer, g_db_name,  name, function(){
+									LoadLineByLineName(viewer, g_db_name, name, function(){
 										var extent = GetExtentByCzml();
 										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 										ReloadCzmlDataSource(viewer, g_zaware);
-									//});
-								//});
-							//});
+									});
+								});
+							});
 						});
 						//name = '七罗II回';
 						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
@@ -2351,50 +2351,63 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 			//}
 		}
 		var opt = get_label_show_opt();
-		for(var k in opt)
+		for(var kk in opt)
 		{
-			if(k.indexOf('point_')>-1 && k != 'point_tower' && obj['webgis_type'] != 'point_tower' && obj['webgis_type'] &&  obj['webgis_type'].indexOf('point_')>-1 )
+			if(kk.indexOf('point_')>-1 && kk != 'point_tower' && obj['webgis_type'] != 'point_tower' && obj['webgis_type'] &&  obj['webgis_type'].indexOf('point_')>-1 )
 			{
-				if(opt[k] === true)
+				if(opt[kk] === true)
 					obj['label']['show'] = {'boolean':true};
-				if(opt[k] === false)
+				if(opt[kk] === false)
 					obj['label']['show'] = {'boolean':false};
 			}
 			
-			if(k===obj['webgis_type'])
+			if(kk===obj['webgis_type'])
 			{
-				if(opt[k] === true)
+				if(opt[kk] === true)
 					obj['label']['show'] = {'boolean':true};
-				if(opt[k] === false)
+				if(opt[kk] === false)
 					obj['label']['show'] = {'boolean':false};
 			}
 		}
 		opt = get_icon_show_opt();
-		for(var k in opt)
+		for(var kk in opt)
 		{
-			if(k.indexOf('point_')>-1 && obj['billboard'])
+			if(kk.indexOf('point_')>-1 && obj['billboard'])
 			{
 				if(obj['webgis_type'] && obj['webgis_type'].indexOf('point_')>-1 && obj['webgis_type'] != 'point_tower')
 				{
-					if(opt[k] === true)
+					if(opt[kk] === true)
 						obj['billboard']['show'] = {'boolean':true};
-					if(opt[k] === false)
+					if(opt[kk] === false)
 						obj['billboard']['show'] = {'boolean':false};
 				}
+				else if(obj['webgis_type'] && obj['webgis_type'] === 'point_tower')
+				{
+					//if(opt[kk] === true)
+					//{
+						//obj['billboard']['show'] = {'boolean':true};
+					//}
+					//if(opt[kk] === false)
+					//{
+					//console.log(g_geojsons[k]);
+					if(g_geojsons[k] && g_geojsons[k]['properties'] && g_geojsons[k]['properties']['model'])
+					{
+						obj['billboard']['show'] = {'boolean':false};
+					}else
+					{
+						obj['billboard']['show'] = {'boolean':true};					
+					}
+					//}
+				}
 			}
-			else if(obj['webgis_type'] && k===obj['webgis_type'] && obj['billboard'])
+			else if(obj['webgis_type'] && kk===obj['webgis_type'] && obj['billboard'])
 			{
-				if(opt[k] === true)
+				if(opt[kk] === true)
 					obj['billboard']['show'] = {'boolean':true};
-				if(opt[k] === false)
+				if(opt[kk] === false)
 					obj['billboard']['show'] = {'boolean':false};
 			}
 		}
-		//}else
-		//{
-			//obj['label']['show'] = {'boolean':false};
-		//}
-		//console.log(obj);
 		arr.push(obj);
 		if(viewer.selectedEntity)
 		{
@@ -2581,7 +2594,6 @@ function LoadTowerModelByTower(viewer, tower)
 {
 	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
-	
 	if(tower)
 	{
 		var id = tower['_id'];
@@ -2636,6 +2648,7 @@ function LoadTowerModelByTower(viewer, tower)
 		}
 		else
 		{
+			console.log('model for [' + id + '] already loaded');
 		}
 	}
 }
@@ -3044,7 +3057,7 @@ function TowerInfoMixin(viewer)
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
-									SaveTower();
+									SaveTower(viewer);
 									ShowTowerInfo(viewer, id);
 								},
 								function(){
@@ -4359,18 +4372,47 @@ function CheckTowerInfoModified()
 	return false;
 }
 
-function SaveTower(callback)
+function SaveTower(viewer)
 {
 	if(g_selected_geojson)
 	{
-		//console.log('save tower ' + id);
 		var data = $('#form_tower_info_base').webgisform('getdata');
-		//console.log(data);
 		for(var k in data)
 		{
 			g_selected_geojson['properties'][k] = data[k];
 		}
 		console.log(g_selected_geojson);
+		SavePoi(g_selected_geojson, function(data1){
+			//console.log(data1);
+			if(data1 && data1.length>0)
+			{
+				if(data1[0].result)
+				{
+					return;
+				}
+				g_drawhelper.clearPrimitive();
+				$('#dlg_tower_info').dialog( "close" );
+				for(var i in data1)
+				{
+					var geojson = data1[i];
+					var id = geojson['_id'];
+					if(!g_geojsons[id])
+					{
+						g_geojsons[id] = AddTerrainZOffset(geojson);
+					}
+					if(!g_czmls[id])
+					{
+						g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+					}
+					if(geojson['properties'] && geojson['properties']['model'])
+					{
+						LoadTowerModelByTower(viewer, g_geojsons[id]);
+						DrawSegmentsByTower(viewer, g_geojsons[id]);
+					}
+				}
+				ReloadCzmlDataSource(viewer, g_zaware);
+			}
+		});
 	}
 }
 
@@ -4379,27 +4421,29 @@ function SavePoi(data, callback)
 	//console.log(data);
 	var cond = {'db':g_db_name, 'collection':'features', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
-
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
-		if(data1.result)
+		if(data1.length>0)
 		{
-			//ShowMessage(null, 400, 200, '错误','保存出错:' + data1.result, callback);
-			$.jGrowl("保存失败" + data1.result, { 
-				life: 2000,
-				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylefail',
-				glue:'before'
-			});
-		}
-		else
-		{
-			$.jGrowl("保存成功", { 
-				life: 2000,
-				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-				theme: 'bubblestylesuccess',
-				glue:'before'
-			});
+			if(data1[0].result)
+			{
+				//ShowMessage(null, 400, 200, '错误','保存出错:' + data1.result, callback);
+				$.jGrowl("保存失败" + data1[0].result, { 
+					life: 2000,
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylefail',
+					glue:'before'
+				});
+			}
+			else
+			{
+				$.jGrowl("保存成功", { 
+					life: 2000,
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylesuccess',
+					glue:'before'
+				});
+			}
 		}
 		if(callback) callback(data1);
 	});
@@ -4703,7 +4747,7 @@ function ShowTowerInfoDialog(viewer, tower)
 								'保存确认',
 								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 								function(){
-									SaveTower();
+									SaveTower(viewer);
 								},
 								function(){
 								
@@ -4829,7 +4873,7 @@ function ShowTowerInfoDialog(viewer, tower)
 	if(tower)
 	{
 		var rotate = tower['properties']['rotate'];
-		if(rotate===undefined || rotate===null ) rotate = "0";
+		if(rotate===undefined || rotate===null || rotate===0 ) rotate = "0";
 		var data = {
 			'id':tower['_id'], 
 			'lng':tower['geometry']['coordinates'][0].toFixed(6),
@@ -4844,7 +4888,8 @@ function ShowTowerInfoDialog(viewer, tower)
 			'horizontal_span':tower['properties']['horizontal_span'],
 			'vertical_span':tower['properties']['vertical_span'],
 			'project':GetProjectListByTowerId(tower['_id'])
-		};	
+		};
+		console.log(data);
 		$('#form_tower_info_base').webgisform('setdata', data);
 	}
 	if(tower)

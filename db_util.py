@@ -7025,9 +7025,18 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             ret.append({'result':u'保存失败:该节点间关联已存在'});
                         elif check_edge_ring(dbname, collection_name, data):
                             ret.append({'result':u'保存失败:存在回路'});
-                        else:    
+                        else:
+                            project = None
+                            if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'point_tower':
+                                if data['properties'].has_key('project'):
+                                    project = data['properties']['project']
+                                    del data['properties']['project']
                             _id = db[collection_name].save(data)
-                            ids.append(str(_id))
+                            #print(_id)
+                            if _id is not None and project is not None:
+                                mongo_update_line_towers(dbname, _id, project)
+                            if _id:
+                                ids.append(str(_id))
                     if len(ids) > 0:
                         ret = mongo_find(dbname, collection_name, conditions={'_id':ids})
                 else:
@@ -7114,7 +7123,26 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
         raise
     return ret
 
-
+def mongo_update_line_towers(dbname, id, project=[]):
+    lines = mongo_find(dbname, 'lines')
+    projectlist = [str(i) for i in project]
+    l = []
+    for i in lines:
+        modified = False
+        if not i.has_key('properties'):
+            i['properties'] = {}
+        if not i['properties'].has_key('towers'):
+            i['properties']['towers'] = []
+        if i['_id'] in projectlist and not str(id) in i['properties']['towers']:
+            i['properties']['towers'].append(str(id))
+            modified = True
+        if not i['_id'] in projectlist and id in i['properties']['towers']:
+            i['properties']['towers'].remove(str(id))
+            modified = True
+        if modified:
+            mongo_action(dbname, 'lines',action='save', data=i)
+    
+    
 def check_edge_exist(db_name, collection_name, data):
     if collection_name == 'edges':
         ret = mongo_find(db_name, collection_name, conditions = {'$or':[{"properties.start":data['properties']['start'],"properties.end":data['properties']['end']}, {"properties.start":data['properties']['end'],"properties.end":data['properties']['start']}]})

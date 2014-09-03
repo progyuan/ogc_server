@@ -204,8 +204,15 @@ function InitWebGISFormDefinition()
 						}
 						var position = 'bottom';
 						if(fld.editor && fld.editor.position) position = fld.editor.position;
+						//var selectAll = false;
 						var auto = $('#' + fldid).multipleSelect({
-							selectAll: false,
+							selectAll: true,
+							selectAllText: '全部',
+							selectAllDelimiter: ['(', ')'],
+							allSelected: '(全部)',
+							//minumimCountSelected: 3,
+							countSelected: '(选择#个,共%个)',
+							noMatchesFound: '(无匹配)',
 							single: false,
 							position: position,
 							styler: function(value) {
