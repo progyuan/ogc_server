@@ -8421,31 +8421,36 @@ def gridfs_delete(qsdict, clienttype='default'):
     _id, bindcollection, key, category = None, None, None, None
     if qsdict.has_key('_id'):
         _id = qsdict['_id'][0]
-    else:
-        if not qsdict.has_key('bindcollection'):
-            raise Exception('bindcollection not specified in parameter')
+    
+    if  qsdict.has_key('bindcollection'):
+        #raise Exception('bindcollection not specified in parameter')
         bindcollection = qsdict['bindcollection'][0]
-        
-        if not qsdict.has_key('key'):
-            raise Exception('key not specified in parameter')
+    
+    if qsdict.has_key('key'):
+        #raise Exception('key not specified in parameter')
         key = qsdict['key'][0]
         
-        if not qsdict.has_key('category'):
-            raise Exception('category not specified in parameter')
+    if qsdict.has_key('category'):
+        #raise Exception('category not specified in parameter')
         category = qsdict['category'][0]
     try:
         mongo_init_client(clienttype)
         db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if _id:
-            fs.delete(ObjectId(_id))
+            r = fs.delete(ObjectId(_id))
+            #print(r)
         else:
-            if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
-                l = []
-                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
-                    l.append(i._id)
-                for i in l:
-                    fs.delete(i)
+            if bindcollection and key:
+                cond = {'bindcollection':bindcollection, 'key':ObjectId(key)}
+                if category:
+                    cond['category'] = category
+                if fs.exists(cond):
+                    l = []
+                    for i in fs.find(cond):
+                        l.append(i._id)
+                    for i in l:
+                        fs.delete(i)
     except:
         traceback.print_exc()
         raise
@@ -8515,20 +8520,44 @@ def gridfs_find(qsdict, clienttype='default'):
     global gClientMongo, gConfig
     
     def thumbnail(fp, size, use_base64=False):
-        im = Image.open(i)
-        im.thumbnail(size)
-        buf= StringIO.StringIO()
-        #print(im.format)
-        im.save(buf, im.format)
-        ret = buf.getvalue()
-        if use_base64:
-            ret = base64.b64encode(ret)
+        ret = None
+        print(fp.mimetype)
+        if 'image/' in fp.mimetype:
+            im = Image.open(fp)
+            im.thumbnail(size)
+            buf= StringIO.StringIO()
+            #print(im.format)
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
+        else:
+            p = None
+            STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
+            if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+                if os.path.exists(gConfig['web']['webroot']):
+                    STATICRESOURCE_DIR = gConfig['web']['webroot']
+            if gConfig['web']['thumbnail'].has_key( fp.mimetype):
+                p = os.path.join(STATICRESOURCE_DIR, 'img', 'thumbnail', gConfig['web']['thumbnail'][fp.mimetype])
+            else:
+                p = os.path.join(STATICRESOURCE_DIR, 'img', 'thumbnail', 'other.png')
+            im = Image.open(p)
+            im.thumbnail(size)
+            buf= StringIO.StringIO()
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
         return ret
         
         
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
     dbname = qsdict['db'][0]
+    
+    download = False
+    if qsdict.has_key('attachmentdownload'):
+        download = True
     
     if qsdict.has_key('collection'):
         collection = qsdict['collection'][0]
@@ -8556,9 +8585,9 @@ def gridfs_find(qsdict, clienttype='default'):
             raise Exception('key not specified in parameter')
         key = qsdict['key'][0]
         
-        if not qsdict.has_key('category'):
-            raise Exception('category not specified in parameter')
-        category = qsdict['category'][0]
+        #if not qsdict.has_key('category'):
+            #raise Exception('category not specified in parameter')
+        #category = qsdict['category'][0]
     
     
     mimetype, ret = None, None
@@ -8571,13 +8600,21 @@ def gridfs_find(qsdict, clienttype='default'):
             if fs.exists({'_id': ObjectId(_id)}):
                 for i in fs.find({'_id':ObjectId(_id)}):
                     mimetype = str(i.mimetype)
-                    ret = i.read()
+                    if not download:
+                        if 'image/' in mimetype:
+                            ret = i.read()
+                        else:
+                            mimetype = 'image/png'
+                            ret = thumbnail(i, (256, 256))
+                    else:
+                        ret = i.read()
+                        return mimetype, ret, i.filename
                     break
             return mimetype, ret
         else:
             ret = []
-            if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
-                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), 'category':category}):
+            if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), }):
+                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), }):
                     size = (width , height)
                     t = thumbnail(i, size, True)
                     ret.append({'_id':str(i._id), 'filename':i.filename, 'description':i.description, 'mimetype':str(i.mimetype), 'data':t})

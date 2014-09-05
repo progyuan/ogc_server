@@ -878,35 +878,40 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 
 }
 
-function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, toolbar_id,  bindcollection, key, category) 
+function InitFileUploader(div_id, fileext,  bindcollection, key) 
 {
+	var photo_id = div_id + '_container';
+	var uploader_id = 'div_' + div_id + '_uploader';
+	var toggle_id = 'div_' + div_id + '_toggle_view_upload';
+	var toolbar_id = div_id + '_toolbar';
+	var form_id = 'form_' + div_id + '_uploader_form';
+	
 	$('#' + toggle_id).off();
 	$('#' + toggle_id).on('click', function(){
-		$('#div_upload_desciption').css('display','none');
-		if($('#' + uploader_container_id).css('display') === 'none')
+		$('#div_' + div_id + '_upload_desciption').css('display','none');
+		if($('#' + uploader_id).css('display') === 'none')
 		{
-			$('#' + uploader_container_id).css('display', 'block');
-			$('#' + photo_container_id).css('display', 'none');
+			$('#' + uploader_id).css('display', 'block');
+			$('#' + photo_id).css('display', 'none');
 			$('#' + toolbar_id).css('display', 'none');
-			if(category === 'photo')
-				$('#' + toggle_id).html('照片浏览');
-			else
-				$('#' + toggle_id).html('文件浏览');
+			//if(category === 'photo')
+				//$('#' + toggle_id).html('照片浏览');
+			//else
+			$('#' + toggle_id).html('附件浏览');
 		}
 		else
 		{
-			$('#' + uploader_container_id).css('display', 'none');
-			$('#' + photo_container_id).css('display', 'block');
+			$('#' + uploader_id).css('display', 'none');
+			$('#' + photo_id).css('display', 'block');
 			$('#' + toolbar_id).css('display', 'block');
-			if(category === 'photo')
-				$('#' + toggle_id).html('上传照片');
-			else
-				$('#' + toggle_id).html('上传文件');
+			//if(category === 'photo')
+				//$('#' + toggle_id).html('上传照片');
+			//else
+			$('#' + toggle_id).html('上传附件');
 		}
 	});
 
-    // Initialize the jQuery File Upload widget:
-    $('#' + uploader_container_id + '_form').fileupload({
+    $('#' + form_id).fileupload({
         // Uncomment the following to send cross-domain cookies:
         //xhrFields: {withCredentials: true},
         url: g_host + 'post',
@@ -914,30 +919,47 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
 		autoUpload: false,
 		sequentialUploads:true,
 		submit: function(e, data){
-			console.log('submit key=' +  key);
-			console.log(data);
+			//console.log('submit key=' +  key);
+			//console.log(data);
+			var category = '';
+			if(data.files[0].type === 'image/jpeg'
+			|| data.files[0].type === 'image/png'
+			|| data.files[0].type === 'image/tiff'
+			|| data.files[0].type === 'image/gif'
+			|| data.files[0].type === 'image/bmp'
+			|| data.files[0].type === 'image/svg+xml'
+			) {
+				category = 'image';
+			}
+			if(data.files[0].type === 'application/vnd.ms-excel'
+			|| data.files[0].type === 'application/msword'
+			|| data.files[0].type === 'text/plain'
+			) {
+				category = 'document';
+			}
+			if(category.length == 0) category = 'other';
 			$(this).fileupload('option', 'url', g_host + 'post' + '?' 
-			+ 'db=' + g_db_name 
-			//+ '&collection=fs'
-			+ '&bindcollection=towers' 
-			+ '&key=' + key 
-			+ '&category=' + 'photo' 
-			+ '&mimetype=' + encodeURIComponent(data.files[0].type) 
-			//+ '&filename=' + encodeURIComponent(data.files[0].name)
-			//+ '&size=' + data.files[0].size
-			+ '&description=' + encodeURIComponent($('#upload_desciption').val())
+				+ 'db=' + g_db_name 
+				//+ '&collection=fs'
+				+ '&bindcollection=' + bindcollection
+				+ '&key=' + key 
+				+ '&category=' + category
+				+ '&mimetype=' + encodeURIComponent(data.files[0].type) 
+				//+ '&filename=' + encodeURIComponent(data.files[0].name)
+				//+ '&size=' + data.files[0].size
+				+ '&description=' + encodeURIComponent($('#' + div_id + '_upload_desciption').val())
 			);
 		},
 		change:function(){
-			$('#div_upload_desciption').css('display','block');
+			$('#div_' + div_id + '_upload_desciption').css('display','block');
 		},
 		done:function(e, data){
-			console.log('done');
+			//console.log('done');
 			if(data.result)
 			{
-				console.log(data.result);
-				UpdateJssorSlider(photo_container_id, toggle_id, 520,400, bindcollection, key, category);
-				$('#upload_desciption').val('');
+				//console.log(data.result);
+				UpdateJssorSlider(div_id, bindcollection, key);
+				$('#' + div_id + '_upload_desciption').val('');
 			}
 		},
 		fail:function(e, data){
@@ -947,7 +969,7 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
     });
 
     // Enable iframe cross-domain access via redirect option:
-    $('#' + uploader_container_id + '_form').fileupload(
+    $('#' + form_id).fileupload(
         'option',
         'redirect',
         window.location.href.replace(
@@ -958,8 +980,16 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
 
 
     if (g_max_file_size > 0) {
+		var res = '';
+		for(var i in fileext)
+		{
+			res += fileext[i] + '|';
+		}
+		res = res.slice(0, res.length-1);
+		res = '(\.|\/)(' + res + ')$';
+		var re = new RegExp(res, "i");
         // Demo settings:
-        $('#' + uploader_container_id + '_form').fileupload('option', {
+        $('#' + form_id).fileupload('option', {
             url: '/post',
             // Enable image resizing, except for Android and Opera,
             // which actually support image resizing, but fail to
@@ -967,7 +997,8 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
             disableImageResize: /Android(?!.*Chrome)|Opera/
                 .test(window.navigator.userAgent),
             maxFileSize: g_max_file_size,
-            acceptFileTypes: /(\.|\/)(gif|jpe?g|png)$/i
+            //acceptFileTypes: /(\.|\/)(gif|jpe?g|png)$/i
+            acceptFileTypes: re
         });
         // Upload server status check for browsers with CORS support:
         if ($.support.cors) {
@@ -978,18 +1009,18 @@ function InitFileUploader(photo_container_id, uploader_container_id, toggle_id, 
                 $('<div class="alert alert-danger"/>')
                     .text('文件上传服务不可用 ' +
                             new Date())
-                    .appendTo('#' + uploader_container_id + '_form');
+                    .appendTo('#' + form_id);
             });
         }
     } else {
         // Load existing files:
-        $('#' + uploader_container_id +  '_form').addClass('fileupload-processing');
+        $('#' + form_id).addClass('fileupload-processing');
         $.ajax({
             // Uncomment the following to send cross-domain cookies:
             //xhrFields: {withCredentials: true},
-            url: $('#' + uploader_container_id + '_form').fileupload('option', 'url'),
+            url: $('#' + form_id).fileupload('option', 'url'),
             dataType: 'json',
-            context: $('#' + uploader_container_id + '_form')[0]
+            context: $('#' + form_id)[0]
         }).always(function () {
             $(this).removeClass('fileupload-processing');
         }).done(function (result) {
@@ -1021,65 +1052,64 @@ function InitTowerInfoDialog()
 			}
 		});
 	});
-	//$('#form_tower_info_base' ).webgisform("getvalidate");
-	//$('#form_tower_info_metal' ).webgisform("getvalidate");
-	$('#upload_desciption').resizable({
-		minHeight:100,
-		minWidth:450
-	});
+
+	//$('#upload_desciption').resizable({
+		//minHeight:100,
+		//minWidth:450
+	//});
 	
-	$(document).tooltip({
-		items: "[data-tower-photo], [data-filename]",
-		show: {
-		  effect: "slideDown",
-		  delay: 300
-		},
-		content: function()
-		{
-			var element = $( this );
-			var s = '';
-			if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-tower-photo]" ))
-			{
-				var idx = g_image_slider_tower_info.$CurrentIndex();
-				var img = g_image_thumbnail_tower_info[idx];
-				s = '<div class="tower-photo-tip">';
-				s += '<p>文件名称:' + img.filename + '</p>';
-				s += '<p>备注:' + img.description + '</p>';
-				s += '</div>';
-			}
-			if ( element.is( "[data-filename]" ) ) {
-				s = element.attr( "data-filename" );
-			}
-			return s;
-		}
-	});
+	//$(document).tooltip({
+		//items: "[data-tower-photo], [data-filename]",
+		//show: {
+		  //effect: "slideDown",
+		  //delay: 300
+		//},
+		//content: function()
+		//{
+			//var element = $( this );
+			//var s = '';
+			//if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-tower-photo]" ))
+			//{
+				//var idx = g_image_slider_tower_info.$CurrentIndex();
+				//var img = g_image_thumbnail_tower_info[idx];
+				//s = '<div class="tower-photo-tip">';
+				//s += '<p>文件名称:' + img.filename + '</p>';
+				//s += '<p>备注:' + img.description + '</p>';
+				//s += '</div>';
+			//}
+			//if ( element.is( "[data-filename]" ) ) {
+				//s = element.attr( "data-filename" );
+			//}
+			//return s;
+		//}
+	//});
 	
-	$('#tower_info_photo_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
+	//$('#tower_info_photo_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
 		
-	});
-	$('#tower_info_photo_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
-		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
-		{
-			var idx = g_image_slider_tower_info.$CurrentIndex();
-			var img = g_image_thumbnail_tower_info[idx];
-			//console.log(img._id + ' ' + img.filename);
+	//});
+	//$('#tower_info_photo_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
+		//if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
+		//{
+			//var idx = g_image_slider_tower_info.$CurrentIndex();
+			//var img = g_image_thumbnail_tower_info[idx];
+			////console.log(img._id + ' ' + img.filename);
 			
-			ShowConfirm(null, 500, 300,
-				'删除确认',
-				'确认要删除文件[' + img.filename + ']吗?',
-				function(){
-					var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
-					GridFsFind(data, function(){
-						UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload', 500, 400, 'towers', img.key, 'photo');
-					});
-				},
-				function(){
-				},
-				img
-			);
-		}
+			//ShowConfirm(null, 500, 300,
+				//'删除确认',
+				//'确认要删除文件[' + img.filename + ']吗?',
+				//function(){
+					//var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
+					//GridFsFind(data, function(){
+						//UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload', 500, 400, 'towers', img.key, 'photo');
+					//});
+				//},
+				//function(){
+				//},
+				//img
+			//);
+		//}
 		
-	});
+	//});
 
 }
 function InitToolPanel(viewer)
@@ -4471,9 +4501,13 @@ function ShowTowerInfo(viewer, id)
 
 }
 
-function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollection, key, category)
+function UpdateJssorSlider(div_id, bindcollection, key)
 {
-	var data = {op:'gridfs', db:g_db_name, width:150, height:150, bindcollection:bindcollection, key:key, category:category};
+	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
+	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
+	var container_id = div_id + '_container';
+	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
+	var data = {op:'gridfs', db:g_db_name, width:150, height:150, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
 		if(g_image_slider_tower_info)
 		{
@@ -4492,13 +4526,13 @@ function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollectio
 					background-color: #000; top: 0px; left: 0px;width: ' + width + 'px;height:' + height + 'px;">\
 				</div>\
 				<div style="position: absolute; display: block; background: url(img/loading.gif) no-repeat center center;\
-					top: 0px; left: 0px;width: ' + width + 'px;height:' + height + 'px;">\
+					top: 0px; left: 0px;width: ' + width + 'px;height:' + (height-80) + 'px;">\
 				</div>\
 			</div>\
 			';
 		}
 		s += '\
-		<div u="slides" style="cursor: default; position: absolute; left: 0px; top: 0px; width: ' + width + 'px; height: ' + height + 'px; overflow: hidden;">\
+		<div u="slides" style="cursor: default; position: absolute; left: 0px; top: 0px; width: ' + width + 'px; height: ' + (height-80) + 'px; overflow: hidden;">\
 		';
 		for (var i in data1)
 		{
@@ -4565,7 +4599,7 @@ function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollectio
 					}
 				}
 			};
-			g_image_slider_tower_info = new $JssorSlider$("tower_info_photo_container", options);
+			g_image_slider_tower_info = new $JssorSlider$(container_id , options);
 		}
 		ShowProgressBar(false);
 		//responsive code begin
@@ -4600,20 +4634,22 @@ function UpdateJssorSlider(container_id, toggle_id, width, height, bindcollectio
 		//    $(window).bind("orientationchange", ScaleSlider);
 		//}
 		//responsive code end
-		
 
 	});
 
 }
-function UpdateFileUploader(uploader_container_id)
+function UpdateFileUploader(div_id)
 {
+	
+	var upload_id = 'div_' + div_id + '_uploader'
+	var form_id = 'form_' + div_id + '_uploader_form';
 	try{
-		$('#' + uploader_container_id + '_form').fileupload('destroy');
+		$('#' + form_id).fileupload('destroy');
 	}catch(e){}
-	$('#' + uploader_container_id).empty();
-	$('#' + uploader_container_id).append(
+	$('#' + upload_id).empty();
+	$('#' + upload_id).append(
 	'\
-		<form id="' + uploader_container_id + '_form"  method="POST"  enctype="multipart/form-data">\
+		<form id="' + form_id + '"  method="POST"  enctype="multipart/form-data">\
 			<div class="row fileupload-buttonbar">\
 				<div class="col-lg-7">\
 					<!-- The fileinput-button span is used to style the file input field as button -->\
@@ -4654,12 +4690,23 @@ function UpdateFileUploader(uploader_container_id)
 	'
 	);
 	//style="border:0px;width:color:#00FF00;background-color:#000000;width:100%"
-	
-
 }
 
 
-
+function DestroyFileUploader(div_id)
+{
+	$('#form_' + div_id + '_uploader_form').fileupload('destroy');
+	$('#div_' + div_id + '_uploader').empty();
+	if(g_image_slider_tower_info)
+	{
+		delete g_image_slider_tower_info;
+		g_image_slider_tower_info = undefined;
+		$('#' + div_id + '_container').empty();
+		g_image_thumbnail_tower_info.length = 0;
+	}
+	delete g_selected_geojson;
+	g_selected_geojson = undefined;
+}
 function ShowTowerInfoDialog(viewer, tower)
 {
 	var infoBox = viewer.infoBox;
@@ -4676,17 +4723,7 @@ function ShowTowerInfoDialog(viewer, tower)
 		position:{at: "right center"},
 		title:title,
 		close: function(event, ui){
-			$('#div_tower_photouploader_form').fileupload('destroy');
-			$('#div_tower_photouploader').empty();
-			if(g_image_slider_tower_info)
-			{
-				delete g_image_slider_tower_info;
-				g_image_slider_tower_info = undefined;
-				$('#tower_info_photo_container').empty();
-				g_image_thumbnail_tower_info.length = 0;
-			}
-			delete g_selected_geojson;
-			g_selected_geojson = undefined;
+			DestroyFileUploader('tower_info_photo')
 		},
 		show: {
 			effect: "slide",
@@ -4845,13 +4882,10 @@ function ShowTowerInfoDialog(viewer, tower)
 					iframe.css('display', 'none');
 				}
 			}
-			if(title == '照片')
+			if(title == '照片文档')
 			{
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
-				UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload',  520, 400, 'towers', tower['_id'], 'photo');
-				UpdateFileUploader('div_tower_photouploader');
-				InitFileUploader('tower_info_photo_container','div_tower_photouploader','div_toggle_view_upload', 'tower_info_photo_toolbar', 'towers', tower['_id'], 'photo');
-
+				CreateFileBrowser('tower_info_photo', 520, 480, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'features', tower['_id']);
 			}
 		}
 		//threejs/editor/index.html
@@ -5032,7 +5066,109 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 }
 
+function CreateFileBrowser(div_id, width, height, fileext, collection, id)
+{
+	$('#' + div_id).empty();
+	$('#' + div_id).css('width', width + 'px').css('height', height + 'px');
+	var html = '';
+	html += '<div id="' + div_id + '_toolbar">';
+	html += '	<span  class="phototoolbar-edit" style="z-index:9;width: 24px; height: 27px; top: 80px; right: 110px;" data-' + div_id + '-photo="">';
+	html += '	</span>';
+	html += '	<span  class="phototoolbar-download" style="z-index:9;width: 24px; height: 27px; top: 80px; right: 80px;" data-' + div_id + '-download="">';
+	html += '	</span>';
+	html += '	<span  class="phototoolbar-delete" style="z-index:9;width: 24px; height: 24px; top: 80px; right: 50px;">';
+	html += '	</span>';
+	html += '	</div>';
+	html += '		<div id="' + div_id + '_container" style="opacity:1.0;position: relative; width: ' + width + 'px;height: ' + (height - 80) + 'px; overflow: hidden;">';
+	html += '		</div>';
+	html += '		<div id="div_' + div_id + '_toggle_view_upload" class="btn-primary" style="width:90%;margin:10px;text-align:center;cursor:default;">上传附件</div>';
+	html += '		<div id="div_' + div_id + '_uploader" style="display:none">';
+	html += '		</div>';
+	html += '		<div id="div_' + div_id + '_upload_desciption" style="display:none;margin:10px;">';
+	html += '			<textarea id="' + div_id + '_upload_desciption" style="width:' + (width - 40) + 'px;height:100px;color:white;background-color:black;border:1px green solid" rows="5" placeholder="在此输入备注..."></textarea>';
+	html += '		</div>';
+	$('#' + div_id).append(html);
+	
+	$('#' + div_id + '_upload_desciption').resizable({
+		minHeight:100,
+		minWidth:450
+	});
+	try{
+		$(document).tooltip( "close" );
+	}catch(e){}
+	
+	$(document).tooltip({
+		items: "[data-" + div_id + "-photo], [data-" + div_id + "-filename]",
+		show: {
+		  effect: "slideDown",
+		  delay: 300
+		},
+		content: function()
+		{
+			var element = $( this );
+			var s = '';
+			if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-" + div_id + "-photo]" ))
+			{
+				var idx = g_image_slider_tower_info.$CurrentIndex();
+				var img = g_image_thumbnail_tower_info[idx];
+				s = '<div class="tower-photo-tip">';
+				s += '<p>文件名称:' + img.filename + '</p>';
+				s += '<p>备注:' + img.description + '</p>';
+				s += '</div>';
+			}
+			if ( element.is( "[data-" + div_id + "-filename]" ) ) {
+				s = element.attr( "data-" + div_id + "-filename" );
+			}
+			return s;
+		}
+	});
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').off();
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').off();
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').off();
+	
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
+	});
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').on('click', function(){
+		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 )
+		{
+			var idx = g_image_slider_tower_info.$CurrentIndex();
+			var img = g_image_thumbnail_tower_info[idx];
+			var url = '/get?' + 'op=gridfs' + '&db=' + g_db_name + '&_id=' + img._id +  '&attachmentdownload=true';
+			//console.log(url);
+			window.open(url, '_blank');
+			//GridFsFind(data, function(data1){
+				//console.log(data1);
+			//});
+		}
+	});
+	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
+		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
+		{
+			var idx = g_image_slider_tower_info.$CurrentIndex();
+			var img = g_image_thumbnail_tower_info[idx];
+			//console.log(img._id + ' ' + img.filename);
+			
+			ShowConfirm(null, 500, 300,
+				'删除确认',
+				'确认要删除文件[' + img.filename + ']吗?',
+				function(){
+					var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
+					GridFsFind(data, function(){
+						UpdateJssorSlider(div_id, collection, id);
+					});
+				},
+				function(){
+				},
+				img
+			);
+		}
+		
+	});
 
+	UpdateJssorSlider(div_id, collection, id);
+	UpdateFileUploader(div_id);
+	InitFileUploader(div_id, fileext, collection, id);
+}
 
 function GetGeojsonFromPosition(ellipsoid, position, type)
 {

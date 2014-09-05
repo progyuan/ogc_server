@@ -708,12 +708,21 @@ function MongoFind(data, success, host)
 		}
 	}, 'text');
 }
-function GridFsFind(data, success)
+function GridFsFind(data, success, isdownload)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
-	$.getJSON(g_host + 'get', data, function( data1 ){
-		success(data1);
-	});
+	//console.log(data);
+	if(isdownload)
+	{
+		$.get(g_host + 'get', data, function( data1 ){
+			success(data1);
+		});
+	}else
+	{
+		$.getJSON(g_host + 'get', data, function( data1 ){
+			success(data1);
+		});
+	}
 }
 
 function ReadTable(url, success, failed)

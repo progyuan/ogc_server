@@ -1132,18 +1132,12 @@ def handle_get_method(environ):
     if d.has_key('op'):
         op = d['op'][0]
         del d['op']
-        if op == "get_mongodb_server_tree":
-            host = d['host'][0]
-            del d['host']
-            port = d['port'][0]
-            del d['port']
-            ret["result"] = {}
-            ret["result"]["data"] = db_util.mongodb_get_server_tree(host, port)
-            s = json.dumps(ret, ensure_ascii=True, indent=4)
-        elif op == "gridfs":
+        if op == "gridfs":
             ret = db_util.gridfs_find(d)
             if isinstance(ret, tuple) and ret[0] and ret[1]:
                 headers['Content-Type'] = str(ret[0])
+                if d.has_key('attachmentdownload'):
+                    headers['Content-Disposition'] = 'attachment;filename="' + enc(ret[2]) + '"'
                 s = ret[1]
                 return '200 OK', headers , s
             if isinstance(ret, list):
@@ -1151,10 +1145,10 @@ def handle_get_method(environ):
         elif op == "gridfs_delete":
             try:
                 db_util.gridfs_delete(d)
-                s = ''
+                ret = ''
             except:
                 ret["result"] = sys.exc_info()[1].message
-                s = json.dumps(ret, ensure_ascii=True, indent=4)
+            s = json.dumps(ret, ensure_ascii=True, indent=4)
         
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     if isinstance(ret, dict) and len(ret.keys())==0:
