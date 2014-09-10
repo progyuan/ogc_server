@@ -81,6 +81,7 @@ $(function() {
 										var extent = GetExtentByCzml();
 										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 										ReloadCzmlDataSource(viewer, g_zaware);
+										
 									//});
 								//});
 							});
@@ -880,7 +881,9 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 
 function InitFileUploader(div_id, fileext,  bindcollection, key) 
 {
-	var photo_id = div_id + '_container';
+	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
+	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
+	var container_id = div_id + '_container';
 	var uploader_id = 'div_' + div_id + '_uploader';
 	var toggle_id = 'div_' + div_id + '_toggle_view_upload';
 	var toolbar_id = div_id + '_toolbar';
@@ -889,25 +892,22 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 	$('#' + toggle_id).off();
 	$('#' + toggle_id).on('click', function(){
 		$('#div_' + div_id + '_upload_desciption').css('display','none');
-		if($('#' + uploader_id).css('display') === 'none')
+		//var container = $('#' + container_id).fotorama();
+		//container = $(container[0]);
+		//console.log(container);
+		if($('#' + uploader_id).is(':visible') )
 		{
-			$('#' + uploader_id).css('display', 'block');
-			$('#' + photo_id).css('display', 'none');
-			$('#' + toolbar_id).css('display', 'none');
-			//if(category === 'photo')
-				//$('#' + toggle_id).html('照片浏览');
-			//else
-			$('#' + toggle_id).html('附件浏览');
+			$('#' + uploader_id).css('display', 'none');
+			$('#' + container_id).css('display', 'block');
+			$('#' + toolbar_id).css('display', 'block');
+			$('#' + toggle_id).html('上传附件');
 		}
 		else
 		{
-			$('#' + uploader_id).css('display', 'none');
-			$('#' + photo_id).css('display', 'block');
-			$('#' + toolbar_id).css('display', 'block');
-			//if(category === 'photo')
-				//$('#' + toggle_id).html('上传照片');
-			//else
-			$('#' + toggle_id).html('上传附件');
+			$('#' + uploader_id).css('display', 'block');
+			$('#' + container_id).css('display', 'none');
+			$('#' + toolbar_id).css('display', 'none');
+			$('#' + toggle_id).html('附件浏览');
 		}
 	});
 
@@ -954,11 +954,11 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 			$('#div_' + div_id + '_upload_desciption').css('display','block');
 		},
 		done:function(e, data){
-			//console.log('done');
+			//console.log(data.result);
 			if(data.result)
 			{
-				//console.log(data.result);
-				UpdateJssorSlider(div_id, bindcollection, key);
+				//UpdateJssorSlider(div_id, bindcollection, key);
+				UpdateFotoramaSlider(div_id, bindcollection, key);
 				$('#' + div_id + '_upload_desciption').val('');
 			}
 		},
@@ -1052,66 +1052,8 @@ function InitTowerInfoDialog()
 			}
 		});
 	});
-
-	//$('#upload_desciption').resizable({
-		//minHeight:100,
-		//minWidth:450
-	//});
-	
-	//$(document).tooltip({
-		//items: "[data-tower-photo], [data-filename]",
-		//show: {
-		  //effect: "slideDown",
-		  //delay: 300
-		//},
-		//content: function()
-		//{
-			//var element = $( this );
-			//var s = '';
-			//if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-tower-photo]" ))
-			//{
-				//var idx = g_image_slider_tower_info.$CurrentIndex();
-				//var img = g_image_thumbnail_tower_info[idx];
-				//s = '<div class="tower-photo-tip">';
-				//s += '<p>文件名称:' + img.filename + '</p>';
-				//s += '<p>备注:' + img.description + '</p>';
-				//s += '</div>';
-			//}
-			//if ( element.is( "[data-filename]" ) ) {
-				//s = element.attr( "data-filename" );
-			//}
-			//return s;
-		//}
-	//});
-	
-	//$('#tower_info_photo_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
-		
-	//});
-	//$('#tower_info_photo_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
-		//if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
-		//{
-			//var idx = g_image_slider_tower_info.$CurrentIndex();
-			//var img = g_image_thumbnail_tower_info[idx];
-			////console.log(img._id + ' ' + img.filename);
-			
-			//ShowConfirm(null, 500, 300,
-				//'删除确认',
-				//'确认要删除文件[' + img.filename + ']吗?',
-				//function(){
-					//var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
-					//GridFsFind(data, function(){
-						//UpdateJssorSlider('tower_info_photo_container', 'div_toggle_view_upload', 500, 400, 'towers', img.key, 'photo');
-					//});
-				//},
-				//function(){
-				//},
-				//img
-			//);
-		//}
-		
-	//});
-
 }
+
 function InitToolPanel(viewer)
 {
 	$('#control_toolpanel_kmgd_left').css('display', 'none');
@@ -2998,6 +2940,8 @@ function TowerInfoMixin(viewer)
 				g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
 			}
 		};
+		$('#lnglat_indicator').html('位置:' + PickLngLatFromScreen(viewer, e.position));
+				
 		clearselcolor();
 		viewer.selectedEntity = pickTrackedEntity(e);
 		
@@ -4501,6 +4445,89 @@ function ShowTowerInfo(viewer, id)
 
 }
 
+function UpdateFotoramaSlider(div_id, bindcollection, key)
+{
+	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
+	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
+	//console.log('width:' + width + ',height:' + height);
+	var container_id = div_id + '_container';
+	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
+	var data = {op:'gridfs', db:g_db_name, width:64, height:64, bindcollection:bindcollection, key:key};
+	GridFsFind(data, function(data1){
+		if(g_image_slider_tower_info)
+		{
+			g_image_slider_tower_info.destroy();
+			delete g_image_slider_tower_info;
+			g_image_slider_tower_info = undefined;
+		}
+		$('#' + container_id).empty();
+		var img_data = [];
+		for (var i in data1)
+		{
+			var item = { 
+				id: data1[i]._id, 
+				_id: data1[i]._id, 
+				img:'/get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id , 
+				full:'/get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id , 
+				thumb:'data:' + data1[i].mimetype + ';base64,' + data1[i].data, 
+				caption: data1[i].filename,
+				filename:data1[i].filename,
+				data:data1[i].data,
+				mimetype:data1[i].mimetype,
+				description:data1[i].description
+			};
+			img_data.push(item);
+		}
+		if(data1.length==0)
+		{
+			var s = '';
+			s += '<div style="text-align: center;vertical-align: middle;line-height: 300px;">';
+			s += '	无照片';
+			s += '</div>';
+			$('#' + container_id).html(s);
+		}
+		
+		if(!g_image_slider_tower_info)
+		{
+			var options = {
+				allowfullscreen: true,
+				width: width,
+				height:height - 100,
+				margin:0,
+				nav:'thumbs',
+				navposition:'bottom',
+				thumbwidth:64,
+				thumbheight:64,
+				thumbmargin:0,
+				thumbborderwidth:0,
+				fit:'scaledown', //contain, cover, scaledown, none
+				thumbfit:'scaledown', //contain, cover, scaledown, none
+				transition:'slide', //slide, crossfade, dissolve
+				clicktransition:'slide',
+				transitionduration:200,
+				startindex:0,
+				loop:true,
+				autoplay:false,//10000,
+				stopautoplayontouch:true,
+				keyboard:false,
+				arrows:true,
+				click:false,
+				direction:'ltr',
+				hash:true,
+				data:img_data
+			};
+			if(data1.length>0)
+			{
+				var $fotoramaDiv = $('#' + container_id).fotorama(options);
+				g_image_slider_tower_info = $fotoramaDiv.data('fotorama');
+				console.log(g_image_slider_tower_info);
+			}
+		}
+		ShowProgressBar(false);
+	});
+
+}
+
 function UpdateJssorSlider(div_id, bindcollection, key)
 {
 	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
@@ -4521,7 +4548,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		if(data1.length>0)
 		{
 			s += '\
-			<div u="loading" style="position: absolute; top: 0px; left: 0px;">\
+			<div u="loading" style=" position: absolute; top: 0px; left: 0px;">\
 				<div style="filter: alpha(opacity=70); opacity:0.7; position: absolute; display: block;\
 					background-color: #000; top: 0px; left: 0px;width: ' + width + 'px;height:' + height + 'px;">\
 				</div>\
@@ -4531,27 +4558,23 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 			</div>\
 			';
 		}
-		s += '\
-		<div u="slides" style="cursor: default; position: absolute; left: 0px; top: 0px; width: ' + width + 'px; height: ' + (height-80) + 'px; overflow: hidden;">\
-		';
+		s += '<div u="slides" style="cursor: default; position: absolute; left: 0px; top: 0px; width: ' + (width-20) + 'px; height: ' + (height-80) + 'px; overflow: hidden;">';
 		for (var i in data1)
 		{
 			s += '\
-			<div>\
-				<img u="image" id="' + data1[i]._id + '" src="get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id + '" />\
-				<img u="thumb" src="data:' + data1[i].mimetype + ';base64,' + data1[i].data + '" />\
+			<div >\
+				<img u="image" style="width: ' + (width-20) + 'px; height: ' + (height-80) + 'px;" id="' + data1[i]._id + '" src="get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id + '" >\
+				<img u="thumb" src="data:' + data1[i].mimetype + ';base64,' + data1[i].data + '" >\
 			</div>\
 			';
 		}
 		if(data1.length==0)
 		{
-			s += '\
-			<div style="text-align: center;vertical-align: middle;line-height: 300px;">\
-				<img u="image" style="display:none;"  src="" />\
-				<img u="thumb" style="display:none;" src=""  />\
-				无照片\
-			</div>\
-			';
+			s += '<div style="text-align: center;vertical-align: middle;line-height: 300px;">';
+			s += '	<img u="image" style="display:none;"  src="">';
+			s += '	<img u="thumb" style="display:none;"  src="">';
+			s += '	无照片';
+			s += '</div>';
 		}
 		
 		s += '</div>\
@@ -4574,13 +4597,18 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		
 		if(!g_image_slider_tower_info)
 		{
-			//$( "#tower_info_photo" ).accordion({ active: 0 });
 			var options = {
 				$AutoPlay: true,                                    //[Optional] Whether to auto play, to enable slideshow, this option must be set to true, default value is false
 				$AutoPlayInterval: 10000,                            //[Optional] Interval (in milliseconds) to go for next slide since the previous stopped if the slider is auto playing, default value is 3000
 				$SlideDuration: 500,                                //[Optional] Specifies default duration (swipe) for slide in milliseconds, default value is 500
 				$DragOrientation: 3,                                //[Optional] Orientation to drag slide, 0 no drag, 1 horizental, 2 vertical, 3 either, default value is 1 (Note that the $DragOrientation should be the same as $PlayOrientation when $DisplayPieces is greater than 1, or parking position is not 0)
 
+				$ArrowNavigatorOptions: {
+					$Class: $JssorArrowNavigator$,              //[Requried] Class to create arrow navigator instance
+					$ChanceToShow: 2,                               //[Required] 0 Never, 1 Mouse Over, 2 Always
+					$AutoCenter: 2,                                 //[Optional] Auto center arrows in parent container, 0 No, 1 Horizontal, 2 Vertical, 3 Both, default value is 0
+					$Steps: 1                                       //[Optional] Steps to go for each navigation request, default value is 1
+				},
 				$ThumbnailNavigatorOptions: {
 					$Class: $JssorThumbnailNavigator$,              //[Required] Class to create thumbnail navigator instance
 					$ChanceToShow: 2,                               //[Required] 0 Never, 1 Mouse Over, 2 Always
@@ -4589,7 +4617,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 					$SpacingX: 3,                                   //[Optional] Horizontal space between each thumbnail in pixel, default value is 0
 					$SpacingY: 3,                                   //[Optional] Vertical space between each thumbnail in pixel, default value is 0
 					$DisplayPieces: 6,                              //[Optional] Number of pieces to display, default value is 1
-					$ParkingPosition: 204,                          //[Optional] The offset position to park thumbnail,
+					$ParkingPosition: 204,                         //[Optional] The offset position to park thumbnail,
 
 					$ArrowNavigatorOptions: {
 						$Class: $JssorArrowNavigator$,              //[Requried] Class to create arrow navigator instance
@@ -4599,7 +4627,10 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 					}
 				}
 			};
-			g_image_slider_tower_info = new $JssorSlider$(container_id , options);
+			if(data1.length>0)
+			{
+				g_image_slider_tower_info = new $JssorSlider$(container_id , options);
+			}
 		}
 		ShowProgressBar(false);
 		//responsive code begin
@@ -4640,6 +4671,8 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 }
 function UpdateFileUploader(div_id)
 {
+	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
+	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
 	
 	var upload_id = 'div_' + div_id + '_uploader'
 	var form_id = 'form_' + div_id + '_uploader_form';
@@ -4650,10 +4683,10 @@ function UpdateFileUploader(div_id)
 	$('#' + upload_id).append(
 	'\
 		<form id="' + form_id + '"  method="POST"  enctype="multipart/form-data">\
-			<div class="row fileupload-buttonbar">\
-				<div class="col-lg-7">\
+			<div class="row fileupload-buttonbar" >\
+				<div class="col-lg-7" >\
 					<!-- The fileinput-button span is used to style the file input field as button -->\
-					<span class="btn-success fileinput-button" style="border:2px green solid;">\
+					<span class="btn-success fileinput-button" >\
 						<!--<i class="glyphicon glyphicon-plus"></i>-->\
 						<span >选择文件...</span>\
 						<input type="file" name="files[]">  <!--multiple-->\
@@ -4671,25 +4704,20 @@ function UpdateFileUploader(div_id)
 						<!--<span>删除</span>-->\
 					<!--</button>-->\
 					<!--<input type="checkbox" class="toggle">-->\
-					<!-- The global file processing state -->\
 					<span class="fileupload-process"></span>\
 				</div>\
-				<!-- The global progress state -->\
-				<div class="col-lg-5 fileupload-progress fade" >\
+				<div class="col-lg-5 fileupload-progress fade">\
 					<!-- The global progress bar -->\
 					<div class="progress progress-striped active" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="display:none;width:90%;height:5px;margin:10px;">\
 						<div class="progress-bar progress-bar-success" style="width:0%;"></div>\
 					</div>\
-					<!-- The extended global progress state -->\
 					<div class="progress-extended">&nbsp;</div>\
 				</div>\
 			</div>\
-			<!-- The table listing the files available for upload/download -->\
 			<table role="presentation" class="table table-striped"><tbody class="files"></tbody></table>\
 		</form>	\
 	'
 	);
-	//style="border:0px;width:color:#00FF00;background-color:#000000;width:100%"
 }
 
 
@@ -5069,48 +5097,55 @@ function ShowTowerInfoDialog(viewer, tower)
 function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 {
 	$('#' + div_id).empty();
+	if(id===undefined)
+	{
+		ShowProgressBar(false);
+		$('#' + div_id).html('请先保存，再上传图片');
+		return;
+	}
 	$('#' + div_id).css('width', width + 'px').css('height', height + 'px');
 	var html = '';
-	html += '<div id="' + div_id + '_toolbar">';
-	html += '	<span  class="phototoolbar-edit" style="z-index:9;width: 24px; height: 27px; top: 80px; right: 110px;" data-' + div_id + '-photo="">';
+	html += '<div  id="' + div_id + '_toolbar">';
+	html += '	<span  class="phototoolbar-download" style="display:inline-block;z-index:9;width: 24px; height: 27px; bottom: 140px; right: 80px;" data-' + div_id + '-download="">';
 	html += '	</span>';
-	html += '	<span  class="phototoolbar-download" style="z-index:9;width: 24px; height: 27px; top: 80px; right: 80px;" data-' + div_id + '-download="">';
+	html += '	<span  class="phototoolbar-delete" style="display:inline-block;z-index:9;width: 24px; height: 24px; bottom: 144px; right: 50px;" data-' + div_id + '-delete="">';
 	html += '	</span>';
-	html += '	<span  class="phototoolbar-delete" style="z-index:9;width: 24px; height: 24px; top: 80px; right: 50px;">';
-	html += '	</span>';
-	html += '	</div>';
-	html += '		<div id="' + div_id + '_container" style="opacity:1.0;position: relative; width: ' + width + 'px;height: ' + (height - 80) + 'px; overflow: hidden;">';
-	html += '		</div>';
-	html += '		<div id="div_' + div_id + '_toggle_view_upload" class="btn-primary" style="width:90%;margin:10px;text-align:center;cursor:default;">上传附件</div>';
-	html += '		<div id="div_' + div_id + '_uploader" style="display:none">';
-	html += '		</div>';
-	html += '		<div id="div_' + div_id + '_upload_desciption" style="display:none;margin:10px;">';
-	html += '			<textarea id="' + div_id + '_upload_desciption" style="width:' + (width - 40) + 'px;height:100px;color:white;background-color:black;border:1px green solid" rows="5" placeholder="在此输入备注..."></textarea>';
-	html += '		</div>';
+	html += '</div>';
+	//html += '<div id="' + div_id + '_container" style="opacity:1.0;position: relative;top: 0px;left: 0px; width: ' + width + 'px;height: ' + (height - 80) + 'px; overflow: hidden;">';
+	html += '<div id="' + div_id + '_container"  style="opacity:1.0;">';
+	html += '</div>';
+	html += '<div id="div_' + div_id + '_toggle_view_upload" class="btn-primary" style="width:90%;margin:10px;text-align:center;cursor:default;">上传附件</div>';
+	html += '<div id="div_' + div_id + '_uploader" style="display:none">';
+	html += '</div>';
+	html += '<div id="div_' + div_id + '_upload_desciption" style="display:none;margin:10px;">';
+	html += '	<textarea id="' + div_id + '_upload_desciption" style="width:' + (width - 40) + 'px;height:100px;color:white;background-color:black;border:1px #00FF00 solid" rows="5" placeholder="在此输入备注..."></textarea>';
+	html += '</div>';
 	$('#' + div_id).append(html);
 	
 	$('#' + div_id + '_upload_desciption').resizable({
 		minHeight:100,
-		minWidth:450
+		minWidth:400
 	});
 	try{
 		$(document).tooltip( "close" );
 	}catch(e){}
 	
 	$(document).tooltip({
-		items: "[data-" + div_id + "-photo], [data-" + div_id + "-filename]",
+		//items: "[data-" + div_id + "-photo], [data-" + div_id + "-filename], [data-" + div_id + "-download], [data-" + div_id + "-delete]",
+		items: "[data-" + div_id + "-filename], [data-" + div_id + "-download], [data-" + div_id + "-delete]",
 		show: {
 		  effect: "slideDown",
-		  delay: 300
+		  delay: 100
 		},
 		content: function()
 		{
 			var element = $( this );
 			var s = '';
-			if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 && element.is( "[data-" + div_id + "-photo]" ))
+			if(g_image_slider_tower_info  && element.is( "[data-" + div_id + "-download]" ))
 			{
-				var idx = g_image_slider_tower_info.$CurrentIndex();
-				var img = g_image_thumbnail_tower_info[idx];
+				//var idx = g_image_slider_tower_info.$CurrentIndex();
+				//var img = g_image_thumbnail_tower_info[idx];
+				var img = g_image_slider_tower_info.activeFrame;
 				s = '<div class="tower-photo-tip">';
 				s += '<p>文件名称:' + img.filename + '</p>';
 				s += '<p>备注:' + img.description + '</p>';
@@ -5119,20 +5154,27 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 			if ( element.is( "[data-" + div_id + "-filename]" ) ) {
 				s = element.attr( "data-" + div_id + "-filename" );
 			}
+			if ( element.is( "[data-" + div_id + "-delete]" ) ) {
+				s = '<div class="tower-photo-tip">';
+				s += '<p>删除</p>';
+				s += '</div>';
+			}
 			return s;
 		}
 	});
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').off();
+	//$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').off();
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').off();
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').off();
 	
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
-	});
+	//$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
+	//});
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').on('click', function(){
-		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0 )
+		if(g_image_slider_tower_info )
 		{
-			var idx = g_image_slider_tower_info.$CurrentIndex();
-			var img = g_image_thumbnail_tower_info[idx];
+			//var idx = g_image_slider_tower_info.$CurrentIndex();
+			//var img = g_image_thumbnail_tower_info[idx];
+			var img = g_image_slider_tower_info.activeFrame;
+			
 			var url = '/get?' + 'op=gridfs' + '&db=' + g_db_name + '&_id=' + img._id +  '&attachmentdownload=true';
 			//console.log(url);
 			window.open(url, '_blank');
@@ -5142,19 +5184,20 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 		}
 	});
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
-		if(g_image_slider_tower_info && g_image_thumbnail_tower_info.length>0)
+		if(g_image_slider_tower_info )
 		{
-			var idx = g_image_slider_tower_info.$CurrentIndex();
-			var img = g_image_thumbnail_tower_info[idx];
-			//console.log(img._id + ' ' + img.filename);
+			//var idx = g_image_slider_tower_info.$CurrentIndex();
+			//var img = g_image_thumbnail_tower_info[idx];
+			var img = g_image_slider_tower_info.activeFrame;
 			
-			ShowConfirm(null, 500, 300,
+			ShowConfirm(null, 500, 350,
 				'删除确认',
 				'确认要删除文件[' + img.filename + ']吗?',
 				function(){
 					var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
 					GridFsFind(data, function(){
-						UpdateJssorSlider(div_id, collection, id);
+						//UpdateJssorSlider(div_id, collection, id);
+						UpdateFotoramaSlider(div_id, collection, id);
 					});
 				},
 				function(){
@@ -5165,7 +5208,8 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 		
 	});
 
-	UpdateJssorSlider(div_id, collection, id);
+	//UpdateJssorSlider(div_id, collection, id);
+	UpdateFotoramaSlider(div_id, collection, id);
 	UpdateFileUploader(div_id);
 	InitFileUploader(div_id, fileext, collection, id);
 }
@@ -5595,8 +5639,8 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	$('#dlg_poi_info').dialog({
-		width: 500,
-		height: 550,
+		width: 540,
+		height: 680,
 		minWidth:200,
 		minHeight: 200,
 		draggable: true,
@@ -5735,6 +5779,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		]
 	});
 	
+	
 	var poitypelist = [];
 	$('#select_poi_type').empty();
 	if(type == 'point')
@@ -5792,6 +5837,22 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		var wt = g_geojsons[id]['properties']['webgis_type'];
 		$("#form_poi_info_" + wt).webgisform('setdata', data);
 	}
+	
+	$('#tabs_poi_info').tabs({ 
+		collapsible: false,
+		active: 0,
+		beforeActivate: function( event, ui ) {
+			var title = ui.newTab.context.innerText;
+			if(title == '基础信息')
+			{
+			}
+			if(title == '照片文档')
+			{
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
+				CreateFileBrowser('poi_info_photo', 450, 480, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'features', id);
+			}
+		}
+	});
 }
 
 function AddToCzml(ellipsoid, type, positions)
@@ -5898,7 +5959,7 @@ function BuildPoiForms()
 				{ display: "水平档距", id: "horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:40, validate:{number: true, required:false, range:[0, 9999]} },
 				{ display: "垂直档距", id: "vertical_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:40, validate:{number: true, required:false, range:[0, 9999]} },
 				//工程
-				{ display: "所属工程", id: "project", newline: true,  type: "select", editor:{data:[]},  group:'工程', width:250 }
+				{ display: "所属工程", id: "project", newline: true,  type: "select", editor:{data:[], position:'top'},  group:'工程', width:250 }
 			];
 			for(var i in fields)
 			{
@@ -6028,7 +6089,7 @@ function BuildPoiForms()
 		if(!ret[webgis_type] && fields)
 		{
 			ret[webgis_type] = $("#form_poi_info_" + webgis_type).webgisform(fields, {
-					divorspan:"span",
+					//divorspan:"span",
 					prefix:"form_poi_info_" + webgis_type + '_',
 					maxwidth:400
 					//margin:10,

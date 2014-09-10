@@ -230,14 +230,6 @@
 	float:left;
 }
 
-#dlg_poi_info
-{
-	display:none;
-}
-#dlg_poi_info div
-{
-	display:none;
-}
 
 
 /* jssor slider thumbnail navigator skin 07 css */
@@ -938,4 +930,14 @@ input[type="button"].btn-block {
 	height:100%;
 }
 
-
+.kmgd-lnglat-indicator
+{
+	position:absolute;
+	bottom:5px;
+	color:#00FF00;
+	text-align:center;
+	opacity:0.8;
+    width: 400px;
+    height: 20px;
+	z-index:8;
+}

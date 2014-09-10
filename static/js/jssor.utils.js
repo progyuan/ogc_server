@@ -135,7 +135,7 @@ var $JssorEasing$ = window.$JssorEasing$ = {
         return (t *= 2) < 1 ? 1 / 2 * t * t * t * t * t : 1 / 2 * ((t -= 2) * t * t * t * t + 2);
     },
     $EaseInSine: function (t) {
-        return 1 - Math.cos(t * Math.PI / 2)
+        return 1 - Math.cos(t * Math.PI / 2);
     },
     $EaseOutSine: function (t) {
         return Math.sin(t * Math.PI / 2);
@@ -910,7 +910,7 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
         ///	<param name="name" type="String">
         ///		the name of css property
         ///	</param>
-        ///	<param name="value" type="Number" optional="true">
+        ///	<param name="value" optional="true">
         ///		the value to set
         ///	</param>
         if (value != undefined) {
@@ -1033,7 +1033,7 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
 
     function SetStyleTransformInternal(elmt, transform) {
         var rotate = transform.$Rotate || 0;
-        var scale = transform.$Scale || 1;
+        var scale = transform.$Scale == undefined ? 1 : transform.$Scale;
 
         if (IsBrowserIe9Earlier()) {
             var matrix = self.$CreateMatrix(rotate / 180 * Math.PI, scale, scale);
@@ -1297,7 +1297,7 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
             return method.apply(object, args);
         };
 
-        $JssorDebug$.$LiveStamp(callback, "callback_" + ($JssorUtils$.$GetNow() & 11111111));
+        //$JssorDebug$.$LiveStamp(callback, "callback_" +($JssorUtils$.$GetNow() & 0xFFFF));
 
         return callback;
     };
@@ -1697,6 +1697,41 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
         return elmt.cloneNode(deep);
     };
 
+    function TranslateTransition(transition) {
+        if (transition) {
+            var flyDirection = transition.$FlyDirection;
+
+            if (flyDirection & 1) {
+                transition.x = transition.$ScaleHorizontal || 1;
+            }
+            if (flyDirection & 2) {
+                transition.x = -transition.$ScaleHorizontal || -1;
+            }
+            if (flyDirection & 4) {
+                transition.y = transition.$ScaleVertical || 1;
+            }
+            if (flyDirection & 8) {
+                transition.y = -transition.$ScaleVertical || -1;
+            }
+
+            TranslateTransition(transition.$Brother);
+        }
+    }
+
+    self.$TranslateTransitions = function (transitions) {
+        ///	<summary>
+        ///		For backward compatibility only.
+        ///	</summary>
+        if (transitions) {
+            for (var i = 0; i < transitions.length; i++) {
+                TranslateTransition(transitions[i]);
+            }
+            for (var name in transitions) {
+                TranslateTransition(transitions[name]);
+            }
+        }
+    };
+
     function LoadImageCallback(callback, image, abort) {
         image.onload = null;
         image.abort = null;
@@ -1755,7 +1790,6 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
     };
 
     var _MouseDownButtons;
-    var _MouseOverButtons = [];
     function JssorButtonEx(elmt) {
         var _Self = this;
 
@@ -1763,11 +1797,15 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
 
         var _IsMouseDown;   //class name 'dn'
         var _IsActive;      //class name 'av'
+        var _IsDisabled;    //class name 'ds'
 
         function Highlight() {
             var className = _OriginClassName;
 
-            if (_IsMouseDown) {
+            if (_IsDisabled) {
+                className += 'ds';
+            }
+            else if (_IsMouseDown) {
                 className += 'dn';
             }
             else if (_IsActive) {
@@ -1778,11 +1816,16 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
         }
 
         function OnMouseDown(event) {
-            _MouseDownButtons.push(_Self);
+            if (_IsDisabled) {
+                self.$CancelEvent(event);
+            }
+            else {
+                _MouseDownButtons.push(_Self);
 
-            _IsMouseDown = true;
+                _IsMouseDown = true;
 
-            Highlight();
+                Highlight();
+            }
         }
 
         _Self.$MouseUp = function () {
@@ -1797,9 +1840,25 @@ var $JssorUtils$ = window.$JssorUtils$ = new function () {
         };
 
         _Self.$Activate = function (activate) {
-            _IsActive = activate;
+            if (activate != undefined) {
+                _IsActive = activate;
 
-            Highlight();
+                Highlight();
+            }
+            else {
+                return _IsActive;
+            }
+        };
+
+        _Self.$Enable = function (enable) {
+            if (enable != undefined) {
+                _IsDisabled = !enable;
+
+                Highlight();
+            }
+            else {
+                return !_IsDisabled;
+            }
         };
 
         //JssorButtonEx Constructor
@@ -2124,8 +2183,10 @@ $JssorAnimator$ = function (delay, duration, options, elmt, fromStyles, toStyles
 
                     if (fromStyles) {
                         var interPosition = (positionToDisplay - _Position_InnerBegin) / (duration || 1);
-                        if (options.$Optimize && $JssorUtils$.$IsBrowserChrome() && duration)
-                            interPosition = Math.round(interPosition * duration / 16) / duration * 16;
+                        if (options.$Optimize && $JssorUtils$.$IsBrowserChrome() && duration) {
+                            interPosition = Math.round(interPosition / 16 * duration) * 16 / duration;
+                        }
+
                         if (options.$Reverse)
                             interPosition = 1 - interPosition;
 
@@ -2235,7 +2296,8 @@ $JssorAnimator$ = function (delay, duration, options, elmt, fromStyles, toStyles
     function PlayFrame() {
         if (_AutoPlay) {
             var now = $JssorUtils$.$GetNow();
-            var timeOffset = Math.min(now - _TimeStampLastFrame, $JssorUtils$.$IsBrowserOpera() ? 80 : 20);
+            //var timeOffset = Math.min(now - _TimeStampLastFrame, $JssorUtils$.$IsBrowserOpera() ? 80 : 20);
+            var timeOffset = Math.min(now - _TimeStampLastFrame, 80);
             var timePosition = _Position_Current + timeOffset * _PlayDirection;
             _TimeStampLastFrame = now;
 
@@ -2419,7 +2481,7 @@ $JssorAnimator$ = function (delay, duration, options, elmt, fromStyles, toStyles
     //Constructor`  1
     {
         options = $JssorUtils$.$Extend({
-            $Interval: 15
+            $Interval: 16
         }, options);
 
         //Sodo statement, for development time intellisence only

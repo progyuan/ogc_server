@@ -109,7 +109,6 @@ function InitWebGISFormDefinition()
 				}
 			}
 			
-			
 			for(var j in this.groups)
 			{
 				var group = this.groups[j];
@@ -117,6 +116,7 @@ function InitWebGISFormDefinition()
 				var g = this.append('<fieldset id="fieldset_' + uid + '" style="min-height:50px;color:#00FF00;border:1px solid #00FF00;margin:' + this.options.groupmargin + 'px;"><legend style="font-weight:bolder;color:#00FF00;">' + group + '</legend>');
 				this.append('</fieldset>');
 				this.append('<p></p>');
+				
 				
 				for(var i in fields)
 				{
@@ -212,8 +212,9 @@ function InitWebGISFormDefinition()
 						{
 							$('#' + fldid).multipleSelect("setSelects", [fld.defaultvalue]);
 						}
+						//$('#' + fldid).css('display', 'none');
 						auto.css('border', '1px #00FF00 solid');
-						auto.css('display', 'inline-block');
+						//auto.css('display', 'inline-block');
 						auto.css('color', '#00FF00');
 						auto.css('background', '#000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat');
 						//auto.find('option').css('background', '#000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat');
@@ -391,9 +392,48 @@ function InitWebGISFormDefinition()
 						});
 						if(checked) $('#' + id).iCheck('check');
 					}
-					
 				}
 			}
+			var hide = false;
+			var hideparentlist = [];
+			for(var i in this.fields)
+			{
+				var fld = this.fields[i];
+				var fldid = prefix + fld.id;
+				if(fld.hide && fld.hide === true)
+				{
+					hide = true;
+					var group = $('#' + fldid ).parent().parent();
+					group.hide();
+					if(hideparentlist.indexOf(group) < 0)
+					{
+						hideparentlist.push(group);
+					}
+				}
+			}
+			if(hide)
+			{
+				this.append('<' + divorspan + ' id="' + prefix + '_more_info" style="float:right">更多信息&gt;&gt;</' + divorspan + '>');
+				$('#' + prefix + '_more_info').off();
+				$('#' + prefix + '_more_info').on('click', function(){
+					for(var i in hideparentlist)
+					{
+						var group = hideparentlist[i];
+						if(group.is(':visible'))
+						{
+							group.hide();
+							$(this).html('更多信息&gt;&gt;');
+						}
+						else
+						{
+							group.show();
+							$(this).html('更多信息&lt;&lt;');
+						}
+					}
+					
+				});
+			}
+			
 			
 			var fields = this.fields;
 			this.validate({
@@ -847,7 +887,12 @@ function GetDisplayLatLngString(ellipsoid, cartesian, precision)
 	{
 		var height = 0;
 		if(Math.abs(cartographic.height) > Cesium.Math.EPSILON1) height =  Math.floor(cartographic.height);
-		return "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ", " + height + ")";
+		var s = "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ")";
+		if(g_zaware)
+		{
+			s =  "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ", " + height + ")";
+		}
+		return s;
 	}else
 	{
 		return "";
@@ -937,5 +982,16 @@ function ShowGeoTip(id, position, msg)
 	}
 }
 
+function PickLngLatFromScreen(viewer, screen_position)
+{
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var scene = viewer.scene;
+	var ray = scene.camera.getPickRay(screen_position);
+	var cartesian = scene.globe.pick(ray, scene);
+	//var carto = ellipsoid.cartesianToCartographic(cartesian);
+	var s = GetDisplayLatLngString(ellipsoid, cartesian, 7);
+	//console.log(s);
+	return s;
+}
 
 
