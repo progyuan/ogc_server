@@ -230,7 +230,23 @@
 	float:left;
 }
 
-
+#tower_info_model iframe
+{
+	border:1px #00FF00 solid; 
+	width:79%;
+	height:470px;
+}
+#tower_info_segment iframe
+{
+	border:1px #00FF00 solid; 
+	width:100%;
+	height:500px;
+}
+#tower_info_segment_blank
+{
+	width:100%;
+	height:450px;	
+}
 
 /* jssor slider thumbnail navigator skin 07 css */
 /*
@@ -941,3 +957,31 @@ input[type="button"].btn-block {
     height: 20px;
 	z-index:8;
 }
+
+#fieldset_select_poi_type
+{
+	color:#00FF00;
+	border:1px #00FF00 solid;
+	margin:0px;
+}
+#fieldset_select_poi_type legend
+{
+	font-weight:bolder;
+	color:#00FF00;
+}
+#fieldset_select_poi_type span
+{
+	margin:20px;
+}
+#fieldset_select_poi_type span label
+{
+	display:inline-block;
+	text-align:right;
+	width:100px;
+}
+#fieldset_select_poi_type span select
+{
+	width:200px;
+}
+
+

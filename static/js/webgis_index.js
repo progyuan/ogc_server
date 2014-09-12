@@ -26,6 +26,7 @@ var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
 var g_node_connect_mode = false;
 
+
 g_max_file_size = 5000000;
 
 
@@ -38,6 +39,7 @@ $(function() {
 	//if(true) return;
 	var viewer = InitCesiumViewer();
 	$.viewer = viewer;
+	InitRuler(viewer);
 	InitLogout(viewer);
 
 	InitWebGISFormDefinition();
@@ -71,19 +73,20 @@ $(function() {
 					
 					ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
 					LoadModelsMapping(g_db_name, function(){
-						//var name = '永发I回线';
-						var name = '七罗I回';
+						var name;
+						if(g_db_name === 'kmgd') name = '七罗I回';
+						if(g_db_name === 'ztgd') name = '永发I回线';
 						LoadTowerByLineName(viewer, g_db_name,  name, function(){
 							LoadLineByLineName(viewer, g_db_name, name, function(){
-								//name = '七罗II回';
-								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-									//LoadLineByLineName(viewer, g_db_name, name, function(){
+								name = '七罗II回';
+								name = '永发II回线';
+								LoadTowerByLineName(viewer, g_db_name,  name, function(){
+									LoadLineByLineName(viewer, g_db_name, name, function(){
 										var extent = GetExtentByCzml();
 										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 										ReloadCzmlDataSource(viewer, g_zaware);
-										
-									//});
-								//});
+									});
+								});
 							});
 						});
 						//name = '七罗II回';
@@ -622,6 +625,7 @@ function Logout(callback)
 	});
 
 }
+
 function InitLogout(viewer)
 {
     var LogoutButtonViewModel = function() {
@@ -713,6 +717,100 @@ cesiumSvgPath: { path: _svgPath, width: 1024, height: 1024 }');
 
 }
 
+
+
+function InitRuler(viewer)
+{
+    var RulerButtonViewModel = function() {
+        var that = this;
+        this._command = Cesium.createCommand(function() {
+			if(g_drawhelper_mode === undefined)
+			{
+				g_drawhelper_mode = 'ruler';
+				$(that.button).css('background-color', 'rgba(0, 255, 0, 0.5)');
+				if(!g_drawhelper.isVisible())
+				{
+					g_drawhelper.show();
+				}
+				
+			}
+			else
+			{
+				g_drawhelper_mode = undefined;
+				$(that.button).css('background-color', 'rgba(38, 38, 38, 0.75)');
+				if(g_drawhelper.isVisible())
+				{
+					g_drawhelper.close();
+				}
+			}
+        });
+        this.tooltip = '测量';
+    };
+
+    Cesium.defineProperties(RulerButtonViewModel.prototype, {
+        command : {
+            get : function() {
+                return this._command;
+            }
+        }
+    });
+	
+    var RulerButton = function(options) {
+        if (!Cesium.defined(options) || !Cesium.defined(options.container)) {
+            throw new Cesium.DeveloperError('options.container is required.');
+        }
+        var container = Cesium.getElement(options.container);
+
+        var viewModel = new RulerButtonViewModel();
+        viewModel._svgPath = 'M21.828,0L0,21.418l5.414,5.517L27.24,5.517L21.828,0z M23.486,7.317l-0.748,0.735l-1.089-1.11l-0.691,0.679l1.089,1.109  l-1.028,1.008l-1.676-1.709l-0.692,0.679l1.677,1.708L19.58,11.15l-1.088-1.109l-0.691,0.678l1.087,1.11l-1.009,0.99l-1.853-1.888  l-0.693,0.679l1.854,1.888l-0.748,0.733l-1.265-1.289l-0.692,0.679l1.265,1.289l-1.026,1.007l-1.853-1.888l-0.692,0.679l1.854,1.888  l-0.748,0.734l-1.265-1.29l-0.691,0.679l1.265,1.29l-0.948,0.93L9.79,17.049l-0.692,0.679l1.854,1.889l-0.748,0.733l-1.265-1.289  L8.249,19.74l1.264,1.289l-1.026,1.008l-1.854-1.888l-0.691,0.678l1.853,1.889L7.046,23.45l-1.265-1.29l-0.69,0.679l1.265,1.29  l-0.924,0.906l-3.53-3.598L21.81,1.901l3.53,3.597L24.177,6.64L22.5,4.931l-0.691,0.678L23.486,7.317z';
+        var wrapper = document.createElement('span');
+        wrapper.className = 'cesium-navigationHelpButton-wrapper';
+        container.appendChild(wrapper);
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cesium-button cesium-toolbar-button cesium-navigation-help-button';
+        button.setAttribute('data-bind', '\
+attr: { title: tooltip },\
+click: command,\
+cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
+        wrapper.appendChild(button);
+		viewModel.button = button;
+        Cesium.knockout.applyBindings(viewModel, wrapper);
+
+        this._container = container;
+        this._viewModel = viewModel;
+        this._wrapper = wrapper;
+
+    };
+
+    Cesium.defineProperties(RulerButton.prototype, {
+        container : {
+            get : function() {
+                return this._container;
+            }
+        },
+        viewModel : {
+            get : function() {
+                return this._viewModel;
+            }
+        }
+    });
+
+    RulerButton.prototype.isDestroyed = function() {
+        return false;
+    };
+
+    RulerButton.prototype.destroy = function() {
+        Cesium.knockout.cleanNode(this._wrapper);
+        this._container.removeChild(this._wrapper);
+        return Cesium.destroyObject(this);
+    };
+	g_rulerButton = new RulerButton({
+		container : $('.cesium-viewer-toolbar')[0]
+	});
+}
+
 function InitBird(viewer)
 {
 	$('#tower_info_test').drawChart({});
@@ -735,30 +833,26 @@ function InitDrawHelper(viewer)
 	toolbar.addListener('markerCreated', function(event) {
 		console.log('Marker created at ' + GetDisplayLatLngString(ellipsoid, event.position, 7));
 		// create one common billboard collection for all billboards
-		var b = new Cesium.BillboardCollection();
-		//var a = new Cesium.TextureAtlas({scene:viewer.scene});
-		//b.textureAtlas = a;
-		viewer.scene.primitives.add(b);
-		g_drawhelper.addPrimitive(b);
-		//var image = new Image();
-		//image.onload = function() {
-			//a.addImage(image);
-		//};
-		//image.src = 'img/location_marker.png';
-		var billboard = b.add({
-			show : true,
-			position : event.position,
-			pixelOffset : new Cesium.Cartesian2(0, 0),
-			eyeOffset : new Cesium.Cartesian3(0.0, 0.0, 0.0),
-			horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
-			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
-			scale : 0.15,
-			//imageIndex : 0,
-			image: 'img/location_marker.png',
-			color : new Cesium.Color(1.0, 1.0, 1.0, 1.0)
-		});
-		//billboard.setEditable();
-		ShowPoiInfoDialog(viewer, '添加兴趣点', 'point', event.position);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			var b = new Cesium.BillboardCollection();
+			viewer.scene.primitives.add(b);
+			g_drawhelper.addPrimitive(b);
+			var billboard = b.add({
+				show : true,
+				position : event.position,
+				pixelOffset : new Cesium.Cartesian2(0, 0),
+				eyeOffset : new Cesium.Cartesian3(0.0, 0.0, 0.0),
+				horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
+				verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+				scale : 0.15,
+				//imageIndex : 0,
+				image: 'img/location_marker.png',
+				color : new Cesium.Color(1.0, 1.0, 1.0, 1.0)
+			});
+			//billboard.setEditable();
+			ShowPoiInfoDialog(viewer, '添加兴趣点', 'point', event.position);
+		}
 	});
 	toolbar.addListener('polylineCreated', function(event) {
 		event.positions.pop();
@@ -772,7 +866,10 @@ function InitDrawHelper(viewer)
 		});
 		viewer.scene.primitives.add(polyline);
 		g_drawhelper.addPrimitive(polyline);
-		ShowPoiInfoDialog(viewer, '添加线段或道路', 'polyline', event.positions);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoDialog(viewer, '添加线段或道路', 'polyline', event.positions);
+		}
 		//polyline.setEditable();
 		//polyline.addListener('onEdited', function(event) {
 			//console.log('Polyline edited, ' + event.positions.length + ' points');
@@ -789,7 +886,10 @@ function InitDrawHelper(viewer)
 		});
 		viewer.scene.primitives.add(polygon);
 		g_drawhelper.addPrimitive(polygon);
-		ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
+		}
 		//polygon.setEditable();
 		//polygon.addListener('onEdited', function(event) {
 			//console.log('Polygon edited, ' + event.positions.length + ' points');
@@ -803,10 +903,12 @@ function InitDrawHelper(viewer)
 			radius: event.radius,
 			material: drawHelperCoverAreaMaterial
 		});
-		//console.log(circle.getGeometry());
 		viewer.scene.primitives.add(circle);
 		g_drawhelper.addPrimitive(circle);
-		ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
+		}
 		//ShowPoiInfoDialog(viewer, '添加圆形区域', 'circle', null, null);
 		//circle.setEditable();
 		//circle.addListener('onEdited', function(event) {
@@ -822,21 +924,24 @@ function InitDrawHelper(viewer)
 		});
 		viewer.scene.primitives.add(extentPrimitive);
 		g_drawhelper.addPrimitive(extentPrimitive);
-		var positions = [];
-		//console.log(extent);
-		var carto = Cesium.Cartographic.fromRadians(extent.west, extent.north, 0);
-		var cart3 = ellipsoid.cartographicToCartesian(carto);
-		positions.push(cart3);
-		carto = Cesium.Cartographic.fromRadians(extent.east, extent.north, 0);
-		cart3 = ellipsoid.cartographicToCartesian(carto);
-		positions.push(cart3);
-		carto = Cesium.Cartographic.fromRadians(extent.east, extent.south, 0);
-		cart3 = ellipsoid.cartographicToCartesian(carto);
-		positions.push(cart3);
-		carto = Cesium.Cartographic.fromRadians(extent.west, extent.south, 0);
-		cart3 = ellipsoid.cartographicToCartesian(carto);
-		positions.push(cart3);
-		ShowPoiInfoDialog(viewer, '添加矩形区域', 'polygon', positions);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			var positions = [];
+			//console.log(extent);
+			var carto = Cesium.Cartographic.fromRadians(extent.west, extent.north, 0);
+			var cart3 = ellipsoid.cartographicToCartesian(carto);
+			positions.push(cart3);
+			carto = Cesium.Cartographic.fromRadians(extent.east, extent.north, 0);
+			cart3 = ellipsoid.cartographicToCartesian(carto);
+			positions.push(cart3);
+			carto = Cesium.Cartographic.fromRadians(extent.east, extent.south, 0);
+			cart3 = ellipsoid.cartographicToCartesian(carto);
+			positions.push(cart3);
+			carto = Cesium.Cartographic.fromRadians(extent.west, extent.south, 0);
+			cart3 = ellipsoid.cartographicToCartesian(carto);
+			positions.push(cart3);
+			ShowPoiInfoDialog(viewer, '添加矩形区域', 'polygon', positions);
+		}
 		//extentPrimitive.setEditable();
 		//extentPrimitive.addListener('onEdited', function(event) {
 			//console.log('Extent edited: extent is (N: ' + event.extent.north.toFixed(3) + ', E: ' + event.extent.east.toFixed(3) + ', S: ' + event.extent.south.toFixed(3) + ', W: ' + event.extent.west.toFixed(3) + ')');
@@ -2926,160 +3031,8 @@ function TowerInfoMixin(viewer)
 	}
 	
 	function pickAndSelectObject(e) {
-		var clearselcolor = function(){
-			if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_primitive_material_unselect)
-			{
-				g_prev_selected_obj.primitive.material = g_primitive_material_unselect;
-			}
-			if(g_prev_selected_obj && g_prev_selected_obj.polyline && g_polyline_material_unselect)
-			{
-				g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
-			}
-			if(g_prev_selected_obj && g_prev_selected_obj.polygon && g_polygon_material_unselect)
-			{
-				g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
-			}
-		};
-		$('#lnglat_indicator').html('位置:' + PickLngLatFromScreen(viewer, e.position));
-				
-		clearselcolor();
 		viewer.selectedEntity = pickTrackedEntity(e);
-		
-		$('#btn_edge_save').attr('disabled','disabled');
-		if (Cesium.defined(viewer.selectedEntity)) 
-		{
-			g_prev_selected_obj = g_selected_obj;
-			g_selected_obj = viewer.selectedEntity;
-			var id = g_selected_obj.id;
-			if (id && id.properties && id.properties.webgis_type === 'edge_dn')
-			{
-				clearselcolor();
-				g_primitive_material_unselect =  g_selected_obj.primitive.material;
-				if(g_primitive_material_unselect)
-				{
-					g_selected_obj.primitive.material = 
-					//Cesium.Material.fromType('PolylineOutline',{
-						//color:	g_primitive_material_unselect.uniforms.color,
-						//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
-						//outlineWidth: 1.0
-					//});
-					//Cesium.Material.fromType('Color', {
-						//color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
-					//});
-					Cesium.Material.fromType('PolylineArrow', {
-						color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
-					});
-					
-					
-				}
-			}
-			else if (g_selected_obj.polyline)
-			{
-				if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
-				{
-					clearselcolor();
-					console.log('selected polyline id=' + id);
-					g_polyline_material_unselect = g_selected_obj.polyline.material;
-					g_selected_obj.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 255, 1.0)'));
-				}
-			}
-			else if (g_selected_obj.polygon)
-			{
-				if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
-				{
-					clearselcolor();
-					console.log('selected polygon id=' + id);
-					g_polygon_material_unselect = g_selected_obj.polygon.material;
-					g_selected_obj.polygon.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.3)'));
-				}
-			}
-			else if (g_selected_obj.point)
-			{
-				clearselcolor();
-				//console.log('selected marker id=' + id);
-				if(g_prev_selected_obj && g_prev_selected_obj.id)
-				{
-					//console.log('prev selected id=' + g_prev_selected_obj.id);
-				}
-				if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1 && g_czmls[id]['webgis_type'] != 'point_tower')
-				{
-					ShowPoiInfoDialog(viewer, '编辑', 'point', [], id);
-				}
-				if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1)
-				{
-					var webgis_type_title = '';
-					if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type_title = '杆塔';
-					if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type_title = '配电网';
-					//if(!g_node_connect_mode)
-					//{
-						//$.jGrowl("按CTRL键切换连接模式开关,选择下一个" + webgis_type_title + "节点,将依次连接这两个节点", { 
-							//life: 2000,
-							//position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-							//theme: 'bubblestylesuccess',
-							//glue:'before'
-						//});
-					//}
-				}
-				if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
-				{
-					if(g_prev_selected_obj && g_prev_selected_obj.id)
-					{
-						if(CheckTowerInfoModified())
-						{
-							
-							ShowConfirm(null,500, 200,
-								'保存确认',
-								'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
-								function(){
-									SaveTower(viewer);
-									ShowTowerInfo(viewer, id);
-								},
-								function(){
-									ShowTowerInfo(viewer, id);
-								}
-							);
-							
-						}else{
-							ShowTowerInfo(viewer, id);
-						}
-					}
-					else{
-						ShowTowerInfo(viewer, id);
-					}
-				}
-				if(g_czmls[id]  && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === g_czmls[id]['webgis_type'])
-				{
-					if(g_node_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
-					{
-						var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
-						if(ring)
-						{
-							$.jGrowl("不能形成环路",{
-								life: 2000,
-								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-								theme: 'bubblestylefail',
-								glue:'before'
-							});
-							
-						}else
-						{
-							$('#btn_edge_save').removeAttr('disabled');
-							$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
-							var webgis_type;
-							if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
-							if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
-							DrawEdgeBetweenTwoNode(viewer, webgis_type, g_prev_selected_obj.id, id, true);
-						}
-					}
-				}
-			}
-		}
-		else{
-			clearselcolor();
-			ShowGeoTip(false);
-			g_prev_selected_obj = g_selected_obj;			
-			g_selected_obj = undefined;
-		}
+		OnSelect(viewer, e);
 	}
 
 	//event after terrain change
@@ -4312,7 +4265,12 @@ function DrawSegmentsByTower(viewer, tower)
 
 function CheckTowerInfoModified()
 {
-	var id = $('#form_tower_info_base').webgisform('get','id').val();
+	var idobj = $('#form_tower_info_base').webgisform('get','id');
+	if(idobj === undefined)
+	{
+		return false;
+	}
+	var id = idobj.val();
 	var tower = GetTowerInfoByTowerId(id);
 	if(tower)
 	{
@@ -4481,7 +4439,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 		if(data1.length==0)
 		{
 			var s = '';
-			s += '<div style="text-align: center;vertical-align: middle;line-height: 300px;">';
+			s += '<div style="text-align: center;vertical-align: middle;line-height: 400px;">';
 			s += '	无照片';
 			s += '</div>';
 			$('#' + container_id).html(s);
@@ -4951,7 +4909,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			'vertical_span':tower['properties']['vertical_span'],
 			'project':GetProjectListByTowerId(tower['_id'])
 		};
-		console.log(data);
+		//console.log(data);
 		$('#form_tower_info_base').webgisform('setdata', data);
 	}
 	if(tower)
@@ -5101,6 +5059,7 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 	{
 		ShowProgressBar(false);
 		$('#' + div_id).html('请先保存，再上传图片');
+		//$('#' + div_id).css('border', '1px red solid').css('height', height + 'px');
 		return;
 	}
 	$('#' + div_id).css('width', width + 'px').css('height', height + 'px');
@@ -5487,9 +5446,6 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 
 }
 
-function ShowLineDialog(viewer)
-{
-}
 
 function ShowDNAddDialog(viewer)
 {
@@ -6286,3 +6242,328 @@ function CreateProjectSelectOption()
 	return ret;
 }
 
+function OnSelect(viewer, e)
+{
+	var clearselcolor = function(){
+		if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_primitive_material_unselect)
+		{
+			g_prev_selected_obj.primitive.material = g_primitive_material_unselect;
+		}
+		if(g_prev_selected_obj && g_prev_selected_obj.polyline && g_polyline_material_unselect)
+		{
+			g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
+		}
+		if(g_prev_selected_obj && g_prev_selected_obj.polygon && g_polygon_material_unselect)
+		{
+			g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
+		}
+	};
+	clearselcolor();
+	$('#lnglat_indicator').html('位置:' + PickLngLatFromScreen(viewer, e.position));
+			
+	
+	$('#btn_edge_save').attr('disabled','disabled');
+	if (Cesium.defined(viewer.selectedEntity)) 
+	{
+		g_prev_selected_obj = g_selected_obj;
+		g_selected_obj = viewer.selectedEntity;
+		var id = g_selected_obj.id;
+		if (id && id.properties && id.properties.webgis_type === 'edge_dn')
+		{
+			clearselcolor();
+			g_primitive_material_unselect =  g_selected_obj.primitive.material;
+			if(g_primitive_material_unselect)
+			{
+				g_selected_obj.primitive.material = 
+				//Cesium.Material.fromType('PolylineOutline',{
+					//color:	g_primitive_material_unselect.uniforms.color,
+					//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
+					//outlineWidth: 1.0
+				//});
+				//Cesium.Material.fromType('Color', {
+					//color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
+				//});
+				Cesium.Material.fromType('PolylineArrow', {
+					color : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)')
+				});
+			}
+		}
+		else if (g_selected_obj.polyline)
+		{
+			if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
+			{
+				clearselcolor();
+				console.log('selected polyline id=' + id);
+				g_polyline_material_unselect = g_selected_obj.polyline.material;
+				g_selected_obj.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 255, 1.0)'));
+				if(g_czmls[id] &&  g_czmls[id]['webgis_type'] == 'polyline_line')
+				{
+					ShowLineDialog(viewer, id);
+				}
+			}
+		}
+		else if (g_selected_obj.polygon)
+		{
+			if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
+			{
+				clearselcolor();
+				console.log('selected polygon id=' + id);
+				g_polygon_material_unselect = g_selected_obj.polygon.material;
+				g_selected_obj.polygon.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.3)'));
+			}
+		}
+		else if (g_selected_obj.point)
+		{
+			clearselcolor();
+			//console.log('selected marker id=' + id);
+			if(g_prev_selected_obj && g_prev_selected_obj.id)
+			{
+				//console.log('prev selected id=' + g_prev_selected_obj.id);
+			}
+			if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1 && g_czmls[id]['webgis_type'] == 'point_tower')
+			{
+				try{
+					//$('#dlg_tower_info').dialog("close");
+					$('#dlg_poi_info').dialog("close");
+				}catch(e)
+				{
+				}
+			}
+			if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1 && g_czmls[id]['webgis_type'] != 'point_tower')
+			{
+				try{
+					$('#dlg_tower_info').dialog("close");
+				}catch(e)
+				{
+				}
+				ShowPoiInfoDialog(viewer, '编辑', 'point', [], id);
+			}
+			if(g_czmls[id] && g_czmls[id]['webgis_type'].indexOf('point_')>-1)
+			{
+				var webgis_type_title = '';
+				if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type_title = '杆塔';
+				if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type_title = '配电网';
+				//if(!g_node_connect_mode)
+				//{
+					//$.jGrowl("按CTRL键切换连接模式开关,选择下一个" + webgis_type_title + "节点,将依次连接这两个节点", { 
+						//life: 2000,
+						//position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+						//theme: 'bubblestylesuccess',
+						//glue:'before'
+					//});
+				//}
+			}
+			if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
+			{
+				if(g_prev_selected_obj && g_prev_selected_obj.id)
+				{
+					if(CheckTowerInfoModified())
+					{
+						
+						ShowConfirm(null,500, 200,
+							'保存确认',
+							'检测到数据被修改，确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+							function(){
+								SaveTower(viewer);
+								ShowTowerInfo(viewer, id);
+							},
+							function(){
+								ShowTowerInfo(viewer, id);
+							}
+						);
+						
+					}else{
+						ShowTowerInfo(viewer, id);
+					}
+				}
+				else{
+					ShowTowerInfo(viewer, id);
+				}
+			}
+			if(g_czmls[id]  && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === g_czmls[id]['webgis_type'])
+			{
+				if(g_node_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
+				{
+					var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
+					if(ring)
+					{
+						$.jGrowl("不能形成环路",{
+							life: 2000,
+							position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+							theme: 'bubblestylefail',
+							glue:'before'
+						});
+						
+					}else
+					{
+						$('#btn_edge_save').removeAttr('disabled');
+						$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
+						var webgis_type;
+						if(g_czmls[id]['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
+						if(g_czmls[id]['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
+						DrawEdgeBetweenTwoNode(viewer, webgis_type, g_prev_selected_obj.id, id, true);
+					}
+				}
+			}
+		}
+	}
+	else{
+		clearselcolor();
+		ShowGeoTip(false);
+		g_prev_selected_obj = g_selected_obj;			
+		g_selected_obj = undefined;
+	}
+
+}
+
+function ShowLineDialog(viewer, id)
+{
+    $('#dlg_line_info').dialog({
+        width: 540,
+        height: 700,
+        minWidth:200,
+        minHeight: 200,
+        draggable: true,
+        resizable: true, 
+        modal: false,
+        position:{at: "right center"},
+        title:'输电线路工程信息',
+        close:function(event, ui){
+		},
+        show: {
+            effect: "slide",
+            direction: "right",
+            duration: 400
+        },
+        hide: {
+            effect: "slide",
+            direction: "right",
+            duration: 400
+        },
+        buttons: [
+			{
+			    text: "保存",
+			    click: function () {
+			        if ($('#form_line_info').valid()) {
+			            var that = this;
+			            ShowConfirm(null, 500, 200,
+							'保存确认',
+							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+							function () {
+							},
+							function () {
+							    $(that).dialog("close");
+							}
+						);
+			        }
+			    }
+			},
+			{
+			    text: "关闭",
+			    click: function () {
+			        $(this).dialog("close");
+			    }
+			}
+        ]
+    });
+	var i;
+    var list = ['08', '09', '10', '11', '12', '13', '15'];
+    var voltagelist = [];
+    for (i = 0; i < list.length; i++)
+    {
+        for (var key in g_codes['voltage_level']) {
+            if (key == list[i]) 
+			{
+                voltagelist.push({ value: key, label: g_codes['voltage_level'][key] });
+            }
+        }
+    }
+    list = ['F000', 'A313'];
+	var equipment_class = [];
+    for (i = 0; i < list.length; i++)
+    {
+		for (var key in g_codes['equipment_class']) 
+		{
+            if (key == list[i]) 
+			{
+				equipment_class.push({ value: key, label: g_codes['equipment_class'][key] });
+			}
+		}
+	}
+    list = ['C', 'B', 'D', 'F', 'Q', 'P', 'S'];
+	var object_class = []
+    for (i = 0; i < list.length; i++)
+    {
+		for (var key in g_codes['object_class']) 
+		{
+            if (key == list[i]) 
+			{
+				object_class.push({ value: key, label: g_codes['object_class'][key] });
+			}
+		}
+	}
+	var line_status = [
+		{ value: '00', label: '测试' },
+		{ value: '20', label: '试运行' },
+		{ value: '21', label: '运行' },
+		{ value: '40', label: '检修' },
+		{ value: '60', label: '故障' },
+		{ value: '90', label: '停运' }
+	];
+    
+    var flds = [
+		{ display: "线路名称", id: "name", newline: true, type: "text", group: '信息', width: 250, labelwidth: 120, validate: { required: true, minlength: 1 } },
+        { display: "管辖长度(km)", id: "manage_length", newline: true, type: "spinner", max: 1000, min: 0, step: 0.1, defaultvalue: 0, group: '信息', width: 200, labelwidth: 140, validate: { number: true,  range: [0, 1000] } },
+
+        { display: "电压等级", id: "voltage", newline: true, type: "select", editor: { data: voltagelist }, defaultvalue: '13', group: '南网分类标准', width: 200, labelwidth: 140},
+        { display: "设备类别", id: "category", newline: true, type: "select", defaultvalue: 'F000', editor: { data: equipment_class }, group: '南网分类标准', width: 200, labelwidth: 140},
+        { display: "对象类别", id: "object_class", newline: true, type: "select", defaultvalue: 'S', editor: { data: object_class }, group: '南网分类标准', width: 200, labelwidth: 140},
+
+        
+        { display: "线路代码", id: "line_code", hide:true, newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "线路起点", id: "start_point", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 }, 
+        { display: "线路终点", id: "end_point", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "设计单位", id: "designer", newline: true, type: "text",  group: '建设', width: 250, labelwidth: 120 },
+        { display: "监理单位", id: "supervisor", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "运行单位", id: "operator", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "所属单位", id: "owner", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "运维单位", id: "maintenace", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "建设单位", id: "investor", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        { display: "施工单位", id: "constructor", newline: true, type: "text", group: '建设', width: 250, labelwidth: 120 },
+        
+        { display: "维护人", id: "responsible", hide:true, newline: true, type: "text", group: '运维', width: 250, labelwidth: 120 },
+        { display: "维护班组", id: "team", newline: true, type: "text", group: '运维', width: 250, labelwidth: 120 },
+        { display: "线路状态", id: "status", newline: true, type: "select", defaultvalue: '00', editor: { data: line_status }, group: '运维', width: 250, labelwidth: 120 },
+        
+        { display: "投产日期", id: "production_date", hide:true, newline: true, type: "date", group: '日期', width: 200, labelwidth: 120 },
+        { display: "投运日期", id: "finish_date", newline: true, type: "date", group: '日期', width: 200, labelwidth: 120 },
+        { display: "退役日期", id: "decease_date", newline: true, type: "date", group: '日期', width: 200, labelwidth: 120 }
+    ];
+    $("#form_line_info").webgisform(flds, {
+        //divorspan: "div",
+        prefix: "form_line_info_",
+        maxwidth: 420
+        //margin:10,
+        //groupmargin:10
+    });
+	if(id && g_lines[id])
+	{
+		$("#form_line_info").webgisform('setdata', g_lines[id]['properties']);
+	}
+	$('#tabs_line_info').tabs({ 
+		collapsible: false,
+		active: 0,
+		beforeActivate: function( event, ui ) {
+			var title = ui.newTab.context.innerText;
+			if(title == '基础信息')
+			{
+			}
+			if(title == '照片文档')
+			{
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
+				CreateFileBrowser('line_info_photo', 450, 450, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'lines', id);
+			}
+		}
+	});
+
+}

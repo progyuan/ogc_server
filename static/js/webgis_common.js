@@ -1,7 +1,7 @@
 //var g_host = "http://localhost:88/";
 var g_host = "";
-var g_db_name = 'kmgd';
-//var g_db_name = 'ztgd';
+//var g_db_name = 'kmgd';
+var g_db_name = 'ztgd';
 var g_progress_interval;
 var g_progress_value;
 var g_phase_color_mapping = {
@@ -627,8 +627,12 @@ function InitWebGISFormDefinition()
 		get:function(id)
 		{
 			var prefix = '';
-			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
-			var ret = this.find('#' + prefix + id);
+			var ret ;
+			if($.fn.webgisform.options[this.attr('id')] && $.fn.webgisform.options[this.attr('id')].prefix)
+			{
+				prefix = $.fn.webgisform.options[this.attr('id')].prefix;
+				ret = this.find('#' + prefix + id);
+			}
 			return ret;
 		},
 		set:function(id, value)
@@ -994,4 +998,14 @@ function PickLngLatFromScreen(viewer, screen_position)
 	return s;
 }
 
+function ToWebMercator(cartographic)
+{
+    if (Math.abs(cartographic.longitude) > 180 * 0.017453292519943295 || Math.abs(cartographic.latitude) > 90 * 0.017453292519943295)
+	{
+        return [0.0, 0.0];
+	}
+    var x = 6378137.0 * cartographic.longitude;
+    var y = 3189068.5 * Math.log((1.0 + Math.sin(cartographic.latitude)) / (1.0 - Math.sin(cartographic.latitude)));
+    return [x, y];
+}
 

@@ -8768,7 +8768,10 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
         response = g.value
         if response and response.status_code == 200:
             ret = response.read()
-            gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+            if len(ret) > 1034:
+                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+            else:
+                ret = None
     except:
         pass
     return mimetype, ret
@@ -8899,6 +8902,7 @@ def get_line_geojson(db_name, line):
         tids = line['properties']['towers']
         towers_order_list = get_orderlist_by_edges(db_name, 'edge_tower', 'point_tower', tids)
         towers = [i['_id'] for i in towers_order_list]
+        #print(len(towers_order_list))
         obj = {}
         obj['_id'] = line['_id']
         obj['geometry'] = {'type':'LineString', 'coordinates':[]}
@@ -8912,42 +8916,42 @@ def get_line_geojson(db_name, line):
     return ret
             
 def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_list=[]):
-    def get_prev(id, alist):
+    def get_prev(id, edgelist, nodeidlist):
         ret = None
-        for i in alist:
-            if i['properties']['end'] == id:
+        for i in edgelist:
+            if i['properties']['end'] == id  and i['properties']['start'] in nodeidlist:
                 ret = i['properties']['start']
                 break
         return ret
-    def get_next(id, alist):
+    def get_next(id, edgelist, nodeidlist):
         ret = None
-        for i in alist:
-            if i['properties']['start'] == id:
+        for i in edgelist:
+            if i['properties']['start'] == id and i['properties']['end'] in nodeidlist:
                 ret = i['properties']['end']
                 break
         return ret
     
-    def get_start(id, alist):
-        start = get_prev(id, alist)
+    def get_start(id, edgelist, nodeidlist):
+        start = get_prev(id, edgelist, nodeidlist)
         startold = None
         while start:
             startold = start
-            start = get_prev(start, alist)
+            start = get_prev(start, edgelist, nodeidlist)
         return startold
     
-    def get_end(id, alist):
-        end = get_next(id, alist)
+    def get_end(id, edgelist, nodeidlist):
+        end = get_next(id, edgelist, nodeidlist)
         endold = None
         while end:
             endold = end
-            end = get_next(end, alist)
+            end = get_next(end, edgelist, nodeidlist)
         return endold
     
-    def get_path(endid, alist):
+    def get_path(endid, edgelist, nodeidlist):
         ret = []
         while endid:
             ret.append(endid)
-            endid = get_prev(endid, alist)
+            endid = get_prev(endid, edgelist, nodeidlist)
         ret.reverse()
         return ret
     
@@ -8971,15 +8975,19 @@ def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_
     if len(node_id_list)>0:
         cond['_id'] = node_id_list
     nodes = mongo_find(db_name, 'features', cond)
-    #print(nodes)
+    
     ret = []
+    nodeidlist = [str(i) for i in node_id_list]
     if len(edges)>0 and len(nodes)>0:
         node0 = nodes[0]
-        end = get_end(node0['_id'], edges)
+        end = get_end(node0['_id'], edges, nodeidlist)
         if end is None:
-            end = edge['properties']['end']
-        path = get_path(end,  edges)
-        #print(path)
+            end = node0['_id']
+        path = get_path(end,  edges, nodeidlist)
+        #if len(path)>0:
+            #pathidlist = [str(i) for i in path]
+            #cond['_id'] = pathidlist
+        #nodes.extend(mongo_find(db_name, 'features', cond))
         for i in path:
             node = get_node(i, nodes)
             if node:
@@ -9142,11 +9150,13 @@ def remove_blank_tiles(tiletype, subtype, dbname, collection):
     db = gClientMongoTiles[tiletype][subtype][dbname]
     fs = gridfs.GridFS(db, collection=collection)
     for i in fs.find():
-        if i.filename[:3] in ['17/','18/', '19/', '20/']:
+        #if i.filename[:3] in ['17/','18/', '19/', '20/']:
+        #if i.filename[:3] in ['19/', '20/']:
+        if i.filename[:3] in ['13/', '14/', '15/', '16/']:
             s = i.read()
-            if len(s) < 2048:
+            if len(s) < 1034:
                 print(i.filename)
-                #fs.delete(i._id)
+                fs.delete(i._id)
                 #with open(ur'd:\tmp\%s' % i.filename.replace('/', '_'), 'wb') as f:
                     #f.write(s)
             #break
@@ -9199,7 +9209,7 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     db_name, area = 'kmgd', 'km'
-    #db_name, area = 'ztgd', 'zt'
+    db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)

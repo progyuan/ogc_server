@@ -55,6 +55,7 @@
 	<!--<script type="text/javascript" src="js/webgis.js"></script>-->
 	<script type="text/javascript" src="js/spectrum.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
+    <script type="text/javascript" src="js/polyk.js"></script>
     <script type="text/javascript" src="js/webgis_common.js"></script>
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
@@ -178,6 +179,19 @@
 	<form id="form_dn_create"></form>
 </div>
 
+<div id="dlg_line_info" >
+	<div id="tabs_line_info" >
+		<ul>
+			<li><a href="#line_info_base">基础信息</a></li>
+			<li><a href="#line_info_photo">照片文档</a></li>
+		</ul>
+		<div id="line_info_base">
+			<form id="form_line_info"></form>
+		</div>
+		<div id="line_info_photo" >
+		</div>
+	</div>
+</div>
 
 <div id="dlg_buffer_analyze" >
 	<span>
@@ -196,10 +210,10 @@
 		</ul>
 		<div id="poi_info_base">
 			<div id="div_select_poi_type"></div>
-			<fieldset   style="color:#00FF00;border:1px solid #00FF00;margin:0px;"><legend style="font-weight:bolder;color:#00FF00;">类型</legend>
-				<span style="margin:20px;">
-					<label for="select_poi_type" style="display:inline-block;text-align:right;width:100px;">兴趣点类型:</label>
-					<select style="width:200px;" id="select_poi_type" name="select_poi_type"></select>
+			<fieldset id="fieldset_select_poi_type" ><legend >类型</legend>
+				<span >
+					<label for="select_poi_type" >兴趣点类型:</label>
+					<select id="select_poi_type" name="select_poi_type"></select>
 				</span>
 			</fieldset>
 			<div>
@@ -249,13 +263,11 @@
 		</div>
 		<div id="tower_info_model">
 			<div style='opacity:1.0;'>
-				
 				<div id="tower_info_model_list" >
 					<div style="height:16px"></div>
 					<div ><input id='tower_info_model_list_filter' type='text' ></div>
 					<div id="div_tower_info_model_list_selectable">
 						<ol id="tower_info_model_list_selectable" >
-							<!--<li class="ui-widget-content">Item 1</li>-->
 						</ol>					
 					</div>
 				</div>
@@ -263,13 +275,13 @@
 					<div id="tower_info_model_list_toggle" ><a href='#'></a></div>
 					<div id="tower_info_title_model_code" ></div>
 				</div>
-				<iframe style='border:solid 1px #00FF00; width:79%;height:470px;' src=''>正在加载模型...</iframe>
+				<iframe  src=''>正在加载模型...</iframe>
 			</div>
 		</div>
 		<div id="tower_info_segment">
 			<div style='opacity:1.0;'>
-				<iframe style='border:solid 1px #00FF00; width:100%;height:500px;' src=''>正在加载模型...</iframe>
-				<div id="tower_info_segment_blank" style='width:100%;height:450px;'></div>
+				<iframe src=''>正在加载模型...</iframe>
+				<div id="tower_info_segment_blank" ></div>
 			</div>
 			
 		</div>
@@ -362,26 +374,15 @@
 </script>
 
 <script type="text/javascript" src="js/jquery/tmpl.min.js"></script>
-<!-- The Load Image plugin is included for the preview images and image resizing functionality -->
 <script type="text/javascript" src="js/jquery/load-image.min.js"></script>
-<!-- The Canvas to Blob plugin is included for image resizing functionality -->
 <script type="text/javascript" src="js/jquery/canvas-to-blob.min.js"></script>
-<!-- blueimp Gallery script -->
-<!--<script src="js/jquery/jquery.blueimp-gallery.min.js"></script>-->
 <script type="text/javascript" src="js/jquery/jquery.fileupload.js"></script>
-<!-- The File Upload processing plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-process.js"></script>
-<!-- The File Upload image preview & resize plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-image.js"></script>
-<!-- The File Upload audio preview plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-audio.js"></script>
-<!-- The File Upload video preview plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-video.js"></script>
-<!-- The File Upload validation plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-validate.js"></script>
-<!-- The File Upload user interface plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-ui.js"></script>
-<!-- The File Upload jQuery UI plugin -->
 <script type="text/javascript" src="js/jquery/jquery.fileupload-jquery-ui.js"></script>
 <script type="text/javascript" src="js/webgis_index.js"></script>
 
