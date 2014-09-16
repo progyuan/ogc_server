@@ -6971,6 +6971,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
     global gClientMongo, gConfig, gFeatureslist
     ret = []
     try:
+        piny = get_pinyin_data()
         mongo_init_client(clienttype)
         if dbname in gClientMongo[clienttype].database_names():      
             db = gClientMongo[clienttype][dbname]
@@ -7027,13 +7028,30 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             ret.append({'result':u'保存失败:存在回路'});
                         else:
                             project = None
+                            if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'polyline_line':
+                                data['properties']['py'] = piny.hanzi2pinyin_first_letter(data['properties']['name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'point_tower':
                                 if data['properties'].has_key('project'):
                                     project = data['properties']['project']
                                     del data['properties']['project']
+                                if data['properties'].has_key('model'):
+                                    models = mongo_find(dbname, 'models')
+                                    findmodel = False
+                                    for model in models:
+                                        if model['model_code'] == data['properties']['model']['model_code'] and model['model_code_height'] == data['properties']['model']['model_code_height']:
+                                            findmodel = True
+                                            break
+                                    if not findmodel:
+                                        modeldata = {}
+                                        modeldata['model_code'] = data['properties']['model']['model_code']
+                                        modeldata['model_code_height'] = data['properties']['model']['model_code_height']
+                                        modeldata['contact_points'] = []
+                                        mongo_action(dbname, 'models',action='save', data=modeldata)
                             _id = db[collection_name].save(data)
                             #print(_id)
                             if _id is not None and project is not None:
+                                if isinstance(project, ObjectId):
+                                    project = [project, ]
                                 mongo_update_line_towers(dbname, _id, project)
                             if _id:
                                 ids.append(str(_id))

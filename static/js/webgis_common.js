@@ -413,9 +413,12 @@ function InitWebGISFormDefinition()
 			}
 			if(hide)
 			{
-				this.append('<' + divorspan + ' id="' + prefix + '_more_info" style="float:right">更多信息&gt;&gt;</' + divorspan + '>');
+				this.append('<' + divorspan + ' id="' + prefix + '_more_info" style="float:right"><a href="#">更多信息&gt;&gt;</a></' + divorspan + '>');
 				$('#' + prefix + '_more_info').off();
-				$('#' + prefix + '_more_info').on('click', function(){
+				//$('#' + prefix + '_more_info').hover( function(){
+					//$(this).css('cursor', 'hand');
+				//});
+				$('#' + prefix + '_more_info').find('a').on('click', function(){
 					for(var i in hideparentlist)
 					{
 						var group = hideparentlist[i];
@@ -1007,5 +1010,22 @@ function ToWebMercator(cartographic)
     var x = 6378137.0 * cartographic.longitude;
     var y = 3189068.5 * Math.log((1.0 + Math.sin(cartographic.latitude)) / (1.0 - Math.sin(cartographic.latitude)));
     return [x, y];
+}
+
+
+function GetDenomiHeightByModelCode(model_code_height)
+{
+	var ret;
+	if(model_code_height && model_code_height.length>0)
+	{
+		var idx = model_code_height.lastIndexOf("_");
+		var num1 = model_code_height.substr(idx+1);
+		var rest = model_code_height.slice(0, idx);
+		idx = rest.lastIndexOf("_");
+		var num2 = rest.substr(idx+1);
+		var h = num2 + '.' + num1;
+		ret = parseFloat(h);
+	}
+	return ret;
 }
 

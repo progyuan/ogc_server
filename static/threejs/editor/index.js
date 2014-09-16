@@ -121,7 +121,8 @@ $(function() {
 			}else
 			{
 				$('#div_contact_point_coords').css('display','none');
-				$('#button_add_cp').css('display','block');
+				$('#button_cp_add').css('display','block');
+				$('#button_cp_save').css('display','block');
 				$('#button_cp_side').css('display','block');
 			}
 		}
@@ -372,15 +373,24 @@ $(function() {
 	$('#div_contact_point_coords').css('display','none');
 	if(g_mode == 'tower')
 	{
-		$('#button_add_cp').css('display','block');
+		$('#button_cp_add').css('display','block');
+		$('#button_cp_save').css('display','block');
 		$('#button_cp_side').css('display','block');
-		$('#button_add_cp').button();
-		$('#button_add_cp').on('click', function() {
-			AddContactPoint();
+		
+		$('#button_cp_add').button();
+		$('#button_cp_add').on('click', function() {
+			AddContactPoint(editor, param['tower_id'], param['data']);
 		});
-		$('#button_del_cp').button();
-		$('#button_del_cp').on('click', function() {
-			DelContactPoint();
+		
+		$('#button_cp_save').button();
+		$('#button_cp_save').on('click', function() {
+			SaveContactPoint(editor, param['tower_id'], param['data']);
+		});
+		
+		
+		$('#button_cp_del').button();
+		$('#button_cp_del').on('click', function() {
+			DelContactPoint(editor, param['tower_id'], param['data']);
 		});
 		$('#button_cp_side').buttonset();
 		
@@ -620,13 +630,26 @@ function GetObjectPos()
 	return ret;
 }
 
-function AddContactPoint()
+function SaveContactPoint(editor, tower_id, data)
 {
-	var obj = $("#button_cp_side :radio:checked").attr('id');
-	console.log(obj);
+
 }
 
-function DelContactPoint()
+function AddContactPoint(editor, tower_id, data)
+{
+	if(data === undefined || data === null)
+	{
+		return;
+	}
+	var obj = $("#button_cp_side :radio:checked").attr('id');
+	//console.log(tower_id);
+	//console.log(obj);
+	//console.log(data);
+	
+	LoadContactPoint(editor, tower_id, data, offset);
+}
+
+function DelContactPoint(editor, tower_id, data)
 {
 	var obj = g_editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')

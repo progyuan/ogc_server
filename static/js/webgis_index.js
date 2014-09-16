@@ -123,9 +123,52 @@ $(function() {
 		//emptyIcon: false,
 		//hasSearch: false
 	//});
-
+	//CreateHeatMap(viewer, testdata());
 });
 
+function testdata()
+{
+	return [
+	//{center: Cesium.Cartographic.fromDegrees(103.8150636, 27.4266803, 0), radius:300, intensity:0.1},
+	{center: Cesium.Cartographic.fromDegrees(103.6817307, 27.3199641, 0), radius:10, intensity:0.9},
+	{center: Cesium.Cartographic.fromDegrees(100.8421016, 26.2604936, 0), radius:20, intensity:0.7},
+	{center: Cesium.Cartographic.fromDegrees(101.7749685, 25.1891655, 0), radius:10, intensity:0.6},
+	{center: Cesium.Cartographic.fromDegrees(100.9889367, 27.3657041, 0), radius:9, intensity:0.9}
+	];
+}
+function GetHeatMapLayer(viewer)
+{
+	var ret, i;
+	for(i=0; i < viewer.scene.imageryLayers.length; i++)
+	{
+		var lyr = viewer.scene.imageryLayers.get(i);
+		if(lyr.name === 'heatmap')
+		{
+			ret = lyr;
+		}
+	}
+	return ret;
+}
+function CreateHeatMap(viewer, data)
+{
+	var i;
+	var lyr = GetHeatMapLayer(viewer);
+	if(lyr)
+	{
+		viewer.scene.imageryLayers.remove(lyr, true);
+	}
+	if(data)
+	{
+		var ellipsoid = viewer.scene.globe.ellipsoid;
+		var hm = new HeatMapImageryProvider({
+		});
+		var layer = viewer.scene.imageryLayers.addImageryProvider(hm);
+		layer.alpha = $('#slider_heatmap_alpha').slider('value');
+		layer.show = true;
+		layer.name = 'heatmap';
+		hm.drawHeatMap(ellipsoid, data);
+	}
+}
 
 function LoadAllDNEdge(viewer, db_name, callback)
 {
@@ -427,13 +470,13 @@ function InitKeyboardEvent(viewer)
 		}
 	};
 	$(document).on('keyup', function(e){
-		if(e.keyCode == 17)//ctrl
+		if(e.keyCode == 76)//ctrl(17) L(76)
 		{
 			g_node_connect_mode = !g_node_connect_mode;
 			if(g_node_connect_mode)
 			{
 				//$(".jGrowl-notification:last-child").remove();
-				$.jGrowl('<div>连接模式开启(Ctrl键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
+				$.jGrowl('<div>连接模式开启(L键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
 					//life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -481,7 +524,7 @@ function InitKeyboardEvent(viewer)
 			{
 				//$(".jGrowl-notification:last").trigger('jGrowl.close');
 				$('.jGrowl-notification').trigger('jGrowl.close');
-				$.jGrowl("连接模式关闭(Ctrl键开启)", { 
+				$.jGrowl("连接模式关闭(L键开启)", { 
 					life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
@@ -1180,6 +1223,9 @@ function InitToolPanel(viewer)
 	$('input[id^=chb_show_label_]').iCheck({
 		checkboxClass: 'icheckbox_flat-green'
 	});
+	$('input[id^=chb_show_geometry_]').iCheck({
+		checkboxClass: 'icheckbox_flat-green'
+	});
 	$('input[id^=chb_show_icon_]').iCheck({
 		checkboxClass: 'icheckbox_flat-green'
 	});
@@ -1197,6 +1243,17 @@ function InitToolPanel(viewer)
 		}
 		ReloadCzmlDataSource(viewer, g_zaware);
 	});
+	$('input[id^=chb_show_geometry_]').on("ifChanged", function(e){
+		var webgis_type = $(this).attr('id').replace('chb_show_geometry_', '');
+		if($(this).is(':checked'))
+		{
+			console.log('turn on geometry:' + webgis_type);
+		}else
+		{
+			console.log('turn off geometry:' + webgis_type);
+		}
+		ReloadCzmlDataSource(viewer, g_zaware);
+	});
 	$('input[id^=chb_show_icon_]').on("ifChanged", function(e){
 		if($(this).is(':checked'))
 		{
@@ -1207,6 +1264,28 @@ function InitToolPanel(viewer)
 		}
 		ReloadCzmlDataSource(viewer, g_zaware);
 	});
+	
+	$('#slider_heatmap_alpha').slider({ 
+		min: 0.0,
+		max: 1.0,
+		step: 0.01,
+		range:false,
+		value:0.7,
+		change: function( event, ui ) {
+			//console.log(ui.value);
+			$('#slider_heatmap_alpha').parent().find('label').html('透明度:' + Math.floor(ui.value*100) + '%');
+			var hm = GetHeatMapLayer(viewer);
+			if(hm)
+			{
+				hm.alpha = ui.value;
+			}
+		}
+	});
+	$('#but_heatmap_clear').button({label:'清除'});
+	$('#but_heatmap_clear').on('click', function(){
+		CreateHeatMap(viewer);
+	});
+	
 	
 	$('#but_add_poi').button({label:'添加兴趣点'});
 	$('#but_add_poi').on('click', function(){
@@ -1228,10 +1307,10 @@ function InitToolPanel(viewer)
 	$('#but_line_add').on('click', function(){
 		ShowLineDialog(viewer);
 	});
-	$('#but_line_remove').button({label:'删除输电线路工程'});
-	$('#but_line_remove').on('click', function(){
+	//$('#but_line_remove').button({label:'删除输电线路工程'});
+	//$('#but_line_remove').on('click', function(){
 		
-	});
+	//});
 	
 	$('#but_dn_add').button({label:'新增配电网络'});
 	$('#but_dn_add').on('click', function(){
@@ -1646,6 +1725,10 @@ function CreatePolyLineCzmlFromGeojson(geojson)
 	var get_line_style = function(geojson){
 		var ret = {};
 		var color = '#000000';
+		if(geojson.properties.voltage == '12')
+		{
+			color = '#AAF000';
+		}
 		if(geojson.properties.voltage == '13')
 		{
 			color = '#FF0000';
@@ -1881,9 +1964,16 @@ function FilterModelList(str)
 				};
 				var arr = get_code_height(model_code_height);
 				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
-				if(g_selected_geojson && g_models_mapping[model_code_height])
+				if(g_selected_geojson )
 				{
-					g_selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
+					if(g_models_mapping[model_code_height])
+					{
+						g_selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
+					}
+					else
+					{
+						g_selected_geojson['properties']['model'] = {contact_points:[],model_code:arr[0], model_code_height:model_code_height};
+					}
 				}
 			}else
 			{
@@ -2337,6 +2427,17 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		});
 		return r;
 	};
+	
+	var get_geometry_show_opt = function(){
+		var r = {};
+		$('input[id^=chb_show_geometry_]').each(function(){
+			var t = $(this).attr('id').replace('chb_show_geometry_', '');
+			r[t] = false;
+			if($(this).is(':checked')) r[t] = true;
+		});
+		return r;
+	};
+	
 	var get_icon_show_opt = function(){
 		var r = {};
 		$('input[id^=chb_show_icon_]').each(function(){
@@ -2483,6 +2584,20 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 					obj['billboard']['show'] = {'boolean':true};
 				if(opt[kk] === false)
 					obj['billboard']['show'] = {'boolean':false};
+			}
+		}
+		opt = get_geometry_show_opt();
+		for(var kk in opt)
+		{
+			if(kk.indexOf('polyline_line')>-1 && obj['polyline'])
+			{
+				if(obj['webgis_type'] && obj['webgis_type'].indexOf('polyline_line')>-1)
+				{
+					if(opt[kk] === true)
+						obj['polyline']['show'] = {'boolean':true};
+					if(opt[kk] === false)
+						obj['polyline']['show'] = {'boolean':false};
+				}
 			}
 		}
 		arr.push(obj);
@@ -4265,6 +4380,7 @@ function DrawSegmentsByTower(viewer, tower)
 
 function CheckTowerInfoModified()
 {
+	return true;
 	var idobj = $('#form_tower_info_base').webgisform('get','id');
 	if(idobj === undefined)
 	{
@@ -4279,31 +4395,89 @@ function CheckTowerInfoModified()
 			height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
 			rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
 		var mc = $('#form_tower_info_base').webgisform('get','model_code').val();
-		if(lng != tower['geometry']['coordinates'][0] 
-		|| lat != tower['geometry']['coordinates'][1]
-		|| height != tower['geometry']['coordinates'][2]
+		if(lng != tower['geometry']['coordinates'][0].toFixed(6)
+		|| lat != tower['geometry']['coordinates'][1].toFixed(6)
+		|| height != tower['geometry']['coordinates'][2].toFixed(0)
 		|| rotate != tower['properties']['rotate']
 		|| mc != tower['properties']['model']['model_code']
 		)
 		{
 			return true;
 		}
+		
+		var ddd = $('#form_tower_info_base').webgisform('getdata');
 		for(var k in tower['properties'])
 		{
-			if($('#form_tower_info_base').webgisform('get', k).length)
-			{
-				var v = $('#form_tower_info_base').webgisform('get', k).val();
-				
-				if(v.length>0 && v != tower['properties'][k] )
-				{
-					return true;
-				}
-			}
+			//if(ddd[k])
+			//if($('#form_tower_info_base').webgisform('get', k).length)
+			//{
+				//var v = $('#form_tower_info_base').webgisform('get', k).val();
+				//if(v && tower['properties'][k] && v != tower['properties'][k] )
+				//{
+					//return true;
+				//}
+			//}
+			
 		}
 	}
 	return false;
 }
 
+
+function SaveLine(viewer, id)
+{
+	var data = {};
+	if(id)
+	{
+		data['_id'] = id;
+	}else
+	{
+		data['_id'] = null;
+	}
+	var prop = $('#form_line_info').webgisform('getdata');
+	data['properties'] = {};
+	data['properties']['webgis_type'] = 'polyline_line';
+	for(var k in prop)
+	{
+		data['properties'][k] = prop[k];
+	}
+	if(data['properties']['towers'] === undefined)
+	{
+		data['properties']['towers'] = [];
+	}
+	var cond = {'db':g_db_name, 'collection':'lines', 'action':'save', 'data':data};
+	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
+	MongoFind(cond, function(data1){
+		if(data1.length>0)
+		{
+			if(data1[0].result)
+			{
+				$.jGrowl("保存失败" + data1[0].result, { 
+					life: 2000,
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylefail',
+					glue:'before'
+				});
+				console.log(data1[0].result);
+			}
+			else
+			{
+				g_lines[data1[0]['_id']] = data1[0];
+				if(!g_geojsons[data1[0]['_id']])
+				{
+					g_geojsons[data1[0]['_id']] = {};
+				}
+				g_geojsons[data1[0]['_id']]['properties'] = data1[0]['properties'];
+				$.jGrowl("保存成功", { 
+					life: 2000,
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylesuccess',
+					glue:'before'
+				});
+			}
+		}
+	});
+}
 function SaveTower(viewer)
 {
 	if(g_selected_geojson)
@@ -4311,9 +4485,22 @@ function SaveTower(viewer)
 		var data = $('#form_tower_info_base').webgisform('getdata');
 		for(var k in data)
 		{
+			if(k === 'alt'
+			|| k === 'id'
+			|| k === 'lng'
+			|| k === 'lat'
+			|| k === 'model_code'
+			){
+				continue;
+			}
 			g_selected_geojson['properties'][k] = data[k];
 		}
+		//if(g_selected_geojson['properties']['model'])
+		//{
+			//g_selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode(g_selected_geojson['properties']['model']['model_code_height']);
+		//}
 		console.log(g_selected_geojson);
+		//if(true) return;
 		SavePoi(g_selected_geojson, function(data1){
 			//console.log(data1);
 			if(data1 && data1.length>0)
@@ -4328,17 +4515,18 @@ function SaveTower(viewer)
 				{
 					var geojson = data1[i];
 					var id = geojson['_id'];
-					if(!g_geojsons[id])
-					{
-						g_geojsons[id] = AddTerrainZOffset(geojson);
-					}
-					if(!g_czmls[id])
-					{
-						g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
-					}
+					//if(!g_geojsons[id])
+					//{
+					g_geojsons[id] = AddTerrainZOffset(geojson);
+					//}
+					//if(!g_czmls[id])
+					//{
+					g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+					//}
 					if(geojson['properties'] && geojson['properties']['model'])
 					{
 						LoadTowerModelByTower(viewer, g_geojsons[id]);
+						RemoveSegmentsTower(viewer, g_geojsons[id]);
 						DrawSegmentsByTower(viewer, g_geojsons[id]);
 					}
 				}
@@ -4824,7 +5012,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['data'] = tower['properties']['model'];
 					obj['tower_id'] = tower['_id'];
 					obj['denomi_height'] = tower['properties']['denomi_height'];
-					$('#tower_info_title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + tower['properties']['denomi_height']);
+					$('#tower_info_title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + GetDenomiHeightByModelCode(tower['properties']['model']['model_code_height']) + '米');
 				}
 				var json = encodeURIComponent(JSON.stringify(obj));
 				//console.log(json);
@@ -6357,7 +6545,8 @@ function OnSelect(viewer, e)
 			{
 				if(g_prev_selected_obj && g_prev_selected_obj.id)
 				{
-					if(CheckTowerInfoModified())
+					//if(CheckTowerInfoModified())
+					if(false)
 					{
 						
 						ShowConfirm(null,500, 200,
@@ -6450,6 +6639,7 @@ function ShowLineDialog(viewer, id)
 							'保存确认',
 							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 							function () {
+								SaveLine(viewer, id);
 							},
 							function () {
 							    $(that).dialog("close");
