@@ -1,14 +1,13 @@
 var g_camera_move_around_int;
 var g_elapsedTime = 0.0;
-var g_editor;
 var g_mode;
 var g_is_add_seg = false;
 var g_cp_pair = [];
 var g_cpdata, g_cpdata_next, g_next_ids;
-var g_contact_points;
 var g_segments = [];
 var g_segments_editting = [];
 var g_off_x = 15, g_off_z = 30;
+var g_contact_points = [];
 
 
 $(function() {
@@ -22,7 +21,6 @@ $(function() {
 		g_segments = param['segments'];
 		for(var i in g_segments)
 		{
-			//g_segments_editting = $.merge([], g_segments);
 			g_segments_editting.push( $.extend(true, {}, g_segments[i]));
 		}
 		
@@ -35,7 +33,6 @@ $(function() {
 	window.BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder;
 
 	var editor = new Editor();
-	g_editor = editor;
 	var viewport = new Viewport( editor );
 	var viewportdom = viewport.container.setId( 'viewport' );
 	document.body.appendChild( viewportdom.dom );
@@ -118,6 +115,7 @@ $(function() {
 			if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 			{
 				$('#div_contact_point_coords').css('display','block');
+				$('#button_cp_del').css('display','block');
 			}else
 			{
 				$('#div_contact_point_coords').css('display','none');
@@ -155,7 +153,7 @@ $(function() {
 									cp = {start:i1, end:i2, phase:phase};
 								var start,  end, end1, end2;
 								var offset_x = g_off_x, offset_z = g_off_z;
-								if(side1 == 1)
+								if(side1 === 1)
 								{
 									start = GetDrawInfoFromContactPoint(1, i1, g_cpdata, 0, offset_z);
 									if(g_cpdata_next.length==1)
@@ -174,7 +172,7 @@ $(function() {
 										}
 									}
 								}
-								if(side1 == 0)
+								if(side1 === 0)
 								{
 									seg = {start_tower:t2, end_tower:t1, start_side:side2, end_side:side1};
 									cp = {start:i2, end:i1, phase:phase};
@@ -204,7 +202,7 @@ $(function() {
 								AddSeg(t1, t2, side1, side2, i1, i2, phase);
 							}else
 							{
-								ShowMessage('dlg_message', 400, 150, '已存在','所连接的线段已经存在');
+								ShowMessage(null, 400, 150, '已存在','所连接的线段已经存在');
 							}
 						}
 						g_cp_pair.length = 0;
@@ -249,10 +247,10 @@ $(function() {
 			case 8: // prevent browser back 
 				event.preventDefault();
 				break;
-			case 46: // delete
-				editor.removeObject( editor.selected );
-				editor.deselect();
-				break;
+			//case 46: // delete
+				//editor.removeObject( editor.selected );
+				//editor.deselect();
+				//break;
 			case 27: // esc
 				ClearRoundCamera(viewport);
 				ClearAllLabels(editor);
@@ -306,16 +304,16 @@ $(function() {
 			g_cpdata_next = param['data_next'];
 			if(param['data_next'].length==1)
 			{
-				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [0, 0, -off_z]);
+				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0]['contact_points'], [0, 0, -off_z], param['data_next'][0]['model_code_height']);
 			}
 			if(param['data_next'].length==2)
 			{
-				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0], [-off_x, 0, -off_z]);
-				LoadContactPoint(editor, param['next_ids'][1], param['data_next'][1], [off_x, 0, -off_z]);
+				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0]['contact_points'], [-off_x, 0, -off_z], param['data_next'][0]['model_code_height']);
+				LoadContactPoint(editor, param['next_ids'][1], param['data_next'][1]['contact_points'], [off_x, 0, -off_z], param['data_next'][1]['model_code_height']);
 			}
 			if(param['data'])
 			{
-				LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, off_z]);
+				LoadContactPoint(editor, param['tower_id'], param['data']['contact_points'], [0, 0, off_z], param['data']['model_code_height']);
 			}
 			if(param['url'])
 			{
@@ -361,7 +359,7 @@ $(function() {
 		if(param['data'])
 		{
 			g_contact_points =  param['data']['contact_points'];
-			LoadContactPoint(editor, param['tower_id'], param['data'], [0, 0, 0]);
+			LoadContactPoint(editor, param['tower_id'], param['data']['contact_points'], [0, 0, 0]);
 		}
 		if(!param['url'])
 		{
@@ -384,7 +382,12 @@ $(function() {
 		
 		$('#button_cp_save').button();
 		$('#button_cp_save').on('click', function() {
-			SaveContactPoint(editor, param['tower_id'], param['data']);
+			ShowConfirm(null, 400, 200,
+				'保存', 
+				'你希望保存该杆塔的挂线点位置吗？保存将提交到服务器上以便所有人都能看到结果.', 
+				function(){
+					SaveContactPoint(editor, param['tower_id'], param['data']);
+			});
 		});
 		
 		
@@ -403,14 +406,14 @@ $(function() {
 				if(event.currentTarget)
 				{
 					pos['x'] = event.currentTarget.value;
-					SetSelectObjectPosition(pos);
+					SetSelectObjectPosition(editor, pos);
 				}
 				event.preventDefault();
 			},
 			spin:function( event, ui ) {
 				var pos = GetObjectPos();
 				pos['x'] = ui.value;
-				SetSelectObjectPosition(pos);
+				SetSelectObjectPosition(editor, pos);
 				//event.preventDefault();
 			}
 		});
@@ -423,14 +426,14 @@ $(function() {
 				if(event.currentTarget)
 				{
 					pos['y'] = event.currentTarget.value;
-					SetSelectObjectPosition(pos);
+					SetSelectObjectPosition(editor, pos);
 				}
 				event.preventDefault();
 			},
 			spin:function( event, ui ) {
 				var pos = GetObjectPos();
 				pos['y'] = ui.value;
-				SetSelectObjectPosition(pos);
+				SetSelectObjectPosition(editor, pos);
 				//event.preventDefault();
 			}
 		});
@@ -443,14 +446,14 @@ $(function() {
 				if(event.currentTarget)
 				{
 					pos['z'] = event.currentTarget.value;
-					SetSelectObjectPosition(pos);
+					SetSelectObjectPosition(editor, pos);
 				}
 				event.preventDefault();
 			},
 			spin:function( event, ui ) {
 				var pos = GetObjectPos();
 				pos['z'] = ui.value;
-				SetSelectObjectPosition(pos);
+				SetSelectObjectPosition(editor, pos);
 				//event.preventDefault();
 			}
 		});
@@ -463,7 +466,7 @@ $(function() {
 		$('#button_save_seg_form').css('display','block');
 		$('#button_del_seg').button();
 		$('#button_del_seg').on('click', function() {
-			DeleteSegment();
+			DeleteSegment(editor);
 		});
 		
 		$('#checkbox_add_segment').button();
@@ -486,14 +489,10 @@ $(function() {
 		
 		$('#button_save_seg').button();
 		$('#button_save_seg').on('click', function() {
-			SaveSegment();
+			ShowSegSave();
 		});
 		$('#button_save_seg_form').button();
 		$('#button_save_seg_form').on('click', function() {
-			//$('#dlg_seg_info').dialog("option", "show", {
-				//effect: "blind",
-				//duration: 500
-			//});
 			ShowSegDialog();
 		});
 		
@@ -511,14 +510,12 @@ function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 	{
 		var seg = g_segments_editting[i];
 		if(	(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
-		||	(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+		//||	(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
 		){
-			//console.log('before=' + seg.contact_points.length);
 			if(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
 				seg['contact_points'].push({start:index0, end:index1, phase:phase});
-			if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
-				seg['contact_points'].push({start:index1, end:index0, phase:phase});
-			//console.log('after=' + seg.contact_points.length);
+			//if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
+				//seg['contact_points'].push({start:index1, end:index0, phase:phase});
 			g_segments_editting[i] = seg;
 			break;
 		}
@@ -529,6 +526,7 @@ function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 		if(tower_id0 != tower_id1 && side0 != side1)
 		{
 			var seg = {};
+			seg['_id'] = null;
 			seg['start_tower'] = tower_id0;
 			seg['end_tower'] = tower_id1;
 			seg['start_side'] = side0;
@@ -632,8 +630,27 @@ function GetObjectPos()
 
 function SaveContactPoint(editor, tower_id, data)
 {
-
+	data['contact_points'] = g_contact_points;
+	var cond = {'db':g_db_name, 'collection':'features', 'action':'update', 'data':{'properties.model':data}, '_id':tower_id};
+	ShowProgressBar(true, 400, 200, '保存中', '正在保存数据，请稍候...');
+	MongoFind(cond, function(data1){
+		ShowProgressBar(false);
+		window.parent.IFrameUpdateTower(tower_id, data1);
+		ShowConfirm(null, 400, 200,
+			'保存模板', 
+			'你希望保存为该塔型的挂线点模板吗？保存为模板将影响所有使用该塔型的杆塔.', 
+			function(){
+				var cond = {'db':g_db_name, 'collection':'models', 'action':'update', 'data':{'contact_points':data['contact_points']}, 'model_code_height':data['model_code_height']};
+				ShowProgressBar(true, 400, 200, '保存中', '正在保存数据，请稍候...');
+				MongoFind(cond, function(data2){
+					ShowProgressBar(false);
+					window.parent.IFrameUpdateModel(tower_id, data2);
+				}, '/');
+		});
+		
+	}, '/');
 }
+
 
 function AddContactPoint(editor, tower_id, data)
 {
@@ -641,48 +658,87 @@ function AddContactPoint(editor, tower_id, data)
 	{
 		return;
 	}
-	var obj = $("#button_cp_side :radio:checked").attr('id');
-	//console.log(tower_id);
-	//console.log(obj);
-	//console.log(data);
+	var side = parseInt($("#button_cp_side :radio:checked").attr('id').replace('side', ''));
+	var side0_index = 0, side1_index = 0;
+	for(var i in g_contact_points)
+	{
+		var cp = g_contact_points[i];
+		if(cp.side === 0)
+		{
+			side0_index += 1;
+		}
+		if(cp.side === 1)
+		{
+			side1_index += 1;
+		}
+	}
 	
-	LoadContactPoint(editor, tower_id, data, offset);
+	var contact_index = side0_index;
+	if(side === 1) contact_index = side1_index;
+	
+	g_contact_points.push({
+		side:side,
+		contact_index:contact_index,
+		position:'',
+		x:0, 
+		y:30,
+		z:0
+	});
+	var last = g_contact_points.slice(-1);
+	LoadContactPoint(editor, tower_id, last, [0,0,0]);
 }
 
 function DelContactPoint(editor, tower_id, data)
 {
-	var obj = g_editor.selected;
+	var obj = editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 	{
-		ShowConfirm('dlg_confirm', 400, 200,
+		ShowConfirm(null, 400, 200,
 			'你确定要删除此挂线点吗?', 
 			'删除挂线点后，你可以重新创建挂线点，方法是选择该挂线点的类型(大号端,小号端),然后点击"添加挂线点"按钮，即可完成添加.', 
 			function(){
-				
+				if(g_contact_points && g_contact_points.length>0)
+				{
+					for(var i in g_contact_points)
+					{
+						var cp = g_contact_points[i];
+						var txt = '';
+						if(cp.side === 1 ) txt = '小号端';
+						if(cp.side === 0 ) txt = '大号端';
+						txt += '#' + cp.contact_index;
+						if(obj.name === txt)
+						{
+							g_contact_points.splice(i,1);
+							editor.removeObject(obj);
+							editor.select( null );
+							break;
+						}
+					}
+				}
 		});
 	}
 }
 
-function DeleteSegment()
+function DeleteSegment(editor)
 {
-	var obj = g_editor.selected;
+	var obj = editor.selected;
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'line')
 	{
-		ShowConfirm('dlg_confirm', 400, 200,
+		ShowConfirm(null, 400, 200,
 			'你确定要删除此线段吗?', 
 			'删除线段后，你可以重新创建线段，方法是,确认“添加线段”按钮按下,然后在右边选择该线段的类型,然后先点击一个杆塔的挂线端点，再点击另一个杆塔的挂线端点，即可完成添加.', 
 			function(){
 				DelSeg(obj['userData']['data']);
-				DelLine(g_editor);
+				DelLine(editor);
 		});
 	}
 }
-function SaveSegment()
+function ShowSegSave()
 {
 	var b = CheckSegsModified();
 	if(b)
 	{
-		ShowConfirm('dlg_confirm', 400, 200,
+		ShowConfirm(null, 400, 200,
 			'发现已修改', 
 			'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。', 
 			function(){
@@ -702,6 +758,14 @@ function CheckSegsModified()
 	
 	for(var i in g_segments)
 	{
+		if(g_segments[i]['t0'] != g_segments_editting[i]['t0'])
+		{
+			return true;
+		}
+		if(g_segments[i]['w'] != g_segments_editting[i]['w'])
+		{
+			return true;
+		}
 		if(g_segments[i].contact_points.length != g_segments_editting[i].contact_points.length)
 		{
 			return true;
@@ -724,20 +788,13 @@ function CheckSegsModified()
 }
 function SaveSeg()
 {
-	//console.log(g_segments);
-	//console.log(g_segments_editting);
-	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
-	var ids = [];
-	for(var i in g_segments_editting)
-	{
-		ids.push(g_segments_editting[i]['_id']);
-	}
-	console.log(g_segments_editting);
-	var data = {'db':g_db_name, 'collection':'segments','action':'save', 'data':g_segments_editting, '_id':ids};
+	var data = {'db':g_db_name, 'collection':'segments','action':'save', 'data':g_segments_editting};
 	console.log(data);
-	//MongoFind(data, function(data1){
-		//ShowProgressBar(false);
-	//});
+	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
+	MongoFind(data, function(data1){
+		ShowProgressBar(false);
+		window.parent.LoadSegments(g_db_name);
+	}, '/');
 	
 	
 }
@@ -798,19 +855,21 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 	if(next_ids.length === 1)
 	{
 		seg = get_seg(g_segments, tower_id, next_ids[0]);
-		for(var k in seg['contact_points'])
+		if(seg)
 		{
-			var cp = seg['contact_points'][k];
-			var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
-			var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
-			if(end )
+			for(var k in seg['contact_points'])
 			{
-				var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
-				DrawLine(editor, start, end, color, seg, cp);
+				var cp = seg['contact_points'][k];
+				var start = GetDrawInfoFromContactPoint(1, cp['start'], data, 0, offset_z);
+				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
+				if(end )
+				{
+					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					DrawLine(editor, start, end, color, seg, cp);
+				}
+				
 			}
-			
 		}
-		
 	}
 	if(next_ids.length === 2)
 	{
@@ -904,11 +963,11 @@ function DrawLine(editor, start, end, color, seg, cp)
 
 
 
-function LoadContactPoint(editor, tower_id, data, offset)
+function LoadContactPoint(editor, tower_id, contact_points, offset, model_code_height)
 {
-	for(var i in data['contact_points'])
+	for(var i in contact_points)
 	{
-		var cp = data['contact_points'][i];
+		var cp = contact_points[i];
 		var title = '';
 		var color;
 		var size;
@@ -930,19 +989,20 @@ function LoadContactPoint(editor, tower_id, data, offset)
 		}
 		if(g_mode=='segs')
 		{
-			title = data['model_code_height'] + '#' + title + '#' + cp['contact_index'];
+			if(model_code_height === undefined) model_code_height = '未知塔型';
+			title = model_code_height + '#' + title + '#' + cp['contact_index'];
 		}
 		AddSphere(editor, tower_id, [cp['x'] + offset[0], cp['y'] + offset[1], cp['z'] + offset[2]], size, title, color, cp);
 	}
 
 }
-function SetSelectObjectPosition(pos)
+function SetSelectObjectPosition(editor, pos)
 {
-	if(g_editor.selected && g_editor.selected.name.indexOf('tower/')==-1)
+	if(editor.selected && editor.selected.name.indexOf('tower/')==-1)
 	{
 		//console.log(pos);
-		//g_editor.selected.position = new THREE.Vector3(parseFloat(pos.x), parseFloat(pos.y), parseFloat(pos.z));
-		g_editor.selected.position.set(parseFloat(pos.x),parseFloat(pos.y),parseFloat(pos.z));
+		//editor.selected.position = new THREE.Vector3(parseFloat(pos.x), parseFloat(pos.y), parseFloat(pos.z));
+		editor.selected.position.set(parseFloat(pos.x),parseFloat(pos.y),parseFloat(pos.z));
 	}
 }
 
@@ -1067,8 +1127,10 @@ function ShowLabelBySelected(editor)
 
 function ClearAllLabels(editor)
 {
-	editor.scene.traverse( function ( child )
+	//editor.scene.traverse( function ( child )
+	for(var i in editor.scene.children)
 	{
+		var child = editor.scene.children[i];
 		if ( child instanceof THREE.Sprite )
 		{
 			editor.removeObject(child);
@@ -1077,7 +1139,7 @@ function ClearAllLabels(editor)
 		{
 			editor.removeObject(child);
 		}
-	});		
+	}		
 }
 
 
@@ -1250,9 +1312,11 @@ function GetParamsFromUrl() {
 
 function ShowSegDialog()
 {
+	var height = 270;
+	if(g_segments_editting.length === 2) height = 420;
 	$('#dlg_seg_info').dialog({
 		width: 400,
-		height: 270,
+		height: height,
 		minWidth:200,
 		minHeight: 200,
 		draggable: false,
@@ -1272,8 +1336,15 @@ function ShowSegDialog()
 		//},		
 		buttons:[
 			{ 	
-				text: "关闭", 
-				click: function(){ 
+				text: "保存", 
+				click: function(){
+					var i;
+					for(i=0; i < g_segments_editting.length; i++)
+					{
+						var data = $('#form_seg_info_' + i).webgisform('getdata');
+						g_segments_editting[i]['t0'] = data['t0'];
+						g_segments_editting[i]['w'] = data['w'];
+					}
 					$( this ).dialog( "close" );
 				}
 			}
@@ -1283,12 +1354,24 @@ function ShowSegDialog()
 		{display: "应力", id: "t0", newline: true,  type: "spinner", step:0.1, min:0.4,max:1.5, width:150, labelwidth:50,  group:'弧垂参数', validate:{number: true}},
 		{display: "比载", id: "w", newline: true,  type: "spinner", step:0.001, min:0.001,max:0.01, width:150, labelwidth:50,  group:'弧垂参数', validate:{number: true}}
 	];
-	//$('#form_seg_info' ).webgisform("getvalidate");
-	$('#form_seg_info').webgisform( field,{prefix:'seg_info_'});
-	var data = {t0:0.9, w:0.001};
-	$('#form_seg_info').webgisform('setdata', data);
-	//$('#dlg_seg_info').dialog("option", "hide", {
-		//effect: "blind",
-		//duration: 1
-	//});
+	
+	
+	var i;
+	for(i=0; i < g_segments_editting.length; i++)
+	{
+		$('#dlg_seg_info').append('<form id="form_seg_info_' + i + '"></form>');
+		$('#form_seg_info_' + i).webgisform( field,{
+			prefix:'seg_info_' + i + '_',
+			maxwidth:300
+		});
+		var data = {t0:0.9, w:0.001};
+		var seg = g_segments_editting[i];
+		if(seg['t0']) data['t0'] = seg['t0'];
+		if(seg['w']) data['w'] = seg['w'];
+		$('#form_seg_info_' + i).webgisform('setdata', data);
+		//$('#dlg_seg_info').dialog("option", "hide", {
+			//effect: "blind",
+			//duration: 1
+		//});
+	}
 }

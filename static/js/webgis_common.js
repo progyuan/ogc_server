@@ -471,7 +471,8 @@ function InitWebGISFormDefinition()
 		setdata : function(data)
 		{
 			var prefix = '';
-			if($.fn.webgisform.options[this.attr('id')].prefix) prefix = $.fn.webgisform.options[this.attr('id')].prefix;
+			var id = this.attr('id')
+			if($.fn.webgisform.options[id] && $.fn.webgisform.options[id].prefix) prefix = $.fn.webgisform.options[id].prefix;
 			//for(var k in data)
 			//{
 				//this.find('#' + prefix + k).val(data[k]);
@@ -1025,6 +1026,18 @@ function GetDenomiHeightByModelCode(model_code_height)
 		var num2 = rest.substr(idx+1);
 		var h = num2 + '.' + num1;
 		ret = parseFloat(h);
+	}
+	return ret;
+}
+function GetMCByModelCode(model_code_height)
+{
+	var ret;
+	if(model_code_height && model_code_height.length>0)
+	{
+		var idx = model_code_height.lastIndexOf("_");
+		var rest = model_code_height.slice(0, idx);
+		idx = rest.lastIndexOf("_");
+		ret= rest.slice(0, idx);
 	}
 	return ret;
 }

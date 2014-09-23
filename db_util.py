@@ -44,6 +44,7 @@ import pyproj
 import geojson
 from pinyin import PinYin
 from collections import OrderedDict
+from pyquery import PyQuery as pq
 
 
 
@@ -7001,6 +7002,17 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 else:
                     s = 'collection [%s] does not exist.' % collection_name
                     raise Exception(s)
+            elif action.lower() == 'update':
+                if data is None:
+                    raise Exception('data is none, nothing to save')
+                if collection_name in db.collection_names(): 
+                    z_aware = True
+                    ids = [] 
+                    ret = []
+                    conditions = add_mongo_id(conditions)
+                    result = db[collection_name].update(conditions, {'$set': data}, multi=True, upsert=False)
+                    ret = mongo_find(dbname, collection_name, conditions=conditions)
+                    #print(ret)
             elif action.lower() == 'save':
                 if data is None:
                     raise Exception('data is none, nothing to save')
@@ -7009,7 +7021,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     z_aware = True
                     ids = [] 
                     ret = []
-                    if isinstance( data, list):
+                    if isinstance(data, list):
                         for i in data:
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
                                 if i['properties']['webgis_type'] == 'polygon_buffer':
@@ -7087,6 +7099,10 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                         tyarr.remove(unicode(i))   
                 if len(tyarr)>0:
                     ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                if 'heatmap_tile' in tyarr : 
+                    ret.extend(get_heatmap_tile_service_list(conditions['py']))
+                if 'heatmap_heatmap' in tyarr : 
+                    pass
                 #print(ret)
             elif action.lower() == 'models_list':
                 p = SERVERGLTFROOT
@@ -7140,6 +7156,37 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
         #ret = []
         raise
     return ret
+
+def get_heatmap_tile_service_list(name):
+    global gConfig
+    ret = []
+    h = gConfig['heatmap']['arcgis']['protocal'] + '://' + gConfig['heatmap']['arcgis']['host'] + ':' + gConfig['heatmap']['arcgis']['port'] + '/'
+    href = h +  gConfig['heatmap']['arcgis']['catalog']
+    connection_timeout, network_timeout = float(gConfig['heatmap']['arcgis']['www_connection_timeout']), float(gConfig['heatmap']['arcgis']['www_network_timeout'])
+    url = URL(href)    
+    http = HTTPClient.from_url(url, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+    response = None
+    try:
+        g = gevent.spawn(http.get, url.request_uri)
+        g.join()
+        response = g.value
+        if response and response.status_code == 200:
+            d = pq(dec(response.read()))
+            l = d('li > a')
+            for a in l:
+                if name in a.text:
+                    obj = {}
+                    obj['name'] = a.text
+                    obj['type'] = 'heatmap_tile'
+                    obj['url'] = h[:-1] + a.attrib['href']
+                    ret.append(obj)
+    except:
+        pass
+    return ret
+    
+    
+    
+    
 
 def mongo_update_line_towers(dbname, id, project=[]):
     lines = mongo_find(dbname, 'lines')
@@ -9265,5 +9312,6 @@ if __name__=="__main__":
     #test_bing_map()
     #test_edge_ring()
     #test_remove_blank_tile()
+    #print(get_heatmap_tile_service_list('yn'))
     
     

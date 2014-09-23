@@ -149,11 +149,29 @@ var Viewport = function ( editor ) {
 
 		}
 		
-		if(editor.selected && editor.selected.name.indexOf('tower/')==-1)
+		if(editor.selected && editor.selected.name.indexOf('tower/') < 0)
 		{
 			$('#contact_point_coords_x').spinner()[0].value = editor.selected.position.x.toFixed(2);
 			$('#contact_point_coords_y').spinner()[0].value = editor.selected.position.y.toFixed(2);
 			$('#contact_point_coords_z').spinner()[0].value = editor.selected.position.z.toFixed(2);
+			if(g_contact_points)
+			{
+				for(var i in g_contact_points)
+				{
+					var cp = g_contact_points[i];
+					var txt = '';
+					if(cp.side === 1 ) txt = '小号端';
+					if(cp.side === 0 ) txt = '大号端';
+					txt += '#' + cp.contact_index;
+					if(editor.selected.name === txt)
+					{
+						g_contact_points[i].x = parseFloat(editor.selected.position.x.toFixed(2));
+						g_contact_points[i].y = parseFloat(editor.selected.position.y.toFixed(2));
+						g_contact_points[i].z = parseFloat(editor.selected.position.z.toFixed(2));
+						break;
+					}
+				}
+			}
 		}
 		
 		document.removeEventListener( 'mouseup', onMouseUp );

@@ -27,7 +27,7 @@
     <!--<script type="text/javascript" src="js/WMTSImageryProvider.js"></script>-->
     <script type="text/javascript" src="js/CFTTileImageryProvider.js"></script>
     <script type="text/javascript" src="js/HeightmapAndQuantizedMeshTerrainProvider.js"></script>
-    <script type="text/javascript" src="js/ArcgisTileImageryProvider.js"></script>
+    <script type="text/javascript" src="js/ArcGisMapServerImageryProvider.js"></script>
     <script type="text/javascript" src="js/BingImageryFromServerProvider.js"></script>
     <script type="text/javascript" src="js/AMapTileImageryProvider.js"></script>
     <script type="text/javascript" src="js/HeatMapImageryProvider.js"></script>
@@ -119,6 +119,13 @@
 				<div>
 					<div><input id='chb_search_webgis_type_polygon_marker' type='checkbox'><label for='chb_search_webgis_type_polygon_marker'>多边形地标</label></div>
 					<div><input id='chb_search_webgis_type_polygon_hazard' type='checkbox'><label for='chb_search_webgis_type_polygon_hazard'>多边形隐患源</label></div>
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>搜索范围 - 热度图</legend>
+				<div>
+					<div><input id='chb_search_webgis_type_heatmap_heatmap' type='checkbox'><label for='chb_search_webgis_type_heatmap_heatmap'>矢量式</label></div>
+					<div><input id='chb_search_webgis_type_heatmap_tile' type='checkbox'><label for='chb_search_webgis_type_heatmap_tile'>瓦片式</label></div>
 				</div>
 			</fieldset>
 		

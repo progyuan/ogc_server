@@ -1,4 +1,4 @@
-import os,sys
+import os,sys,site
 import shutil
 
 from cx_Freeze import setup, Executable
@@ -22,7 +22,14 @@ from cx_Freeze import setup, Executable
             #shutil.copytree(psrc, pdest)
             
         
-
+def copying_additional():
+    #pyproj data
+    projdata = os.path.join(site.getsitepackages()[1], 'pyproj', 'pyproj_data')
+    dest = os.path.abspath( os.path.join('build', 'exe.win32-2.7', 'pyproj_data'))
+    if not os.path.exists(dest):
+        print(projdata)
+        print(dest)
+        shutil.copytree(projdata, dest)
 
 def build(is_include_web=False):
     base = None
@@ -45,7 +52,6 @@ def build(is_include_web=False):
                     #'static/geojson',
                     'gdal-bin',
                     ]
-    
     if is_include_web:
         include_files.extend(
             [
@@ -74,7 +80,7 @@ def build(is_include_web=False):
             description = u"OGC Server服务器端应用程序",
             options = {"build_exe" : {
                 'packages': ['win32serviceutil','win32service','win32event','servicemanager','socket','win32timezone','cx_Logging',],
-                'includes': ['lxml._elementpath', 'greenlet','gevent', 'cx_Logging', 'ogc_server'],
+                'includes': ['lxml._elementpath', 'greenlet', 'gevent', 'cx_Logging', 'ogc_server'],
                 'include_files' : include_files,
                 'include_msvcr': True,
             }
@@ -102,7 +108,7 @@ def build(is_include_web=False):
                          #),                       
             ]
     )
-    
+    copying_additional()
 
 if __name__ == '__main__':
     build(False)

@@ -58,10 +58,21 @@ Cesium.defineProperties(HeatMapPoint.prototype, {
 
 
 var HeatMapImageryProvider = function(description) {
-    description = Cesium.defaultValue(description, {});
+    var description = Cesium.defaultValue(description, {});
 
+    if(!description.name || description.name.length==0)
+    {
+        throw new Cesium.DeveloperError('heatmap name must be set');
+    }
+    if(!description.viewer)
+    {
+        throw new Cesium.DeveloperError('heatmap viewer must be set');
+    }
+    this._name = description.name;
+    this._viewer = description.viewer;
     this._tileWidth = 2048;
     this._tileHeight = 1024;
+    this._defaultAlpha = Cesium.defaultValue(description.defaultAlpha, 0.7);
     this._maximumLevel = 0;
     this._rectangle = Cesium.Rectangle.MAX_VALUE;
                                  
@@ -69,96 +80,75 @@ var HeatMapImageryProvider = function(description) {
         numberOfLevelZeroTilesX : 1,
         numberOfLevelZeroTilesY : 1
     });
-    //this._logo = undefined;
     this._ready = true;
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = this._tileWidth;
-    this.canvas.height = this._tileHeight;
-    this.points = [];
-    this.cache = {};
-    this.defaultRadius = 20;
-    this.defaultIntensity = 0.2;
-    this.gradientStops = {
+    this._canvas = document.createElement("canvas");
+    this._canvas.width = this._tileWidth;
+    this._canvas.height = this._tileHeight;
+    this._points = Cesium.defaultValue(description.points, []);
+    this._cache = {};
+    this._defaultRadius = 20;
+    this._defaultIntensity = 0.2;
+    this._gradient = null;
+	this._alpha = this._defaultAlpha;
+	//this._visible = true;
+    this._gradientStops = {
       '0.00': 0xffffff00,
       '0.33': 0x00ff00ff, //green
       '0.66': 0xffff00ff, //yellow
       '1.00': 0xff0000ff  //red
     };
-    var gradients = description.gradientStops || this.gradientStops;
+    var gradients = description.gradientStops || this._gradientStops;
     this.setGradientStops(gradients);
+    this.createHeatMap();
 };
 
 
-//HeatMapImageryProvider.prototype.getUrl = function() {
-    //return this._url;
-//};
 
-///**
- //* Gets the width of each tile, in pixels.
- //*
- //* @returns {Number} The width.
- //*/
-//HeatMapImageryProvider.prototype.getTileWidth = function() {
-    //return this._tileWidth;
-//};
+HeatMapImageryProvider.prototype.getLayer = function() {
+	var ret, i;
+	for(i=0; i < this.viewer.scene.imageryLayers.length; i++)
+	{
+		var lyr = this.viewer.scene.imageryLayers.get(i);
+		if(lyr.name === this.name)
+		{
+			ret = lyr;
+		}
+	}
+	return ret;
+};
 
-///**
- //* Gets the height of each tile, in pixels.
- //*
- //* @returns {Number} The height.
- //*/
-//HeatMapImageryProvider.prototype.getTileHeight = function() {
-    //return this._tileHeight;
-//};
 
-///**
- //* Gets the maximum level-of-detail that can be requested.
- //*
- //* @returns {Number} The maximum level.
- //*/
-//HeatMapImageryProvider.prototype.getMaximumLevel = function() {
-    //return this._maximumLevel;
-//};
 
-///**
- //* Gets the tiling scheme used by this provider.
- //*
- //* @returns {TilingScheme} The tiling scheme.
- //* @see WebMercatorTilingScheme
- //* @see GeographicTilingScheme
- //*/
-//HeatMapImageryProvider.prototype.getTilingScheme = function() {
-    //return this._tilingScheme;
-//};
 
-///**
- //* Gets the extent, in radians, of the imagery provided by this instance.
- //*
- //* @returns {Extent} The extent.
- //*/
-//HeatMapImageryProvider.prototype.getRectangle = function() {
-    //return this._tilingScheme.rectangle;
-//};
+HeatMapImageryProvider.prototype.updatePoints = function(points) {
+	this.points = points;
+	this.createHeatMap();
+};
 
-///**
- //* Gets the tile discard pHeatMapicy.  If not undefined, the discard pHeatMapicy is responsible
- //* for filtering out "missing" tiles via its shouldDiscardImage function.
- //* By default, no tiles will be filtered.
- //*
- //* @returns {TileDiscardPHeatMapicy} The discard pHeatMapicy.
- //*/
-//HeatMapImageryProvider.prototype.getTileDiscardPHeatMapicy = function() {
-    //return this._tileDiscardPHeatMapicy;
-//};
+HeatMapImageryProvider.prototype.createHeatMap = function() {
+	var lyr = this.getLayer();
+	if(lyr)
+	{
+		this.viewer.scene.imageryLayers.remove(lyr, true);
+	}
+	if(this.points.length>0)
+	{
+		lyr = this.viewer.scene.imageryLayers.addImageryProvider(this);
+		lyr.alpha = this.alpha;
+		lyr.show = true;
+		lyr.name = this.name;
+		this.drawHeatMap();
+	}
+};
 
-///**
- //* Gets a value indicating whether or not the provider is ready for use.
- //*
- //* @returns {BoHeatMapean} True if the provider is ready to use; otherwise, false.
- //*/
-//HeatMapImageryProvider.prototype.isReady = function() {
-    //return this._ready;
-//};
+HeatMapImageryProvider.prototype.destroy = function() {
+	var lyr = this.getLayer();
+	if(lyr)
+	{
+		this.viewer.scene.imageryLayers.remove(lyr, true);
+	}
+};
+
 
 /**
  * Requests the image for a given tile.
@@ -209,12 +199,10 @@ HeatMapImageryProvider.prototype.setGradientStops = function(stops) {
     this.gradient = ctx.getImageData(0, 0, 256, 1).data;
   };
 
-HeatMapImageryProvider.prototype.drawHeatMap = function(ellipsoid, points) {
+HeatMapImageryProvider.prototype.drawHeatMap = function() {
     var ctx = this.canvas.getContext('2d');
     ctx.clearRect (0, 0, this.canvas.width, this.canvas.height);
 
-    if(points === undefined) return;
-    this.points = points;
     for (var i = 0; i < this.points.length; i++) 
     {
         var src = this.points[i];
@@ -225,10 +213,7 @@ HeatMapImageryProvider.prototype.drawHeatMap = function(ellipsoid, points) {
         var rad = src.radius || this.defaultRadius;
         var intensity = src.intensity || this.defaultIntensity;
         var carto = src.center;
-        //var carto = ellipsoid.cartesianToCartographic(src.center);
-        //var pos = this.getPxFromLonLat(new OpenLayers.LonLat(center.x,center.y));
-        var pos = this.getPxFromLonLat(ellipsoid, carto);
-        //console.log(pos);
+        var pos = this.getPxFromLonLat(carto);
         if(!pos) continue;
         var x = pos.x - rad;
         var y = pos.y - rad;
@@ -266,7 +251,7 @@ HeatMapImageryProvider.prototype.drawHeatMap = function(ellipsoid, points) {
     }
     ctx.putImageData(dat, 0, 0);
 };
-HeatMapImageryProvider.prototype.getPxFromLonLat = function(ellipsoid, carto){
+HeatMapImageryProvider.prototype.getPxFromLonLat = function(carto){
     var px;
     var halfw = this.canvas.width/2;
     var halfh = this.canvas.height/2;
@@ -304,6 +289,101 @@ Cesium.defineProperties(HeatMapImageryProvider.prototype, {
             return this._url;
         }
     },
+    name : {
+        get : function() {
+            return this._name;
+        }
+    },
+    viewer : {
+        get : function() {
+            return this._viewer;
+        }
+    },
+    ellipsoid : {
+        get : function() {
+            return this._viewer.scene.globe.ellipsoid;
+        }
+    },
+    gradient : {
+        get : function() {
+            return this._gradient;
+        },
+        set : function(_gradient) {
+            this._gradient = _gradient;
+        }
+    },
+    defaultAlpha : {
+        get : function() {
+            return this._defaultAlpha;
+        }
+    },
+    defaultRadius : {
+        get : function() {
+            return this._defaultRadius;
+        }
+    },
+    defaultIntensity : {
+        get : function() {
+            return this._defaultIntensity;
+        }
+    },
+    gradientStops : {
+        get : function() {
+            return this._gradientStops;
+        }
+    },
+    canvas : {
+        get : function() {
+            return this._canvas;
+        }
+    },
+    points : {
+        get : function() {
+            return this._points;
+        },
+        set : function(_points) {
+            this._points = _points;
+        }
+    },
+    cache : {
+        get : function() {
+            return this._cache;
+        },
+        set : function(_cache) {
+            this._cache = _cache;
+        }
+    },
+    alpha : {
+        get : function() {
+			return this._alpha;
+        },
+        set : function(_alpha) {
+			this._alpha = _alpha;
+			var lyr = this.getLayer();
+			if(lyr)
+			{
+				lyr.alpha = _alpha;
+			}
+        }
+    },
+    visible : {
+        get : function() {
+            var ret;
+			var lyr = this.getLayer();
+			if(lyr)
+			{
+				ret = lyr.show;
+			}
+			return ret;
+        },
+        set : function(_show) {
+			var lyr = this.getLayer();
+			if(lyr)
+			{
+				lyr.show = _show;
+			}
+        }
+    },
 
     /**
      * Gets the proxy used by this provider.
@@ -320,18 +400,12 @@ Cesium.defineProperties(HeatMapImageryProvider.prototype, {
 
     tileWidth : {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('tileWidth must not be called before the imagery provider is ready.');
-            }
             return this._tileWidth;
         }
     },
 
     tileHeight: {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('tileHeight must not be called before the imagery provider is ready.');
-            }
             return this._tileHeight;
         }
     },
@@ -339,9 +413,6 @@ Cesium.defineProperties(HeatMapImageryProvider.prototype, {
 
     maximumLevel : {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('maximumLevel must not be called before the imagery provider is ready.');
-            }
             return this._maximumLevel;
         }
     },
@@ -357,27 +428,18 @@ Cesium.defineProperties(HeatMapImageryProvider.prototype, {
 
     tilingScheme : {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('tilingScheme must not be called before the imagery provider is ready.');
-            }
             return this._tilingScheme;
         }
     },
 
     rectangle : {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('rectangle must not be called before the imagery provider is ready.');
-            }
             return this._tilingScheme.rectangle;
         }
     },
 
     tileDiscardPolicy : {
         get : function() {
-            if (!this._ready) {
-                throw new Cesium.DeveloperError('tileDiscardPolicy must not be called before the imagery provider is ready.');
-            }
             return this._tileDiscardPolicy;
         }
     },
