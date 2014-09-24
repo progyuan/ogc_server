@@ -789,11 +789,11 @@ function CheckSegsModified()
 function SaveSeg()
 {
 	var data = {'db':g_db_name, 'collection':'segments','action':'save', 'data':g_segments_editting};
-	console.log(data);
+	//console.log(data);
 	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
 	MongoFind(data, function(data1){
 		ShowProgressBar(false);
-		window.parent.LoadSegments(g_db_name);
+		window.parent.IFrameUpdateSegments(data1);
 	}, '/');
 	
 	

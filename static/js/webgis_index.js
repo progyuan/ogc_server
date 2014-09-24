@@ -218,6 +218,11 @@ function IFrameUpdateSegments(data)
 		{
 			g_segments.push(obj);
 		}
+		if(g_selected_obj && g_selected_obj.id)
+		{
+			RemoveSegmentsTower($.viewer, g_geojsons[g_selected_obj.id]);
+			DrawSegmentsByTower($.viewer, g_geojsons[g_selected_obj.id]);
+		}
 	}
 }
 
@@ -6561,7 +6566,7 @@ function OnSelect(viewer, e)
 		}
 	};
 	clearselcolor();
-	$('#lnglat_indicator').html('位置:' + PickLngLatFromScreen(viewer, e.position));
+	$('#lnglat_indicator').html('点击位置:' + PickLngLatFromScreen(viewer, e.position));
 			
 	
 	$('#btn_edge_save').attr('disabled','disabled');

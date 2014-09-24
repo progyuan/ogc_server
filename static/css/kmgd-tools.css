@@ -952,10 +952,11 @@ input[type="button"].btn-block {
 	bottom:5px;
 	color:#00FF00;
 	text-align:center;
-	opacity:0.8;
-    width: 400px;
+	opacity:0.6;
+    width: 300px;
     height: 20px;
 	z-index:8;
+	background:#000000;
 }
 
 #fieldset_select_poi_type
