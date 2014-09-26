@@ -57,6 +57,7 @@
 	<script type="text/javascript" src="js/spectrum.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/polyk.js"></script>
+	<script type="text/javascript" src="js/encryption/aes.js"></script>
     <script type="text/javascript" src="js/webgis_common.js"></script>
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
@@ -188,9 +189,20 @@
 		 <div id='but_dn_add'></div>
 		 <div id='but_dn_remove'></div>
 	  </div>
+	  <h3>系统管理</h3>
+	  <div style="min-height:400px;">
+		 <div id='but_sys_change_password'></div>
+		 <div id='but_sys_role'></div>
+	  </div>
 	</div>	
 </div>
 
+<div id="dlg_change_password" >
+	<form id="form_change_password"></form>
+</div>
+<div id="dlg_change_role" >
+	<form id="form_change_role"></form>
+</div>
 
 <div id="dlg_dn_create" >
 	<form id="form_dn_create"></form>

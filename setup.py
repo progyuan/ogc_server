@@ -42,6 +42,8 @@ def build(is_include_web=False):
     
     include_files = [
                     'ogc-config.ini', 
+                    'ogc-config-tile.ini', 
+                    'ogc_server_tile.bat', 
                     'ogc_service_install.bat', 
                     'ogc_service_uninstall.bat', 
                     #'ogc_service2_install.bat', 
@@ -91,11 +93,11 @@ def build(is_include_web=False):
                                       targetName = "ogc_server.exe",
                                       #icon ='res/nfdw_gui.ico'
                                       ),
-                Executable("ogc_server_services_config.py",
-                                      base = base_services,
-                                      targetName = "ogc_server_services.exe",
-                                      #icon ='res/nfdw_gui.ico'
-                                      ),
+                #Executable("ogc_server_services_config.py",
+                                      #base = base_services,
+                                      #targetName = "ogc_server_services.exe",
+                                      ##icon ='res/nfdw_gui.ico'
+                                      #),
                 #Executable("ogc_server_services_win32.py",
                                       #base = base,
                                       #targetName = "ogc_server_services_win32.exe",

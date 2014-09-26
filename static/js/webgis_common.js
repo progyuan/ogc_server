@@ -4,6 +4,7 @@ var g_host = "";
 var g_db_name = 'ztgd';
 var g_progress_interval;
 var g_progress_value;
+var g_encrypt_key = 'kmgd111';
 var g_phase_color_mapping = {
 	'A':'#FFFF00',
 	'B':'#FF0000',
@@ -56,15 +57,25 @@ var g_style_polygon_mapping = {
 	'polygon_buffer':{color:[255, 0, 0, 50], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 0, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 
+var g_role_functions = [
+	{value:'line_save', label:'线路工程创建与保存'},
+	{value:'edge_save', label:'节点连接关系创建与保存'},
+	{value:'tower_save', label:'杆塔创建与保存'},
+	{value:'tower_delete', label:'杆塔删除'},
+	{value:'feature_save', label:'地标创建与保存'},
+	{value:'feature_delete', label:'地标删除'},
+	{value:'buffer_analyze', label:'缓冲区分析'},
+];
+
 function GetDefaultExtent(db_name)
 {
 	if(db_name == 'kmgd')
 	{
-		return {'west':102.69184, 'south':25.04067, 'east':102.71404, 'north':25.06087};
+		return {'west':101.69184, 'south':24.04067, 'east':103.71404, 'north':26.06087};
 	}
 	if(db_name == 'ztgd')
 	{
-		return {'west':103.7013, 'south':27.32388, 'east':103.7235, 'north':27.34408};
+		return {'west':102.7013, 'south':26.32388, 'east':104.7235, 'north':28.34408};
 	}
 }
 
@@ -176,6 +187,16 @@ function InitWebGISFormDefinition()
 						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + required + '</' + divorspan + '>');
 						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
 					}
+					if(fld.type == 'password' && fld.group == group)
+					{
+						var readonly = '';
+						if(fld.editor && fld.editor.readonly == true)
+						{
+							readonly = ' readonly="readonly"';
+						}
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="password" class="ui-widget" style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>' + required + '</' + divorspan + '>');
+						if(fld.defaultvalue) $('#' + fldid).val(fld.defaultvalue);
+					}
 					if(fld.type == 'select' && fld.group == group)
 					{
 						var source = [];
@@ -193,6 +214,7 @@ function InitWebGISFormDefinition()
 						//});
 						var position = 'bottom';
 						if(fld.editor && fld.editor.position) position = fld.editor.position;
+						var fld1 = fld;
 						var auto = $('#' + fldid).multipleSelect({
 							selectAll: false,
 							selectAllText: '全部',
@@ -203,6 +225,16 @@ function InitWebGISFormDefinition()
 							noMatchesFound: '(无匹配)',
 							single: true,
 							position: position,
+							onClick:function(view){
+								if(view.checked)
+								{
+									//console.log(fld1);
+									if(fld1.change)
+									{
+										fld1.change(view.value);
+									}
+								}
+							},
 							styler: function(value) {
 								return 'color: #00FF00;background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;';
 							}
@@ -230,9 +262,10 @@ function InitWebGISFormDefinition()
 						}
 						var position = 'bottom';
 						if(fld.editor && fld.editor.position) position = fld.editor.position;
-						//var selectAll = false;
+						var selectAll = false;
+						if(fld.selectall) selectAll = true;
 						var auto = $('#' + fldid).multipleSelect({
-							selectAll: true,
+							selectAll: selectAll,
 							selectAllText: '全部',
 							selectAllDelimiter: ['(', ')'],
 							allSelected: '(全部)',
@@ -745,12 +778,7 @@ function MongoFind(data, success, host)
 		//console.log(data1);
 		//if(data.redirect) return;
 		ret = JSON.parse(decodeURIComponent(data1));
-		if(ret.result)
-		{
-			//ShowMessage(400, 250, '信息', ret.result);
-			success([ret.result]);
-		}
-		else
+		if(success)
 		{
 			success(ret);
 		}
@@ -890,6 +918,7 @@ function ShowConfirm(id, width, height, title, msg, ok, cancel, thumbnail)
 
 function GetDisplayLatLngString(ellipsoid, cartesian, precision) 
 {
+	if(!cartesian) return "";
 	var cartographic = ellipsoid.cartesianToCartographic(cartesian);
 	if(cartographic.longitude &&  cartographic.latitude)
 	{
@@ -997,7 +1026,7 @@ function PickLngLatFromScreen(viewer, screen_position)
 	var ray = scene.camera.getPickRay(screen_position);
 	var cartesian = scene.globe.pick(ray, scene);
 	//var carto = ellipsoid.cartesianToCartographic(cartesian);
-	var s = GetDisplayLatLngString(ellipsoid, cartesian, 7);
+	var s = GetDisplayLatLngString(ellipsoid, cartesian, 6);
 	//console.log(s);
 	return s;
 }

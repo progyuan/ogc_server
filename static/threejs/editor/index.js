@@ -504,6 +504,29 @@ $(function() {
 	
 });
 
+
+function UpdateContactPoint(obj, pos)
+{
+	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
+	{
+		for(var i in g_contact_points)
+		{
+			var cp = g_contact_points[i];
+			var txt = '';
+			if(cp.side === 1 ) txt = '小号端';
+			if(cp.side === 0 ) txt = '大号端';
+			txt += '#' + cp.contact_index;
+			if(obj.name === txt)
+			{
+				g_contact_points[i].x = pos.x;
+				g_contact_points[i].y = pos.y;
+				g_contact_points[i].z = pos.z;
+				break;
+			}
+		}
+	}
+}
+
 function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 {
 	for(var i in g_segments_editting)
@@ -630,6 +653,8 @@ function GetObjectPos()
 
 function SaveContactPoint(editor, tower_id, data)
 {
+	//console.log(g_contact_points);
+	//if(true) return;
 	data['contact_points'] = g_contact_points;
 	var cond = {'db':g_db_name, 'collection':'features', 'action':'update', 'data':{'properties.model':data}, '_id':tower_id};
 	ShowProgressBar(true, 400, 200, '保存中', '正在保存数据，请稍候...');
@@ -1002,7 +1027,9 @@ function SetSelectObjectPosition(editor, pos)
 	{
 		//console.log(pos);
 		//editor.selected.position = new THREE.Vector3(parseFloat(pos.x), parseFloat(pos.y), parseFloat(pos.z));
-		editor.selected.position.set(parseFloat(pos.x),parseFloat(pos.y),parseFloat(pos.z));
+		var p = {x:parseFloat(pos.x),y:parseFloat(pos.y),z:parseFloat(pos.z)};
+		editor.selected.position.set(p.x, p.y, p.z);
+		UpdateContactPoint(editor.selected, p);
 	}
 }
 

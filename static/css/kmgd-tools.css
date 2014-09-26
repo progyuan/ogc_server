@@ -925,7 +925,8 @@ input[type="button"].btn-block {
 }
 
 .loginbackground{
-	background:#000000 url(/img/logo_background.png)  100% 0% no-repeat;
+	background:#000000 url(/img/logo_background2.jpg)  no-repeat center center fixed;
+	background-size: cover;
 }
 
 .login-no-close .ui-dialog-titlebar-close {
@@ -951,9 +952,9 @@ input[type="button"].btn-block {
 	position:absolute;
 	bottom:5px;
 	color:#00FF00;
-	text-align:center;
-	opacity:0.6;
-    width: 300px;
+	text-align:left;
+	opacity:0.5;
+    width: 400px;
     height: 20px;
 	z-index:8;
 	background:#000000;

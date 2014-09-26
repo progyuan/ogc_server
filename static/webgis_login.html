@@ -19,6 +19,7 @@
     <script type="text/javascript" src="js/webgis_common.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.jgrowl.js"></script>
+	<script type="text/javascript" src="js/encryption/aes.js"></script>
 	<script type="text/javascript">
 	function Login(username, password, callback)
 	{
@@ -33,12 +34,12 @@
 		$( "#logindialog" ).dialog({
 			dialogClass: "login-no-close",
 			width: 400,
-			height: 300,
+			height: 250,
 			minWidth:200,
 			minHeight: 200,
 			draggable: false,
 			resizable: false, 
-			modal: true,
+			modal: false,
 			position:{at: "center"},
 			title:'登录',
 		  
@@ -59,29 +60,25 @@
 					Login($('#username').val(),  $('#password').val(), function(data){
 						$(that).removeAttr('disabled');
 						ShowProgressBar(false);
-						if(data.length>0)
+						if(data.username) {
+							var json = encodeURIComponent(JSON.stringify(data));
+							var encrypted = CryptoJS.AES.encrypt(json, g_encrypt_key);
+							window.location.href = '/webgis_index.html?' + encrypted;
+						}
+						else if(data.result)
 						{
-							//window.location.href = '/webgis_unauthorized.html';-->
-							//console.log(data[0]);
-							if(data[0] == 'ok') {
-								window.location.href = '/webgis_index.html';
-							}
-							else
-							{
-								$.jGrowl(data[0],{
-									life: 2000,
-									position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
-									theme: 'bubblestylefail',
-									glue:'before'
-								});
-							}
-								
+							$.jGrowl(data.result,{
+								life: 2000,
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
 						}
 						else
 						{
 							$.jGrowl("网络异常",{
 								life: 2000,
-								position: 'center', //top-left, top-right, bottom-left, bottom-right, center
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 								theme: 'bubblestylefail',
 								glue:'before'
 							});
@@ -124,7 +121,7 @@
 <body class="loginbackground">
 <div id='logindialog'>
 <form id="loginform">
-	<div style="margin:80px 0px 20px 30px;">
+	<div style="margin:30px 0px 20px 30px;">
 		<label for="username">用户名:</label><input class="ui-widget" id="username" type="text">
 	</div>
 	<div style="margin:20px 0px 20px 30px;">

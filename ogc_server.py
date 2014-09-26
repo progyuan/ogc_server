@@ -51,10 +51,10 @@ from contextlib import contextmanager
 
 
 
+
 ENCODING = None
 ENCODING1 = None
 STATICRESOURCE_DIR = None
-CONFIGFILE = None
 
     
 
@@ -104,15 +104,17 @@ def session_manager(environ):
 
 
 def init_global():
-    global ENCODING, ENCODING1, STATICRESOURCE_DIR, CONFIGFILE, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
+    global ENCODING, ENCODING1, STATICRESOURCE_DIR, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
     global gConfig, gStaticCache, gGreenlets, gClusterProcess
     ENCODING = 'utf-8'
     ENCODING1 = 'gb18030'
     
     STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
     
-    CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
-    gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+    #CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
+    #gConfig = configobj.ConfigObj(db_util.CONFIGFILE, encoding='UTF8')
+    gConfig = db_util.gConfig
+    
     if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
         if os.path.exists(gConfig['web']['webroot']):
             STATICRESOURCE_DIR = gConfig['web']['webroot']
@@ -945,7 +947,6 @@ def handle_wmts(environ):
     else:
         headers['Content-Type'] = 'text/plain;charset=' + ENCODING
         s = 'Unsupported service'
-        
     return '200 OK', headers, s
 
     
@@ -1721,7 +1722,7 @@ def application(environ, start_response):
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                         start_response('200 OK', headerslist)        
-                        return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
+                        return [json.dumps(objlist[0], ensure_ascii=True, indent=4)]
                     else:
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
@@ -1744,6 +1745,8 @@ def application(environ, start_response):
             path_info = gConfig['web']['mainpage']
         statuscode, headers, body =  handle_static(environ, path_info)
         
+
+    headers['Access-Control-Allow-Origin'] = '*'
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
@@ -2118,7 +2121,7 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                         idx += 1
                 servers[-1].serve_forever()
         else:
-            print('wrong host or port in %s' % CONFIGFILE)
+            print('wrong host or port in %s' % db_util.CONFIGFILE)
     return server
 
 
@@ -2299,9 +2302,13 @@ def gen_model_app_cache():
 
 if __name__=="__main__":
     freeze_support()
+    options = db_util.init_global()
+    #print(options)
     init_global()
-    if len(sys.argv) == 1:
-        if gConfig['cluster']['enable_cluster'] in ['true','True']:
+    if options.signcert_enable:
+        create_self_signed_cert( options.signcert_directory,  options.signcert_year)
+    else:
+        if options.cluster_enable:
             mainloop_single(int(gConfig['cluster']['manager_port']), True, False)
         else:
             if gConfig['listen_port']['enable_ssl'].lower() == u'true':
@@ -2313,19 +2320,6 @@ if __name__=="__main__":
                 mainloop_single(port, False, True)
             else:
                 mainloop_single()
-    elif len(sys.argv) == 2:
-        folder = sys.argv[1]
-        year = 10
-        create_self_signed_cert(folder, year)
-    elif len(sys.argv) == 3:
-        folder = sys.argv[1]
-        year = 10
-        try:
-            year = int(sys.argv[2])
-        except:
-            pass
-        create_self_signed_cert(folder, year)
-    #print(webservice_GetFlashofDate('',''))
     
     
 class Win32ServiceHandler(object):

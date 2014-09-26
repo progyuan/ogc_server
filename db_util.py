@@ -45,47 +45,16 @@ import geojson
 from pinyin import PinYin
 from collections import OrderedDict
 from pyquery import PyQuery as pq
+from optparse import OptionParser
 
-
-
-
-
-
-
-CONFIGFILE = os.path.join(module_path(), 'ogc-config.ini')
-
-    
-gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
-gClientMongo = {'default':None, 'geofeature':None,}
+CONFIGFILE = None
+gConfig = None
+gClientMongo = {}
 gClientMongoTiles = {}
 gClientMetadata = {}
 ODBC_STRING = {}
-#print(gConfig.keys())
-for k in gConfig['odbc'].keys():
-    if not k in ['odbc_driver']:
-        if len(gConfig['odbc'][k]['db_instance'])>0:
-            ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s\\%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'], gConfig['odbc'][k]['db_instance'], gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
-        else:
-            ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
-
-
-
-
-DEM_NAME = 'YN_DEM'
-#DEM_NAME = 'YN_DEM_SRTM30_zt'
-
-gDemExtractor = None
-gTowerDict = {}
 gPinYin = None
-gFeatureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
-
-
-AREA_DATA = {'zt':[u'永甘甲线',u'永发II回线', u'镇永甲线', u'永发I回线',u'甘大线',u'永甘乙线',u'甘镇线'],
-             'km':[u'厂口曲靖I回', u'和平厂口I回', u'草和乙线', u'厂口七甸I回',u'七罗II回', u'厂口曲靖II回',u'草和甲线',u'草宝乙线',u'和平厂口II回', u'草宝甲线', u'七罗I回',u'大宝I回',u'宝七I回',u'宝七II回']
-             }
-
-
-
+gFeatureslist = []
 ARCGISTILEROOT = r'I:\geotiff'
 GOOGLETILEROOT = r'I:\geotiff'
 DIRTILEROOT = r'I:\geotiff\tiles'
@@ -95,8 +64,6 @@ ZEROID = '00000000-0000-0000-0000-000000000000'
 MAXCOMMITRECORDS = 100
 TILESIZE = 256
 TILEFORMAT = 'png'
-
-
 SHAPEROOT= ur'I:\云南省矢量数据'
 #SHAPEROOT= ur'D:\work\云南省矢量数据'
 JSONROOT= ur'I:\geotiff\kmgdgis\download'
@@ -137,14 +104,53 @@ GEOJSONSHAPEMAPPING = {'hotel':u'宾馆酒店',
                        'bank':u'银行',
                        'ynadminborder':u'云南行政边界',
                        'town':u'镇',
-                       'goverment':u'政府机构',
-                       }
+                        'goverment':u'政府机构',
+                        }
+CODE_XLS_FILE = dec1(r'G:\work\csharp\kmgdgis\doc\电网设备信息分类与编码.xls')
 
 
-
-CODE_XLS_FILE=dec1(r'G:\work\csharp\kmgdgis\doc\电网设备信息分类与编码.xls')
-
-
+def init_global():
+    global CONFIGFILE, gConfig, gClientMongo, gClientMongoTiles, gClientMetadata, ODBC_STRING, gPinYin, gFeatureslist
+    parser = OptionParser()
+    parser.add_option("-c", "--config", dest="config", action="store", default=os.path.join(module_path(), "ogc-config.ini"),
+                      help="specify a config file to load")
+    parser.add_option("-s", "--signcert_enable",
+                      action="store_true", dest="signcert_enable", default=False,
+                      help="generate ssl cert and key")
+    parser.add_option("-d", "--signcert_directory",
+                      action="store", dest="signcert_directory", default=module_path(),
+                      help="specify the directory to store ssl cert and key file")
+    parser.add_option("-y", "--signcert_year",
+                      action="store", type="int", dest="signcert_year", default=10,
+                      help="specify year to generate ssl cert")
+    #parser.add_option("-l", "--ssl_enable",
+                      #action="store_true", dest="ssl_enable", default=False,
+                      #help="enable ssl mode")
+    parser.add_option("-u", "--cluster_enable",
+                      action="store_true", dest="cluster_enable", default=False,
+                      help="enable cluster mode")
+    
+    (options, args) = parser.parse_args()    
+    
+    print('parsing %s...' % options.config)
+    CONFIGFILE = options.config
+    
+        
+    gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
+    gClientMongo = {'default':None, 'geofeature':None,}
+    gClientMongoTiles = {}
+    gClientMetadata = {}
+    ODBC_STRING = {}
+    #print(gConfig.keys())
+    for k in gConfig['odbc'].keys():
+        if not k in ['odbc_driver']:
+            if len(gConfig['odbc'][k]['db_instance'])>0:
+                ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s\\%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'], gConfig['odbc'][k]['db_instance'], gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
+            else:
+                ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
+    
+    gFeatureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
+    return options
 
 class DemExtrctor(object):
     """let you look up pixel value"""
@@ -4553,8 +4559,6 @@ def test_modify_tower_name():
     
 
 def altitude_by_lgtlat(demdir, lgt, lat):
-    #global gDemExtractor
-    #d = r'H:\gis\demdata'
     ret = -1
     l = []
     for i in os.listdir(demdir):
@@ -7010,7 +7014,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ids = [] 
                     ret = []
                     conditions = add_mongo_id(conditions)
-                    result = db[collection_name].update(conditions, {'$set': data}, multi=True, upsert=False)
+                    result = db[collection_name].update(conditions, {'$set': add_mongo_id(data)}, multi=True, upsert=False)
                     ret = mongo_find(dbname, collection_name, conditions=conditions)
                     #print(ret)
             elif action.lower() == 'save':
@@ -7143,6 +7147,18 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret.extend(mongo_geowithin(dbname,  geojsonobj, conditions['webgis_type'], intersect, limit))
                 else:
                     raise Exception('within calculation need geojson object')
+            elif action.lower() == 'getsysrole':
+                ret = []
+                if conditions.has_key('userid'):
+                    rolelist = mongo_find(dbname, 'sysrole')
+                    for role in rolelist:
+                        if role['name'] == 'admin':
+                            continue
+                        if conditions['userid'] in role['users']:
+                            for perm in role['permission']:
+                                if not perm in ret:
+                                    ret.append(perm)
+                            
             #else:
                 #s = 'collection [%s] does not exist.' % collection_name
                 #raise Exception(s)
@@ -7457,7 +7473,8 @@ def build_mongo_conditions(obj):
 def add_mongo_id(obj, objidkeys = ['_id', u'_id',]):
     if isinstance(obj, str) or isinstance(obj, unicode):
         try:
-            obj = ObjectId(obj)
+            if len(obj) == 24:
+                obj = ObjectId(obj)
         except:
             pass
         
@@ -9233,8 +9250,36 @@ def test_remove_blank_tile():
     #tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
     remove_blank_tiles(tiletype, subtype, dbname, collection)
 
+def test_import_userinfo():
+    userinfo = odbc_get_records('TABLE_USER_INFO', '1=1', 'zt')
+    uilist = []
+    for ui in userinfo:
+        uilist.append({'username':ui['user_id'], 'displayname':ui['user_name'], 'password':ui['user_passwd']})
+    mongo_action('ztgd', 'userinfo', 'save', uilist)
+    
+def test_import_sysrole(db_name):
+    l = []
+    l.append({'name':'admin', 'displayname':u'管理员','users':[], 'permission':['all']})
+    l.append({'name':'maintainresp', 
+              'displayname':u'检修专责',
+              'users':[], 
+              'permission':['line_save', 'edge_save', 'tower_save', 'tower_delete', 'feature_save', 'feature_delete', 'buffer_analyze'],
+              })
+    l.append({'name':'runresp', 
+              'displayname':u'运行专责',
+              'users':[], 
+              'permission':[ 'buffer_analyze'],
+              })
+    l.append({'name':'runresp', 
+              'displayname':u'班组成员',
+              'users':[], 
+              'permission':[ 'buffer_analyze'],
+              })
+    mongo_action(db_name, 'sysrole', 'save', l)
+    
     
 if __name__=="__main__":
+    init_global()
     #test_insert_thunder_counter_attach()
     #test_insert_potential_risk()
     #admin_create_lines_layers('zt')
@@ -9313,5 +9358,8 @@ if __name__=="__main__":
     #test_edge_ring()
     #test_remove_blank_tile()
     #print(get_heatmap_tile_service_list('yn'))
+    #test_import_userinfo()
+    #test_import_sysrole('ztgd')
+    
     
     

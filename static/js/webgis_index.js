@@ -26,6 +26,9 @@ var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
 var g_node_connect_mode = false;
 $.g_heatmap_layers = {};
+$.g_userinfo = {};
+$.g_sysrole = [];
+
 
 
 g_max_file_size = 5000000;
@@ -39,7 +42,14 @@ g_max_file_size = 5000000;
 //{
 	//console.log(event.data);
 //}
+
+
+
+
 $(function() {
+
+	$.g_userinfo = GetParamsFromUrl();
+
 	$.jGrowl.defaults.closerTemplate = '<div class="bubblestylesuccess">关闭所有提示信息</div>';
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 	//if(true) return;
@@ -69,6 +79,7 @@ $(function() {
 	//InitPostMessageListener();
 	
 	
+	
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
 	LoadCodeData(g_db_name, function(){
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
@@ -77,12 +88,11 @@ $(function() {
 			LoadSegments(g_db_name, function(){
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
 				LoadModelsList(g_db_name, function(){
-					
 					ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
 					LoadModelsMapping(g_db_name, function(){
-						var name;
-						if(g_db_name === 'kmgd') name = '七罗I回';
-						if(g_db_name === 'ztgd') name = '永发I回线';
+						//var name;
+						//if(g_db_name === 'kmgd') name = '七罗I回';
+						//if(g_db_name === 'ztgd') name = '永发I回线';
 						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
 							//LoadLineByLineName(viewer, g_db_name, name, function(){
 								//name = '七罗II回';
@@ -96,14 +106,11 @@ $(function() {
 								//});
 							//});
 						//});
-						//name = '七罗II回';
-						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							//LoadLineByLineName(viewer, g_db_name, name, function(){
-								//var extent = GetExtentByCzml();
-								//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-								//ReloadCzmlDataSource(viewer, g_zaware);
-							//});
-						//});
+						var extent = GetDefaultExtent(g_db_name);
+						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						LoadSysRole(g_db_name, function(){
+							$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+						});
 					});
 					
 					//var extent = GetDefaultExtent(g_db_name);
@@ -375,7 +382,8 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				url :  g_host + 'tiles',
+				//url :  g_host + 'tiles',
+				url :  'http://ztserver:89/tiles',
 				imageType: 'bing_sat',
 				queryType: 'server'
 			});
@@ -388,7 +396,8 @@ function InitCesiumViewer()
 		creationFunction : function() {
 			return new AMapTileImageryProvider({
 				//url :  'http://webrd03.is.autonavi.com/appmaptile',
-				url :  g_host + 'tiles',
+				//url :  g_host + 'tiles',
+				url :  'http://ztserver:89/tiles',
 				imageType: 'amap_map',
 				queryType: 'server'
 			});
@@ -452,7 +461,8 @@ function InitCesiumViewer()
 		tooltip : 'quantized-mesh中国云南',
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
-				url : "terrain",
+				//url : "terrain",
+				url :  'http://ztserver:89/terrain',
 				terrain_type : 'quantized_mesh',
 				credit : ''
 			});
@@ -610,6 +620,10 @@ function InitKeyboardEvent(viewer)
 			{
 				//console.log(e);
 			}
+			if(!CheckPermission('feature_delete'))
+			{
+				return;
+			}
 			if(g_selected_obj && g_selected_obj.id && g_selected_obj.id.properties && g_selected_obj.id.properties.webgis_type === 'edge_dn')
 			{
 				var get_name = function()
@@ -679,6 +693,13 @@ function InitKeyboardEvent(viewer)
 			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polygon_buffer'
 			))
 			{
+				if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
+				{
+					if(!CheckPermission('tower_delete'))
+					{
+						return;
+					}
+				}
 				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + g_geojsons[g_selected_obj.id]['properties']['name'] + ']吗?', function(){
 					if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
 					{
@@ -749,12 +770,9 @@ function InitLogout(viewer)
 				'确认要登出吗?',
 				function(){
 					Logout(function(data){
-						if(data.length>0)
+						if(data.result)
 						{
-							if(data[0] == 'ok')
-							{
-								window.location.href = '/webgis_login.html';
-							}
+							window.location.href = '/webgis_login.html';
 						}
 					});
 				},
@@ -1392,6 +1410,10 @@ function InitToolPanel(viewer)
 	
 	$('#but_line_add').button({label:'新增输电线路工程'});
 	$('#but_line_add').on('click', function(){
+		if(!CheckPermission('line_save'))
+		{
+			return;
+		}
 		ShowLineDialog(viewer);
 	});
 	//$('#but_line_remove').button({label:'删除输电线路工程'});
@@ -1401,13 +1423,353 @@ function InitToolPanel(viewer)
 	
 	$('#but_dn_add').button({label:'新增配电网络'});
 	$('#but_dn_add').on('click', function(){
+		if(!CheckPermission('dn_save'))
+		{
+			return;
+		}
 		ShowDNAddDialog(viewer);
 	});
 	$('#but_dn_remove').button({label:'清空配电网络'});
 	$('#but_dn_remove').on('click', function(){
 		RemoveSegmentsByType(viewer, 'edge_dn');
 	});
+	
+	$('#but_sys_change_password').button({label:'修改密码'});
+	$('#but_sys_change_password').on('click', function(){
+		ShowChangePassword(viewer);
+	});
+	
+	if($.g_userinfo['username'] === 'admin')
+	{
+		$('#but_sys_role').button({label:'权限控制'});
+		$('#but_sys_role').on('click', function(){
+			ShowRoleControl(viewer);
+		});
+	}else
+	{
+		$('#but_sys_role').hide();
+	}
 }
+
+function ShowChangePassword(viewer)
+{
+	$('#dlg_change_password').dialog({
+		width: 420,
+		height: 320,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		position:{at: "center"},
+		title:'修改密码',
+		close: function(event, ui){
+		},
+		show: {
+			effect: "blind",
+			//direction: "right",
+			duration: 200
+		},
+		hide: {
+			effect: "blind",
+			//direction: "right",
+			duration: 200
+		},		
+		buttons:[
+			{ 	
+				text: "确定", 
+				click: function(e){
+					if($('#form_change_password').valid())
+					{
+						var data = $('#form_change_password').webgisform('getdata');
+						if(data['password_new'] != data['password_new1'])
+						{
+							$.jGrowl("两次输入的新密码不一致,请检查", { 
+								life: 2000,
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+							return;
+						}
+						var that = this;
+						var username;
+						if($.g_userinfo['username'] === 'admin')
+						{
+							username = data['username'];
+						}
+						else
+						{
+							username = $.g_userinfo['username'];
+							if(data['password_old'] != $.g_userinfo['password'])
+							{
+								$.jGrowl("旧密码不正确,请检查", { 
+									life: 2000,
+									position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+									theme: 'bubblestylefail',
+									glue:'before'
+								});
+								return;
+							}
+						}
+						if(username && username.length>0)
+						{
+							
+							ShowConfirm(null, 500, 200,
+								'保存确认',
+								'确认保存新修改的密码吗? ',
+								function(){
+									var cond = {'db':g_db_name, 'collection':'userinfo', 'action':'update','data':{'password':data['password_new']}, 'username':username};
+									ShowProgressBar(true, 670, 200, '保存用户信息', '正在保存用户信息，请稍候...');
+									MongoFind(cond, function(data1){
+										ShowProgressBar(false);
+										$.jGrowl("保存成功", { 
+											life: 2000,
+											position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+											theme: 'bubblestylesuccess',
+											glue:'before'
+										});
+										$( that ).dialog( "close" );
+								});
+							},function(){
+								$( that ).dialog( "close" );
+							});
+						}else
+						{
+							$.jGrowl("请选择用户名", { 
+								life: 2000,
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+						}
+					}
+				}
+			},
+			{ 	
+				text: "关闭", 
+				click: function(e){
+					$( this ).dialog( "close" );
+				}
+			}
+		]
+	});
+	var flds;
+	if($.g_userinfo['username'] === 'admin')
+	{
+		var cond = {'db':g_db_name, 'collection':'userinfo'};
+		ShowProgressBar(true, 670, 200, '获取用户信息', '正在获取用户信息，请稍候...');
+		MongoFind(cond, function(data1){
+			ShowProgressBar(false);
+			var userlist = [];
+			for(var i in data1)
+			{
+				userlist.push({'value':data1[i]['username'], 'label':data1[i]['displayname']});
+			}
+			flds = [
+				{ display: "选择用户", id: "username", newline: true,  type: "select", editor:{data:userlist}, group:'用户信息', labelwidth:130, width:200, validate:{required:true}, change:function(selected){
+					for(var i in data1)
+					{
+						if(data1[i]['username'] === selected)
+						{
+							$('#form_change_password').webgisform('set', 'password_old', data1[i]['password']);
+							var password_old = $('#form_change_password').webgisform('get', 'password_old');
+							//console.log(password_old[0]);
+							$(password_old[0]).focus(function(){
+								this.type = "text";
+							}).blur(function(){
+								this.type = "password";
+							})							
+							break;
+						}
+					}
+				}},
+				{ display: "旧密码", id: "password_old", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+				{ display: "新密码", id: "password_new", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+				{ display: "确认新密码", id: "password_new1", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+			];
+			$('#form_change_password').webgisform(flds, {
+					//divorspan: "div",
+					prefix: "form_change_password_",
+					maxwidth: 370
+					//margin:10,
+					//groupmargin:10
+			});
+		});
+		
+	}else
+	{
+		flds = [
+			{display: "旧密码", id: "password_old", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+			{display: "新密码", id: "password_new", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+			{display: "确认新密码", id: "password_new1", newline: true,  type: "password",  group:'用户信息', labelwidth:130, width:200, validate:{required:true}},
+		];
+		$('#form_change_password').webgisform(flds, {
+			//divorspan: "div",
+			prefix: "form_change_password_",
+			maxwidth: 370
+			//margin:10,
+			//groupmargin:10
+		});
+	}
+}
+
+function ShowRoleControl(viewer)
+{
+	$('#dlg_change_role').dialog({
+		width: 420,
+		height: 550,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		position:{at: "center"},
+		title:'权限设定',
+		close: function(event, ui){
+		},
+		show: {
+			effect: "blind",
+			//direction: "right",
+			duration: 200
+		},
+		hide: {
+			effect: "blind",
+			//direction: "right",
+			duration: 200
+		},		
+		buttons:[
+			{ 	
+				text: "确定", 
+				click: function(e){
+					var that = this;
+					if($('#form_change_role').valid())
+					{
+						ShowConfirm(null, 500, 200,
+							'保存确认',
+							'确认保存该角色权限设置吗? ',
+							function(){
+								var data = $('#form_change_role').webgisform('getdata');
+								if(data['roleid'] && data['roleid'].length>0)
+								{
+									var cond = {'db':g_db_name, 'collection':'sysrole', 'action':'update','data':{'users':data['users'], 'permission':get_permission()}, '_id':data['roleid']};
+									//console.log(cond);
+									ShowProgressBar(true, 670, 200, '保存权限信息', '正在保存权限信息，请稍候...');
+									MongoFind(cond, function(data1){
+										ShowProgressBar(false);
+										$.jGrowl("保存成功", { 
+											life: 2000,
+											position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+											theme: 'bubblestylesuccess',
+											glue:'before'
+										});
+										$( that ).dialog( "close" );
+									});
+								}else
+								{
+									$.jGrowl("请选择权限名", { 
+										life: 2000,
+										position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+										theme: 'bubblestylefail',
+										glue:'before'
+									});
+								}
+						});
+					}
+				}
+			},
+			{ 	
+				text: "关闭", 
+				click: function(e){
+					$( this ).dialog( "close" );
+				}
+			}
+		]
+	});
+	var get_permission = function()
+	{
+		var ret = [];
+		$.each($('input[id^=form_change_role_role_functions_]'), function(i, element){
+			if($(element).is(':checked'))
+			{
+				ret.push($(element).attr('id').replace('form_change_role_role_functions_',''));
+			}
+		});
+		return ret;
+	};
+	var update_form = function()
+	{
+		var userlist = [];
+		var rolelist = [];
+		var cond = {'db':g_db_name, 'collection':'userinfo'};
+		ShowProgressBar(true, 670, 200, '获取用户信息', '正在获取用户信息，请稍候...');
+		MongoFind(cond, function(data1){
+			ShowProgressBar(false);
+			for(var i in data1)
+			{
+				if(data1[i]['username'] != 'admin')
+				{
+					userlist.push({'value':data1[i]['_id'], 'label':data1[i]['displayname']});
+				}
+			}
+			cond = {'db':g_db_name, 'collection':'sysrole'};
+			ShowProgressBar(true, 670, 200, '获取权限信息', '正在获取权限信息，请稍候...');
+			MongoFind(cond, function(data2){
+				ShowProgressBar(false);
+				for(var i in data2)
+				{
+					if(data2[i]['name'] != 'admin')
+					{
+						rolelist.push({'value':data2[i]['_id'], 'label':data2[i]['displayname']});
+					}
+				}
+				
+				var flds = [
+					{display: "角色列表", id: "roleid", newline: true,  type: "select", editor:{data:rolelist},  group:'角色', labelwidth:130, width:200, validate:{required:true}, 
+						change:function(selected){
+							var users = $('#form_change_role').webgisform('get', 'users');
+							
+							$('input[id^=form_change_role_role_functions_]' ).iCheck('uncheck');
+							for(var i in data2)
+							{
+								if(data2[i]['_id'] === selected)
+								{
+									
+									$(users[0]).multipleSelect("setSelects", data2[i]['users']);
+									for(var j in data2[i]['permission'])
+									{
+										$('#form_change_role_role_functions_' + data2[i]['permission'][j]).iCheck('check');
+									}
+									break;
+								}
+							}
+						}
+					},
+					{display: "用户列表", id: "users", newline: true,  type: "multiselect", editor:{data:userlist},  group:'用户', labelwidth:130, width:200, validate:{required:true}},
+				];
+				
+				
+				for(var i in g_role_functions)
+				{
+					flds.push({display: g_role_functions[i]['label'], id: "role_functions_" + g_role_functions[i]['value'], newline: true,  type: "checkbox", defaultvalue:false,  group:'允许功能', labelwidth:270});
+				}
+				
+				
+				$('#form_change_role').empty();
+				$('#form_change_role').webgisform(flds, {
+					prefix: "form_change_role_",
+					maxwidth: 370
+					//margin:10,
+					//groupmargin:10
+				});
+				
+			});
+		});
+	};
+	update_form();
+}
+
+
 function ClearPoi(viewer)
 {
 	var scene = viewer.scene;
@@ -2354,6 +2716,8 @@ function LoadCodeData(db_name, callback)
 			if (callback) callback();
 	});
 }
+
+
 function LoadLineData(db_name, callback)
 {
 	var line_cond = {'db':db_name, 'collection':'lines'};
@@ -2367,6 +2731,21 @@ function LoadLineData(db_name, callback)
 			if (callback) callback();
 	});
 }
+
+function LoadSysRole(db_name, callback)
+{
+	var cond = {'db':db_name, 'collection':'-', action:'getsysrole', 'userid':$.g_userinfo['_id']};
+	MongoFind( cond, 
+		function(data){
+			ShowProgressBar(false);
+			$.g_sysrole = data;
+			//console.log($.g_sysrole);
+			if (callback) callback();
+	});
+}
+
+
+
 
 function AddTerrainZOffset(geojson)
 {
@@ -5073,6 +5452,10 @@ function ShowTowerInfoDialog(viewer, tower)
 				click: function(){ 
 					if($('#form_tower_info_base').valid())
 					{
+						if(!CheckPermission('tower_save'))
+						{
+							return;
+						}
 						if(CheckTowerInfoModified())
 						{
 							ShowConfirm(null, 500, 200,
@@ -5928,6 +6311,11 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		buttons:[
 			{ 	text: "缓冲区分析", 
 				click: function(){ 
+					if(!CheckPermission('buffer_analyze'))
+					{
+						return;
+					}
+
 					$( this ).dialog( "close" );
 					if(id && g_geojsons[id])
 					{
@@ -5967,6 +6355,10 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 					var v = $('#select_poi_type').val();
 					if($('#form_poi_info_' + v).valid())
 					{
+						if(!CheckPermission('feature_save'))
+						{
+							return;
+						}
 						ShowConfirm(null, 500, 200,
 							'保存确认',
 							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
@@ -6566,7 +6958,7 @@ function OnSelect(viewer, e)
 		}
 	};
 	clearselcolor();
-	$('#lnglat_indicator').html('点击位置:' + PickLngLatFromScreen(viewer, e.position));
+	$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + PickLngLatFromScreen(viewer, e.position));
 			
 	
 	$('#btn_edge_save').attr('disabled','disabled');
@@ -6875,4 +7267,44 @@ function ShowLineDialog(viewer, id)
 		}
 	});
 
+}
+
+function GetParamsFromUrl() {
+	var ret = {};
+	if(location.search.length>0)
+	{
+		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  g_encrypt_key);
+		var s = decrypted.toString(CryptoJS.enc.Utf8);
+		s = decodeURIComponent(s);
+		ret = JSON.parse(s);
+	}
+	return ret;
+}
+
+
+function CheckPermission(funcname)
+{
+	if($.g_userinfo['username'] === 'admin')
+	{
+		return true;
+	}
+	var ret = false;
+	if($.g_sysrole.indexOf(funcname)>-1)
+	{
+		ret = true;
+	}
+	if(ret === false)
+	{
+		var s = '';
+		for(var i in g_role_functions)
+		{
+			if(g_role_functions[i]['value'] === funcname)
+			{
+				s = g_role_functions[i]['label'];
+				break;
+			}
+		}
+		ShowMessage(null, 400, 200, '权限检查', '当前登录用户[' + $.g_userinfo['displayname'] + ']无此操作权限:' + s);
+	}
+	return ret;
 }
