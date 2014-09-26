@@ -1,4 +1,5 @@
 var g_zaware = false;
+var g_selected_geojson;
 
 //绝缘子串
 var g_insulator_type_list = [
@@ -86,14 +87,14 @@ var g_tower_baseinfo_fields = [
 			var id = $('#form_tower_info_base').webgisform('get', 'id').val();
 			var viewer = $.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
-			if(g_gltf_models[id])
+			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
+				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
+				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+			if(event.currentTarget )
 			{
-				if(event.currentTarget)
+				if(g_gltf_models[id])
 				{
-					var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
-						lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-						height = $('#form_tower_info_base').webgisform('get','alt').val(),
-						rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 					if(!g_zaware) height = 0;
 					lng = event.currentTarget.value;
 					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
@@ -105,6 +106,10 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				if(g_selected_geojson)
+				{
+					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				}
 			}
 			event.preventDefault();
 		},
@@ -113,15 +118,19 @@ var g_tower_baseinfo_fields = [
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
+			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
+				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
+				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(g_gltf_models[id])
 			{
-				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
-					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','alt').val(),
-					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lng = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+			}
+			if(g_selected_geojson)
+			{
+				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},
@@ -131,14 +140,14 @@ var g_tower_baseinfo_fields = [
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
-			if(g_gltf_models[id])
+			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
+				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
+				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+			if(event.currentTarget)
 			{
-				if(event.currentTarget)
+				if( g_gltf_models[id])
 				{
-					var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
-						lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-						height = $('#form_tower_info_base').webgisform('get','alt').val(),
-						rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 					if(!g_zaware) height = 0;
 					lat = event.currentTarget.value;
 					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
@@ -150,6 +159,10 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				if(g_selected_geojson)
+				{
+					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				}
 			}
 			event.preventDefault();
 		},
@@ -158,15 +171,19 @@ var g_tower_baseinfo_fields = [
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
+			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
+				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
+				height = $('#form_tower_info_base').webgisform('get','alt').val(),
+				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(g_gltf_models[id])
 			{
-				var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
-					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
-					height = $('#form_tower_info_base').webgisform('get','alt').val(),
-					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!g_zaware) height = 0;
 				lat = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
+			}
+			if(g_selected_geojson)
+			{
+				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},
@@ -195,6 +212,10 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				if(g_selected_geojson)
+				{
+					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				}
 			}
 			event.preventDefault();
 		},
@@ -212,6 +233,10 @@ var g_tower_baseinfo_fields = [
 			{
 				height = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
+			}
+			if(g_selected_geojson)
+			{
+				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
 			}
 		},
 		attach:'<img src=""/>',
@@ -242,6 +267,10 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				if(g_selected_geojson)
+				{
+					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				}
 			}
 			event.preventDefault();
 		},
@@ -260,6 +289,10 @@ var g_tower_baseinfo_fields = [
 				rotate = ui.value;
 				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
+			}
+			if(g_selected_geojson)
+			{
+				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},

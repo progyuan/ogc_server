@@ -1,7 +1,6 @@
 var g_drawhelper;
 var g_selected_obj;
 var g_prev_selected_obj;
-var g_selected_geojson;
 var g_czmls = {};
 //var g_geojson_towers = {"type": "FeatureCollection","features": []};
 var g_geojsons = {};
@@ -185,7 +184,7 @@ function IFrameUpdateTower(tower_id, data)
 		var id = geojson['_id'];
 		if(g_geojsons[id])
 		{
-			g_geojsons[id] = AddTerrainZOffset(geojson);
+			g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 			g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
 		}
 	}
@@ -271,7 +270,7 @@ function LoadAllDNNode(viewer, db_name, callback)
 			for(var i in data)
 			{
 				var id = data[i]['_id'];
-				if(!g_geojsons[id]) g_geojsons[id] = AddTerrainZOffset(data[i]);
+				if(!g_geojsons[id]) g_geojsons[id] = data[i]; //AddTerrainZOffset(data[i]);
 				if(!g_czmls[id]) g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
 				//g_czmls[id]['position']['cartographicDegrees'][2] = g_geojsons[id]['geometry']['coordinates'][2];
 				//console.log(g_czmls[id]['position']['cartographicDegrees'][2]);
@@ -2086,7 +2085,7 @@ function ShowSearchResult(viewer, geojson)
 			var _id = geojson['_id'];
 			if(!g_geojsons[_id])
 			{
-				g_geojsons[_id] = AddTerrainZOffset(geojson);
+				g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 			}
 			if(!g_czmls[_id])
 			{
@@ -2773,6 +2772,52 @@ function AddTerrainZOffset(geojson)
 	return geojson;
 }
 
+function RemoveTerrainZOffset(geojson)
+{
+	var remove_to_coord= function(coord)
+	{
+		if(coord instanceof Array && coord.length==3 && $.isNumeric(coord[0]))
+		{
+			coord[2] = coord[2] - g_terrain_z_offset;
+		}
+		else if(coord instanceof Array)
+		{
+			var l = [];
+			for(var i in coord)
+			{
+				l.push(remove_to_coord(coord[i]));
+			}
+			coord = l;
+		}
+		return coord;
+	}
+	if(geojson['geometry'] && geojson['geometry']['coordinates'])
+	{
+		geojson['geometry']['coordinates'] = remove_to_coord(geojson['geometry']['coordinates']);
+	}
+	return geojson;
+}
+
+function UpdateGeojsonPos(geojson, lng, lat, height, rotate)
+{
+	if(geojson['geometry'] && geojson['geometry']['coordinates'])
+	{
+		var coord = geojson['geometry']['coordinates'];
+		if(coord instanceof Array && coord.length==3 && $.isNumeric(coord[0]))
+		{
+			coord[0] = parseFloat(lng);
+			coord[1] = parseFloat(lat);
+			coord[2] = parseFloat(height);
+			geojson['geometry']['coordinates'] = coord;
+		}
+	}
+	if(geojson['properties'] )
+	{
+		geojson['properties']['rotate'] = parseFloat(rotate);
+	}
+	return geojson;
+}
+
 function LoadTowerByLineName(viewer, db_name,  name,  callback)
 {
 	var geo_cond = {'db':db_name, 'collection':'mongo_get_towers_by_line_name', 'properties.name':name};
@@ -2789,7 +2834,7 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 				//geojson = AddZValueByCesium(viewer, geojson, g_zaware);
 				if(!g_geojsons[_id])
 				{
-					g_geojsons[_id] = AddTerrainZOffset(geojson);
+					g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 				}
 				if(!g_czmls[_id])
 				{
@@ -2831,7 +2876,7 @@ function LoadLineByLineName(viewer, db_name, name, callback)
 			//console.log(data[0]);
 			if(!g_geojsons[_id])
 			{
-				g_geojsons[_id] = AddTerrainZOffset(data[0]);
+				g_geojsons[_id] = data[0]; //AddTerrainZOffset(data[0]);
 			}
 			if(!g_czmls[_id])
 			{
@@ -5017,7 +5062,7 @@ function SaveTower(viewer)
 					var id = geojson['_id'];
 					//if(!g_geojsons[id])
 					//{
-					g_geojsons[id] = AddTerrainZOffset(geojson);
+					g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 					//}
 					//if(!g_czmls[id])
 					//{
@@ -5039,6 +5084,7 @@ function SaveTower(viewer)
 function SavePoi(data, callback)
 {
 	//console.log(data);
+	//data = RemoveTerrainZOffset(data);
 	var cond = {'db':g_db_name, 'collection':'features', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
@@ -6042,7 +6088,7 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 									{
 										var g = data[i];
 										//console.log(g);
-										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = AddTerrainZOffset(g);
+										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;//AddTerrainZOffset(g);
 										if(!g_czmls[g['_id']]) g_czmls[g['_id']] = CreateCzmlFromGeojson(g_geojsons[g['_id']]);
 									}
 									ReloadCzmlDataSource(viewer, g_zaware);
@@ -6406,7 +6452,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 												var id = geojson['_id'];
 												if(!g_geojsons[id])
 												{
-													g_geojsons[id] = AddTerrainZOffset(geojson);
+													g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 												}
 												if(!g_czmls[id])
 												{
@@ -7284,6 +7330,10 @@ function GetParamsFromUrl() {
 
 function CheckPermission(funcname)
 {
+	if($.g_userinfo['username'] === undefined)
+	{
+		return true;
+	}
 	if($.g_userinfo['username'] === 'admin')
 	{
 		return true;
