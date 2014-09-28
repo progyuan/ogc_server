@@ -60,6 +60,7 @@ var g_style_polygon_mapping = {
 var g_role_functions = [
 	{value:'line_save', label:'线路工程创建与保存'},
 	{value:'edge_save', label:'节点连接关系创建与保存'},
+	{value:'edge_delete',label:'节点连接关系删除'},
 	{value:'tower_save', label:'杆塔创建与保存'},
 	{value:'tower_delete', label:'杆塔删除'},
 	{value:'feature_save', label:'地标创建与保存'},

@@ -7000,9 +7000,58 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if wr:
                                 ret.append(remove_mongo_id(wr))
                         elif isinstance(conditions['_id'], str) or isinstance(conditions['_id'], unicode):
-                            wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
-                            if wr:
-                                ret.append(remove_mongo_id(wr))
+                            remove_check = ''
+                            one = mongo_find_one(dbname, collection_name, {'_id':str(conditions['_id'])})
+                            if collection_name == 'features':
+                                if one and one.has_key('properties') and one['properties'].has_key('webgis_type') and one['properties']['webgis_type'] in ['point_dn','point_tower']:
+                                    def check_has_edge(node_id):
+                                        edgelist = mongo_find(dbname, 'edges', conditions = {'$or':[{'properties.start':node_id}, {'properties.end':node_id}]})
+                                        if len(edgelist)>0:
+                                            return True
+                                        else:
+                                            return False
+                                    if  check_has_edge(str(conditions['_id'])):
+                                        remove_check = u'edge_exist'
+                            if len(remove_check) == 0:
+                                wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
+                                if one and one.has_key('properties') and one['properties'].has_key('webgis_type') :
+                                    def delete_node_from_network(node_id, collectionname):
+                                        networklist = mongo_find(dbname, collectionname)
+                                        for network in networklist:
+                                            if collectionname == 'lines':
+                                                if node_id in network['properties']['towers']:
+                                                    network['properties']['towers'].remove(node_id)
+                                                    mongo_action(dbname, collectionname, 'update', {'properties.towers': network['properties']['towers']}, conditions={'_id':network['_id']})
+                                            if collectionname == 'distribute_network':
+                                                if node_id in network['properties']['nodes']:
+                                                    network['properties']['nodes'].remove(node_id)
+                                                    mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, conditions={'_id':network['_id']})
+                                    def delete_segment_by_tower(node_id):
+                                        seglist = mongo_find(dbname, 'segments', conditions = {'$or':[{'start_tower':node_id}, {'end_tower':node_id}]})
+                                        ids = []
+                                        for seg in seglist:
+                                            ids.append(seg['_id'])
+                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids})
+                                        return wr1
+                                    def delete_segment_by_edge(node_id0, node_id1):
+                                        seglist = mongo_find(dbname, 'segments', conditions = {'$or':[{'start_tower':node_id0, 'end_tower':node_id1}, {'start_tower':node_id1, 'end_tower':node_id0}]})
+                                        ids = []
+                                        for seg in seglist:
+                                            ids.append(seg['_id'])
+                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids})
+                                        return wr1
+                                        
+                                    if one['properties']['webgis_type'] == 'point_tower':
+                                        delete_node_from_network(str(conditions['_id']), 'lines')
+                                        wr = delete_segment_by_tower(str(conditions['_id']))
+                                    if one['properties']['webgis_type'] == 'point_dn':
+                                        delete_node_from_network(str(conditions['_id']), 'distribute_network')
+                                    if one['properties']['webgis_type'] == 'edge_tower':
+                                        wr = delete_segment_by_edge(one['properties']['start'], one['properties']['end'])
+                                if wr:
+                                    ret.append(remove_mongo_id(wr))
+                            else:
+                                ret.append({'ok':0, 'err':remove_check})
                 else:
                     s = 'collection [%s] does not exist.' % collection_name
                     raise Exception(s)
@@ -7158,6 +7207,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             for perm in role['permission']:
                                 if not perm in ret:
                                     ret.append(perm)
+            elif action.lower() == 'loadtoweredge':
+                ret = []
+                if conditions.has_key('lineid'):
+                    linelist = mongo_find(dbname, 'lines', {'_id':conditions['lineid']})
+                    if len(linelist) > 0:
+                        towers = linelist[0]['properties']['towers']
+                        edges = mongo_find(dbname, 'edges', {'properties.webgis_type':'edge_tower'})
+                        for edge in edges:
+                            if edge['properties']['start'] in towers or edge['properties']['end'] in towers:
+                                ret.append(edge)
                             
             #else:
                 #s = 'collection [%s] does not exist.' % collection_name

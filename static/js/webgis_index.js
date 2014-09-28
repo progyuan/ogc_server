@@ -91,25 +91,25 @@ $(function() {
 					LoadModelsMapping(g_db_name, function(){
 						//var name;
 						//if(g_db_name === 'kmgd') name = '七罗I回';
-						//if(g_db_name === 'ztgd') name = '永发I回线';
-						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							//LoadLineByLineName(viewer, g_db_name, name, function(){
+						if(g_db_name === 'ztgd') name = '永发I回线';
+						LoadTowerByLineName(viewer, g_db_name,  name, function(){
+							LoadLineByLineName(viewer, g_db_name, name, function(){
 								//name = '七罗II回';
 								//name = '永发II回线';
 								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
 									//LoadLineByLineName(viewer, g_db_name, name, function(){
-										//var extent = GetExtentByCzml();
-										//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-										//ReloadCzmlDataSource(viewer, g_zaware);
+										var extent = GetExtentByCzml();
+										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+										ReloadCzmlDataSource(viewer, g_zaware);
 									//});
 								//});
-							//});
-						//});
-						var extent = GetDefaultExtent(g_db_name);
-						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						LoadSysRole(g_db_name, function(){
-							$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+							});
 						});
+						//var extent = GetDefaultExtent(g_db_name);
+						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						//LoadSysRole(g_db_name, function(){
+							//$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+						//});
 					});
 					
 					//var extent = GetDefaultExtent(g_db_name);
@@ -260,6 +260,27 @@ function LoadAllDNEdge(viewer, db_name, callback)
 		if(callback) callback(data);
 	});
 }
+
+function LoadEdgeByLineId(viewer, db_name, lineid, callback)
+{
+	var cond = {'db':db_name, 'collection':'-', action:'loadtoweredge', 'lineid':lineid};
+	MongoFind(cond, function(data){
+		if(data.length>0)
+		{
+			for(var i in data)
+			{
+				var id = data[i]['_id'];
+				if(!g_geojsons[id]) g_geojsons[id] = data[i];
+				//DrawEdgeBetweenTwoNode(viewer, 'edge_tower', g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
+			}
+		}
+		if(callback) callback(data);
+	});
+}
+
+
+
+
 function LoadAllDNNode(viewer, db_name, callback)
 {
 	var cond = {'db':db_name, 'collection':'features', 'properties.webgis_type':'point_dn'};
@@ -612,19 +633,23 @@ function InitKeyboardEvent(viewer)
 		}
 		if(e.keyCode == 46)//delete
 		{
+			$('#control_toolpanel_kmgd_left').hide('slide',{}, 400, function(){
+				$('#control_toolpanel_kmgd_handle').css('display','block');
+			});
 			try{
 				$('#dlg_tower_info').dialog("close");
 				$('#dlg_poi_info').dialog("close");
+				
 			}catch(e)
 			{
 				//console.log(e);
 			}
-			if(!CheckPermission('feature_delete'))
-			{
-				return;
-			}
 			if(g_selected_obj && g_selected_obj.id && g_selected_obj.id.properties && g_selected_obj.id.properties.webgis_type === 'edge_dn')
 			{
+				if(!CheckPermission('edge_delete'))
+				{
+					return;
+				}
 				var get_name = function()
 				{
 					var s0 = '', s1 = '';
@@ -650,7 +675,7 @@ function InitKeyboardEvent(viewer)
 				};
 				var name = get_name();
 				
-				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除[' + name + ']之间的联系吗?', function(){
+				ShowConfirm(null, 400, 280, '删除确认', '你确认要删除[' + name + ']之间的联系吗?', function(){
 					//console.log(g_selected_obj.id);
 					var id = get_id();
 					//console.log(id);
@@ -699,11 +724,16 @@ function InitKeyboardEvent(viewer)
 						return;
 					}
 				}
+				if(!CheckPermission('feature_delete'))
+				{
+					return;
+				}
+				
 				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + g_geojsons[g_selected_obj.id]['properties']['name'] + ']吗?', function(){
-					if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
-					{
-						return;
-					}
+					//if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
+					//{
+						//return;
+					//}
 					var cond = {'db':g_db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj.id};
 					MongoFind( cond, 
 						function(data){
@@ -736,6 +766,13 @@ function InitKeyboardEvent(viewer)
 									viewer.selectedEntity = undefined;
 									viewer.trackedEntity = undefined;
 									ReloadCzmlDataSource(viewer, g_zaware, true);
+								}
+								else
+								{
+									if(data[0]['err'] === 'edge_exist')
+									{
+										ShowMessage(null, 400, 300, '无法删除有关联的结点', '请先删除该结点与其他结点之间的所有关联。方法是：地图图层->线路->显示节点关系，勾选后用鼠标选择两个结点之间的关联线，点击DEL键删除。');
+									}
 								}
 							}
 					});
@@ -1107,7 +1144,7 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 			
 		}else
 		{
-			ShowMessage(400, 250, '出错了', '服务器生成圆形错误:返回数据为空,请确认服务正在运行.');
+			ShowMessage(null, 400, 250, '出错了', '服务器生成圆形错误:返回数据为空,请确认服务正在运行.');
 		}
 	});
 
@@ -1331,14 +1368,32 @@ function InitToolPanel(viewer)
 	});
 	$('input[id^=chb_show_geometry_]').on("ifChanged", function(e){
 		var webgis_type = $(this).attr('id').replace('chb_show_geometry_', '');
-		if($(this).is(':checked'))
+		if(webgis_type === 'edge_tower')
 		{
-			console.log('turn on geometry:' + webgis_type);
-		}else
-		{
-			console.log('turn off geometry:' + webgis_type);
+			if($(this).is(':checked'))
+			{
+				console.log('turn on edge:' + webgis_type);
+				for(var k in g_geojsons)
+				{
+					DrawEdgeBetweenTwoNode(viewer, 'edge_tower', g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
+				}
+			}else
+			{
+				console.log('turn off edge:' + webgis_type);
+				RemoveSegmentsByType(viewer, 'edge_tower');
+			}
 		}
-		ReloadCzmlDataSource(viewer, g_zaware);
+		else
+		{
+			if($(this).is(':checked'))
+			{
+				console.log('turn on geometry:' + webgis_type);
+			}else
+			{
+				console.log('turn off geometry:' + webgis_type);
+			}
+			ReloadCzmlDataSource(viewer, g_zaware);
+		}
 	});
 	$('input[id^=chb_show_icon_]').on("ifChanged", function(e){
 		if($(this).is(':checked'))
@@ -1617,7 +1672,7 @@ function ShowRoleControl(viewer)
 {
 	$('#dlg_change_role').dialog({
 		width: 420,
-		height: 550,
+		height: 570,
 		minWidth:200,
 		minHeight: 200,
 		draggable: true,
@@ -1869,7 +1924,7 @@ function InitSearchBox(viewer)
 	$( "input[id^=chb_search_webgis_type_]").iCheck({
 		checkboxClass: 'icheckbox_flat-green'
 	});
-	$( "#chb_search_webgis_type_point_tower").iCheck('check');
+	$( "#chb_search_webgis_type_polyline_line").iCheck('check');
 	$( "input[id^=chb_search_webgis_type_]").on("ifChanged", function(e){
 	});
 	
@@ -2862,8 +2917,11 @@ function LoadLineByLineName(viewer, db_name, name, callback)
 	};
 	var _id = get_line_id(name);
 	
-	var ellipsoid = viewer.scene.globe.ellipsoid;
 	
+	LoadEdgeByLineId(viewer, db_name, _id, callback);
+	if(true) return;
+	
+	var ellipsoid = viewer.scene.globe.ellipsoid;
 	if(!_id)
 	{
 		console.log(name + " does not exist");
@@ -3614,11 +3672,6 @@ function TowerInfoMixin(viewer)
 	}
 	eventHelper.add(viewer.clock.onTick, onTick);
 
-//----test pick only-----
-	//var labels = new Cesium.LabelCollection();
-	//label = labels.add();
-	//viewer.scene.primitives.add(labels);
-//------------------
 	function pickTrackedEntity(e) {
 		var picked = viewer.scene.pick(e.position);
 		var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -3672,8 +3725,11 @@ function TowerInfoMixin(viewer)
 	}
 
 	function moveOverObject(e) {
-		var picked = viewer.scene.pick(e.endPosition);
-		if (Cesium.defined(g_selected_obj) && Cesium.defined(picked) && Cesium.defined(picked.id) && picked.id === g_selected_obj) 
+		var picked;
+		try{
+			picked = viewer.scene.pick(e.endPosition);
+		}catch(e){}
+		if (Cesium.defined(picked) && Cesium.defined(g_selected_obj) && Cesium.defined(picked.id) && picked.id === g_selected_obj) 
 		{
 			var id = g_selected_obj.id;
 			if(g_geojsons[id] && g_geojsons[id]['properties']['name'])
@@ -4071,7 +4127,9 @@ function RemoveSegmentsByType(viewer, webgis_type)
 			var seg = g_geometry_segments[i];
 			if(seg.webgis_type === webgis_type)
 			{
-				scene.primitives.remove(seg.primitive);
+				try{
+					scene.primitives.remove(seg.primitive);
+				}catch(e){}
 				g_geometry_segments.splice(i,1);
 				ret = true;
 				break;
@@ -4166,7 +4224,7 @@ function CheckSegmentsRing(node0, node1)
 	return ret;
 }
 
-function CheckSegmentsExist(node0, node1, callback)
+function CheckSegmentsExist(node0, node1, webgis_type, callback)
 {
 	var ret = false;
 	var id0, id1;
@@ -4187,11 +4245,24 @@ function CheckSegmentsExist(node0, node1, callback)
 			for(var i in g_geometry_segments)
 			{
 				var seg = g_geometry_segments[i];
-				if((seg['start'] == id0 && seg['end'] == id1)
-					|| 	(seg['end'] == id0 && seg['start'] == id1)
-				) {
-					ret = true;
-					break;
+				if(webgis_type)
+				{
+					if(seg['webgis_type'] === webgis_type
+						&& ( (seg['start'] == id0 && seg['end'] == id1) || (seg['end'] == id0 && seg['start'] == id1))
+					) {
+						ret = true;
+						break;
+					}
+				}
+				else
+				{
+					if(
+							(seg['start'] == id0 && seg['end'] == id1)
+						|| 	(seg['end'] == id0 && seg['start'] == id1)
+					) {
+						ret = true;
+						break;
+					}
 				}
 			}
 		}
@@ -4201,19 +4272,6 @@ function CheckSegmentsExist(node0, node1, callback)
 	{
 		var cond = {'db':g_db_name, 'collection':'-', 'action':'check_edge_exist', 'id0':id0, 'id1':id1};
 		MongoFind(cond, function(data){
-			//if(id0 && id1)
-			//{
-				//for(var i in g_geometry_segments)
-				//{
-					//var seg = g_geometry_segments[i];
-					//if((seg['start'] == id0 && seg['end'] == id1)
-						//|| 	(seg['end'] == id0 && seg['start'] == id1)
-					//) {
-						//ret = true;
-						//break;
-					//}
-				//}
-			//}
 			ret = false;
 			if(data.length>0) ret = true;
 			callback(ret);
@@ -4244,10 +4302,10 @@ function RemoveLineModel(viewer, line_id)
 
 
 
-function RemoveSegmentsBetweenTwoNode(viewer, node0, node1)
+function RemoveSegmentsBetweenTwoNode(viewer, node0, node1, webgis_type)
 {
 	var scene = viewer.scene;
-	if(CheckSegmentsExist(node0, node1))
+	if(CheckSegmentsExist(node0, node1, webgis_type))
 	{
 		var seg = RemoveSegmentsFromArray(node0, node1);
 		if(seg)
@@ -4566,72 +4624,15 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 	return GetPositionsByCzmlArray(ellipsoid, arr, true);
 }
 
-//function DrawLineModelByLine(viewer, line, width, color, alpha, callback)
-//{
-	//RemoveLineModel(viewer, line['_id']);
-	//var ellipsoid = viewer.scene.globe.ellipsoid;
-	
-	//var rgba = tinycolor(color).toRgb();
-	//rgba.a = 0.5;
-	//if(alpha) rgba.a = alpha;
-	//rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
-	////console.log(rgba);
-	
-	//var _id = line['_id'];
-	//var cond = {'db':g_db_name, 'collection':'get_line_geojson', '_id':_id};
-	//MongoFind(cond, function(data){
-		//if(data.length>0)
-		//{
-			//g_geojsons[_id] = data[0];
-			
-			//array = data[0]['geometry']['coordinates'];
-			//pairs = data[0]['properties']['towers_pair'];
-			////console.log(array);
-			//for(var i in array)
-			//{
-				//var poss = GetPositionsByGeojsonCoordinatesArray(ellipsoid, array[i]);
-				//var primitive = new Cesium.Primitive({
-					//geometryInstances : new Cesium.GeometryInstance({
-						//id:	line['_id'] + '_' + pairs[i][0] + '_' + pairs[i][1],
-						//geometry : new Cesium.PolylineGeometry({
-							//positions : poss,
-							//width : width,
-							//vertexFormat : Cesium.PolylineMaterialAppearance.VERTEX_FORMAT
-						//})
-					//}),
-					//appearance : new Cesium.PolylineMaterialAppearance({
-						////material : Cesium.Material.fromType(Cesium.Material.PolylineGlowType)
-						//material : Cesium.Material.fromType('Color', {
-							//color : Cesium.Color.fromCssColorString(rgba)
-						//}),
-						//renderState : {
-							//depthTest : {
-								//enabled : false
-							//}
-						//}
-					//})
-				//});
-				//viewer.scene.primitives.add(primitive);
-				//g_geometry_lines[line['_id'] + '_' + + pairs[i][0] + '_' + pairs[i][1]] = primitive;
-				////if(i==0) break;
-			//}
-		//}
-		//if(callback) callback();
-	//});
 
-//}
-
-function ReloadSegments(viewer)
+function ReloadEdges(viewer)
 {
 	//RemoveSegmentsByType(viewer, 'edge_dn');
 	for(var k in g_geojsons)
 	{
-		if(g_geojsons[k])
+		if(g_geojsons[k] && g_geojsons[k]['properties']['webgis_type'] === 'edge_dn')
 		{
-			if(g_geojsons[k]['properties']['webgis_type'] == 'edge_dn')
-			{
-				DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
-			}
+			DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
 		}
 	}
 }
@@ -4682,8 +4683,9 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 
 function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len, exist)
 {
+	
 	var scene = viewer.scene;
-	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1))
+	if(tower0 && tower1 && !CheckSegmentsExist(tower0, tower1, 'edge_tower'))
 	{
 		var ellipsoid = scene.globe.ellipsoid;
 		var lng0 = tower0['geometry']['coordinates'][0],
@@ -4740,13 +4742,13 @@ function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len,
 			}
 		}
 		//console.log(tower0['_id']  + '-' + tower1['_id'] );
-		//console.log(segpairs.length);
-		//console.log(counter);
 		
 		var polylines = new Cesium.PolylineCollection({
 			modelMatrix:Cesium.Matrix4.IDENTITY,
 			depthTest : false
 		});
+		
+		
 		for(var i in segpairs)
 		{
 			var pair = segpairs[i];
@@ -4782,8 +4784,9 @@ function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len,
 				});
 			}
 		}
+		
 		scene.primitives.add(polylines);
-		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines, webgis_type:'edge_segment', properties:{'start':tower0['_id'], 'end':tower1['_id'], webgis_type:'edge_segment'}});
+		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines, webgis_type:'edge_tower', properties:{'start':tower0['_id'], 'end':tower1['_id'], webgis_type:'edge_tower'}});
 	}
 	return exist;
 }
@@ -4841,12 +4844,12 @@ function RemoveSegmentsTower(viewer, tower)
 	for(var i in prev_towers)
 	{
 		var t = prev_towers[i];
-		RemoveSegmentsBetweenTwoNode(viewer, t, tower);
+		RemoveSegmentsBetweenTwoNode(viewer, t, tower, 'edge_tower');
 	}
 	for(var i in next_towers)
 	{
 		var t = next_towers[i];
-		RemoveSegmentsBetweenTwoNode(viewer, tower, t);
+		RemoveSegmentsBetweenTwoNode(viewer, tower, t, 'edge_tower');
 	}
 }
 
@@ -5578,7 +5581,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				var arr = GetPrevNextTowerIds(tower);
 				var next_ids = arr[1]
-				console.log(next_ids);
+				//console.log(next_ids);
 				var url_next = GetNextModelUrl(next_ids);
 				if(url.length>0 && url_next.length>0)
 				{
@@ -5972,7 +5975,7 @@ function BufferCreate(viewer, type, position, distance, style, resolution, callb
 			if(callback) callback(geojson);
 		}else
 		{
-			ShowMessage(400, 250, '出错了', '服务器生成缓冲区错误:返回数据为空,请确认服务正在运行.');
+			ShowMessage(null, 400, 250, '出错了', '服务器生成缓冲区错误:返回数据为空,请确认服务正在运行.');
 		}
 	});
 }
@@ -7128,7 +7131,7 @@ function OnSelect(viewer, e)
 			}
 			if(g_czmls[id]  && g_prev_selected_obj && g_czmls[g_prev_selected_obj.id] && g_czmls[g_prev_selected_obj.id]['webgis_type'] === g_czmls[id]['webgis_type'])
 			{
-				if(g_node_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj))
+				if(g_node_connect_mode && !CheckSegmentsExist(g_prev_selected_obj, g_selected_obj, g_czmls[id]['webgis_type']))
 				{
 					var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
 					if(ring)
@@ -7354,7 +7357,7 @@ function CheckPermission(funcname)
 				break;
 			}
 		}
-		ShowMessage(null, 400, 200, '权限检查', '当前登录用户[' + $.g_userinfo['displayname'] + ']无此操作权限:' + s);
+		ShowMessage(null, 400, 200, '权限检查', '当前登录用户[' + $.g_userinfo['displayname'] + ']无此操作权限:[' + s + ']');
 	}
 	return ret;
 }
