@@ -1462,7 +1462,15 @@ function InitToolPanel(viewer)
 		ClearPoi(viewer);
 	});
 	
-	$('#but_line_add').button({label:'新增输电线路工程'});
+	$('#but_line_edit').button({label:'查看列表'});
+	$('#but_line_edit').on('click', function(){
+		if(!CheckPermission('line_edit'))
+		{
+			return;
+		}
+		ShowLineDialog(viewer, 'edit');
+	});
+	$('#but_line_add').button({label:'新增'});
 	$('#but_line_add').on('click', function(){
 		if(!CheckPermission('line_save'))
 		{
@@ -1470,10 +1478,37 @@ function InitToolPanel(viewer)
 		}
 		ShowLineDialog(viewer);
 	});
-	//$('#but_line_remove').button({label:'删除输电线路工程'});
-	//$('#but_line_remove').on('click', function(){
-		
-	//});
+	$('#but_line_delete').button({label:'删除'});
+	$('#but_line_delete').on('click', function(){
+		if(!CheckPermission('line_delete'))
+		{
+			return;
+		}
+		var arr = $('#line_choose').multipleSelect("getSelects");
+		var textarr = $('#line_choose').multipleSelect("getSelects", 'text');
+		if(arr.length>0 && g_lines[arr[0]])
+		{
+			ShowConfirm(null, 500, 200,
+				'删除确认',
+				'确认删除[' + textarr[0] + ']并保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+				function () {
+					DeleteLine(viewer, arr[0], function(){
+						LoadLineData(g_db_name, function(){
+							$('#line_choose').empty();
+							for(var k in g_lines)
+							{
+								$('#line_choose').append('<option value="' + k + '">' + g_lines[k]['properties']['name'] + '</option>');
+							}
+							$('#line_choose').multipleSelect("refresh");
+						});					
+					});
+				},
+				function () {
+					//$('#').dialog("close");
+				}
+			);
+		}
+	});
 	
 	$('#but_dn_add').button({label:'新增配电网络'});
 	$('#but_dn_add').on('click', function(){
@@ -2775,14 +2810,14 @@ function LoadCodeData(db_name, callback)
 function LoadLineData(db_name, callback)
 {
 	var line_cond = {'db':db_name, 'collection':'lines'};
-	MongoFind( line_cond, 
-		function(linedatas){
-			for(var i in linedatas)
-			{
-				g_lines[linedatas[i]['_id']] = linedatas[i];
-			}
-			ShowProgressBar(false);
-			if (callback) callback();
+	MongoFind( line_cond,function(linedatas){
+		g_lines = {};
+		for(var i in linedatas)
+		{
+			g_lines[linedatas[i]['_id']] = linedatas[i];
+		}
+		ShowProgressBar(false);
+		if (callback) callback();
 	});
 }
 
@@ -4971,6 +5006,42 @@ function CheckTowerInfoModified()
 	return false;
 }
 
+function DeleteLine(viewer, id, callback)
+{
+	var cond = {'db':g_db_name, 'collection':'lines', 'action':'remove', '_id':id};
+	ShowProgressBar(true, 670, 200, '删除保存中', '正在删除数据，请稍候...');
+	MongoFind(cond, function(data1){
+		ShowProgressBar(false);
+		if(data1.length>0)
+		{
+			if(data1[0]['ok'] === 0)
+			{
+				var msg = ''
+				if(data1[0]['err'] === 'nodes_exist')
+				{
+					msg = '该线路工程或网络中还存在杆塔或其他类型的结点，请先将这些结点删除完全后再进行删除操作。';
+				}
+				ShowMessage(null, 400, 250, '无法删除', msg);
+				//$.jGrowl("删除失败:" + data1[0]['err'], { 
+					//life: 2000,
+					//position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					//theme: 'bubblestylefail',
+					//glue:'before'
+				//});
+			}
+			else
+			{
+				$.jGrowl("删除成功", { 
+					life: 2000,
+					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					theme: 'bubblestylesuccess',
+					glue:'before'
+				});
+				if(callback) callback();
+			}
+		}
+	});
+}
 
 function SaveLine(viewer, id)
 {
@@ -4996,6 +5067,7 @@ function SaveLine(viewer, id)
 	var cond = {'db':g_db_name, 'collection':'lines', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
+		ShowProgressBar(false);
 		if(data1.length>0)
 		{
 			if(data1[0].result)
@@ -5006,7 +5078,7 @@ function SaveLine(viewer, id)
 					theme: 'bubblestylefail',
 					glue:'before'
 				});
-				console.log(data1[0].result);
+				ShowMessage(null, 400, 200, '保存出错','保存出错:' + data1[0].result, callback);
 			}
 			else
 			{
@@ -7165,7 +7237,7 @@ function OnSelect(viewer, e)
 
 }
 
-function ShowLineDialog(viewer, id)
+function ShowLineDialog(viewer, mode)
 {
     $('#dlg_line_info').dialog({
         width: 540,
@@ -7195,9 +7267,22 @@ function ShowLineDialog(viewer, id)
 			    click: function () {
 			        if ($('#form_line_info').valid()) {
 			            var that = this;
+						
+						var id = null, text='';
+						if($('#fld_line_edit_choose').is(':visible'))
+						{
+							var arr = $('#line_choose').multipleSelect("getSelects");
+							var textarr = $('#line_choose').multipleSelect("getSelects", 'text');
+							if(arr.length>0)
+							{
+								text = '[' + textarr[0] + ']';
+								id = arr[0];
+							}
+						}
+						
 			            ShowConfirm(null, 500, 200,
 							'保存确认',
-							'确认保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+							'确认保存' + text + '吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 							function () {
 								SaveLine(viewer, id);
 							},
@@ -7289,6 +7374,46 @@ function ShowLineDialog(viewer, id)
         { display: "投运日期", id: "finish_date", newline: true, type: "date", group: '日期', width: 200, labelwidth: 120 },
         { display: "退役日期", id: "decease_date", newline: true, type: "date", group: '日期', width: 200, labelwidth: 120 }
     ];
+	if(mode === 'edit')
+	{
+		$('#fld_line_edit_choose').css('display', 'block');
+		$('#line_choose').empty();
+		for(var k in g_lines)
+		{
+			$('#line_choose').append('<option value="' + k + '">' + g_lines[k]['properties']['name'] + '</option>');
+		}
+		
+		var select = $('#line_choose').multipleSelect({
+			selectAll: false,
+			selectAllText: '全部',
+			selectAllDelimiter: ['(', ')'],
+			allSelected: '(全部)',
+			countSelected: '(选择#个,共%个)',
+			noMatchesFound: '(无匹配)',
+			single: true,
+			position: 'bottom',
+			onClick:function(view){
+				if(view.checked)
+				{
+					//console.log(view.value);
+					var arr = $('#line_choose').multipleSelect("getSelects");
+					if(g_lines[view.value])
+					{
+						$("#form_line_info").webgisform('clear');
+						$("#form_line_info").webgisform('setdata', g_lines[view.value]['properties']);
+					}
+				}
+			},
+			styler: function(value) {
+				return 'color: #00FF00;background: #000000 url(/css/black-green-theme/images/ui-bg_diagonals-small_50_000000_40x40.png) 100% 100% repeat;';
+			}
+		});
+	}
+	else
+	{
+		$('#fld_line_edit_choose').css('display', 'none');
+	}
+	
     $("#form_line_info").webgisform(flds, {
         //divorspan: "div",
         prefix: "form_line_info_",
@@ -7296,10 +7421,10 @@ function ShowLineDialog(viewer, id)
         //margin:10,
         //groupmargin:10
     });
-	if(id && g_lines[id])
-	{
-		$("#form_line_info").webgisform('setdata', g_lines[id]['properties']);
-	}
+	//if(id && g_lines[id])
+	//{
+		//$("#form_line_info").webgisform('setdata', g_lines[id]['properties']);
+	//}
 	$('#tabs_line_info').tabs({ 
 		collapsible: false,
 		active: 0,

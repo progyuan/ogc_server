@@ -986,4 +986,21 @@ input[type="button"].btn-block {
 	width:200px;
 }
 
+#fld_line_edit_choose
+{
+	min-height:50px;
+	color:#00FF00;
+	border:1px solid #00FF00;
+	margin:10px;
+}
+#fld_line_edit_choose legend
+{
+	font-weight:bolder;
+	color:#00FF00;
+}
 
+#line_choose
+{
+	margin:10px;
+	width:250px;
+}

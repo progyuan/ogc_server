@@ -182,8 +182,8 @@
 	  </div>
 	  <h3>输电线路</h3>
 	  <div style="min-height:400px;">
+		 <div id='but_line_edit'></div>
 		 <div id='but_line_add'></div>
-		 <!--<div id='but_line_remove'></div>-->
 	  </div>
 	  <h3>配电网络</h3>
 	  <div style="min-height:400px;">
@@ -210,6 +210,14 @@
 </div>
 
 <div id="dlg_line_info" style="display:none">
+	<fieldset id="fld_line_edit_choose" style="display:none">
+		<legend >输电线路列表</legend>
+		<div>
+			<label for="line_choose">请选择输电线路<label><select id="line_choose"></select>
+			<div id='but_line_delete' style="float:right"></div>
+		</div>
+	</fieldset>
+	<p></p>
 	<div id="tabs_line_info" >
 		<ul>
 			<li><a href="#line_info_base">基础信息</a></li>

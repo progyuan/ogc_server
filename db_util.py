@@ -7000,6 +7000,18 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if wr:
                                 ret.append(remove_mongo_id(wr))
                         elif isinstance(conditions['_id'], str) or isinstance(conditions['_id'], unicode):
+                            def check_network_has_node(network_id, collectionname):
+                                result = False
+                                network = mongo_find_one(dbname, collectionname, {'_id':network_id})
+                                if network:
+                                    if collectionname == 'lines':
+                                        if len(network['properties']['towers']) > 0:
+                                            result = True
+                                    if collectionname == 'distribute_network':
+                                        if len(network['properties']['nodes']) > 0:
+                                            result = True
+                                return result
+                            
                             remove_check = ''
                             one = mongo_find_one(dbname, collection_name, {'_id':str(conditions['_id'])})
                             if collection_name == 'features':
@@ -7012,8 +7024,11 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                             return False
                                     if  check_has_edge(str(conditions['_id'])):
                                         remove_check = u'edge_exist'
+                            if check_network_has_node(str(conditions['_id']), collection_name):
+                                remove_check = u'nodes_exist'
                             if len(remove_check) == 0:
                                 wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
+                                    
                                 if one and one.has_key('properties') and one['properties'].has_key('webgis_type') :
                                     def delete_node_from_network(node_id, collectionname):
                                         networklist = mongo_find(dbname, collectionname)
@@ -7048,6 +7063,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                         delete_node_from_network(str(conditions['_id']), 'distribute_network')
                                     if one['properties']['webgis_type'] == 'edge_tower':
                                         wr = delete_segment_by_edge(one['properties']['start'], one['properties']['end'])
+                                    
+                                        
                                 if wr:
                                     ret.append(remove_mongo_id(wr))
                             else:
@@ -7968,20 +7985,23 @@ def test_mongo_import_line(db_name, area):
     try:
         mongo_init_client()
         db = gClientMongo['default'][db_name]
-        if 'lines' in db.collection_names(False):
-            db.drop_collection('lines')
-        collection = db.create_collection('lines')
-        collection_edges = None
-        if not 'edges' in db.collection_names(False):
-            collection_edges = db.create_collection('edges')
-        else:
-            collection_edges = db['edges']
-            mongo_remove(db_name, 'edges', conditions={'properties.webgis_type':'edge_tower'})
+        #if 'lines' in db.collection_names(False):
+            #db.drop_collection('lines')
+        #collection = db.create_collection('lines')
+        collection = db['lines']
+        #collection_edges = None
+        #if not 'edges' in db.collection_names(False):
+            #collection_edges = db.create_collection('edges')
+        #else:
+            #collection_edges = db['edges']
+            #mongo_remove(db_name, 'edges', conditions={'properties.webgis_type':'edge_tower'})
         line_mapping = get_line_id_mapping(db_name)
         tower_mapping = get_tower_id_mapping(db_name)
         towers_refer_mapping = get_tower_refer_mapping(db_name)
         odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
+            if not line['id'] == 'BAE4121F-6961-4B93-9819-AC2D00E92D9A':
+                continue
             lineobj = {}
             if line_mapping.has_key(line['id']):
                 lineobj['_id'] = line_mapping[line['id']]
@@ -8040,8 +8060,8 @@ def test_mongo_import_line(db_name, area):
                 lineobj['properties']['py'] = piny.hanzi2pinyin_first_letter(line['line_name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                 lineobj['properties']['webgis_type'] = 'polyline_line'
                 collection.save(add_mongo_id(lineobj))
-                for edgeobj in towers_pair_list:
-                    collection_edges.save(add_mongo_id(edgeobj))
+                #for edgeobj in towers_pair_list:
+                    #collection_edges.save(add_mongo_id(edgeobj))
     except:
         traceback.print_exc()
         err = sys.exc_info()[1].message

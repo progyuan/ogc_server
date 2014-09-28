@@ -58,7 +58,9 @@ var g_style_polygon_mapping = {
 };
 
 var g_role_functions = [
+	{value:'line_edit', label:'线路工程查看'},
 	{value:'line_save', label:'线路工程创建与保存'},
+	{value:'line_delete', label:'线路工程删除'},
 	{value:'edge_save', label:'节点连接关系创建与保存'},
 	{value:'edge_delete',label:'节点连接关系删除'},
 	{value:'tower_save', label:'杆塔创建与保存'},
@@ -500,6 +502,78 @@ function InitWebGISFormDefinition()
 				}
 			}
 			
+			return this;
+		},
+		clear : function()
+		{
+			var data = {};
+			var prefix = '';
+			var id = this.attr('id')
+			if($.fn.webgisform.options[id] && $.fn.webgisform.options[id].prefix) prefix = $.fn.webgisform.options[id].prefix;
+			//for(var k in data)
+			//{
+				//this.find('#' + prefix + k).val(data[k]);
+			//}
+			var fields = $.fn.webgisform.fields[this.attr('id')];
+			for(var k in fields)
+			{
+				var id = fields[k]['id'];
+				var typ = fields[k]['type'];
+				var editor = fields[k]['editor'];
+				if(typ === 'icon')
+				{
+					//data = 
+					////console.log(data);
+					//if(data['style'] && data['style']['icon'] && data['style']['icon']['uri'])
+					//{
+						////this.find('#' + prefix + id).css('background', '#000000 url(/' + data['style']['icon']['uri'] + ') 100% 100% no-repeat' );
+						//var cls = 'icon-selector-' + data['webgis_type'] + ' ui-selectee';
+						//this.find('#' + prefix + id).attr('class', '');
+						//this.find('#' + prefix + id).addClass(cls);
+					//}
+				
+				}
+				else if(typ === 'color')
+				{
+					//if(data['style'] && data['style'][id])
+					//{
+						this.find('#' + prefix + id).spectrum("set", ColorArrayToRgba([255, 255, 255, 255]));
+					//}
+				}
+				else if(typ === 'date')
+				{
+					//if(data[id])
+					//{
+						//this.find('#' + prefix + id).datepicker("setDate",  data[id]);
+					//}
+				}
+				else if(typ === 'select')
+				{
+					//if(editor && editor.data && editor.data.length>0 && data[id])
+					//{
+						this.find('#' + prefix + id).multipleSelect("setSelects", []);
+					//}
+				}
+				else if(typ === 'multiselect')
+				{
+					//if(editor && editor.data && editor.data.length>0 && data[id] && data[id] instanceof Array)
+					//{
+						this.find('#' + prefix + id).multipleSelect("setSelects", []);
+					//}
+				}
+				else
+				{
+					if(id==='pixel_size' || id==='pixel_width' || id==='label_scale')
+					{
+						//if(data['style'] && data['style'][id])
+						//{
+							this.find('#' + prefix + id).val(0);
+						//}
+					}
+					else
+						this.find('#' + prefix + id).val('');
+				}
+			}
 			return this;
 		},
 		setdata : function(data)
