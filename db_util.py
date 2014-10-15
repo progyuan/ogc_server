@@ -5958,32 +5958,47 @@ def gen_geojson_by_potential_risk(area, piny):
     if not os.path.exists(absroot):
         os.mkdir(absroot)
     path = os.path.join(absroot, 'geojson_potential_risk_%s.json' % area )
-    recs = odbc_get_records('TABLE_POTENTIAL_RISK_INFO', "1=1" , area)
+    recs = odbc_get_records('VIEW_POTENTIAL_RISK', "1=1" , area)
     
     obj = {}
     obj['type'] = 'FeatureCollection'
     obj['features'] = []
     
     validlgtlat = None, None
+    
+    recdict = {}
     for rec in recs:
-        x, y = rec['center_x'], rec['center_y']
-        if x is None or y is None or x==0 or y==0:
-            continue
+        if not recdict.has_key(rec['id']):
+            recdict[rec['id']] = {}
+        if not recdict[rec['id']].has_key('coordinates'):
+            recdict[rec['id']]['coordinates'] = []
+        recdict[rec['id']]['coordinates'].append([rec['xcoord'], rec['ycoord']])
+        if not recdict[rec['id']].has_key('properties'):
+            recdict[rec['id']]['properties'] = {}
+            recdict[rec['id']]['properties']['type'] = rec['risk_type']
+            recdict[rec['id']]['properties']['NAME'] = rec['risk_info']
+            recdict[rec['id']]['properties']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
+            recdict[rec['id']]['properties']['py'] = ''
+            try:
+                recdict[rec['id']]['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('II',u'二').replace('I',u'一'))
+                #print(o['properties']['py'])
+            except:
+                print(sys.exc_info()[1])
+            
+            
+    for k in recdict:
+        rec = recdict[k]
         o = {}
         o['geometry'] = {}
-        o['geometry']['type'] = 'Point'
-        o['geometry']['coordinates'] = [x, y]
+        if len(rec['coordinates']) == 1:
+            o['geometry']['type'] = 'Point'
+        elif len(rec['coordinates']) == 2:
+            o['geometry']['type'] = 'LineString'
+        elif len(rec['coordinates']) > 2:
+            o['geometry']['type'] = 'Polygon'
+        o['geometry']['coordinates'] = [rec['coordinates']]
         o['type'] = 'Feature'
-        o['properties'] = {}
-        o['properties']['type'] = rec['risk_type']
-        o['properties']['NAME'] = rec['risk_info']
-        o['properties']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
-        o['properties']['py'] = ''
-        try:
-            o['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('II',u'二').replace('I',u'一'))
-            #print(o['properties']['py'])
-        except:
-            print(sys.exc_info()[1])
+        o['properties'] = rec['properties']
         obj['features'].append(o)
     
     with open(path, 'w') as f:
@@ -7000,16 +7015,12 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if wr:
                                 ret.append(remove_mongo_id(wr))
                         elif isinstance(conditions['_id'], str) or isinstance(conditions['_id'], unicode):
-                            def check_network_has_node(network_id, collectionname):
+                            def check_network_has_node(network_id):
                                 result = False
-                                network = mongo_find_one(dbname, collectionname, {'_id':network_id})
+                                network = mongo_find_one(dbname, 'network', {'_id':network_id})
                                 if network:
-                                    if collectionname == 'lines':
-                                        if len(network['properties']['towers']) > 0:
-                                            result = True
-                                    if collectionname == 'distribute_network':
-                                        if len(network['properties']['nodes']) > 0:
-                                            result = True
+                                    if len(network['properties']['nodes']) > 0:
+                                        result = True
                                 return result
                             
                             remove_check = ''
@@ -7024,7 +7035,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                             return False
                                     if  check_has_edge(str(conditions['_id'])):
                                         remove_check = u'edge_exist'
-                            if check_network_has_node(str(conditions['_id']), collection_name):
+                            if check_network_has_node(str(conditions['_id'])):
                                 remove_check = u'nodes_exist'
                             if len(remove_check) == 0:
                                 wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
@@ -7033,14 +7044,9 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                     def delete_node_from_network(node_id, collectionname):
                                         networklist = mongo_find(dbname, collectionname)
                                         for network in networklist:
-                                            if collectionname == 'lines':
-                                                if node_id in network['properties']['towers']:
-                                                    network['properties']['towers'].remove(node_id)
-                                                    mongo_action(dbname, collectionname, 'update', {'properties.towers': network['properties']['towers']}, conditions={'_id':network['_id']})
-                                            if collectionname == 'distribute_network':
-                                                if node_id in network['properties']['nodes']:
-                                                    network['properties']['nodes'].remove(node_id)
-                                                    mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, conditions={'_id':network['_id']})
+                                            if node_id in network['properties']['nodes']:
+                                                network['properties']['nodes'].remove(node_id)
+                                                mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, conditions={'_id':network['_id']})
                                     def delete_segment_by_tower(node_id):
                                         seglist = mongo_find(dbname, 'segments', conditions = {'$or':[{'start_tower':node_id}, {'end_tower':node_id}]})
                                         ids = []
@@ -7057,10 +7063,10 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                         return wr1
                                         
                                     if one['properties']['webgis_type'] == 'point_tower':
-                                        delete_node_from_network(str(conditions['_id']), 'lines')
+                                        delete_node_from_network(str(conditions['_id']), 'network')
                                         wr = delete_segment_by_tower(str(conditions['_id']))
                                     if one['properties']['webgis_type'] == 'point_dn':
-                                        delete_node_from_network(str(conditions['_id']), 'distribute_network')
+                                        delete_node_from_network(str(conditions['_id']), 'network')
                                     if one['properties']['webgis_type'] == 'edge_tower':
                                         wr = delete_segment_by_edge(one['properties']['start'], one['properties']['end'])
                                     
@@ -7227,9 +7233,9 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
             elif action.lower() == 'loadtoweredge':
                 ret = []
                 if conditions.has_key('lineid'):
-                    linelist = mongo_find(dbname, 'lines', {'_id':conditions['lineid']})
+                    linelist = mongo_find(dbname, 'network', {'_id':conditions['lineid']})
                     if len(linelist) > 0:
-                        towers = linelist[0]['properties']['towers']
+                        towers = linelist[0]['properties']['nodes']
                         edges = mongo_find(dbname, 'edges', {'properties.webgis_type':'edge_tower'})
                         for edge in edges:
                             if edge['properties']['start'] in towers or edge['properties']['end'] in towers:
@@ -7281,23 +7287,23 @@ def get_heatmap_tile_service_list(name):
     
 
 def mongo_update_line_towers(dbname, id, project=[]):
-    lines = mongo_find(dbname, 'lines')
+    lines = mongo_find(dbname, 'network', conditions={'properties.webgis_type':'polyline_line'})
     projectlist = [str(i) for i in project]
     l = []
     for i in lines:
         modified = False
         if not i.has_key('properties'):
             i['properties'] = {}
-        if not i['properties'].has_key('towers'):
-            i['properties']['towers'] = []
-        if i['_id'] in projectlist and not str(id) in i['properties']['towers']:
-            i['properties']['towers'].append(str(id))
+        if not i['properties'].has_key('nodes'):
+            i['properties']['nodes'] = []
+        if i['_id'] in projectlist and not str(id) in i['properties']['nodes']:
+            i['properties']['nodes'].append(str(id))
             modified = True
-        if not i['_id'] in projectlist and id in i['properties']['towers']:
-            i['properties']['towers'].remove(str(id))
+        if not i['_id'] in projectlist and id in i['properties']['nodes']:
+            i['properties']['nodes'].remove(str(id))
             modified = True
         if modified:
-            mongo_action(dbname, 'lines',action='save', data=i)
+            mongo_action(dbname, 'network',action='save', data=i)
     
     
 def check_edge_exist(db_name, collection_name, data):
@@ -7481,17 +7487,18 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='defa
                     ret.append(remove_mongo_id(i))
                     #ret.append(i)
             elif collection_name == 'mongo_get_towers_by_line_name':
-                lines = db['lines'].find(conds)
+                conds['properties.webgis_type'] = 'polyline_line'
+                lines = db['network'].find(conds)
                 towerids = []
                 for line in lines:
-                    for t in line['properties']['towers']:
+                    for t in line['properties']['nodes']:
                         #print(str(t))
                         towerids.append(t)
                 towers = db['features'].find({'_id':{'$in':towerids}}).limit(limit)
                 for i in towers:
                     ret.append(remove_mongo_id(i))
             elif collection_name == 'get_line_geojson':
-                line = remove_mongo_id(db['lines'].find_one(conds))
+                line = remove_mongo_id(db['network'].find_one(conds))
                 obj = get_line_geojson(dbname, line)
                 if obj:
                     ret.append(obj)
@@ -7528,7 +7535,7 @@ def mongo_find_one(dbname, collection_name, conditions, clienttype='default'):
 
 def test_find_by_string_id():
     #ret = mongo_find('kmgd', 'segments', {'_id':[ObjectId('535a1560ca49c804e457446a'), ObjectId('535a1560ca49c804e457446b')]})
-    ret = mongo_find('kmgd', 'lines', )
+    ret = mongo_find('kmgd', 'network', )
     print(map(lambda x:x['properties']['production_date'], ret))
     print(len(ret))
     
@@ -7938,7 +7945,7 @@ def test_build_line_odbc_mongo_id_mapping(db_name):
         if 'line_ids_mapping' in db.collection_names(False):
             db.drop_collection('line_ids_mapping')
         collection = db.create_collection('line_ids_mapping')
-        l = mongo_find(db_name, 'lines')
+        l = mongo_find(db_name, 'network')
         for i in l:
             collection.save({'uuid':i['id'], 'id':i['_id']})
     except:
@@ -7985,10 +7992,10 @@ def test_mongo_import_line(db_name, area):
     try:
         mongo_init_client()
         db = gClientMongo['default'][db_name]
-        #if 'lines' in db.collection_names(False):
-            #db.drop_collection('lines')
-        #collection = db.create_collection('lines')
-        collection = db['lines']
+        if 'network' in db.collection_names(False):
+            db.drop_collection('network')
+        collection = db.create_collection('network')
+        #collection = db['network']
         #collection_edges = None
         #if not 'edges' in db.collection_names(False):
             #collection_edges = db.create_collection('edges')
@@ -8000,8 +8007,8 @@ def test_mongo_import_line(db_name, area):
         towers_refer_mapping = get_tower_refer_mapping(db_name)
         odbc_lines = odbc_get_records('TABLE_LINE', '1=1', area)
         for line in odbc_lines:
-            if not line['id'] == 'BAE4121F-6961-4B93-9819-AC2D00E92D9A':
-                continue
+            #if not line['id'] == 'BAE4121F-6961-4B93-9819-AC2D00E92D9A':
+                #continue
             lineobj = {}
             if line_mapping.has_key(line['id']):
                 lineobj['_id'] = line_mapping[line['id']]
@@ -8012,15 +8019,15 @@ def test_mongo_import_line(db_name, area):
                 del line['box_east']
                 del line['box_west']
                 del line['id']
-                lineobj['properties']['towers'] = []
+                lineobj['properties']['nodes'] = []
                 towers_pair_list = []
                 for i in towers_sort:
                     if tower_mapping.has_key(i['id']):
                         id = tower_mapping[i['id']]
                         if towers_refer_mapping.has_key(id):
                             id = towers_refer_mapping[id]
-                        if not id in lineobj['properties']['towers']:
-                            lineobj['properties']['towers'].append(id)
+                        if not id in lineobj['properties']['nodes']:
+                            lineobj['properties']['nodes'].append(id)
                     
                     
                 prev, tower, nextt = None, None, None
@@ -9059,8 +9066,8 @@ def test_httpclient1():
 
 def get_line_geojson(db_name, line):
     ret = None
-    if line.has_key('properties') and line['properties'].has_key('towers'):
-        tids = line['properties']['towers']
+    if line.has_key('properties') and line['properties'].has_key('webgis_type') and line['properties']['webgis_type'] == 'polyline_line':
+        tids = line['properties']['nodes']
         towers_order_list = get_orderlist_by_edges(db_name, 'edge_tower', 'point_tower', tids)
         towers = [i['_id'] for i in towers_order_list]
         #print(len(towers_order_list))
@@ -9072,7 +9079,7 @@ def get_line_geojson(db_name, line):
         for i in towers_order_list:
             lng, lat, alt = i['geometry']['coordinates'][0], i['geometry']['coordinates'][1], i['geometry']['coordinates'][2]
             obj['geometry']['coordinates'].append([lng, lat, alt])
-        obj['properties']['towers'] = towers
+        obj['properties']['nodes'] = towers
         ret = obj
     return ret
             

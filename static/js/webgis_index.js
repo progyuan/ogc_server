@@ -92,28 +92,26 @@ $(function() {
 						//var name;
 						//if(g_db_name === 'kmgd') name = '七罗I回';
 						if(g_db_name === 'ztgd') name = '永发I回线';
-						LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							LoadLineByLineName(viewer, g_db_name, name, function(){
-								//name = '七罗II回';
-								//name = '永发II回线';
-								//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-									//LoadLineByLineName(viewer, g_db_name, name, function(){
-										var extent = GetExtentByCzml();
-										FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-										ReloadCzmlDataSource(viewer, g_zaware);
-									//});
-								//});
-							});
-						});
-						//var extent = GetDefaultExtent(g_db_name);
-						//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						//LoadSysRole(g_db_name, function(){
-							//$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+							//LoadLineByLineName(viewer, g_db_name, name, function(){
+								////name = '七罗II回';
+								////name = '永发II回线';
+								////LoadTowerByLineName(viewer, g_db_name,  name, function(){
+									////LoadLineByLineName(viewer, g_db_name, name, function(){
+										//var extent = GetExtentByCzml();
+										//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+										//ReloadCzmlDataSource(viewer, g_zaware);
+									////});
+								////});
+							//});
 						//});
+						var extent = GetDefaultExtent(g_db_name);
+						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						LoadSysRole(g_db_name, function(){
+							$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+						});
 					});
 					
-					//var extent = GetDefaultExtent(g_db_name);
-					//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 					//g_zaware = true;
 					//LoadAllDNNode(viewer, g_db_name, function(){
 						//LoadAllDNEdge(viewer, g_db_name, function(){
@@ -2007,7 +2005,7 @@ function InitSearchBox(viewer)
 		source:function(request,  response)
 		{
 			var tylist = GetCheckedBoxList('chb_search_webgis_type_');
-			var py_cond = {'db':g_db_name, 'collection':'features;lines', 'action':'pinyin_search', 'py':request.term, 'type':tylist};
+			var py_cond = {'db':g_db_name, 'collection':'features;network', 'action':'pinyin_search', 'py':request.term, 'type':tylist};
 			$('#text_search_waiting').css('display','block');
 			$('#text_search_waiting').html('正在查询，请稍候...');
 			MongoFind( py_cond, 
@@ -2756,7 +2754,7 @@ function GetExtentByCzml()
 		ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
 		for(var k in g_czmls)
 		{
-			if(g_czmls[k]['polyline'])
+			if(g_czmls[k] && g_czmls[k]['polyline'])
 			{
 				var positions = g_czmls[k]['polyline']['positions']['cartographicDegrees'];
 				//console.log(positions);
@@ -2809,7 +2807,7 @@ function LoadCodeData(db_name, callback)
 
 function LoadLineData(db_name, callback)
 {
-	var line_cond = {'db':db_name, 'collection':'lines'};
+	var line_cond = {'db':db_name, 'collection':'network', 'properties.webgis_type':'polyline_line'};
 	MongoFind( line_cond,function(linedatas){
 		g_lines = {};
 		for(var i in linedatas)
@@ -4894,7 +4892,7 @@ function GetPrevNextTowerIds(tower)
 	var nexts = [];
 	for(var i in g_lines)
 	{
-		var towersid = g_lines[i]['properties']['towers'];
+		var towersid = g_lines[i]['properties']['nodes'];
 		var j = 0;
 		for(j=0; j<towersid.length; j++)
 		{
@@ -5008,7 +5006,7 @@ function CheckTowerInfoModified()
 
 function DeleteLine(viewer, id, callback)
 {
-	var cond = {'db':g_db_name, 'collection':'lines', 'action':'remove', '_id':id};
+	var cond = {'db':g_db_name, 'collection':'network', 'action':'remove', '_id':id};
 	ShowProgressBar(true, 670, 200, '删除保存中', '正在删除数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -5060,11 +5058,11 @@ function SaveLine(viewer, id)
 	{
 		data['properties'][k] = prop[k];
 	}
-	if(data['properties']['towers'] === undefined)
+	if(data['properties']['nodes'] === undefined)
 	{
-		data['properties']['towers'] = [];
+		data['properties']['nodes'] = [];
 	}
-	var cond = {'db':g_db_name, 'collection':'lines', 'action':'save', 'data':data};
+	var cond = {'db':g_db_name, 'collection':'network', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -6377,7 +6375,7 @@ function SaveDN(viewer, callback)
 	{
 		geojson['properties'][k] = data[k];
 	}
-	var cond = {'db':g_db_name, 'collection':'distribute_network', 'action':'save', 'data':geojson};
+	var cond = {'db':g_db_name, 'collection':'network', 'action':'save', 'data':geojson};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -6952,7 +6950,7 @@ function GetProjectListByTowerId(id)
 	var ret = [];
 	for(var k in g_lines)
 	{
-		if(g_lines[k]['properties']['towers'].indexOf(id)>-1)
+		if(g_lines[k]['properties']['nodes'].indexOf(id)>-1)
 		{
 			ret.push(k);
 		}
@@ -7436,7 +7434,7 @@ function ShowLineDialog(viewer, mode)
 			if(title == '照片文档')
 			{
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
-				CreateFileBrowser('line_info_photo', 450, 450, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'lines', id);
+				CreateFileBrowser('line_info_photo', 450, 450, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'network', id);
 			}
 		}
 	});
