@@ -27,6 +27,7 @@ var g_node_connect_mode = false;
 $.g_heatmap_layers = {};
 $.g_userinfo = {};
 $.g_sysrole = [];
+$.map_backend = 'cesium';
 
 
 
@@ -50,90 +51,102 @@ $(function() {
 	$.g_userinfo = GetParamsFromUrl();
 
 	$.jGrowl.defaults.closerTemplate = '<div class="bubblestylesuccess">关闭所有提示信息</div>';
-	ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
-	//if(true) return;
-	var viewer = InitCesiumViewer();
-	$.viewer = viewer;
-	InitRuler(viewer);
-	InitLogout(viewer);
-
-	InitWebGISFormDefinition();
-	InitDrawHelper(viewer);
-	g_drawhelper.close();
-	InitPoiInfoDialog();
-	InitTowerInfoDialog();
-	//$(window).on('message',function(e) {
-		////console.log('recv:' + text);
-		//var text = e.originalEvent.data;
-		//console.log('recv:' + text);
-		//var obj = JSON.parse(text);
-		//console.log(obj);
+	
+	var viewer;
+	
+	try{
+		//throw "unsupport_cesium_exception";
+		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
+		viewer = InitCesiumViewer();
+		$.viewer = viewer;
+		InitRuler(viewer);
+		InitLogout(viewer);
+	
+		InitWebGISFormDefinition();
+		InitDrawHelper(viewer);
+		g_drawhelper.close();
+		InitPoiInfoDialog();
+		InitTowerInfoDialog();
 		
-	//});
-	InitSearchBox(viewer);
-	InitToolPanel(viewer);
-	InitModelList(viewer);
-	//InitBird(viewer);
-	InitKeyboardEvent(viewer);
-	//InitPostMessageListener();
+		InitSearchBox(viewer);
+		InitToolPanel(viewer);
+		InitModelList(viewer);
+		//InitBird(viewer);
+		InitKeyboardEvent(viewer);
+	}catch(ex)
+	{
+		$.map_backend = 'leaflet';
+		viewer = InitLeafletViewer();
+		$.viewer = viewer;
+		//InitRuler(viewer);
+		//InitLogout(viewer);
+	
+		//InitWebGISFormDefinition();
+		//InitDrawHelper(viewer);
+		//g_drawhelper.close();
+		//InitPoiInfoDialog();
+		//InitTowerInfoDialog();
+		
+		//InitSearchBox(viewer);
+		InitToolPanel(viewer);
+		//InitModelList(viewer);
+		//InitKeyboardEvent(viewer);
+	}
 	
 	
 	
-	ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
-	LoadCodeData(g_db_name, function(){
-		ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
-		LoadLineData(g_db_name, function(){
-			ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
-			LoadSegments(g_db_name, function(){
-				ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-				LoadModelsList(g_db_name, function(){
+	if($.map_backend == 'cesium')
+	{
+		ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
+		LoadCodeData(g_db_name, function(){
+			ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
+			LoadLineData(g_db_name, function(){
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
+				LoadSegments(g_db_name, function(){
 					ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-					LoadModelsMapping(g_db_name, function(){
-						//var name;
-						//if(g_db_name === 'kmgd') name = '七罗I回';
-						if(g_db_name === 'ztgd') name = '永发I回线';
-						//LoadTowerByLineName(viewer, g_db_name,  name, function(){
-							//LoadLineByLineName(viewer, g_db_name, name, function(){
-								////name = '七罗II回';
-								////name = '永发II回线';
-								////LoadTowerByLineName(viewer, g_db_name,  name, function(){
-									////LoadLineByLineName(viewer, g_db_name, name, function(){
-										//var extent = GetExtentByCzml();
-										//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-										//ReloadCzmlDataSource(viewer, g_zaware);
+					LoadModelsList(g_db_name, function(){
+						ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
+						LoadModelsMapping(g_db_name, function(){
+							//var name;
+							//if(g_db_name === 'kmgd') name = '七罗I回';
+							if(g_db_name === 'ztgd') name = '永发I回线';
+							//LoadTowerByLineName(viewer, g_db_name,  name, function(){
+								//LoadLineByLineName(viewer, g_db_name, name, function(){
+									////name = '七罗II回';
+									////name = '永发II回线';
+									////LoadTowerByLineName(viewer, g_db_name,  name, function(){
+										////LoadLineByLineName(viewer, g_db_name, name, function(){
+											//var extent = GetExtentByCzml();
+											//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+											//ReloadCzmlDataSource(viewer, g_zaware);
+										////});
 									////});
-								////});
+								//});
+							//});
+							var extent = GetDefaultExtent(g_db_name);
+							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+							LoadSysRole(g_db_name, function(){
+								$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+							});
+						});
+						
+						//g_zaware = true;
+						//LoadAllDNNode(viewer, g_db_name, function(){
+							//LoadAllDNEdge(viewer, g_db_name, function(){
+								//var extent = GetExtentByCzml();
+								//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+								//ReloadCzmlDataSource(viewer, g_zaware);
 							//});
 						//});
-						var extent = GetDefaultExtent(g_db_name);
-						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-						LoadSysRole(g_db_name, function(){
-							$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
-						});
-					});
 					
-					//g_zaware = true;
-					//LoadAllDNNode(viewer, g_db_name, function(){
-						//LoadAllDNEdge(viewer, g_db_name, function(){
-							//var extent = GetExtentByCzml();
-							//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							//ReloadCzmlDataSource(viewer, g_zaware);
-						//});
-					//});
-				
+					});
 				});
 			});
 		});
-	});
+	}
 	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
 	//LoadBorder(viewer, g_db_name, {'properties.type':'countyborder'});
-	//$('#' + 'aaa' ).fontIconPicker({
-		//source: ['icon-marker', 'icon-tower'],
-		//theme: 'fip-darkgrey',
-		//emptyIcon: false,
-		//hasSearch: false
-	//});
 	
 	//$.g_heatmap_layers['testheatmap'] = {
 		//layer: new HeatMapImageryProvider({
@@ -230,16 +243,6 @@ function IFrameUpdateSegments(data)
 	}
 }
 
-function testdata()
-{
-	return [
-	//{center: Cesium.Cartographic.fromDegrees(103.8150636, 27.4266803, 0), radius:300, intensity:0.1},
-	{center: Cesium.Cartographic.fromDegrees(103.6817307, 27.3199641, 0), radius:10, intensity:0.9},
-	{center: Cesium.Cartographic.fromDegrees(100.8421016, 26.2604936, 0), radius:20, intensity:0.7},
-	{center: Cesium.Cartographic.fromDegrees(101.7749685, 25.1891655, 0), radius:10, intensity:0.6},
-	{center: Cesium.Cartographic.fromDegrees(100.9889367, 27.3657041, 0), radius:9, intensity:0.9}
-	];
-}
 
 
 function LoadAllDNEdge(viewer, db_name, callback)
@@ -298,94 +301,117 @@ function LoadAllDNNode(viewer, db_name, callback)
 		}
 	});
 }
+
+
+function InitLeafletViewer()
+{
+	//$('#cesiumContainer').css('width', '100%').css('height', '90%');
+	$("#cesiumContainer").height($(window).height()).width($(window).width());
+
+	var center = GetDefaultCenter(g_db_name);
+	var c = L.latLng(center[1], center[0]);
+	//console.log(c);
+	var layers = [];
+	var url_temlate, lyr, ly0;
+	var baseMaps = {};
+	
+	url_temlate = 'http://' + g_host + ':' + g_tile_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
+	lyr = L.tileLayer(url_temlate, {
+		image_type:'bing_sat', 
+		noWrap:true,
+		tms:false,
+		zoomOffset:-1,
+		minZoom: 1,
+		maxZoom: 17,
+	});
+	layers.push(lyr);
+	baseMaps['Bing卫星图'] = lyr;
+	ly0 = lyr;
+	
+	lyr = L.tileLayer(url_temlate, {
+		image_type:'amap_map', 
+		noWrap:true,
+		tms:false,
+		zoomOffset:0,
+		minZoom: 1,
+		maxZoom: 17,
+	});
+	layers.push(lyr);
+	baseMaps['高德地图'] = lyr;
+	
+	
+	
+	lyr = L.tileLayer(url_temlate, {
+		image_type:'arcgis_sat', 
+		noWrap:true,
+		tms:false,
+		zoomOffset:0,
+		zoomReverse:false,
+		minZoom: 0,
+		maxZoom: 17,
+	});
+	layers.push(lyr);
+	baseMaps['ESRI卫星图'] = lyr;
+	
+	
+	
+	//var prefix = '';
+	//if(g_arcserver_host == '10.181.160.72')
+	//{
+		//prefix = 'ztgdgis/';
+	//}
+	//var url_arcgis = 'http://' + g_arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer';
+	//lyr = L.esri.imageMapLayer(url_arcgis, {
+		////image_type:'arcserver_imagery',
+		////imagery_url:url_arcgis,
+		////noWrap:true,
+		////tms:false,
+		////zoomOffset:1,
+		////zoomReverse:false,
+		//minZoom: 0,
+		//maxZoom: 17,
+	//});
+	//layers.push(lyr);
+	//baseMaps['YN_SAT'] = lyr;
+
+	
+	//if(CheckInternetConnection())
+	//{
+		//lyr = L.tileLayer.chinaProvider('GaoDe.Normal.Map');
+	//}
+	
+	var map = L.map('cesiumContainer',{
+		zoomControl:false,
+		layers:layers,
+		crs:L.CRS.EPSG900913
+		//crs:L.CRS.EPSG4326
+	}).setView(c, 10);
+	ly0.addTo(map);
+
+	
+	L.control.layers(baseMaps, {}).addTo(map);
+	L.control.mousePosition().addTo(map);
+	
+	map.invalidateSize();
+	return map;
+}
+
+
 function InitCesiumViewer()
 {
 	var providerViewModels = [];
-	//providerViewModels.push(new Cesium.ImageryProviderViewModel({
-				//name : 'OSM卫星图',
-				//iconUrl : 'img/wmts-sat.png',
-				//tooltip : 'OSM卫星图',
-				//creationFunction : function() {
-					//return new Cesium.OpenStreetMapImageryProvider({
-						////url :  g_host + 'wmts',
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'YNCFT',
-				//iconUrl : 'img/wmts-map.png',
-				//tooltip : 'YNCFT',
-				//creationFunction : function() {
-					//return new ArcgisTileImageryProvider({
-						//url : g_host + 'arcgistile',
-						//is_esri:true
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : '卫星图',
-				//iconUrl : 'img/wmts-sat.png',
-				//tooltip : '卫星图',
-				//creationFunction : function() {
-					//return new WMTSImageryProvider({
-						//url :  g_host + 'wmts',
-						//imageType:'google_sat'
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : '地图',
-				//iconUrl : 'img/wmts-map.png',
-				//tooltip : '地图',
-				//creationFunction : function() {
-					//return new WMTSImageryProvider({
-						//url :  g_host + 'wmts',
-						////url :  "http://cf-storage:88/" + 'wmts',
-						//imageType:'google_map'
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'Google卫星图',
-				//iconUrl : 'img/wmts-sat.png',
-				//tooltip : 'Google卫星图',
-				//creationFunction : function() {
-					//return new CFTTileImageryProvider({
-						//url :  g_host + 'tiles',
-						//imageType:'google_sat'
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : 'CTF地图',
-				//iconUrl : 'img/wmts-map.png',
-				//tooltip : 'CTF地图',
-				//creationFunction : function() {
-					//return new CFTTileImageryProvider({
-						//url :  g_host + 'tiles',
-						//imageType:'google_map'
-					//});
-				//}
-			//}));
-	//providerViewModels.push(new Cesium.ProviderViewModel({
-				//name : '地图',
-				//iconUrl : 'img/wmts-map.png',
-				//tooltip : 'amap地图',
-				//creationFunction : function() {
-					//return new WMTSImageryProvider({
-						//url :  g_host + 'wmts',
-						////url :  "http://cf-storage:88/" + 'wmts',
-						//imageType:'amap_map'
-					//});
-				//}
-			//}));
+	var prefix = '';
+	if(g_arcserver_host == '10.181.160.72')
+	{
+		prefix = 'ztgdgis/';
+	}
 	providerViewModels.push(new Cesium.ProviderViewModel({
 		name : 'YN_SAT',
 		iconUrl : 'img/wmts-sat.png',
 		tooltip : 'YN_SAT',
 		creationFunction : function() {
 			return new ArcGisMapServerImageryProvider({
-				url : 'http://xiejun-desktop:6080/arcgis/rest/services/YN_SAT/ImageServer',
+				url : 'http://' + g_arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer',
 				name: 'YN_SAT'
 				//usePreCachedTilesIfAvailable:false
 			});
@@ -400,9 +426,23 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				//url :  g_host + 'tiles',
-				url :  'http://ztserver:89/tiles',
+				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
 				imageType: 'bing_sat',
+				queryType: 'server'
+			});
+		}
+	}));
+	providerViewModels.push(new Cesium.ProviderViewModel({
+		name : 'Esri卫星图',
+		iconUrl : 'img/esri-sat.png',
+		tooltip : 'Esri卫星图',
+		creationFunction : function() {
+			return new ESRIImageryFromServerProvider({
+				//url : 'http://dev.virtualearth.net',
+				//mapStyle : Cesium.BingMapsStyle.AERIAL
+				////proxy : proxyIfNeeded
+				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
+				imageType: 'arcgis_sat',
 				queryType: 'server'
 			});
 		}
@@ -413,9 +453,7 @@ function InitCesiumViewer()
 		tooltip : '高德地图',
 		creationFunction : function() {
 			return new AMapTileImageryProvider({
-				//url :  'http://webrd03.is.autonavi.com/appmaptile',
-				//url :  g_host + 'tiles',
-				url :  'http://ztserver:89/tiles',
+				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
 				imageType: 'amap_map',
 				queryType: 'server'
 			});
@@ -447,32 +485,6 @@ function InitCesiumViewer()
 	}));
 
 
-	//terrainProviderViewModels.push(new Cesium.ProviderViewModel({
-		//name : 'STK 世界地形',
-		//iconUrl : Cesium.buildModuleUrl('Widgets/Images/TerrainProviders/STK.png'),
-		//tooltip : 'High-resolution, mesh-based terrain for the entire globe. Free for use on the Internet. Closed-network options are available.\nhttp://www.agi.com',
-		//creationFunction : function() {
-			////return new Cesium.CesiumTerrainProvider({
-			//return new HeightmapAndQuantizedMeshTerrainProvider({
-				//url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles',
-				//credit : 'Terrain data courtesy Analytical Graphics, Inc.'
-			//});
-		//}
-	//}));
-
-	//terrainProviderViewModels.push(new Cesium.ProviderViewModel({
-		//name : 'ASTER-30 GDEM 中国云南',
-		//iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
-		//tooltip : 'ASTER - 30 中国云南',
-		//creationFunction : function() {
-			////return new Cesium.CesiumTerrainProvider({
-			//return new HeightmapAndQuantizedMeshTerrainProvider({
-				////url : "http://cf-storage:88/" + "terrain",
-				//url : g_host + "terrain",
-				//credit : ''
-			//});
-		//}
-	//}));
 	terrainProviderViewModels.push(new Cesium.ProviderViewModel({
 		name : 'quantized-mesh中国云南',
 		iconUrl : Cesium.buildModuleUrl('/img/aster-gdem.png'),
@@ -480,7 +492,7 @@ function InitCesiumViewer()
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
 				//url : "terrain",
-				url :  'http://ztserver:89/terrain',
+				url :  'http://' + g_host + ':' + g_tile_port + '/terrain',
 				terrain_type : 'quantized_mesh',
 				credit : ''
 			});
@@ -510,10 +522,6 @@ function InitCesiumViewer()
 		infoBox:true,
 		imageryProviderViewModels:providerViewModels,
 		terrainProviderViewModels:terrainProviderViewModels
-		//terrainProvider:new Cesium.CesiumTerrainProvider({
-			////url: g_host + "terrain"
-			//url: "http://cf-storage:88/" + "terrain"
-		//})
 	});
 	//console.log(viewer.scene.camera.frustum.fov);
 	viewer.scene.camera.frustum.fov = Cesium.Math.PI_OVER_TWO;
@@ -1183,7 +1191,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
     $('#' + form_id).fileupload({
         // Uncomment the following to send cross-domain cookies:
         //xhrFields: {withCredentials: true},
-        url: g_host + 'post',
+        url: 'post',
 		multipart:true,
 		autoUpload: false,
 		sequentialUploads:true,
@@ -1207,7 +1215,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 				category = 'document';
 			}
 			if(category.length == 0) category = 'other';
-			$(this).fileupload('option', 'url', g_host + 'post' + '?' 
+			$(this).fileupload('option', 'url', 'post' + '?' 
 				+ 'db=' + g_db_name 
 				//+ '&collection=fs'
 				+ '&bindcollection=' + bindcollection
@@ -1997,7 +2005,7 @@ function InitSearchBox(viewer)
 	
 	$( "#input_search" ).autocomplete({
 		autoFocus:true,
-		minLength:2,
+		minLength:1,
 		delay: 500,
 		_resizeMenu: function() {
 			this.menu.element.outerHeight( 500 );
@@ -2517,7 +2525,7 @@ function FilterModelList(str)
 					obj['tower_id'] = g_selected_obj.id;
 				}
 				var json = encodeURIComponent(JSON.stringify(obj));
-				iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
+				iframe.attr('src', 'threejs/editor/index.html?' + json);
 				var get_code_height = function(code_height)
 				{
 					var idx = code_height.lastIndexOf("_");
@@ -2546,7 +2554,7 @@ function FilterModelList(str)
 				}
 			}else
 			{
-				iframe.attr('src', g_host + 'threejs/editor/index.html' );
+				iframe.attr('src', 'threejs/editor/index.html' );
 				if(g_selected_geojson)
 				{
 					delete g_selected_geojson['properties']['model'];
@@ -3409,13 +3417,7 @@ function GetTowerInfoByTowerId(id)
 	}
 	return ret;
 }
-function CheckUrlExist(url)
-{
-	var http = new XMLHttpRequest();
-	http.open('HEAD', url, false);
-	http.send();
-	return http.status!=404;
-}
+
 
 function LoadTowerModelByTower(viewer, tower)
 {
@@ -3526,7 +3528,7 @@ function GetModelUrl(model_code_height)
 	{
 		return '';
 	}
-	return g_host + "gltf/" + model_code_height + ".gltf" ;
+	return "gltf/" + model_code_height + ".gltf" ;
 }
 
 function GetModelUrl1(model_code_height)
@@ -3539,7 +3541,7 @@ function GetModelUrl1(model_code_height)
 	{
 		return '';
 	}
-	var url = g_host + "gltf1/" + model_code_height + ".json" ;
+	var url = "gltf1/" + model_code_height + ".json" ;
 	if(!CheckUrlExist(url)) url = '';
 	return url;
 }
@@ -3555,18 +3557,39 @@ function CreateTowerModel(viewer, modelurl,  lng,  lat,  height, rotate, scale)
 	height = Cesium.defaultValue(height, 0.0);
 	var cart3 = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(lng, lat, height));
 	var modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(cart3);
+	
 	var quat = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(rotate - 90));
 	var mat3 = Cesium.Matrix3.fromQuaternion(quat);
 	var mat4 = Cesium.Matrix4.fromRotationTranslation(mat3, Cesium.Cartesian3.ZERO);
+	//console.log(mat4.toString());
+	var column2Row2Index = Cesium.Matrix4.getElementIndex(2, 2);
+	if(true)
+	{
+		mat4[column2Row2Index] = - mat4[column2Row2Index];
+	}
+	//console.log(mat4.toString());
 	var m = Cesium.Matrix4.multiplyTransformation(modelMatrix, mat4, mat4);
-//console.log(modelurl);	
-//console.log(m);	
-	var model = scene.primitives.add(Cesium.Model.fromGltf({
+	var primitive = Cesium.Model.fromGltf({
 		url : modelurl,
 		modelMatrix : m,
 		scale:scale,
 		asynchronous:false
-	}));
+	});
+	
+	//var instance = new Cesium.GeometryInstance({
+		//geometry : new Cesium.BoxGeometry({
+			//dimensions : new Cesium.Cartesian3(1000000.0, 1000000.0, 500000.0)
+		//}),
+		//modelMatrix : Cesium.Matrix4.multiplyByTranslation(Cesium.Transforms.eastNorthUpToFixedFrame(
+			//Cesium.Cartesian3.fromDegrees(0.0, 0.0), new Cesium.Cartesian3(0.0, 0.0, 1000000.0), new Cesium.Matrix4()),
+		//id : 'box',
+		//attributes : {
+			//color : new Cesium.ColorGeometryInstanceAttribute(1, 0, 0, 1)
+		//}
+	//});	
+	
+	
+	var model = scene.primitives.add(primitive);
 	
 	model.readyToRender.addEventListener(function(model) {
 		model.activeAnimations.addAll({
@@ -5639,7 +5662,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				var json = encodeURIComponent(JSON.stringify(obj));
 				//console.log(json);
-				iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
+				iframe.attr('src', 'threejs/editor/index.html?' + json);
 			}
 			if(title == '架空线段')
 			{
@@ -5669,7 +5692,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], next_ids);
 					var json = encodeURIComponent(JSON.stringify(obj));
 					
-					iframe.attr('src', g_host + 'threejs/editor/index.html?' + json);
+					iframe.attr('src', 'threejs/editor/index.html?' + json);
 				}
 				else
 				{
@@ -6938,6 +6961,11 @@ function PositionModel(ellipsoid, model, lng, lat, height, rotate)
 		var quat = Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_Z, Cesium.Math.toRadians(rotate - 90));
 		var mat3 = Cesium.Matrix3.fromQuaternion(quat);
 		var mat4 = Cesium.Matrix4.fromRotationTranslation(mat3, Cesium.Cartesian3.ZERO);
+		var column2Row2Index = Cesium.Matrix4.getElementIndex(2, 2);
+		if(true)
+		{
+			mat4[column2Row2Index] = - mat4[column2Row2Index];
+		}
 		var m = Cesium.Matrix4.multiplyTransformation(modelMatrix, mat4, mat4);
 		model.modelMatrix = m;
 	}

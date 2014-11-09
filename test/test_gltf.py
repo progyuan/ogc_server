@@ -10,11 +10,6 @@ COLLADA2GLTF = ur'F:\work\cpp\glTF\converter\COLLADA2GLTF\vcbuild\bin\Release\co
 DAEDIR = ur'F:\work\kmdae0.5'
 DESTDIR = ur'F:\work\python\ogc_server\static\gltf'
 
-DAEDIR = ur'F:\work\ztdae0.5'
-DESTDIR = ur'F:\work\python\ogc_server\static\gltf1\zt'
-
-DAEDIR = ur'F:\work\ztdae0.5'
-DESTDIR = ur'F:\work\python\ogc_server\static\gltf\zt'
 
 
 def collada2gltf(input_path=None):

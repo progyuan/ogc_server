@@ -1,5 +1,7 @@
-//var g_host = "http://localhost:88/";
-var g_host = "";
+var g_arcserver_host = 'xiejun-desktop';//10.181.160.72
+var g_host = 'xiejun-desktop';//10.181.160.72
+var g_port = 88;
+var g_tile_port = 88;
 //var g_db_name = 'kmgd';
 var g_db_name = 'ztgd';
 var g_progress_interval;
@@ -80,6 +82,11 @@ function GetDefaultExtent(db_name)
 	{
 		return {'west':102.7013, 'south':26.32388, 'east':104.7235, 'north':28.34408};
 	}
+}
+function GetDefaultCenter(db_name)
+{
+	var ext = GetDefaultExtent(db_name);
+	return [(ext['west'] + ext['east'])/2.0, (ext['south'] + ext['north'])/2.0];
 }
 
 function InitWebGISFormDefinition()
@@ -859,18 +866,19 @@ function MongoFind(data, success, host)
 		}
 	}, 'text');
 }
+
 function GridFsFind(data, success, isdownload)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
 	//console.log(data);
 	if(isdownload)
 	{
-		$.get(g_host + 'get', data, function( data1 ){
+		$.get('get', data, function( data1 ){
 			success(data1);
 		});
 	}else
 	{
-		$.getJSON(g_host + 'get', data, function( data1 ){
+		$.getJSON('get', data, function( data1 ){
 			success(data1);
 		});
 	}
@@ -1048,7 +1056,7 @@ function GetZfromXY(lng, lat, callback)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
 	var data = {op:'alt', lng:lng, lat:lat};
-	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+	$.post('post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
 		ret = JSON.parse(decodeURIComponent(data1));
 		callback(ret);
 	}, 'text');
@@ -1058,7 +1066,7 @@ function GetZListfromXYList(list, callback)
 {
 	//$.ajaxSetup( { "async": true, scriptCharset: "utf-8" , contentType: "application/json; charset=utf-8" } );
 	var data = {op:'alt', data:list};
-	$.post(g_host + 'post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
+	$.post('post', encodeURIComponent(JSON.stringify(data)), function( data1 ){
 		ret = JSON.parse(decodeURIComponent(data1));
 		callback(ret);
 	}, 'text');
@@ -1146,3 +1154,33 @@ function GetMCByModelCode(model_code_height)
 	return ret;
 }
 
+function CheckInternetConnection()
+{
+	return CheckUrlExist('http://www.baidu.com');
+}
+function CheckIntranetConnection()
+{
+	return CheckUrlExist('http://' + g_host + ':' + g_port);
+}
+
+
+function CheckUrlExist(url)
+{
+	var ret = false;
+	try
+	{
+		var http = new XMLHttpRequest();
+		http.open('HEAD', url, false);
+		http.send();
+		if(http.status>= 200 && http.status < 304)
+		{
+			ret = true;
+		}else
+		{
+			ret = false;
+		}
+	}catch(e){
+        ret = false;
+    }
+	return ret;
+}

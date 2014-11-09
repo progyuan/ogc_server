@@ -1498,6 +1498,8 @@ def handle_post_method(environ):
                 ret["result"] = "unknown area"
         elif obj.has_key('tracks') and obj.has_key('area'):
             ret = db_util.save_tracks(obj['tracks'], obj['area'])
+        elif obj.has_key('mobile_action') and obj.has_key('area') and obj.has_key('data'):
+            ret = db_util.mobile_action(obj['mobile_action'], obj['area'], obj['data'])
         
     if isinstance(ret, list): 
         pass

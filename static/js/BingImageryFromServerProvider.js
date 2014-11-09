@@ -573,6 +573,7 @@ BingImageryFromServerProvider.prototype.buildImageUrl = function(imageryProvider
     {
         imageUrl = imageryProvider._url;
         imageUrl += '?image_type=' + imageryProvider._imageType + '&x=' + x + '&y=' + y + '&level=' + level;
+        
     }else
     {
         imageUrl = imageryProvider._imageUrlTemplate;

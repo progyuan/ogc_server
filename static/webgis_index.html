@@ -7,7 +7,10 @@
     <meta name="description" content="Use the Viewer Widget to start building new applications or easily embed Cesium into existing applications.">
     <meta name="cesium-sandcastle-labels" content="Beginner, Showcases">
     <title>KMGD WebGIS Demo v0.01</title>
-	<link rel="stylesheet" href="js/CesiumUnminified/Widgets/widgets.css" />
+	<!--<link rel="stylesheet" href="js/CesiumUnminified/Widgets/widgets.css" />-->
+	<link rel="stylesheet" href="js/Cesium/Widgets/widgets.css" />
+	<link rel="stylesheet" href="css/leaflet.css" />
+	<link rel="stylesheet" href="css/L.Control.MousePosition.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/Aqua/css/ligerui-all.css" />
 	<link rel="stylesheet" href="css/ligerui-skins/ligerui-icons.css" />
 	<link rel="stylesheet" href="css/black-green-theme/jquery-ui-1.10.4.custom.css" />
@@ -23,20 +26,18 @@
 	<link rel="stylesheet" href="css/fotorama.css" />
 	<link rel="stylesheet" href="css/multiple-select.css" />
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
-    <script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>
-    <!--<script type="text/javascript" src="js/WMTSImageryProvider.js"></script>-->
+    <!--<script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>-->
+    <script type="text/javascript" src="js/Cesium/Cesium.js"></script>
     <script type="text/javascript" src="js/CFTTileImageryProvider.js"></script>
     <script type="text/javascript" src="js/HeightmapAndQuantizedMeshTerrainProvider.js"></script>
     <script type="text/javascript" src="js/ArcGisMapServerImageryProvider.js"></script>
     <script type="text/javascript" src="js/BingImageryFromServerProvider.js"></script>
     <script type="text/javascript" src="js/AMapTileImageryProvider.js"></script>
+    <script type="text/javascript" src="js/ESRIImageryFromServerProvider.js"></script>
     <script type="text/javascript" src="js/HeatMapImageryProvider.js"></script>
     <script type="text/javascript" src="js/DrawHelper.js"></script>
-    <!--<script type="text/javascript" src="js/jquery/jquery-1.5.2.min.js"></script>-->
     <script type="text/javascript" src="js/jquery/jquery-uuid.js"></script>
     <script type="text/javascript" src="js/jquery/jquery-ui-1.10.4.custom.js"></script>
-    <!--<script type="text/javascript" src="js/jquery/jquery.mousewheel.js"></script>-->
-    <!--<script type="text/javascript" src="js/jquery/jquery.mCustomScrollbar.js"></script>-->
     <script type="text/javascript" src="js/icheck.js"></script>
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.validate.js"></script>
@@ -58,6 +59,10 @@
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/polyk.js"></script>
 	<script type="text/javascript" src="js/encryption/aes.js"></script>
+    <script type="text/javascript" src="js/leaflet-src-0.7.3.js"></script>
+    <!--<script type="text/javascript" src="js/esri-leaflet-src.js"></script>-->
+    <script type="text/javascript" src="js/leaflet.ChineseTmsProviders.js"></script>
+    <script type="text/javascript" src="js/L.Control.MousePosition.js"></script>
     <script type="text/javascript" src="js/webgis_common.js"></script>
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>

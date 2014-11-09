@@ -4009,6 +4009,25 @@ def gen_geojson_tracks(area):
         
     
     
+def mobile_action(mobileaction, area, data):
+    ret = {}
+    if mobileaction == 'save_potential_risk_point':
+        if isinstance(data, list):
+            for prp in data:
+                l = odbc_get_records('VIEW_POTENTIAL_RISK', u"risk_info='%s'" % prp['properties']['risk_info'], area)
+                if len(l)>0:
+                    ret['result'] = u'服务器保存出错:同名隐患点已存在:[%s]' % prp['properties']['risk_info']
+                    break
+            if len(ret.keys()) == 0:
+                sqls = []
+                for prp in data:
+                    sql = ''' ''' 
+                    sqls.append(sql)
+                    
+                odbc_execute_sqls(sqls)
+                
+                    
+    return ret
     
 def save_tracks(tracks, area):
     #def checktrack(tlist, t):
@@ -5973,18 +5992,27 @@ def gen_geojson_by_potential_risk(area, piny):
         if not recdict[rec['id']].has_key('coordinates'):
             recdict[rec['id']]['coordinates'] = []
         recdict[rec['id']]['coordinates'].append([rec['xcoord'], rec['ycoord']])
-        if not recdict[rec['id']].has_key('properties'):
-            recdict[rec['id']]['properties'] = {}
-            recdict[rec['id']]['properties']['type'] = rec['risk_type']
-            recdict[rec['id']]['properties']['NAME'] = rec['risk_info']
-            recdict[rec['id']]['properties']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
-            recdict[rec['id']]['properties']['py'] = ''
+        if not recdict[rec['id']].has_key('properties1'):
+            recdict[rec['id']]['properties1'] = {}
+            recdict[rec['id']]['properties1']['type'] = rec['risk_type']
+            recdict[rec['id']]['properties1']['NAME'] = rec['risk_info']
+            recdict[rec['id']]['properties1']['tip'] = u'隐患点描述:%s<br/>隐患点类型:%s<br/>发现时间:%s<br/>记录人:%s<br/>联系人:%s<br/>联系方式:%s<br/>' % (rec['risk_info'], rec['risk_type'], rec['appear_date'],rec['record_person'],rec['contact_person'],rec['contact_number'], )
+            recdict[rec['id']]['properties1']['py'] = ''
             try:
-                recdict[rec['id']]['properties']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('II',u'二').replace('I',u'一'))
+                recdict[rec['id']]['properties1']['py'] = piny.hanzi2pinyin_first_letter(rec['risk_info'].replace('#','').replace('II',u'二').replace('I',u'一'))
                 #print(o['properties']['py'])
             except:
                 print(sys.exc_info()[1])
-            
+                
+        if not recdict[rec['id']].has_key('properties'):
+            recdict[rec['id']]['properties'] = {}
+            recdict[rec['id']]['properties']['risk_type'] = rec['risk_type']
+            recdict[rec['id']]['properties']['risk_info'] = rec['risk_info']
+            recdict[rec['id']]['properties']['appear_date'] = rec['appear_date']
+            recdict[rec['id']]['properties']['record_person'] = rec['record_person']
+            recdict[rec['id']]['properties']['contact_person'] = rec['contact_person']
+            recdict[rec['id']]['properties']['contact_number'] = rec['contact_number']
+            recdict[rec['id']]['properties']['height'] = rec['height']
             
     for k in recdict:
         rec = recdict[k]
@@ -5992,13 +6020,16 @@ def gen_geojson_by_potential_risk(area, piny):
         o['geometry'] = {}
         if len(rec['coordinates']) == 1:
             o['geometry']['type'] = 'Point'
-        elif len(rec['coordinates']) == 2:
+            o['geometry']['coordinates'] = list(rec['coordinates'][0])
+        elif len(rec['coordinates']) >= 2 and not rec['coordinates'][0] == rec['coordinates'][-1]:
             o['geometry']['type'] = 'LineString'
-        elif len(rec['coordinates']) > 2:
+            o['geometry']['coordinates'] = list(rec['coordinates'])
+        elif len(rec['coordinates']) > 2 and rec['coordinates'][0] == rec['coordinates'][-1]:
             o['geometry']['type'] = 'Polygon'
-        o['geometry']['coordinates'] = [rec['coordinates']]
+            o['geometry']['coordinates'] = [rec['coordinates']]
         o['type'] = 'Feature'
         o['properties'] = rec['properties']
+        #o['properties1'] = rec['properties1']
         obj['features'].append(o)
     
     with open(path, 'w') as f:
@@ -7167,14 +7198,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     limit = conditions['limit']
                 for i in arr:
                     if len(tyarr)>0:
-                        ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                        #ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
+                        ret.extend(mongo_find(dbname, i, {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit=limit))
                 for i in gFeatureslist:
                     if i in tyarr: 
                         tyarr.remove(i)   
                     if unicode(i) in tyarr: 
                         tyarr.remove(unicode(i))   
                 if len(tyarr)>0:
-                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                    #ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 if 'heatmap_tile' in tyarr : 
                     ret.extend(get_heatmap_tile_service_list(conditions['py']))
                 if 'heatmap_heatmap' in tyarr : 
@@ -8795,8 +8828,21 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
     global gClientMongoTiles, gConfig, gClientMetadata
     dbname = gConfig[tiletype][subtype]['database']
     collection = gConfig[tiletype][subtype]['gridfs_collection']
+    
+    
     host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
     mimetype, ret = None, None
+    
+    
+    if not gClientMetadata.has_key(tiletype):
+        gClientMetadata[tiletype] = {}
+    if not gClientMetadata[tiletype].has_key(subtype):
+        gClientMetadata[tiletype][subtype] = {}
+    if len(gClientMetadata[tiletype][subtype].keys()) == 0:
+        size, content = get_missing_file(tiletype,  subtype)
+        gClientMetadata[tiletype][subtype]['missing_file_size'] = size
+        gClientMetadata[tiletype][subtype]['missing_file_content'] = content
+    
     
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
@@ -8808,6 +8854,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
             break
         if ret is None:
             href = ''
+            url_list = []
             #connection_timeout, network_timeout = 3.0, 10.0
             connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
             if tiletype == 'terrain':
@@ -8831,42 +8878,90 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
             elif tiletype == 'tiles' and 'bing_' in subtype:
                 x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
                 mimetype, ret = bing_tile(tiletype, subtype, tilepath, x, y, level)
+            #elif tiletype == 'tiles' and 'arcgis_' in subtype:
+                #x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
+                #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'][0], params['y'][0], params['level'][0]
                 s = gConfig[tiletype][subtype]['url_template']
-                s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
+                href = None
                 mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
-                href = str(s)
-                print('downloading tile %s' % href)
+                if isinstance(s, str):
+                    s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
+                    href = str(s)
+                    
+                elif isinstance(s, list):
+                    for i in s:
+                        i = i.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
+                        url_list.append(str(i))
             if not 'bing_' in subtype:
-                url = URL(href)    
-                http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-                response = None
-                try:
-                    #response = http.get(url.request_uri)
-                    g = gevent.spawn(http.get, url.request_uri)
-                    #g.start()
-                    #while not g.ready():
-                        #if g.exception:
-                            #break
-                        #gevent.sleep(0.1)
-                    g.join()
-                    response = g.value
-                    if response and response.status_code == 200:
-                        if '.terrain' in tilepath:
-                            with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
-                                ret = f1.read()
-                        else:
-                            ret = response.read()
-                        gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
-                        
-                except:
-                    pass
-            
+                def fetch_and_save_by_urlstr(urlstr):
+                    global gClientMetadata
+                    ret1 = None
+                    response = None
+                    try:
+                        url = URL(urlstr)
+                        http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+                        g = gevent.spawn(http.get, url.request_uri)
+                        g.join()
+                        response = g.value
+                        if response and response.status_code == 200:
+                            if '.terrain' in tilepath:
+                                with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
+                                    ret1 = f1.read()
+                                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
+                            else:
+                                ret1 = response.read()
+                                if len(ret1) == gClientMetadata[tiletype][subtype]['missing_file_size']:
+                                    ret1 = gClientMetadata[tiletype][subtype]['missing_file_content']
+                                else:
+                                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
+                    except:
+                        ret1 = None
+                    return ret1
+                if href:
+                    print('downloading tile from %s' % href)
+                    ret = fetch_and_save_by_urlstr(href)
+                elif len(url_list)>0:
+                    for i in url_list:
+                        print('downloading tile from %s' % i)
+                        ret = fetch_and_save_by_urlstr(i)
+                        if ret and len(ret) != gClientMetadata[tiletype][subtype]['missing_file_size']:
+                            break
     except:
         raise
     return mimetype, ret
 
+def arcgis_tile1(tiletype, subtype, tilepath, x, y, level):
+    global gConfig
+    mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
+    ret = None
+    tileroot = gConfig[tiletype][subtype]['file_root']
+    lvl = 'L%02d' % level
+    row = 'R%08x' % int(hex(y), 16)
+    col = 'C%08x' % int(hex(x), 16)
+    p = os.path.join(tileroot, lvl, row, col+'.jpg')
+    print(p)
+    if os.path.exists(p):
+        with open(p, 'rb') as f:
+            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+            ret = f1.read()
+    else:
+        STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
+        if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+            if os.path.exists(gConfig['web']['webroot']):
+                STATICRESOURCE_DIR = gConfig['web']['webroot']
+        STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
+        picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles'][image_type]['missing'])
+        with open(picpath, 'rb') as f:
+            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+            ret = f1.read()
+        mimetype = 'image/png'
+    
+    return mimetype, ret
+    
+    
+    
 def bing_tile(tiletype, subtype, tilepath, x, y, level):
     global gClientMongoTiles, gConfig, gClientMetadata
     
@@ -8910,6 +9005,9 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
     if not gClientMetadata[tiletype].has_key(subtype):
         gClientMetadata[tiletype][subtype] = {}
     if len(gClientMetadata[tiletype][subtype].keys()) == 0:
+        size, content = get_missing_file(tiletype,  subtype)
+        gClientMetadata[tiletype][subtype]['missing_file_size'] = size
+        gClientMetadata[tiletype][subtype]['missing_file_content'] = content
         url_metadata_template = gConfig[tiletype][subtype]['url_template']
         href = url_metadata_template.replace('{key}', gConfig[tiletype][subtype]['key'])
         url = URL(href) 
@@ -8936,12 +9034,12 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
         response = g.value
         if response and response.status_code == 200:
             ret = response.read()
-            if len(ret) > 1034:
-                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+            if len(ret) == gClientMetadata[tiletype][subtype]['missing_file_size']:
+                ret = gClientMetadata[tiletype][subtype]['missing_file_content']
             else:
-                ret = None
+                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
     except:
-        pass
+        ret = None
     return mimetype, ret
     
     
@@ -9310,19 +9408,39 @@ def test_edge_ring():
     ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a633','end':'533e88cbca49c8156025a61a'}})
     print(ring)
 
-
+def get_missing_file(tiletype, subtype):
+    global gConfig
+    staticresource_dir = os.path.join(module_path(), 'static')
+    if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+        if os.path.exists(gConfig['web']['webroot']):
+            staticresource_dir = gConfig['web']['webroot']
+    staticresource_img_dir = os.path.join(staticresource_dir, 'img')
+    miss_file_path = os.path.join(staticresource_img_dir,   gConfig[tiletype][subtype]['missing'])
+    miss_file_size = 0
+    miss_file_content = None
+    if os.path.exists(miss_file_path):
+        with open(miss_file_path, 'rb') as f:
+            miss_file_content = f.read()
+            if len(miss_file_content) >0:
+                miss_file_size = len(miss_file_content)
+    return miss_file_size, miss_file_content
+    
 
 def remove_blank_tiles(tiletype, subtype, dbname, collection):
-    global gClientMongoTiles
+    global  gClientMongoTiles
+    miss_file_size, content = get_missing_file(tiletype, subtype)
+    print('miss_file_size = %d' % miss_file_size)
     mongo_init_client(tiletype, subtype)
     db = gClientMongoTiles[tiletype][subtype][dbname]
     fs = gridfs.GridFS(db, collection=collection)
     for i in fs.find():
         #if i.filename[:3] in ['17/','18/', '19/', '20/']:
         #if i.filename[:3] in ['19/', '20/']:
-        if i.filename[:3] in ['13/', '14/', '15/', '16/']:
+        if i.filename[:3] in ['9/' ,'10/', '11/', '12/', '13/', '14/', '15/', '16/', '17/', '18/', '19/', '20/']:
             s = i.read()
-            if len(s) < 1034:
+            #print(len(s))
+            #if len(s) < 1034:
+            if len(s) == miss_file_size:
                 print(i.filename)
                 fs.delete(i._id)
                 #with open(ur'd:\tmp\%s' % i.filename.replace('/', '_'), 'wb') as f:
@@ -9332,6 +9450,7 @@ def remove_blank_tiles(tiletype, subtype, dbname, collection):
     
 def test_remove_blank_tile():
     global gClientMongoTiles
+    tiletype, subtype, dbname, collection = 'tiles', 'arcgis_sat', 'tiles_arcgis_sat', 'arcgis_sat'
     tiletype, subtype, dbname, collection = 'tiles', 'bing_sat', 'tiles_bing_sat', 'bing_sat'
     #tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
     remove_blank_tiles(tiletype, subtype, dbname, collection)

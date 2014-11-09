@@ -564,6 +564,31 @@ HeightmapAndQuantizedMeshTerrainProvider.prototype.getLevelMaximumGeometricError
     return this._levelZeroMaximumGeometricError / (1 << level);
 };
 
+/**
+ * Determines whether data for a tile is available to be loaded.
+ *
+ * @param {Number} x The X coordinate of the tile for which to request geometry.
+ * @param {Number} y The Y coordinate of the tile for which to request geometry.
+ * @param {Number} level The level of the tile for which to request geometry.
+ * @returns {Boolean} Undefined if not supported, otherwise true or false.
+ */
+HeightmapAndQuantizedMeshTerrainProvider.prototype.getTileDataAvailable = function(x, y, level) {
+    var available = this._availableTiles;
+
+    if (!available || available.length === 0) {
+        return undefined;
+    } else {
+        if (level >= available.length) {
+            return false;
+        }
+        var levelAvailable = available[level];
+        var yTiles = this._tilingScheme.getNumberOfYTilesAtLevel(level);
+        var tmsY = (yTiles - y - 1);
+        return isTileInRange(levelAvailable, x, tmsY);
+    }
+};
+
+
 function getChildMaskForTile(terrainProvider, level, x, y) {
     var available = terrainProvider._availableTiles;
     if (!available || available.length === 0) {
