@@ -8886,7 +8886,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 s = gConfig[tiletype][subtype]['url_template']
                 href = None
                 mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
-                if isinstance(s, str):
+                if isinstance(s, str) or isinstance(s, unicode):
                     s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
                     href = str(s)
                     
@@ -9452,7 +9452,7 @@ def test_remove_blank_tile():
     global gClientMongoTiles
     tiletype, subtype, dbname, collection = 'tiles', 'arcgis_sat', 'tiles_arcgis_sat', 'arcgis_sat'
     tiletype, subtype, dbname, collection = 'tiles', 'bing_sat', 'tiles_bing_sat', 'bing_sat'
-    #tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
+    tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
     remove_blank_tiles(tiletype, subtype, dbname, collection)
 
 def test_import_userinfo():

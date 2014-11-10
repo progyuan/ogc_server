@@ -1019,6 +1019,14 @@ function GetDisplayLatLngString(ellipsoid, cartesian, precision)
 	}
 }
 
+
+function GetDisplayLatLngString2D(latlng, precision) 
+{
+	if(!latlng) return "";
+	var s = "(" + latlng.lng.toFixed(precision || 3) + ", " + latlng.lat.toFixed(precision || 3) + ")";
+	return s;
+}
+
 function ShowMessage(id, width, height, title, msg, ok)
 {
 	if(id)

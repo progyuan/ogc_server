@@ -27,7 +27,7 @@ var g_node_connect_mode = false;
 $.g_heatmap_layers = {};
 $.g_userinfo = {};
 $.g_sysrole = [];
-$.map_backend = 'cesium';
+$.g_map_backend = 'cesium';
 
 
 
@@ -55,7 +55,7 @@ $(function() {
 	var viewer;
 	
 	try{
-		//throw "unsupport_cesium_exception";
+		throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.viewer = viewer;
@@ -75,19 +75,26 @@ $(function() {
 		InitKeyboardEvent(viewer);
 	}catch(ex)
 	{
-		$.map_backend = 'leaflet';
+		ShowProgressBar(false);
+		ShowMessage(null, 400, 300, '提示', '系统检测到该浏览器不支持最新HTML5标准WEBGL部分，因此将禁用3D视图。请使用Chrome浏览器或内置Chrome内核的浏览器以获得最佳浏览体验。');
+		$.g_map_backend = 'leaflet';
 		viewer = InitLeafletViewer();
 		$.viewer = viewer;
-		//InitRuler(viewer);
-		//InitLogout(viewer);
-	
-		//InitWebGISFormDefinition();
-		//InitDrawHelper(viewer);
-		//g_drawhelper.close();
-		//InitPoiInfoDialog();
-		//InitTowerInfoDialog();
 		
-		//InitSearchBox(viewer);
+		InitHomeButton2D(viewer);
+		InitLayerControl2D(viewer);
+		InitRuler(viewer);
+		InitNavigationHelp(viewer);
+		InitLogout(viewer);
+	
+		InitWebGISFormDefinition();
+		InitDrawHelper2D(viewer);
+		g_drawhelper.close();
+		
+		InitPoiInfoDialog();
+		InitTowerInfoDialog();
+		
+		InitSearchBox(viewer);
 		InitToolPanel(viewer);
 		//InitModelList(viewer);
 		//InitKeyboardEvent(viewer);
@@ -95,7 +102,7 @@ $(function() {
 	
 	
 	
-	if($.map_backend == 'cesium')
+	if($.g_map_backend == 'cesium')
 	{
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
 		LoadCodeData(g_db_name, function(){
@@ -307,38 +314,16 @@ function InitLeafletViewer()
 {
 	//$('#cesiumContainer').css('width', '100%').css('height', '90%');
 	$("#cesiumContainer").height($(window).height()).width($(window).width());
-
+	$("#cesiumContainer").append('<div class="cesium-viewer-toolbar"></div>');
+	$('.cesium-viewer-toolbar').css('z-index', '9');
 	var center = GetDefaultCenter(g_db_name);
 	var c = L.latLng(center[1], center[0]);
 	//console.log(c);
 	var layers = [];
-	var url_temlate, lyr, ly0;
+	var url_temlate, lyr;
 	var baseMaps = {};
 	
 	url_temlate = 'http://' + g_host + ':' + g_tile_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
-	lyr = L.tileLayer(url_temlate, {
-		image_type:'bing_sat', 
-		noWrap:true,
-		tms:false,
-		zoomOffset:-1,
-		minZoom: 1,
-		maxZoom: 17,
-	});
-	layers.push(lyr);
-	baseMaps['Bing卫星图'] = lyr;
-	ly0 = lyr;
-	
-	lyr = L.tileLayer(url_temlate, {
-		image_type:'amap_map', 
-		noWrap:true,
-		tms:false,
-		zoomOffset:0,
-		minZoom: 1,
-		maxZoom: 17,
-	});
-	layers.push(lyr);
-	baseMaps['高德地图'] = lyr;
-	
 	
 	
 	lyr = L.tileLayer(url_temlate, {
@@ -350,9 +335,41 @@ function InitLeafletViewer()
 		minZoom: 0,
 		maxZoom: 17,
 	});
+	lyr.name = 'ESRI卫星图';
+	lyr.iconUrl = Cesium.buildModuleUrl('/img/esri-sat.png');
+	lyr.tooltip = 'ESRI卫星图';
 	layers.push(lyr);
 	baseMaps['ESRI卫星图'] = lyr;
 	
+	
+	lyr = L.tileLayer(url_temlate, {
+		image_type:'bing_sat', 
+		noWrap:true,
+		tms:false,
+		zoomOffset:-1,
+		minZoom: 1,
+		maxZoom: 17,
+	});
+	
+	lyr.name = 'Bing卫星图';
+	lyr.iconUrl = Cesium.buildModuleUrl('/img/bingAerial.png');
+	lyr.tooltip = 'Bing卫星图';
+	layers.push(lyr);
+	baseMaps['Bing卫星图'] = lyr;
+	
+	lyr = L.tileLayer(url_temlate, {
+		image_type:'amap_map', 
+		noWrap:true,
+		tms:false,
+		zoomOffset:0,
+		minZoom: 1,
+		maxZoom: 17,
+	});
+	lyr.name = '高德地图';
+	lyr.iconUrl = Cesium.buildModuleUrl('/img/wmts-map.png');
+	lyr.tooltip = '高德地图';
+	layers.push(lyr);
+	baseMaps['高德地图'] = lyr;
 	
 	
 	//var prefix = '';
@@ -382,14 +399,16 @@ function InitLeafletViewer()
 	
 	var map = L.map('cesiumContainer',{
 		zoomControl:false,
-		layers:layers,
+		//layers:layers,
 		crs:L.CRS.EPSG900913
 		//crs:L.CRS.EPSG4326
 	}).setView(c, 10);
-	ly0.addTo(map);
+	map.layers = layers;
+	//console.log(map.layers);
+	//ly0.addTo(map);
 
 	
-	L.control.layers(baseMaps, {}).addTo(map);
+	//L.control.layers(baseMaps, {}).addTo(map);
 	L.control.mousePosition().addTo(map);
 	
 	map.invalidateSize();
@@ -405,6 +424,21 @@ function InitCesiumViewer()
 	{
 		prefix = 'ztgdgis/';
 	}
+	providerViewModels.push(new Cesium.ProviderViewModel({
+		name : 'Esri卫星图',
+		iconUrl : 'img/esri-sat.png',
+		tooltip : 'Esri卫星图',
+		creationFunction : function() {
+			return new ESRIImageryFromServerProvider({
+				//url : 'http://dev.virtualearth.net',
+				//mapStyle : Cesium.BingMapsStyle.AERIAL
+				////proxy : proxyIfNeeded
+				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
+				imageType: 'arcgis_sat',
+				queryType: 'server'
+			});
+		}
+	}));
 	providerViewModels.push(new Cesium.ProviderViewModel({
 		name : 'YN_SAT',
 		iconUrl : 'img/wmts-sat.png',
@@ -428,21 +462,6 @@ function InitCesiumViewer()
 				////proxy : proxyIfNeeded
 				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
 				imageType: 'bing_sat',
-				queryType: 'server'
-			});
-		}
-	}));
-	providerViewModels.push(new Cesium.ProviderViewModel({
-		name : 'Esri卫星图',
-		iconUrl : 'img/esri-sat.png',
-		tooltip : 'Esri卫星图',
-		creationFunction : function() {
-			return new ESRIImageryFromServerProvider({
-				//url : 'http://dev.virtualearth.net',
-				//mapStyle : Cesium.BingMapsStyle.AERIAL
-				////proxy : proxyIfNeeded
-				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
-				imageType: 'arcgis_sat',
 				queryType: 'server'
 			});
 		}
@@ -889,7 +908,522 @@ cesiumSvgPath: { path: _svgPath, width: 1024, height: 1024 }');
 
 }
 
+function InitLayerControl2D(viewer)
+{
+    var BaseLayerPickerViewModel = function(options) {
+        options = Cesium.defaultValue(options, Cesium.defaultValue.EMPTY_OBJECT);
 
+        var imageryProviderViewModels = Cesium.defaultValue(options.layers, []);
+        this.imageryProviderViewModels = imageryProviderViewModels.slice(0);
+
+
+        this.dropDownVisible = false;
+
+        Cesium.knockout.track(this, ['imageryProviderViewModels', 'dropDownVisible']);
+
+        this.buttonTooltip = undefined;
+        Cesium.knockout.defineProperty(this, 'buttonTooltip', function() {
+            var selectedImagery = this.selectedImagery;
+            var imageryTip = Cesium.defined(selectedImagery) ? selectedImagery.name : undefined;
+            if (Cesium.defined(imageryTip)) {
+                return imageryTip;
+            }
+            return "";
+        });
+
+        this.buttonImageUrl = undefined;
+        Cesium.knockout.defineProperty(this, 'buttonImageUrl', function() {
+            var viewModel = this.selectedImagery;
+            return Cesium.defined(viewModel) ? viewModel.iconUrl : undefined;
+        });
+
+        this.selectedImagery = undefined;
+        var selectedImageryViewModel = Cesium.knockout.observable();
+
+        this._currentImageryProviders = [];
+        Cesium.knockout.defineProperty(this, 'selectedImagery', {
+            get : function() {
+                return selectedImageryViewModel();
+            },
+            set : function(value) {
+                if (selectedImageryViewModel() === value) {
+                    this.dropDownVisible = false;
+                    return;
+                }
+
+                var imageryLayers = viewer.layers;
+                for (var i in viewer.layers) {
+					var layer = viewer.layers[i];
+					if(viewer.hasLayer(layer))
+					{
+						viewer.removeLayer(layer);
+						break;
+					}
+                }
+
+                if (Cesium.defined(value)) 
+				{
+                    viewer.addLayer(value);
+                }
+                selectedImageryViewModel(value);
+                this.dropDownVisible = false;
+				
+            }
+        });
+
+
+        var that = this;
+        this._toggleDropDown = Cesium.createCommand(function() {
+            that.dropDownVisible = !that.dropDownVisible;
+        });
+
+        this.selectedImagery = Cesium.defaultValue(options.selectedLayer, imageryProviderViewModels[0]);
+    };
+
+    Cesium.defineProperties(BaseLayerPickerViewModel.prototype, {
+        toggleDropDown : {
+            get : function() {
+                return this._toggleDropDown;
+            }
+        }
+    });
+    var BaseLayerPicker = function(container, options) {
+        if (!Cesium.defined(container)) {
+            throw new Cesium.DeveloperError('container is required.');
+        }
+
+        container = Cesium.getElement(container);
+        var viewModel = new BaseLayerPickerViewModel(options);
+
+        var element = document.createElement('button');
+        element.type = 'button';
+        element.className = 'cesium-button cesium-toolbar-button';
+        element.setAttribute('data-bind', '\
+attr: { title: buttonTooltip },\
+click: toggleDropDown');
+        container.appendChild(element);
+
+        var imgElement = document.createElement('img');
+        imgElement.setAttribute('draggable', 'false');
+        imgElement.className = 'cesium-baseLayerPicker-selected';
+        imgElement.setAttribute('data-bind', '\
+attr: { src: buttonImageUrl }');
+        element.appendChild(imgElement);
+
+        var dropPanel = document.createElement('div');
+        dropPanel.className = 'cesium-baseLayerPicker-dropDown';
+        dropPanel.setAttribute('data-bind', '\
+css: { "cesium-baseLayerPicker-dropDown-visible" : dropDownVisible }');
+        container.appendChild(dropPanel);
+
+        var imageryTitle = document.createElement('div');
+        imageryTitle.className = 'cesium-baseLayerPicker-sectionTitle';
+        imageryTitle.setAttribute('data-bind', 'visible: imageryProviderViewModels.length > 0');
+        imageryTitle.innerHTML = '选择地图';
+        dropPanel.appendChild(imageryTitle);
+
+        var imageryChoices = document.createElement('div');
+        imageryChoices.className = 'cesium-baseLayerPicker-choices';
+        imageryChoices.setAttribute('data-bind', 'foreach: imageryProviderViewModels');
+        dropPanel.appendChild(imageryChoices);
+
+        var imageryProvider = document.createElement('div');
+        imageryProvider.className = 'cesium-baseLayerPicker-item';
+        imageryProvider.setAttribute('data-bind', '\
+css: { "cesium-baseLayerPicker-selectedItem" : $data === $parent.selectedImagery },\
+attr: { title: tooltip },\
+visible: true,\
+click: function($data) { $parent.selectedImagery = $data; }');
+        imageryChoices.appendChild(imageryProvider);
+
+        var providerIcon = document.createElement('img');
+        providerIcon.className = 'cesium-baseLayerPicker-itemIcon';
+        providerIcon.setAttribute('data-bind', 'attr: { src: iconUrl }');
+        providerIcon.setAttribute('draggable', 'false');
+        imageryProvider.appendChild(providerIcon);
+
+        var providerLabel = document.createElement('div');
+        providerLabel.className = 'cesium-baseLayerPicker-itemLabel';
+        providerLabel.setAttribute('data-bind', 'text: name');
+        imageryProvider.appendChild(providerLabel);
+
+
+        Cesium.knockout.applyBindings(viewModel, element);
+        Cesium.knockout.applyBindings(viewModel, dropPanel);
+
+        this._viewModel = viewModel;
+        this._container = container;
+        this._element = element;
+        this._dropPanel = dropPanel;
+
+        this._closeDropDown = function(e) {
+            if (!(element.contains(e.target) || dropPanel.contains(e.target))) {
+                viewModel.dropDownVisible = false;
+            }
+        };
+
+        document.addEventListener('mousedown', this._closeDropDown, true);
+        document.addEventListener('touchstart', this._closeDropDown, true);
+    };
+
+    Cesium.defineProperties(BaseLayerPicker.prototype, {
+        container : {
+            get : function() {
+                return this._container;
+            }
+        },
+
+        viewModel : {
+            get : function() {
+                return this._viewModel;
+            }
+        }
+    });
+
+    BaseLayerPicker.prototype.isDestroyed = function() {
+        return false;
+    };
+
+    BaseLayerPicker.prototype.destroy = function() {
+        document.removeEventListener('mousedown', this._closeDropDown, true);
+        document.removeEventListener('touchstart', this._closeDropDown, true);
+        Cesium.knockout.cleanNode(this._element);
+        Cesium.knockout.cleanNode(this._dropPanel);
+        this._container.removeChild(this._element);
+        this._container.removeChild(this._dropPanel);
+        return Cesium.destroyObject(this);
+    };
+
+	var g_BaseLayerPicker = new BaseLayerPicker($('.cesium-viewer-toolbar')[0], {layers:viewer.layers, selectedLayer:viewer.layers[0]});
+
+}
+
+function InitHomeButton2D(viewer)
+{
+    var viewHome = function() {
+		var center = GetDefaultCenter(g_db_name);
+		var c = L.latLng(center[1], center[0]);
+		viewer.setView(c, 10);
+    }
+
+    var HomeButtonViewModel = function(scene, duration) {
+        
+        duration = Cesium.defaultValue(duration, 1.5);
+
+        this._scene = scene;
+        this._duration = duration;
+
+        var that = this;
+        this._command = Cesium.createCommand(function() {
+            viewHome();
+        });
+
+        this.tooltip = '默认视图';
+
+        Cesium.knockout.track(this, ['tooltip']);
+    };
+
+    Cesium.defineProperties(HomeButtonViewModel.prototype, {
+        scene : {
+            get : function() {
+                return this._scene;
+            }
+        },
+
+        command : {
+            get : function() {
+                return this._command;
+            }
+        },
+
+        duration : {
+            get : function() {
+                return this._duration;
+            },
+            set : function(value) {
+                if (value < 0) {
+                    throw new Cesium.DeveloperError('value must be positive.');
+                }
+                this._duration = value;
+            }
+        }
+    });
+	
+    var HomeButton = function(container, scene, duration) {
+        if (!Cesium.defined(container)) {
+            throw new Cesium.DeveloperError('container is required.');
+        }
+
+        container = Cesium.getElement(container);
+
+        var viewModel = new HomeButtonViewModel(scene, duration);
+
+        viewModel._svgPath = 'M14,4l-10,8.75h20l-4.25-3.7188v-4.6562h-2.812v2.1875l-2.938-2.5625zm-7.0938,9.906v10.094h14.094v-10.094h-14.094zm2.1876,2.313h3.3122v4.25h-3.3122v-4.25zm5.8442,1.281h3.406v6.438h-3.406v-6.438z';
+
+        var element = document.createElement('button');
+        element.type = 'button';
+        element.className = 'cesium-button cesium-toolbar-button cesium-home-button';
+        element.setAttribute('data-bind', '\
+attr: { title: tooltip },\
+click: command,\
+cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
+
+        container.appendChild(element);
+
+        Cesium.knockout.applyBindings(viewModel, element);
+
+        this._container = container;
+        this._viewModel = viewModel;
+        this._element = element;
+    };
+
+    Cesium.defineProperties(HomeButton.prototype, {
+        container : {
+            get : function() {
+                return this._container;
+            }
+        },
+        viewModel : {
+            get : function() {
+                return this._viewModel;
+            }
+        }
+    });
+
+    HomeButton.prototype.isDestroyed = function() {
+        return false;
+    };
+
+    HomeButton.prototype.destroy = function() {
+        Cesium.knockout.cleanNode(this._element);
+        this._container.removeChild(this._element);
+
+        return Cesium.destroyObject(this);
+    };
+	var g_HomeButton = new HomeButton($('.cesium-viewer-toolbar')[0]);
+
+}
+
+
+function InitNavigationHelp(viewer)
+{
+    var NavigationHelpButtonViewModel = function() {
+        this.showInstructions = false;
+
+        var that = this;
+        this._command = Cesium.createCommand(function() {
+            that.showInstructions = !that.showInstructions;
+        });
+        this._showClick = Cesium.createCommand(function() {
+            that._touch = false;
+        });
+        this._showTouch = Cesium.createCommand(function() {
+            that._touch = true;
+        });
+
+        this._touch = false;
+
+        this.tooltip = '操作帮助';
+
+        Cesium.knockout.track(this, ['tooltip', 'showInstructions', '_touch']);
+    };
+
+    Cesium.defineProperties(NavigationHelpButtonViewModel.prototype, {
+        command : {
+            get : function() {
+                return this._command;
+            }
+        },
+
+        showClick : {
+            get : function() {
+                return this._showClick;
+            }
+        },
+
+        showTouch : {
+            get: function() {
+                return this._showTouch;
+            }
+        }
+    });
+	
+    var NavigationHelpButton = function(options) {
+        if (!Cesium.defined(options) || !Cesium.defined(options.container)) {
+            throw new Cesium.DeveloperError('options.container is required.');
+        }
+
+        var container = Cesium.getElement(options.container);
+
+        var viewModel = new NavigationHelpButtonViewModel();
+
+        var showInsructionsDefault = Cesium.defaultValue(options.instructionsInitiallyVisible, false);
+        viewModel.showInstructions = showInsructionsDefault;
+
+        viewModel._svgPath = 'M16,1.466C7.973,1.466,1.466,7.973,1.466,16c0,8.027,6.507,14.534,14.534,14.534c8.027,0,14.534-6.507,14.534-14.534C30.534,7.973,24.027,1.466,16,1.466z M17.328,24.371h-2.707v-2.596h2.707V24.371zM17.328,19.003v0.858h-2.707v-1.057c0-3.19,3.63-3.696,3.63-5.963c0-1.034-0.924-1.826-2.134-1.826c-1.254,0-2.354,0.924-2.354,0.924l-1.541-1.915c0,0,1.519-1.584,4.137-1.584c2.487,0,4.796,1.54,4.796,4.136C21.156,16.208,17.328,16.627,17.328,19.003z';
+
+        var wrapper = document.createElement('span');
+        wrapper.className = 'cesium-navigationHelpButton-wrapper';
+        container.appendChild(wrapper);
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cesium-button cesium-toolbar-button cesium-navigation-help-button';
+        button.setAttribute('data-bind', '\
+attr: { title: tooltip },\
+click: command,\
+cesiumSvgPath: { path: _svgPath, width: 32, height: 32 }');
+        wrapper.appendChild(button);
+
+        var instructionContainer = document.createElement('div');
+        instructionContainer.className = 'cesium-navigation-help';
+        instructionContainer.setAttribute('data-bind', 'css: { "cesium-navigation-help-visible" : showInstructions}');
+        wrapper.appendChild(instructionContainer);
+
+        var mouseButton = document.createElement('button');
+        mouseButton.className = 'cesium-navigation-button cesium-navigation-button-left';
+        mouseButton.setAttribute('data-bind', 'click: showClick, css: {"cesium-navigation-button-selected": !_touch, "cesium-navigation-button-unselected": _touch}');
+        var mouseIcon = document.createElement('img');
+        mouseIcon.src = Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/Mouse.svg');
+        mouseIcon.className = 'cesium-navigation-button-icon';
+        mouseIcon.style.width = '25px';
+        mouseIcon.style.height = '25px';
+        mouseButton.appendChild(mouseIcon);
+        mouseButton.appendChild(document.createTextNode('Mouse'));
+
+        var touchButton = document.createElement('button');
+        touchButton.className = 'cesium-navigation-button cesium-navigation-button-right';
+        touchButton.setAttribute('data-bind', 'click: showTouch, css: {"cesium-navigation-button-selected": _touch, "cesium-navigation-button-unselected": !_touch}');
+        var touchIcon = document.createElement('img');
+        touchIcon.src = Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/Touch.svg');
+        touchIcon.className = 'cesium-navigation-button-icon';
+        touchIcon.style.width = '25px';
+        touchIcon.style.height = '25px';
+        touchButton.appendChild(touchIcon);
+        touchButton.appendChild(document.createTextNode('Touch'));
+
+        instructionContainer.appendChild(mouseButton);
+        instructionContainer.appendChild(touchButton);
+
+
+        var clickInstructions = document.createElement('div');
+        clickInstructions.className = 'cesium-click-navigation-help cesium-navigation-help-instructions';
+        clickInstructions.setAttribute('data-bind', 'css: { "cesium-click-navigation-help-visible" : !_touch}');
+        clickInstructions.innerHTML = '\
+            <table>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/MouseLeft.svg') + '" width="48" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-pan">Pan view</div>\
+                        <div class="cesium-navigation-help-details">Left click + drag</div>\
+                    </td>\
+                </tr>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/MouseRight.svg') + '" width="48" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-zoom">Zoom view</div>\
+                        <div class="cesium-navigation-help-details">Right click + drag, or</div>\
+                        <div class="cesium-navigation-help-details">Mouse wheel scroll</div>\
+                    </td>\
+                </tr>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/MouseMiddle.svg') + '" width="48" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-rotate">Rotate view</div>\
+                        <div class="cesium-navigation-help-details">Middle click + drag, or</div>\
+                        <div class="cesium-navigation-help-details">CTRL + Left click + drag</div>\
+                    </td>\
+                </tr>\
+            </table>';
+
+        instructionContainer.appendChild(clickInstructions);
+
+        var touchInstructions = document.createElement('div');
+        touchInstructions.className = 'cesium-touch-navigation-help cesium-navigation-help-instructions';
+        touchInstructions.setAttribute('data-bind', 'css: { "cesium-touch-navigation-help-visible" : _touch}');
+        touchInstructions.innerHTML = '\
+            <table>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/TouchDrag.svg') + '" width="70" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-pan">Pan view</div>\
+                        <div class="cesium-navigation-help-details">One finger drag</div>\
+                    </td>\
+                </tr>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/TouchZoom.svg') + '" width="70" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-zoom">Zoom view</div>\
+                        <div class="cesium-navigation-help-details">Two finger pinch</div>\
+                    </td>\
+                </tr>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/TouchTilt.svg') + '" width="70" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-rotate">Tilt view</div>\
+                        <div class="cesium-navigation-help-details">Two finger drag, same direction</div>\
+                    </td>\
+                </tr>\
+                <tr>\
+                    <td><img src="' + Cesium.buildModuleUrl('Widgets/Images/NavigationHelp/TouchRotate.svg') + '" width="70" height="48" /></td>\
+                    <td>\
+                        <div class="cesium-navigation-help-tilt">Rotate view</div>\
+                        <div class="cesium-navigation-help-details">Two finger drag, opposite direction</div>\
+                    </td>\
+                </tr>\
+            </table>';
+
+        instructionContainer.appendChild(touchInstructions);
+
+        Cesium.knockout.applyBindings(viewModel, wrapper);
+
+        this._container = container;
+        this._viewModel = viewModel;
+        this._wrapper = wrapper;
+
+        this._closeInstructions = function(e) {
+            if (!wrapper.contains(e.target)) {
+                viewModel.showInstructions = false;
+            }
+        };
+
+        document.addEventListener('mousedown', this._closeInstructions, true);
+        document.addEventListener('touchstart', this._closeInstructions, true);
+    };
+
+    Cesium.defineProperties(NavigationHelpButton.prototype, {
+        container : {
+            get : function() {
+                return this._container;
+            }
+        },
+
+        viewModel : {
+            get : function() {
+                return this._viewModel;
+            }
+        }
+    });
+
+    NavigationHelpButton.prototype.isDestroyed = function() {
+        return false;
+    };
+
+    NavigationHelpButton.prototype.destroy = function() {
+        document.removeEventListener('mousedown', this._closeInstructions, true);
+        document.removeEventListener('touchstart', this._closeInstructions, true);
+
+        Cesium.knockout.cleanNode(this._wrapper);
+        this._container.removeChild(this._wrapper);
+
+        return Cesium.destroyObject(this);
+    };
+	
+	var g_NavigationHelpButton = new NavigationHelpButton({
+		container : $('.cesium-viewer-toolbar')[0]
+	});
+	
+}
 
 function InitRuler(viewer)
 {
@@ -968,7 +1502,8 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
             }
         }
     });
-
+	
+	
     RulerButton.prototype.isDestroyed = function() {
         return false;
     };
@@ -978,6 +1513,8 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
         this._container.removeChild(this._wrapper);
         return Cesium.destroyObject(this);
     };
+	
+	//console.log($('.cesium-viewer-toolbar'));
 	g_rulerButton = new RulerButton({
 		container : $('.cesium-viewer-toolbar')[0]
 	});
@@ -987,6 +1524,34 @@ function InitBird(viewer)
 {
 	$('#tower_info_test').drawChart({});
 }
+
+
+function InitDrawHelper2D(viewer)
+{
+	g_drawhelper = new DrawHelper2D(viewer, 'drawhelpertoolbar');
+	var toolbar = g_drawhelper.addToolbar($('#' + g_drawhelper.toolbar_container_id)[0], {
+		buttons: ['marker', 'polyline', 'polygon', 'circle', 'extent']
+	});
+	
+	toolbar.addListener('markerCreated', function(event) {
+		console.log('Marker created at ' + GetDisplayLatLngString2D(event.position, 7));
+		if(g_drawhelper_mode != 'ruler')
+		{
+			var m = L.marker(event.position,{
+				icon:L.icon({
+					iconUrl: Cesium.buildModuleUrl('/img/marker30x48.png'),
+					iconSize: [30, 48],
+					iconAnchor: [15, 48]
+				})
+			});
+			m.name = 'tmp_marker';
+			m.addTo(viewer);
+			ShowPoiInfoDialog(viewer, '添加兴趣点', 'point',  event.position);
+		}
+	});
+
+}
+
 
 function InitDrawHelper(viewer)
 {
@@ -6012,6 +6577,10 @@ function GetGeojsonFromPosition(ellipsoid, position, type)
 		var carto = ellipsoid.cartesianToCartographic(position);
 		position = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)];
 	}
+	if(position instanceof L.LatLng)
+	{
+		position = [position.lng, position.lat];
+	}
 	if(position instanceof Array)
 	{
 		for(var i in position)
@@ -6085,7 +6654,11 @@ function BufferAnalyze(viewer, geojson, webgis_type, callback)
 
 function ShowBufferAnalyzeDialog(viewer, type, position)
 {
-	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var ellipsoid;
+	if($.g_map_backend === 'cesium')
+	{
+		ellipsoid = viewer.scene.globe.ellipsoid;
+	}
 	var buffer_geojson;
 	var switch_panel = function(formname, dialog)
 	{
@@ -6425,7 +6998,11 @@ function SaveDN(viewer, callback)
 
 function ShowPoiInfoDialog(viewer, title, type, position, id)
 {
-	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var ellipsoid;
+	if($.g_map_backend === 'cesium')
+	{
+		ellipsoid = viewer.scene.globe.ellipsoid;
+	}
 	$('#dlg_poi_info').dialog({
 		width: 540,
 		height: 680,
@@ -6461,31 +7038,64 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 					$( this ).dialog( "close" );
 					if(id && g_geojsons[id])
 					{
-						if(type === 'point')
+						
+						if($.g_map_backend === 'cesium')
 						{
-							var arr = g_geojsons[id]['geometry']['coordinates'];
-							var carto =  Cesium.Cartographic.fromDegrees(arr[0], arr[1], arr[2]);
-							position = ellipsoid.cartographicToCartesian(carto);
-						}
-						else if(type === 'polyline')
-						{
-							var arr = g_geojsons[id]['geometry']['coordinates'];
-							position = [];
-							for(var i in arr)
+							if(type === 'point')
 							{
-								var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
-								position.push(ellipsoid.cartographicToCartesian(carto));
+								var arr = g_geojsons[id]['geometry']['coordinates'];
+								var carto =  Cesium.Cartographic.fromDegrees(arr[0], arr[1], arr[2]);
+								position = ellipsoid.cartographicToCartesian(carto);
+							}
+							else if(type === 'polyline')
+							{
+								var arr = g_geojsons[id]['geometry']['coordinates'];
+								position = [];
+								for(var i in arr)
+								{
+									var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
+									position.push(ellipsoid.cartographicToCartesian(carto));
+								}
+							}
+							else if(type === 'polygon')
+							{
+								var arr = g_geojsons[id]['geometry']['coordinates'][0];
+								position = [];
+								for(var i in arr)
+								{
+									var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
+									position.push(ellipsoid.cartographicToCartesian(carto));
+								}
 							}
 						}
-						else if(type === 'polygon')
+						if($.g_map_backend === 'leaflet')
 						{
-							var arr = g_geojsons[id]['geometry']['coordinates'][0];
-							position = [];
-							for(var i in arr)
+							if(type === 'point')
 							{
-								var carto =  Cesium.Cartographic.fromDegrees(arr[i][0], arr[i][1], arr[i][2]);
-								position.push(ellipsoid.cartographicToCartesian(carto));
+								var arr = g_geojsons[id]['geometry']['coordinates']
+								position = L.latLng(arr[1], arr[0]);;
 							}
+							else if(type === 'polyline')
+							{
+								var arr = g_geojsons[id]['geometry']['coordinates'];
+								position = [];
+								for(var i in arr)
+								{
+									var lnglat =  L.latLng(arr[i][1], arr[i][0]);
+									position.push(lnglat);
+								}
+							}
+							else if(type === 'polygon')
+							{
+								var arr = g_geojsons[id]['geometry']['coordinates'][0];
+								position = [];
+								for(var i in arr)
+								{
+									var lnglat =  L.latLng(arr[i][1], arr[i][0]);
+									position.push(lnglat);
+								}
+							}
+						
 						}
 					}
 					ShowBufferAnalyzeDialog(viewer, type, position);
@@ -6510,7 +7120,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								if(!data['_id'] || data['_id'].length == 0) data['_id'] = null;
 								var properties =  $('#form_poi_info_' + v).webgisform('getdata');
 								delete properties.id;
-								//console.log(properties);
+								
 
 								data['properties'] = properties;
 								data['properties']['webgis_type'] = v;

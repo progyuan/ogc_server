@@ -1,25 +1,14 @@
-/**
- * Created by thomas on 9/01/14.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
- *
- * (c) www.geocento.com
- * www.metaaps.com
- *
- */
 var g_drawhelper_mode;
 var g_rulerButton;
 
-var DrawHelper = (function() {
+var DrawHelper2D = (function() {
 
-    // static variables
-    var ellipsoid = Cesium.Ellipsoid.WGS84;
 
     // constructor
-    function _(cesiumWidget, toolbar_id) {
-        this._viewer = cesiumWidget;
-		this._scene = cesiumWidget.scene;
-		this._tooltip = createTooltip(cesiumWidget.container);
+    function _(leafletMap, toolbar_id) {
+        this._viewer = leafletMap;
+        this._scene = leafletMap;
+		this._tooltip = createTooltip(leafletMap.getContainer());
         this._surfaces = [];
 		this._primitives = [];
         this.initialiseHandlers();
@@ -30,52 +19,52 @@ var DrawHelper = (function() {
     }
 
     _.prototype.initialiseHandlers = function() {
-        var scene = this._scene;
         var _self = this;
-        // scene events
-        var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-        function callPrimitiveCallback(name, position) {
-            if(_self._handlersMuted == true) return;
-            var pickedObject = scene.pick(position);
-            if(pickedObject && pickedObject.primitive && pickedObject.primitive[name]) {
-                pickedObject.primitive[name](position);
-            }
-        }
-        handler.setInputAction(
-            function (movement) {
-                callPrimitiveCallback('leftClick', movement.position);
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-        handler.setInputAction(
-            function (movement) {
-                callPrimitiveCallback('leftDoubleClick', movement.position);
-            }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-        var mouseOutObject;
-        handler.setInputAction(
-            function (movement) {
-                if(_self._handlersMuted == true) return;
-                var pickedObject = scene.pick(movement.endPosition);
-                if(mouseOutObject && (!pickedObject || mouseOutObject != pickedObject.primitive)) {
-                    !(mouseOutObject.isDestroyed && mouseOutObject.isDestroyed()) && mouseOutObject.mouseOut(movement.endPosition);
-                    mouseOutObject = null;
-                }
-                if(pickedObject && pickedObject.primitive) {
-                    pickedObject = pickedObject.primitive;
-                    if(pickedObject.mouseOut) {
-                        mouseOutObject = pickedObject;
-                    }
-                    if(pickedObject.mouseMove) {
-                        pickedObject.mouseMove(movement.endPosition);
-                    }
-                }
-            }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-        handler.setInputAction(
-            function (movement) {
-                callPrimitiveCallback('leftUp', movement.position);
-            }, Cesium.ScreenSpaceEventType.LEFT_UP);
-        handler.setInputAction(
-            function (movement) {
-                callPrimitiveCallback('leftDown', movement.position);
-            }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+        
+		
+        //var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+        //function callPrimitiveCallback(name, position) {
+            //if(_self._handlersMuted == true) return;
+            //var pickedObject = scene.pick(position);
+            //if(pickedObject && pickedObject.primitive && pickedObject.primitive[name]) {
+                //pickedObject.primitive[name](position);
+            //}
+        //}
+        //handler.setInputAction(
+            //function (movement) {
+                //callPrimitiveCallback('leftClick', movement.position);
+        //}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        //handler.setInputAction(
+            //function (movement) {
+                //callPrimitiveCallback('leftDoubleClick', movement.position);
+            //}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+        //var mouseOutObject;
+        //handler.setInputAction(
+            //function (movement) {
+                //if(_self._handlersMuted == true) return;
+                //var pickedObject = scene.pick(movement.endPosition);
+                //if(mouseOutObject && (!pickedObject || mouseOutObject != pickedObject.primitive)) {
+                    //!(mouseOutObject.isDestroyed && mouseOutObject.isDestroyed()) && mouseOutObject.mouseOut(movement.endPosition);
+                    //mouseOutObject = null;
+                //}
+                //if(pickedObject && pickedObject.primitive) {
+                    //pickedObject = pickedObject.primitive;
+                    //if(pickedObject.mouseOut) {
+                        //mouseOutObject = pickedObject;
+                    //}
+                    //if(pickedObject.mouseMove) {
+                        //pickedObject.mouseMove(movement.endPosition);
+                    //}
+                //}
+            //}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+        //handler.setInputAction(
+            //function (movement) {
+                //callPrimitiveCallback('leftUp', movement.position);
+            //}, Cesium.ScreenSpaceEventType.LEFT_UP);
+        //handler.setInputAction(
+            //function (movement) {
+                //callPrimitiveCallback('leftDown', movement.position);
+            //}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
     }
 
     _.prototype.setListener = function(primitive, type, callback) {
@@ -89,32 +78,14 @@ var DrawHelper = (function() {
         this._primitives.push(primitive);
     }
     _.prototype.clearPrimitive = function() {
-		for(var i in this._primitives)
-		{
-			try
+		var map = this._scene;
+		map.eachLayer(function (layer) {
+			//console.log(layer);
+			if(layer.name && layer.name.indexOf('tmp_')>-1)
 			{
-				this._scene.primitives.remove(this._primitives[i]);
-				if(g_czmls)
-				{
-					var modified = false;
-					for(var k in g_czmls)
-					{
-						if(k.indexOf('tmp_polyline_')>-1 || k.indexOf('tmp_polygon_')>-1)
-						{
-							delete g_czmls[k];
-							g_czmls[k] = undefined;
-							modified = true;
-						}
-					}
-					if(modified)
-					{
-						ReloadCzmlDataSource(this._viewer, g_zaware, true);
-					}
-				}
-			}catch(e){
+				map.removeLayer(layer);
 			}
-		}
-        this._primitives.length = 0;
+		});
     }
     _.prototype.close = function() {
 		this.stopDrawing();
@@ -132,33 +103,9 @@ var DrawHelper = (function() {
 		return false;
     }
 
-    // register event handling for an editable shape
-    // shape should implement setEditMode and setHighlighted
-    _.prototype.registerEditableShape = function(surface) {
-        var _self = this;
-
-        // handlers for interactions
-        // highlight polygon when mouse is entering
-        setListener(surface, 'mouseMove', function(position) {
-            surface.setHighlighted(true);
-            if(!surface._editMode) {
-                _self._tooltip.showAt(position, "Click to edit this shape");
-            }
-        });
-        // hide the highlighting when mouse is leaving the polygon
-        setListener(surface, 'mouseOut', function(position) {
-            surface.setHighlighted(false);
-            _self._tooltip.setVisible(false);
-        });
-        setListener(surface, 'leftClick', function(position) {
-            surface.setEditMode(true);
-        });
-    }
 
     _.prototype.startDrawing = function(cleanUp) {
-        // undo any current edit of shapes
         this.disableAllEditMode();
-        // check for cleanUp first
         if(this.editCleanUp) {
             this.editCleanUp();
         }
@@ -167,7 +114,6 @@ var DrawHelper = (function() {
     }
 
     _.prototype.stopDrawing = function() {
-        // check for cleanUp first
         if(this.editCleanUp) {
             this.editCleanUp();
             this.editCleanUp = null;
@@ -175,7 +121,6 @@ var DrawHelper = (function() {
         this.muteHandlers(false);
     }
 
-    // make sure only one shape is highlighted at a time
     _.prototype.disableAllHighlights = function() {
         this.setHighlighted(undefined);
     }
@@ -233,10 +178,6 @@ var DrawHelper = (function() {
     	material : material
     });
 
-//    Cesium.Polygon.prototype.setStrokeStyle = setStrokeStyle;
-//    
-//    Cesium.Polygon.prototype.drawOutline = drawOutline;
-//
     
     var ChangeablePrimitive = (function() {
         function _() {
@@ -268,9 +209,6 @@ var DrawHelper = (function() {
             return this[name];
         };
 
-        /**
-         * @private
-         */
         _.prototype.update = function(context, frameState, commandList) {
 
             if (!Cesium.defined(this.ellipsoid)) {
@@ -715,23 +653,17 @@ var DrawHelper = (function() {
 
         this._options = copyOptions(options, defaultBillboard);
 
-        // create one common billboard collection for all billboards
+        
         var b = new Cesium.BillboardCollection();
-        //var a = new Cesium.TextureAtlas({scene:this._scene});
-        //b.textureAtlas = a;
+        
         this._scene.primitives.add(b);
 		this._drawHelper.addPrimitive(b);
         this._billboards = b;
-        //this._textureAtlas = a;
-        // keep an ordered list of billboards
+        
         this._orderedBillboards = [];
 
-        // create the image for the billboards
         var image = new Image();
         var _self = this;
-        //image.onload = function() {
-            //a.addImage(image);
-        //};
         image.src = options.iconUrl;
     }
 
@@ -887,56 +819,30 @@ var DrawHelper = (function() {
     }
 
     _.prototype.startDrawingMarker = function(options) {
+        var _self = this;
+        var map = this._scene;
 
         var options = copyOptions(options, defaultBillboard);
 
         this.startDrawing(
             function() {
-                markers.remove();
-                mouseHandler.destroy();
+                //map.removeLayer(markers);
+				map.off('click', null);
+				map.off('mousemove', null);
                 tooltip.setVisible(false);
             }
         );
 
-        var _self = this;
-        var scene = this._scene;
-        var primitives = scene.primitives;
+        //var primitives = scene.primitives;
         var tooltip = this._tooltip;
-
-        var markers = new _.BillboardGroup(this, options);
-
-        var mouseHandler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-
-        // Now wait for start
-        mouseHandler.setInputAction(function(movement) {
-            if(movement.position != null) {
-                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
-				var ray = scene.camera.getPickRay(movement.position);
-				var cartesian = scene.globe.pick(ray, scene);					
-                
-                if (cartesian) {
-                    markers.addBillboard(cartesian);
-                    _self.stopDrawing();
-                    options.callback(cartesian);
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-        mouseHandler.setInputAction(function(movement) {
-            var position = movement.endPosition;
-            if(position != null) {
-                //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
-				var ray = scene.camera.getPickRay(position);
-				var cartesian = scene.globe.pick(ray, scene);					
-				
-                if (cartesian) {
-                    tooltip.showAt(position, "<p>当前坐标: </p>" + GetDisplayLatLngString(ellipsoid, cartesian, 7));
-                } else {
-                    tooltip.showAt(position, "<p>单击添加地标.</p>");
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
+		
+		map.on('click', function(e){
+			_self.stopDrawing();
+			options.callback(e.latlng);
+		});
+		map.on('mousemove', function(e){
+			tooltip.showAt(e.containerPoint, "<p>当前坐标: </p>" + GetDisplayLatLngString2D(e.latlng, 7));
+		});
     }
 
     _.prototype.startDrawingPolygon = function(options) {
@@ -954,203 +860,315 @@ var DrawHelper = (function() {
 		//{
 		this.startDrawing(
 			function() {
-				primitives.remove(poly);
-				markers.remove();
-				mouseHandler.destroy();
+				//primitives.remove(poly);
+				//markers.remove();
+				//mouseHandler.destroy();
+				_self._finishPath();
+				//if(_self._layerPaint) {
+					//_self._layerPaint.clearLayers();
+				//}
+				
+				map.off('click', null);
+				map.off('dblclick', null);
+				map.off('mousemove', null);
 				tooltip.setVisible(false);
 			}
 		);
 		//}
 
         var _self = this;
-        var scene = this._scene;
-        var primitives = scene.primitives;
+        var map = this._scene;
+        //var primitives = scene.primitives;
         var tooltip = this._tooltip;
 
         var minPoints = isPolygon ? 3 : 2;
         var poly;
-        if(isPolygon) {
-            poly = new Cesium.Polygon(options);
-        } else {
-            poly = new DrawHelper.PolylinePrimitive(options);
-        }
-        poly.asynchronous = false;
-        primitives.add(poly);
-		_self.addPrimitive(poly);
-        var positions = [];
-        var markers = new _.BillboardGroup(this, defaultBillboard);
+		
+		var positions = [];
+		if(!this._layerPaint) {
+			this._layerPaint = L.layerGroup().addTo(map);
+			this._layerPaint.name = 'tmp_polyline';
+		}
 
-        var mouseHandler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-
-        // Now wait for start
-        mouseHandler.setInputAction(function(movement) {
-            if(movement.position != null) {
-                //var cartesian = scene.camera.pickEllipsoid(movement.position, ellipsoid);
-				var ray = scene.camera.getPickRay(movement.position);
-				var cartesian = scene.globe.pick(ray, scene);					
-                if (cartesian) {
-                    // first click
-                    if(positions.length == 0) {
-                        positions.push(cartesian.clone());
-                        markers.addBillboard(positions[0]);
-                    }
-                    if(positions.length >= minPoints) {
-                        poly.positions = positions;
-                    }
-                    // add new point to polygon
-                    // this one will move with the mouse
-                    positions.push(cartesian);
-					//if(!isPolygon && positions.length >= minPoints) 
-					//{
-						//var positions1 = positions.slice();
-						//var p2 = positions1.pop();
-						//var p1 = positions1.pop();
-						//var carto1 = ellipsoid.cartesianToCartographic(p1);
-						//var carto2 = ellipsoid.cartesianToCartographic(p2);
-						//if(carto1.longitude != carto2.longitude || carto1.latitude != carto2.latitude)
-						//{
-							//var polylines = new Cesium.PolylineCollection({
-								//modelMatrix:Cesium.Matrix4.IDENTITY,
-								//depthTest : false
-							//});
-							
-							//var color = Cesium.Color.fromCssColorString("rgba(255,0,0,0.5)");
-							//var polyline = polylines.add({
-								//positions : [p1, p2],
-								//material : Cesium.Material.fromType('PolylineArrow', {
-								////material : Cesium.Material.fromType('Color', {
-									//color : color
-								//}),
-								//width : 10.0,
-								//show:true,
-								//id:'tmp_polyline_last_segment_' + positions.length
-							//});
-							//polylines.id = 'tmp_polyline_last_segment_' + positions.length ;
-							//scene.primitives.add(polylines);
-							//console.log(scene.primitives);
-						//}
-					//}
-                    // add marker at the new position
-					markers.addBillboard(cartesian);
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-        mouseHandler.setInputAction(function(movement) {
-            var position = movement.endPosition;
-            if(position != null) {
-                if(positions.length == 0) {
-                    tooltip.showAt(position, "<p>单击添加点</p>");
-                } else {
-                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
-					//add terrain support
-					var ray = scene.camera.getPickRay(position);
-					var cartesian = scene.globe.pick(ray, scene);					
-					
-                    if (cartesian) {
-                        positions.pop();
-                        // make sure it is slightly different
-                        cartesian.y += (1 + Math.random());
-                        positions.push(cartesian);
-                        if(positions.length >= minPoints) {
-                            poly.positions = positions;
-                        }
-                        // update marker
-                        markers.getBillboard(positions.length - 1).position = cartesian;
-                        // show tooltip
-						var tip;
-                        if(g_drawhelper_mode === 'ruler')
-						{
-							if(!isPolygon)
-							{
-								var total_len = 0;
-								var i, dist;
-								//console.log(positions);
-								for(i=0; i<positions.length-1; i++)
-								{
-									var p1 = positions[i];
-									var p2 = positions[i+1];
-									dist = Cesium.Cartesian3.distance(p1, p2);
-									total_len += dist;
-								}
-								tip = "<p>当前位置" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>" 
-								+ (dist > 0 ? "<p>距离上一点长度:" + dist.toFixed(0) + "米</p>" : "")
-								+ (total_len > 0 ? "<p>总长度:" + total_len.toFixed(0) + "米</p>" : "");
-							}
-							else
-							{
-								tip = "<p>当前位置" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>";
-								if(positions.length >= minPoints)
-								{
-									var polypos = [];
-									for(var i in positions)
-									{
-										var cart3 = positions[i];
-										var carto = ellipsoid.cartesianToCartographic(cart3);
-										var merc = ToWebMercator(carto);
-										polypos.push(merc[0]);
-										polypos.push(merc[1]);
-									}
-									var area = PolyK.GetArea(polypos);
-									area = Math.abs(area);
-									if(area > 1000000)
-									{
-										tip += "<p>面积:" + (area/1000000).toFixed(3) + "平方千米</p>";
-									}
-									else
-									{
-										tip += "<p>面积:" + area.toFixed(0) + "平方米</p>";
-									}
-								}
-							}
-						}
-						else 
-						{
-							tip = "<p>单击添加第" + positions.length + "点" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>" + (positions.length > minPoints ? "<p>双击结束添加</p>" : "");
-						}
-						if(tip)
-						{
-							tooltip.showAt(position, tip);
-						}
-                    }
-                }
-            }
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-        mouseHandler.setInputAction(function(movement) {
-            var position = movement.position;
-            if(position != null) {
-                if(positions.length < minPoints + 2) {
-                    return;
-                } else {
-                    //var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
-					var ray = scene.camera.getPickRay(position);
-					var cartesian = scene.globe.pick(ray, scene);					
-                    if (cartesian) {
-                        _self.stopDrawing();
-                        if(typeof options.callback == 'function') {
-                            // remove overlapping ones
-                            var index = positions.length - 1;
-                            // TODO - calculate some epsilon based on the zoom level
-                            var epsilon = Cesium.Math.EPSILON3;
-                            for(; index > 0 && positions[index].equalsEpsilon(positions[index - 1], epsilon); index--) {}
-                            options.callback(positions.splice(0, index + 1));
-                        }
-                    }
-                }
-            }
-			//var i = scene.primitives.length-1;
-			//while(i>0)
-			//{
-				//var ply = scene.primitives.get(i);
-				//console.log(ply.id);
-				//if(ply && ply.id && ply.id.indexOf('tmp_polyline_last_segment_')>-1)
-				//{
-					//scene.primitives.remove(ply);
-				//}
-				//i = i - 1;
+		if(!this._points) {
+			this._points = [];
+		}
+		
+		if(!this._finishPath)
+		{
+			this._finishPath = function() {
+				
+				if(_self._lastCircle) {
+					_self._layerPaint.removeLayer(_self._lastCircle);
+				}
+				tooltip.setVisible(false);
+				if(_self._layerPaint && _self._layerPaintPathTemp) {
+					_self._layerPaint.removeLayer(_self._layerPaintPathTemp);
+				}
+				_self._restartPath();
+				
+			};
+		}
+		if(!this._restartPath)
+		{
+			this._restartPath = function() {
+				_self._distance = 0;
+				_self._lastCircle = undefined;
+				_self._lastPoint = undefined;
+				_self._layerPaintPath = undefined;
+				_self._layerPaintPathTemp = undefined;
+				options.callback(_self._points);
+				_self._points = [];
+			};
+		}
+		map.on('click', function(e){
+			if(!e.latlng)
+			{
+				return;
+			}
+			if(_self._lastPoint) {
+				if(!_self._distance) {
+					_self._distance = 0;
+				}
+				var distance = e.latlng.distanceTo(_self._lastPoint);
+				_self._distance += distance;
+			}
+			
+			if(_self._lastPoint && !_self._layerPaintPath) {
+				_self._layerPaintPath = L.polyline([_self._lastPoint], { 
+					color: 'yellow',
+					weight: 5,
+					clickable: false
+				}).addTo(_self._layerPaint);
+			}
+	
+			if(_self._layerPaintPath) {
+				_self._layerPaintPath.addLatLng(e.latlng);
+			}
+	
+			if(_self._lastCircle) {
+				_self._layerPaint.removeLayer(_self._lastCircle);
+			}
+	
+			_self._lastCircle = new L.CircleMarker(e.latlng, { 
+				color: 'yellow', 
+				opacity: 1, 
+				weight: 1, 
+				fill: true, 
+				fillOpacity: 1,
+				radius:5,
+				clickable: _self._lastCircle ? true : false
+			}).addTo(_self._layerPaint);
+			
+			_self._lastCircle.on('click', function() { _self._finishPath(); }, _self);
+			_self._lastPoint = e.latlng;
+			_self._points.push(e.latlng);
+		});
+		map.on('mousemove', function(e){
+			//if(!e.latlng || !this._lastPoint) {
+				//return;
 			//}
-        }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+			if(_self._points.length == 0) 
+			{
+				tooltip.showAt(e.containerPoint, "<p>单击添加点</p>");
+				return;
+			}
+			if(!_self._layerPaintPathTemp) 
+			{
+				_self._layerPaintPathTemp = L.polyline([_self._lastPoint, e.latlng], { 
+					color: 'yellow',
+					weight: 5,
+					clickable: false,
+					dashArray: '6,12'
+				}).addTo(_self._layerPaint);
+			} else {
+				_self._layerPaintPathTemp.spliceLatLngs(0, 2, _self._lastPoint, e.latlng);
+			}
+			
+			if(!_self._distance) {
+				_self._distance = 0;
+			}
+
+			var distance = e.latlng.distanceTo(_self._lastPoint);
+			
+			var tip = "";
+			if(g_drawhelper_mode === 'ruler')
+			{
+				if(!isPolygon)
+				{
+					tip = "<p>当前位置" + GetDisplayLatLngString2D(e.latlng, 6) + "</p>" 
+					+ (distance > 0 ? "<p>距离上一点长度:" + distance.toFixed(0) + "米</p>" : "")
+					+ (_self._distance > 0 ? "<p>总长度:" + _self._distance.toFixed(0) + "米</p>" : "");
+				}
+				else
+				{
+					tip = "<p>当前位置" + GetDisplayLatLngString2D(e.latlng, 6) + "</p>";
+					if(_self._points.length >= minPoints)
+					{
+						var polypos = [];
+						for(var i in _self._points)
+						{
+							var latlng = _self._points[i];
+							var carto = Cesium.Cartographic.fromDegrees(latlng.lng, latlng.lat, 0);
+							var merc = ToWebMercator(carto);
+							polypos.push(merc[0]);
+							polypos.push(merc[1]);
+						}
+						var area = PolyK.GetArea(polypos);
+						area = Math.abs(area);
+						if(area > 1000000)
+						{
+							tip += "<p>面积:" + (area/1000000).toFixed(3) + "平方千米</p>";
+						}
+						else
+						{
+							tip += "<p>面积:" + area.toFixed(0) + "平方米</p>";
+						}
+					}
+				}
+			}
+			else 
+			{
+				tip = "<p>单击添加第" + _self._points.length + "点" + GetDisplayLatLngString2D(e.latlng, 6) + "</p>" + (_self._points.length > minPoints ? "<p>双击结束添加</p>" : "");
+			}
+			tooltip.showAt(e.containerPoint, tip);
+		});
+		map.on('dblclick', function(e){
+			_self.stopDrawing();
+			options.callback(_self._points);
+		});
+		
+		
+		
+		
+		
+        //if(isPolygon) {
+            //poly = new Cesium.Polygon(options);
+        //} else {
+            //poly = new DrawHelper2D.PolylinePrimitive(options);
+        //}
+        //poly.asynchronous = false;
+        //primitives.add(poly);
+		//_self.addPrimitive(poly);
+        //var positions = [];
+        //var markers = new _.BillboardGroup(this, defaultBillboard);
+        //var mouseHandler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+
+        
+        //mouseHandler.setInputAction(function(movement) {
+            //if(movement.position != null) {
+				//var ray = scene.camera.getPickRay(movement.position);
+				//var cartesian = scene.globe.pick(ray, scene);					
+                //if (cartesian) {
+                    //if(positions.length == 0) {
+                        //positions.push(cartesian.clone());
+                        //markers.addBillboard(positions[0]);
+                    //}
+                    //if(positions.length >= minPoints) {
+                        //poly.positions = positions;
+                    //}
+                    //positions.push(cartesian);
+					//markers.addBillboard(cartesian);
+                //}
+            //}
+        //}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        //mouseHandler.setInputAction(function(movement) {
+            //var position = movement.endPosition;
+            //if(position != null) {
+                //if(positions.length == 0) {
+                    //tooltip.showAt(position, "<p>单击添加点</p>");
+                //} else {
+					//var ray = scene.camera.getPickRay(position);
+					//var cartesian = scene.globe.pick(ray, scene);					
+					
+                    //if (cartesian) {
+                        //positions.pop();
+                        //cartesian.y += (1 + Math.random());
+                        //positions.push(cartesian);
+                        //if(positions.length >= minPoints) {
+                            //poly.positions = positions;
+                        //}
+                        //markers.getBillboard(positions.length - 1).position = cartesian;
+						//var tip;
+                        //if(g_drawhelper_mode === 'ruler')
+						//{
+							//if(!isPolygon)
+							//{
+								//var total_len = 0;
+								//var i, dist;
+								//for(i=0; i<positions.length-1; i++)
+								//{
+									//var p1 = positions[i];
+									//var p2 = positions[i+1];
+									//dist = Cesium.Cartesian3.distance(p1, p2);
+									//total_len += dist;
+								//}
+								//tip = "<p>当前位置" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>" 
+								//+ (dist > 0 ? "<p>距离上一点长度:" + dist.toFixed(0) + "米</p>" : "")
+								//+ (total_len > 0 ? "<p>总长度:" + total_len.toFixed(0) + "米</p>" : "");
+							//}
+							//else
+							//{
+								//tip = "<p>当前位置" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>" 
+								//if(positions.length >= minPoints)
+								//{
+									//var polypos = [];
+									//for(var i in positions)
+									//{
+										//var cart3 = positions[i];
+										//var carto = ellipsoid.cartesianToCartographic(cart3);
+										//var merc = ToWebMercator(carto);
+										//polypos.push(merc[0]);
+										//polypos.push(merc[1]);
+									//}
+									//var area = PolyK.GetArea(polypos);
+									//area = Math.abs(area);
+									//if(area > 1000000)
+									//{
+										//tip += "<p>面积:" + (area/1000000).toFixed(3) + "平方千米</p>";
+									//}
+									//else
+									//{
+										//tip += "<p>面积:" + area.toFixed(0) + "平方米</p>";
+									//}
+								//}
+							//}
+						//}
+						//else 
+						//{
+							//tip = "<p>单击添加第" + positions.length + "点" + GetDisplayLatLngString(ellipsoid, cartesian, 6) + "</p>" + (positions.length > minPoints ? "<p>双击结束添加</p>" : "");
+						//}
+						//if(tip)
+						//{
+							//tooltip.showAt(position, tip);
+						//}
+                    //}
+                //}
+            //}
+        //}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        //mouseHandler.setInputAction(function(movement) {
+            //var position = movement.position;
+            //if(position != null) {
+                //if(positions.length < minPoints + 2) {
+                    //return;
+                //} else {
+                    ////var cartesian = scene.camera.pickEllipsoid(position, ellipsoid);
+					//var ray = scene.camera.getPickRay(position);
+					//var cartesian = scene.globe.pick(ray, scene);					
+                    //if (cartesian) {
+                        //_self.stopDrawing();
+                        //if(typeof options.callback == 'function') {
+                            //var index = positions.length - 1;
+                            //var epsilon = Cesium.Math.EPSILON3;
+                            //for(; index > 0 && positions[index].equalsEpsilon(positions[index - 1], epsilon); index--) {}
+                            //options.callback(positions.splice(0, index + 1));
+                        //}
+                    //}
+                //}
+            //}
+        //}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
     }
 
