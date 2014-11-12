@@ -26,6 +26,7 @@
 	<link rel="stylesheet" href="css/fotorama.css" />
 	<link rel="stylesheet" href="css/multiple-select.css" />
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
+    <!--<script type="text/javascript" src="js/jquery/jquery-1.11.1.min.js"></script>-->
     <!--<script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>-->
     <script type="text/javascript" src="js/Cesium/Cesium.js"></script>
     <script type="text/javascript" src="js/CFTTileImageryProvider.js"></script>
@@ -51,6 +52,7 @@
     <!--<script type="text/javascript" src="js/jssor.utils.js"></script>-->
     <!--<script type="text/javascript" src="js/jssor.slider.js"></script>-->
     <script type="text/javascript" src="js/fotorama.js"></script>
+    <script type="text/javascript" src="js/geojson-extent.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.jgrowl.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.multiple.select.js"></script>
@@ -60,10 +62,14 @@
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/polyk.js"></script>
 	<script type="text/javascript" src="js/encryption/aes.js"></script>
-    <script type="text/javascript" src="js/leaflet-src-0.7.3.js"></script>
-    <!--<script type="text/javascript" src="js/esri-leaflet-src.js"></script>-->
-    <script type="text/javascript" src="js/leaflet.ChineseTmsProviders.js"></script>
-    <script type="text/javascript" src="js/L.Control.MousePosition.js"></script>
+    <!--<script type="text/javascript" src="js/leaflet/leaflet-src-0.7.3.js"></script>-->
+    <script type="text/javascript" src="js/leaflet/leaflet-src-0.8-dev.js"></script>
+    <script type="text/javascript" src="js/leaflet/leaflet.ChineseTmsProviders.js"></script>
+    <script type="text/javascript" src="js/leaflet/L.Control.MousePosition.js"></script>
+    <!--<script type="text/javascript" src="js/leaflet/L.LineUtil.PolylineDecorator.js"></script>-->
+    <!--<script type="text/javascript" src="js/leaflet/L.Symbol.js"></script>-->
+    <!--<script type="text/javascript" src="js/leaflet/L.PolylineDecorator.js"></script>-->
+	
     <script type="text/javascript" src="js/webgis_common.js"></script>
     <script type="text/javascript" src="js/webgis_form_data.js"></script>
 	<style>
@@ -71,9 +77,7 @@
 	</style>
 	
 </head>
-<body >
-<style>
-</style>
+<body>
 
 <div id="cesiumContainer" class="fullSize"></div>
 <div id="lnglat_indicator" class="kmgd-lnglat-indicator"></div>

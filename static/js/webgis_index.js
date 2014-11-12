@@ -24,6 +24,7 @@ var g_image_slider_tower_info;
 var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
 var g_node_connect_mode = false;
+var g_leaflet_geojson_layer;
 $.g_heatmap_layers = {};
 $.g_userinfo = {};
 $.g_sysrole = [];
@@ -64,7 +65,7 @@ $(function() {
 	
 		InitWebGISFormDefinition();
 		InitDrawHelper(viewer);
-		g_drawhelper.close();
+		g_drawhelper.show(false);
 		InitPoiInfoDialog();
 		InitTowerInfoDialog();
 		
@@ -75,6 +76,7 @@ $(function() {
 		InitKeyboardEvent(viewer);
 	}catch(ex)
 	{
+		$('#cesiumContainer').empty();
 		ShowProgressBar(false);
 		ShowMessage(null, 400, 300, '提示', '系统检测到该浏览器不支持最新HTML5标准WEBGL部分，因此将禁用3D视图。请使用Chrome浏览器或内置Chrome内核的浏览器以获得最佳浏览体验。');
 		$.g_map_backend = 'leaflet';
@@ -89,7 +91,7 @@ $(function() {
 	
 		InitWebGISFormDefinition();
 		InitDrawHelper2D(viewer);
-		g_drawhelper.close();
+		g_drawhelper.show(false);
 		
 		InitPoiInfoDialog();
 		InitTowerInfoDialog();
@@ -406,6 +408,49 @@ function InitLeafletViewer()
 	map.layers = layers;
 	//console.log(map.layers);
 	//ly0.addTo(map);
+	
+	
+	g_leaflet_geojson_layer = L.geoJson({type: "FeatureCollection",features:[]}, {
+		style: function (feature) {
+			//if(feature.properties.webgis_type.indexOf('point_')>-1)
+			//{
+			var o = {};
+			if(feature.geometry)
+			{
+				o.color = ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].color);
+				var weight = 5;
+				if(g_style_mapping[feature.properties.webgis_type].pixelWidth)
+				{
+					o.weight = g_style_mapping[feature.properties.webgis_type].pixelWidth * 5;
+				}
+			}
+			return o;
+		},
+		pointToLayer:function (feature, latlng) {
+			var m = L.circleMarker(latlng, {
+				radius: g_style_mapping[feature.properties.webgis_type].pixelSize,
+				fillColor: ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].color),
+				color: ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].outlineColor),
+				weight: 1,
+				opacity: 1,
+				fillOpacity: 0.7,
+				title:feature.properties.name
+			});
+			return m;
+		},
+		onEachFeature: function (feature, layer) {
+			//layer.bindPopup(feature.properties.description);
+			//console.log(feature._id);
+			layer.on({
+				//mouseover: null,
+				//mouseout: null,
+				click: function(e){
+					console.log(e.target.feature._id);
+				},
+				pointToLayer: null
+			});			
+		}
+	}).addTo(map);
 
 	
 	//L.control.layers(baseMaps, {}).addTo(map);
@@ -528,8 +573,10 @@ function InitCesiumViewer()
 			//});
 		//}
 	//}));
+	var viewer;
 	
-	var viewer = new Cesium.Viewer('cesiumContainer',{
+	viewer = new Cesium.Viewer('cesiumContainer',{
+		showRenderLoopErrors:false,
 		scene3DOnly:true,
 		animation:false,
 		baseLayerPicker:true,
@@ -542,25 +589,9 @@ function InitCesiumViewer()
 		imageryProviderViewModels:providerViewModels,
 		terrainProviderViewModels:terrainProviderViewModels
 	});
-	//console.log(viewer.scene.camera.frustum.fov);
 	viewer.scene.camera.frustum.fov = Cesium.Math.PI_OVER_TWO;
-	//console.log(viewer.scene.camera.frustum.fov);
 	TranslateToCN();
 	TowerInfoMixin(viewer);
-	//viewer.extend(Cesium.viewerCesiumInspectorMixin);
-
-    //viewer.scene.globe.depthTestAgainstTerrain = false;
-	
-	//var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-	//handler.setInputAction(
-		//function (movement) {
-			//var pick = scene.pick(movement.endPosition);
-			//if (Cesium.defined(pick) && Cesium.defined(pick.node) && Cesium.defined(pick.mesh)) {
-				//console.log('node: ' + pick.node.name + '. mesh: ' + pick.mesh.name);
-			//}
-		//},
-		//Cesium.ScreenSpaceEventType.MOUSE_MOVE
-	//);
 	return viewer;
 }
 
@@ -1436,7 +1467,7 @@ function InitRuler(viewer)
 				$(that.button).css('background-color', 'rgba(0, 255, 0, 0.5)');
 				if(!g_drawhelper.isVisible())
 				{
-					g_drawhelper.show();
+					g_drawhelper.show(true);
 				}
 				
 			}
@@ -1446,7 +1477,8 @@ function InitRuler(viewer)
 				$(that.button).css('background-color', 'rgba(38, 38, 38, 0.75)');
 				if(g_drawhelper.isVisible())
 				{
-					g_drawhelper.close();
+					g_drawhelper.clearPrimitive();
+					g_drawhelper.show(false);
 				}
 			}
         });
@@ -1549,6 +1581,46 @@ function InitDrawHelper2D(viewer)
 			ShowPoiInfoDialog(viewer, '添加兴趣点', 'point',  event.position);
 		}
 	});
+	toolbar.addListener('polylineCreated', function(event) {
+		//event.positions.pop();
+		event.positions.pop();
+		console.log('Polyline created with ' + event.positions.length + ' points');
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoDialog(viewer, '添加线段或道路', 'polyline', event.positions);
+		}
+	});
+	toolbar.addListener('polygonCreated', function(event) {
+		//event.positions.pop();
+		event.positions.pop();
+		console.log('Polygon created with ' + event.positions.length + ' points');
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
+		}
+	});
+	toolbar.addListener('circleCreated', function(event) {
+		console.log('Circle created: center is ' + event.center.toString() + ' and radius is ' + event.radius.toFixed(1) + ' meters');
+		//var circle = new DrawHelper.CirclePrimitive({
+			//center: event.center,
+			//radius: event.radius,
+			//material: drawHelperCoverAreaMaterial
+		//});
+		//viewer.scene.primitives.add(circle);
+		//g_drawhelper.addPrimitive(circle);
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
+		}
+	});
+	toolbar.addListener('extentCreated', function(event) {
+		var positions = event.positions;
+		console.log('Extent created (N: ' + positions[0].lat.toFixed(3) + ', E: ' + positions[2].lng.toFixed(3) + ', S: ' + positions[1].lat.toFixed(3) + ', W: ' + positions[0].lng.toFixed(3) + ')');
+		if(g_drawhelper_mode != 'ruler')
+		{
+			ShowPoiInfoDialog(viewer, '添加矩形区域', 'polygon', positions);
+		}
+	});
 
 }
 
@@ -1611,7 +1683,6 @@ function InitDrawHelper(viewer)
 		//polyline.addListener('onEdited', function(event) {
 			//console.log('Polyline edited, ' + event.positions.length + ' points');
 		//});
-
 	});
 	toolbar.addListener('polygonCreated', function(event) {
 		event.positions.pop();
@@ -1689,13 +1760,24 @@ function InitDrawHelper(viewer)
 
 function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 {
-	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var ellipsoid;
+	if($.g_map_backend === 'cesium')
+	{
+		ellipsoid = viewer.scene.globe.ellipsoid;
+	}
 	var g = {};
 	g['geometry'] = {}
 	g['geometry']['type'] = 'Point';
 	//console.log(center);
-	var carto = ellipsoid.cartesianToCartographic(center);
-	g['geometry']['coordinates'] = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]
+	if($.g_map_backend === 'cesium')
+	{
+		var carto = ellipsoid.cartesianToCartographic(center);
+		g['geometry']['coordinates'] = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)];
+	}
+	if($.g_map_backend === 'leaflet')
+	{
+		g['geometry']['coordinates'] = [center.lng, center.lat];
+	}
 	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':radius, 'res':8};
 	//ShowProgressBar(true, 670, 200, '生成缓冲区', '正在生成缓冲区，请稍候...');
 	MongoFind(cond, function(data){
@@ -1707,9 +1789,16 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 			for(var i in geometry['coordinates'][0])
 			{
 				var coord = geometry['coordinates'][0][i];
-				var carto = Cesium.Cartographic.fromDegrees(coord[0], coord[1], 0);
-				var cart3 = ellipsoid.cartographicToCartesian(carto);
-				positions.push(cart3);
+				if($.g_map_backend === 'cesium')
+				{
+					var carto = Cesium.Cartographic.fromDegrees(coord[0], coord[1], 0);
+					var cart3 = ellipsoid.cartographicToCartesian(carto);
+					positions.push(cart3);
+				}
+				if($.g_map_backend === 'leaflet')
+				{
+					positions.push(L.latLng(coord[1], coord[0]));
+				}
 			}
 			ShowPoiInfoDialog(viewer, title, 'polygon', positions);
 			
@@ -1898,6 +1987,7 @@ function InitTowerInfoDialog()
 
 function InitToolPanel(viewer)
 {
+	$('#control_toolpanel_kmgd_handle').css('z-index', '9');
 	$('#control_toolpanel_kmgd_left').css('display', 'none');
 	$('#control_toolpanel_kmgd_handle').on( 'mouseenter', function(e){
 		$('#control_toolpanel_kmgd_left').show('slide',{}, 400, function(){
@@ -2021,11 +2111,11 @@ function InitToolPanel(viewer)
 	$('#but_add_poi').on('click', function(){
 		if(g_drawhelper.isVisible())
 		{
-			g_drawhelper.close();
+			g_drawhelper.show(false);
 		}
 		else
 		{
-			g_drawhelper.show();
+			g_drawhelper.show(true);
 		}
 	});
 	$('#but_remove_poi').button({label:'清空兴趣点'});
@@ -2506,6 +2596,8 @@ function GetCheckedBoxList(prefix)
 }
 function InitSearchBox(viewer)
 {
+	//$('#control_search').css( 'display','none');
+	$('#control_search').css( 'z-index','9');
 	$('#button_search_clear').on( 'click', function(){
 		var v = $('#input_search').val();
 		//console.log(v);
@@ -2987,7 +3079,7 @@ function CreatePointCzmlFromGeojson(geojson)
 		subtype = 'point_dn_transformarea'
 	}
 	//console.log(subtype);
-	var style = g_style_point_mapping[subtype];
+	var style = g_style_mapping[subtype];
 	var v;
 	var icon_img = 'img/marker30x48.png';
 	if(subtype === 'point_tower')
@@ -3322,46 +3414,66 @@ function LoadModelsMapping(db_name, callback)
 function GetExtentByCzml()
 {
 	var ret;
-	if(g_czmls)
+	ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
+	//if($.g_map_backend === 'cesium')
+	//{
+		//if(g_czmls)
+		//{
+			//ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
+			//for(var k in g_czmls)
+			//{
+				//if(g_czmls[k] && g_czmls[k]['polyline'])
+				//{
+					//var positions = g_czmls[k]['polyline']['positions']['cartographicDegrees'];
+					//for(var i in positions)
+					//{
+						//var p = positions[i];
+						//if (i%3==0 && p < ret['west']) ret['west'] = p;
+						//if (i%3==0 && p > ret['east']) ret['east'] = p;
+						//if (i%3==1 && p < ret['south']) ret['south'] = p;
+						//if (i%3==1 && p > ret['north']) ret['north'] = p;
+					//}
+				//}
+				//else if(g_czmls[k]['polygon'])
+				//{
+					//var positions = g_czmls[k]['polygon']['positions']['cartographicDegrees'];
+					//for(var i in positions)
+					//{
+						//var p = positions[i];
+						//if (i%3==0 && p < ret['west']) ret['west'] = p;
+						//if (i%3==0 && p > ret['east']) ret['east'] = p;
+						//if (i%3==1 && p < ret['south']) ret['south'] = p;
+						//if (i%3==1 && p > ret['north']) ret['north'] = p;
+					//}
+				//}
+				//else if(g_czmls[k]['position'])
+				//{
+					//var pos = g_czmls[k]['position']['cartographicDegrees'];
+					//if (pos[0] < ret['west']) ret['west'] = pos[0];
+					//if (pos[0] > ret['east']) ret['east'] = pos[0];
+					//if (pos[1] < ret['south']) ret['south'] = pos[1];
+					//if (pos[1] > ret['north']) ret['north'] = pos[1];
+				//}
+			//}
+		//}
+	//}
+	//if($.g_map_backend === 'leaflet')
+	//{
+	var gj = {type: "FeatureCollection",features:[]};
+	for(var k in g_geojsons)
 	{
-		ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
-		for(var k in g_czmls)
+		if (g_geojsons[k].geometry)
 		{
-			if(g_czmls[k] && g_czmls[k]['polyline'])
-			{
-				var positions = g_czmls[k]['polyline']['positions']['cartographicDegrees'];
-				//console.log(positions);
-				for(var i in positions)
-				{
-					var p = positions[i];
-					if (i%3==0 && p < ret['west']) ret['west'] = p;
-					if (i%3==0 && p > ret['east']) ret['east'] = p;
-					if (i%3==1 && p < ret['south']) ret['south'] = p;
-					if (i%3==1 && p > ret['north']) ret['north'] = p;
-				}
-			}
-			else if(g_czmls[k]['polygon'])
-			{
-				var positions = g_czmls[k]['polygon']['positions']['cartographicDegrees'];
-				for(var i in positions)
-				{
-					var p = positions[i];
-					if (i%3==0 && p < ret['west']) ret['west'] = p;
-					if (i%3==0 && p > ret['east']) ret['east'] = p;
-					if (i%3==1 && p < ret['south']) ret['south'] = p;
-					if (i%3==1 && p > ret['north']) ret['north'] = p;
-				}
-			}
-			else if(g_czmls[k]['position'])
-			{
-				var pos = g_czmls[k]['position']['cartographicDegrees'];
-				if (pos[0] < ret['west']) ret['west'] = pos[0];
-				if (pos[0] > ret['east']) ret['east'] = pos[0];
-				if (pos[1] < ret['south']) ret['south'] = pos[1];
-				if (pos[1] > ret['north']) ret['north'] = pos[1];
-			}
+			gj.features.push(g_geojsons[k]);
 		}
 	}
+	var arr = geojsonExtent(gj);
+	ret['west'] = arr[0];
+	ret['south'] = arr[1];
+	ret['east'] = arr[2];
+	ret['north'] = arr[3];
+	//}
+	//console.log(ret);
 	return ret;
 }
 
@@ -3497,12 +3609,14 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 				{
 					g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 				}
-				if(!g_czmls[_id])
+				if($.g_map_backend === 'cesium')
 				{
-					g_czmls[_id] = CreateCzmlFromGeojson(g_geojsons[_id]);
+					if(!g_czmls[_id])
+					{
+						g_czmls[_id] = CreateCzmlFromGeojson(g_geojsons[_id]);
+					}
 				}
 			}
-			//ReloadCzmlDataSource(viewer, g_zaware);
 			if(callback) callback();
 	});
 }
@@ -3655,6 +3769,21 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		});
 		return r;
 	};
+	
+	if($.g_map_backend === 'leaflet')
+	{
+		for(var id in g_geojsons)
+		{
+			var g = g_geojsons[id];
+			if(g.geometry)
+			{
+				g_leaflet_geojson_layer.addData(g);
+			}
+		}
+		return;
+	}
+	
+	
 	
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	var arr = [];
@@ -3842,27 +3971,6 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 	}
 	
 	
-	//if(dataSource)
-	//{
-		//console.log(arr.length-1);
-		//console.log(dataSource.entities.entities.length);
-		//if(arr.length-1 === dataSource.entities.entities.length)
-		//{
-			//console.log('no change');
-			//dataSource.process(arr);
-		//}else
-		//{
-			//console.log('changed');
-			//dataSource.load(arr);
-		//}
-	//}else
-	//{
-		//dataSource = new Cesium.CzmlDataSource('czml');
-		////console.log(dataSource.name);
-		//dataSource.load(arr);
-		////dataSource.dsname = 'czml';
-		//viewer.dataSources.add(dataSource);
-	//}
 	if(viewer.selectedEntity && pos)
 	{
 		viewer.selectedEntity.position._value = ellipsoid.cartographicToCartesian(Cesium.Cartographic.fromDegrees(pos[0], pos[1], pos[2]));
@@ -3959,18 +4067,21 @@ function FlyToPointCart3(viewer, cartopos, duration)
 
 function FlyToExtent(viewer, west, south, east, north)
 {
-	var scene = viewer.scene;
-	var extent = Cesium.Rectangle.fromDegrees(west, south, east, north);
-	//var flight = Cesium.CameraFlightPath.createAnimationRectangle(scene, {
-		//destination : extent
-	//});
-	//scene.animations.add(flight);
-	
-	scene.camera.flyToRectangle({
-        destination : extent
-    });	
-	
-	
+	if($.g_map_backend === 'cesium')
+	{
+		var scene = viewer.scene;
+		var extent = Cesium.Rectangle.fromDegrees(west, south, east, north);
+		scene.camera.flyToRectangle({
+			destination : extent
+		});
+	}
+	if($.g_map_backend === 'leaflet')
+	{
+		var southWest = L.latLng(south, west);
+		var	northEast = L.latLng(north, east);		
+		var bounds = L.latLngBounds(southWest, northEast);
+		viewer.fitBounds(bounds);
+	}
 }
 
 function GetTowerInfoByTowerId(id)
@@ -7207,7 +7318,10 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
 		if(id === undefined)
 		{
-			AddToCzml(ellipsoid, type, position);
+			if($.g_map_backend === 'cesium')
+			{
+				AddToCzml(ellipsoid, type, position);
+			}
 		}
 	}
 		
@@ -7309,14 +7423,32 @@ function AddToCzml(ellipsoid, type, positions)
 		for(var i in positions)
 		{
 			var cart3 = positions[i];
-			var carto = ellipsoid.cartesianToCartographic(cart3);
-			if(i == 0)
+			if($.g_map_backend === 'cesium')
 			{
-				carto_0 = carto;
+				var carto = ellipsoid.cartesianToCartographic(cart3);
+				if(i == 0)
+				{
+					carto_0 = carto;
+				}
+				g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
 			}
-			g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
+			if($.g_map_backend === 'leaflet')
+			{
+				if(i == 0)
+				{
+					carto_0 = cart3;
+				}
+				g['geometry']['coordinates'][0].push([cart3.lng, cart3.lat]);
+			}
 		}
-		g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto_0.longitude), Cesium.Math.toDegrees(carto_0.latitude)]);
+		if($.g_map_backend === 'cesium')
+		{
+			g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto_0.longitude), Cesium.Math.toDegrees(carto_0.latitude)]);
+		}
+		if($.g_map_backend === 'leaflet')
+		{
+			g['geometry']['coordinates'][0].push([carto_0.lng, carto_0.lat]);
+		}
 	}
 	g['_id'] = id;
 	if(!g_czmls[id])
@@ -7328,7 +7460,7 @@ function AddToCzml(ellipsoid, type, positions)
 			g_czmls[id]['polygon']['material']['solidColor']['color'] = {'rgba':[255,255,0, 80]};
 		}
 	}
-	//console.log(g);
+	
 }
 
 function CreateCzmlFromGeojson(geojson)

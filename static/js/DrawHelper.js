@@ -121,10 +121,11 @@ var DrawHelper = (function() {
 		this.disableAllEditMode();
 		this.disableAllHighlights();
 		this.clearPrimitive();
+		this._tooltip.destroy();
 		$('#' + this.toolbar_container_id).css('display','none');
     }
-    _.prototype.show = function() {
-		$('#' + this.toolbar_container_id).css('display','block');
+    _.prototype.show = function(isshow) {
+		$('#' + this.toolbar_container_id).css('display',isshow?'block':'none');
     }
     _.prototype.isVisible = function() {
 		if($('#' + this.toolbar_container_id).css('display') == 'block') 
@@ -2099,6 +2100,9 @@ var DrawHelper = (function() {
 
         tooltip.prototype.setVisible = function(visible) {
             this._div.style.display = visible ? 'block' : 'none';
+        }
+        tooltip.prototype.destroy = function(visible) {
+            $(this._div).remove();
         }
 
         tooltip.prototype.showAt = function(position, message) {

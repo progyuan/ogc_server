@@ -1,5 +1,7 @@
-var g_arcserver_host = 'xiejun-desktop';//10.181.160.72
-var g_host = 'xiejun-desktop';//10.181.160.72
+//var g_arcserver_host = 'xiejun-desktop';//10.181.160.72
+//var g_host = 'xiejun-desktop';//10.181.160.72
+var g_arcserver_host = '192.168.1.107';//10.181.160.72
+var g_host = '192.168.1.107';//10.181.160.72
 var g_port = 88;
 var g_tile_port = 88;
 //var g_db_name = 'kmgd';
@@ -16,7 +18,7 @@ var g_phase_color_mapping = {
 	'L':'#000000',
 	'R':'#000000'
 };
-var g_style_point_mapping = {
+var g_style_mapping = {
 	'point_tower' :		{icon_img:'img/features/powerlinepole.png', color:[255, 255, 0, 255],outlineColor:[0, 0, 0, 255], outlineWidth:1, pixelSize:10, labelFillColor:[128, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_hazard' :	{icon_img:'img/features/radiation.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_marker' :	{icon_img:'img/marker30x48.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
@@ -41,19 +43,18 @@ var g_style_point_mapping = {
 	'point_chemistsshop': {icon_img:'img/features/', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_hospital':	{icon_img:'img/features/hospital-building.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_bank':		{icon_img:'img/features/hospital-building.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
-	'point_town':		{icon_img:'img/features/cathedral.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6}
-};
-var g_style_polyline_mapping = {
+	'point_town':		{icon_img:'img/features/cathedral.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
+//};
+//var g_style_polyline_mapping = {
 	'polyline_marker':{color:[0, 64, 255, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[0, 64, 255, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polyline_hazard':{color:[255, 64, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polyline_speedway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polyline_heighway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polyline_nationalroad':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polyline_provinceroad':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
-	'polyline_railway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
-};
-
-var g_style_polygon_mapping = {
+	'polyline_railway':{color:[255, 128, 0, 255], pixelWidth:1, outlineColor:[255, 64, 255, 255], outlineWidth:1, labelFillColor:[255, 128, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
+//};
+//var g_style_polygon_mapping = {
 	'polygon_marker':{color:[0, 64, 255, 100], outlineColor:[255, 255, 0, 255],  labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polygon_hazard':{color:[255, 64, 0, 100], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 64, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1},
 	'polygon_buffer':{color:[255, 0, 0, 50], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 0, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
@@ -827,10 +828,10 @@ function ColorArrayToRgba(array)
 
 function GetDefaultStyleValue(type, stylename)
 {
-	var mapping;
-	if(type.indexOf('point_')>-1) mapping = g_style_point_mapping[type];
-	if(type.indexOf('polyline_')>-1) mapping = g_style_polyline_mapping[type];
-	if(type.indexOf('polygon_')>-1) mapping = g_style_polygon_mapping[type];
+	var mapping = g_style_mapping[type];
+	//if(type.indexOf('point_')>-1) mapping = g_style_point_mapping[type];
+	//if(type.indexOf('polyline_')>-1) mapping = g_style_polyline_mapping[type];
+	//if(type.indexOf('polygon_')>-1) mapping = g_style_polygon_mapping[type];
 	var ret = [255, 0, 0, 128];
 	if(stylename==='pixelSize' ) ret = 3;
 	if(stylename==='outlineWidth') ret = 1;
@@ -838,7 +839,7 @@ function GetDefaultStyleValue(type, stylename)
 	if(stylename==='width') ret = 1;
 	if(mapping[stylename]) ret = mapping[stylename];
 	return ret;
-};
+}
 
 function ColorRgbaToArray(rgbastr)
 {
@@ -846,6 +847,14 @@ function ColorRgbaToArray(rgbastr)
 	//var a = Math.floor(c.getAlpha()*256-1);
 	var rgba = c.toRgb();
 	return [rgba.r, rgba.g, rgba.b, Math.floor(rgba.a*256-1)];
+}
+
+function ColorArrayToHTMLColor(array)
+{
+	var rgbastr = ColorArrayToRgba(array)
+	var c = tinycolor(rgbastr);
+	var ret = c.toHexString();
+	return ret;
 }
 
 
