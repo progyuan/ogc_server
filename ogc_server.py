@@ -2309,6 +2309,8 @@ if __name__=="__main__":
     init_global()
     if options.signcert_enable:
         create_self_signed_cert( options.signcert_directory,  options.signcert_year)
+    elif options.batch_download_tile_enable:
+        db_util.command_batch_tile_download(options)
     else:
         if options.cluster_enable:
             mainloop_single(int(gConfig['cluster']['manager_port']), True, False)

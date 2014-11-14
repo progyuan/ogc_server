@@ -2075,6 +2075,9 @@ var DrawHelper2D = (function() {
         tooltip.prototype.setVisible = function(visible) {
             this._div.style.display = visible ? 'block' : 'none';
         }
+        tooltip.prototype.getVisible = function() {
+            return this._div.style.display == 'block'? true : false;
+        }
         tooltip.prototype.destroy = function(visible) {
             $(this._div).remove();
         }

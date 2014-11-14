@@ -55,6 +55,8 @@ gClientMetadata = {}
 ODBC_STRING = {}
 gPinYin = None
 gFeatureslist = []
+gIsSaveTileToDB = True
+
 ARCGISTILEROOT = r'I:\geotiff'
 GOOGLETILEROOT = r'I:\geotiff'
 DIRTILEROOT = r'I:\geotiff\tiles'
@@ -114,21 +116,60 @@ def init_global():
     parser = OptionParser()
     parser.add_option("-c", "--config", dest="config", action="store", default=os.path.join(module_path(), "ogc-config.ini"),
                       help="specify a config file to load")
-    parser.add_option("-s", "--signcert_enable",
+    parser.add_option("--signcert_enable",
                       action="store_true", dest="signcert_enable", default=False,
                       help="generate ssl cert and key")
-    parser.add_option("-d", "--signcert_directory",
+    parser.add_option("--signcert_directory",
                       action="store", dest="signcert_directory", default=module_path(),
                       help="specify the directory to store ssl cert and key file")
-    parser.add_option("-y", "--signcert_year",
+    parser.add_option("--signcert_year",
                       action="store", type="int", dest="signcert_year", default=10,
                       help="specify year to generate ssl cert")
-    #parser.add_option("-l", "--ssl_enable",
+    #parser.add_option("--ssl_enable",
                       #action="store_true", dest="ssl_enable", default=False,
                       #help="enable ssl mode")
-    parser.add_option("-u", "--cluster_enable",
+    parser.add_option("--cluster_enable",
                       action="store_true", dest="cluster_enable", default=False,
                       help="enable cluster mode")
+    parser.add_option("--batch_download_tile_enable",
+                      action="store_true", dest="batch_download_tile_enable", default=False,
+                      help="enable batch download tile mode")
+    
+    parser.add_option("--tiletype",
+                      action="store", dest="tiletype", default=None,
+                      help="batch download tile: specify tiletype")
+    parser.add_option("--subtype",
+                      action="store", dest="subtype", default=None,
+                      help="batch download tile: specify subtype")
+    parser.add_option("--west",
+                      action="store", type="float", dest="west", default=None,
+                      help="batch download tile: specify west longitude")
+    parser.add_option("--east",
+                      action="store", type="float", dest="east", default=None,
+                      help="batch download tile: specify east longitude")
+    parser.add_option("--south",
+                      action="store", type="float", dest="south", default=None,
+                      help="batch download tile: specify south latitude")
+    parser.add_option("--north",
+                      action="store", type="float", dest="north", default=None,
+                      help="batch download tile: specify north latitude")
+    parser.add_option("--zoom_min",
+                      action="store", type="int", dest="zoom_min", default=1,
+                      help="batch download tile: specify min zoom")
+    parser.add_option("--zoom_max",
+                      action="store", type="int", dest="zoom_max", default=17,
+                      help="batch download tile: specify max zoom")
+    parser.add_option("--num_cocurrent",
+                      action="store", type="int", dest="num_cocurrent", default=5,
+                      help="batch download tile: specify files number during cocurrent downloading")
+    parser.add_option("--wait_sec",
+                      action="store", type="int", dest="wait_sec", default=1,
+                      help="batch download tile: specify wait seconds before cocurrent batch download begin")
+
+    parser.add_option("--save_to_db",
+                      action="store_true", dest="save_to_db", default=False,
+                      help="batch download tile: save tile to database")
+
     
     (options, args) = parser.parse_args()    
     
@@ -148,8 +189,9 @@ def init_global():
                 ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s\\%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'], gConfig['odbc'][k]['db_instance'], gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
             else:
                 ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
-    
-    gFeatureslist = ['point_tower', 'point_hazard', 'point_marker', 'polyline_hazard', 'polyline_marker', 'polygon_hazard', 'polygon_marker']
+    gFeatureslist = []
+    for i in gConfig['analyze']['feature_list']:
+        gFeatureslist.append(str(i)) 
     return options
 
 class DemExtrctor(object):
@@ -8823,9 +8865,113 @@ def gridfs_find(qsdict, clienttype='default'):
     except:
         traceback.print_exc()
         raise
+
+
+def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
+    global gConfig, gIsSaveTileToDB
+    def deg2num(lon_deg, lat_deg, zoom):
+        lat_rad = math.radians(lat_deg)
+        n = 2.0 ** zoom
+        xtile = int((lon_deg + 180.0) / 360.0 * n)
+        ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
+        return (xtile, ytile)
+    pathlist = []
+    for zoom in zoomrange:
+        startx, starty = deg2num(westsouth[0], westsouth[1], zoom)
+        endx, endy = deg2num(eastnorth[0], eastnorth[1], zoom)
+        if endx < startx:
+            startx, endx = endx, startx
+        if endy < starty:
+            starty, endy = endy, starty
+        for i in range(startx, endx+1):
+            for j in range(starty, endy+1):
+                path = '%d/%d/%d%s' % (zoom, i, j, gConfig[tiletype][subtype]['mimetype'])
+                param = {}
+                param['x'] = ['%d' % i]
+                param['y'] = ['%d' % j]
+                param['level'] = ['%d' % zoom]
+                pathlist.append([path, param])
+    return pathlist
+    
+def test_batch_tile_download():
+    global gIsSaveTileToDB
+    gIsSaveTileToDB = False
+    tiletype='tiles'
+    subtype = 'arcgis_sat'
+    #tiletype='terrain'
+    #subtype = 'quantized_mesh'
+    westsouth = [102.49, 24.67]
+    eastnorth = [102.94, 25.16]
+    zoomrange = range(1, 18)
+    pathlist = batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange)
+    for i in pathlist:
+        #print(i[0])
+        if pathlist.index(i) % 5 == 1:
+            gevent.sleep(2)
+        else:
+            gevent.spawn(gridfs_tile_find, tiletype, subtype, i[0], i[1])
+            
+def command_batch_tile_download(options):
+    global gConfig, gIsSaveTileToDB
+    gIsSaveTileToDB = options.save_to_db
+    
+    if options.tiletype is None \
+       or options.subtype is None:
+        print('please specify tiletype and subtype, now exit.')
+        return
+    
+    if not gConfig.has_key(options.tiletype):
+        print('please use correct tiletype in config file, now exit.')
+        return
+        
+    if not gConfig[options.tiletype].has_key(options.subtype):
+        print('please use correct subtype in config file section[%s], now exit.' % options.tiletype)
+        return
+    
+    if options.num_cocurrent < 1 or options.num_cocurrent > 10:
+        print('please specify a range[1, 10] of cocurrent number.')
+        return
+    
+    if options.wait_sec < 1 :
+        print('please specify a number > 0 of wait second.')
+        return
+    
+    if options.west is None \
+       or options.south is None \
+       or options.east is None \
+       or options.north is None:
+        print('please specify extent by degree(WGS84) using --west --east --north --south. ')
+        return
+        
+    
+    westsouth = [options.west, options.south]
+    eastnorth = [options.east, options.north]
+    zoomrange = range(options.zoom_min, options.zoom_max+1)
+    
+    print('batch downloading extent: W%f,S%f,E%f,N%f' % (options.west, options.south, options.east, options.north))
+    print('zoom range: [%d, %d]' % (options.zoom_min, options.zoom_max))
+    s_save_to_db = 'False'
+    if options.save_to_db:
+        s_save_to_db = 'True'
+    print('save to database: %s' % s_save_to_db)
+    
+    #if True:
+        #return
+    
+    
+    pathlist = batch_tile_download(options.tiletype, options.subtype, westsouth, eastnorth, zoomrange)
+    print('%d tile files need processing' % len(pathlist))
+    for i in pathlist:
+        #print(i[0])
+        if pathlist.index(i) % options.num_cocurrent == 0:
+            gevent.sleep(options.wait_sec)
+        else:
+            gevent.spawn(gridfs_tile_find, options.tiletype, options.subtype, i[0], i[1])
+    
+
     
 def gridfs_tile_find(tiletype, subtype, tilepath, params):
-    global gClientMongoTiles, gConfig, gClientMetadata
+    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB
     dbname = gConfig[tiletype][subtype]['database']
     collection = gConfig[tiletype][subtype]['gridfs_collection']
     
@@ -8852,6 +8998,8 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
         for i in fs.find({'filename':tilepath}):
             mimetype, ret = str(i.mimetype), i.read()
             break
+        #if ret is not None:
+            #print('%s found in db' % tilepath)
         if ret is None:
             href = ''
             url_list = []
@@ -8874,7 +9022,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                     for k in params.keys():
                         href += k + '=' + params[k][0] + '&'
                     href += 'f=TerrainTile'
-                print('downloading terrain %s' % href)
+                
             elif tiletype == 'tiles' and 'bing_' in subtype:
                 x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
                 mimetype, ret = bing_tile(tiletype, subtype, tilepath, x, y, level)
@@ -8909,14 +9057,19 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                             if '.terrain' in tilepath:
                                 with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
                                     ret1 = f1.read()
-                                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
+                                    #print(len(ret1))
+                                if gIsSaveTileToDB:
+                                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
                             else:
                                 ret1 = response.read()
                                 if len(ret1) == gClientMetadata[tiletype][subtype]['missing_file_size']:
                                     ret1 = gClientMetadata[tiletype][subtype]['missing_file_content']
+                                    print('get blank tile size=%d' % len(ret1))
                                 else:
-                                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
+                                    if gIsSaveTileToDB:
+                                        gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
                     except:
+                        print('error')
                         ret1 = None
                     return ret1
                 if href:
@@ -8963,7 +9116,7 @@ def arcgis_tile1(tiletype, subtype, tilepath, x, y, level):
     
     
 def bing_tile(tiletype, subtype, tilepath, x, y, level):
-    global gClientMongoTiles, gConfig, gClientMetadata
+    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB
     
     def tileXYToQuadKey(x, y, level):
         quadkey = ''
@@ -9037,7 +9190,8 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
             if len(ret) == gClientMetadata[tiletype][subtype]['missing_file_size']:
                 ret = gClientMetadata[tiletype][subtype]['missing_file_content']
             else:
-                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+                if gIsSaveTileToDB:
+                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
     except:
         ret = None
     return mimetype, ret
@@ -9484,7 +9638,7 @@ def test_import_sysrole(db_name):
     
     
 if __name__=="__main__":
-    init_global()
+    opts = init_global()
     #test_insert_thunder_counter_attach()
     #test_insert_potential_risk()
     #admin_create_lines_layers('zt')

@@ -46,6 +46,7 @@ def build(is_include_web=False):
                     'ogc_server_tile.bat', 
                     'ogc_service_install.bat', 
                     'ogc_service_uninstall.bat', 
+                    'batch-download-tiles-arcgis_sat.bat', 
                     #'ogc_service2_install.bat', 
                     #'ogc_service2_uninstall.bat', 
                     'ogc_server_task_schedule.xml', 

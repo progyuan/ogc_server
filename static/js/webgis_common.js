@@ -1201,3 +1201,33 @@ function CheckUrlExist(url)
     }
 	return ret;
 }
+
+
+function get_geojson_center(geojson)
+{
+	var ret = [];
+	if(geojson.geometry.type === 'Point')
+	{
+		ret.push(geojson.geometry.coordinates[0]);
+		ret.push(geojson.geometry.coordinates[1]);
+	}
+	else if(geojson.geometry.type === 'LineString')
+	{
+		var idx = Math.floor(geojson.geometry.coordinates.length/2);
+		ret.push(geojson.geometry.coordinates[idx][0]);
+		ret.push(geojson.geometry.coordinates[idx][1]);
+	}
+	else if(geojson.geometry.type === 'Polygon')
+	{
+		var x=0, y=0;
+		for(var i in geojson.geometry.coordinates[0])
+		{
+			x += geojson.geometry.coordinates[0][i][0];
+			y += geojson.geometry.coordinates[0][i][1];
+		}
+		ret.push(x/geojson.geometry.coordinates[0].length);
+		ret.push(y/geojson.geometry.coordinates[0].length);
+	}
+	return ret;
+}
+
