@@ -501,11 +501,13 @@ def create_wfs_GetCapabilities():
 
 def handle_wmts_GetCapabilities(params):
     headers = {}
-    headers['Content-Type'] = 'text/xml;charset=' + ENCODING
+    mimetype = 'text/xml;charset=' + ENCODING
     s = create_wmts_GetCapabilities()
-    return '200 OK', headers, s
+    return mimetype, s
     
 def create_wmts_GetCapabilities():
+    global gConfig
+    '''
     namespace = {'ows':"http://www.opengis.net/ows/1.1", 'xlink':"http://www.w3.org/1999/xlink", 'xsi':"http://www.w3.org/2001/XMLSchema-instance", 'gml':"http://www.opengis.net/gml", 'schemaLocation':"http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"}
     ows = '{%s}' % namespace['ows']
     xlink = '{%s}' % namespace['xlink']
@@ -545,7 +547,7 @@ def create_wmts_GetCapabilities():
     Format = etree.SubElement(Layer, "Format" ).text = gConfig['mime_type'][gConfig['wmts']['format']]
     TileMatrixSetLink = etree.SubElement(Layer, "TileMatrixSetLink" )
     TileMatrixSet = etree.SubElement(TileMatrixSetLink, "TileMatrixSet" ).text = gConfig['wmts']['TileMatrixSet']
-    
+        
     TileMatrixSet = etree.SubElement(Contents, "TileMatrixSet")
     Identifier = etree.SubElement(TileMatrixSet, ows + "Identifier" ).text = gConfig['wmts']['TileMatrixSet']
     SupportedCRS = etree.SubElement(TileMatrixSet, ows + "SupportedCRS" ).text = gConfig['wmts']['SupportedCRS']
@@ -594,18 +596,360 @@ def create_wmts_GetCapabilities():
         TileHeight = etree.SubElement(TileMatrix, "TileHeight" ).text = str(tileHeight)
         MatrixWidth = etree.SubElement(TileMatrix, "MatrixWidth" ).text = str(matrixWidth)
         MatrixHeight = etree.SubElement(TileMatrix, "MatrixHeight" ).text = str(matrixHeight)
-        #print("var m_%d = new Object();" % i)
-        #print('m_%d.identifier = "%s";' % (i, Identifier))
-        #print('m_%d.scaleDenominator = %.8f;' % (i, scaleDenominator))
-        #print('m_%d.topLeftCorner = new OpenLayers.LonLat(%s);' % (i, gConfig['wmts']['TopLeftCorner'].replace(' ',',')))
-        #print('m_%d.tileWidth = %s;' % (i, gConfig['wmts']['TileWidth']))
-        #print('m_%d.tileHeight = %s;' % (i, gConfig['wmts']['TileHeight']))
-        #print("matrixIds[%d] = m_%d;" % (i, i))
     
     ret = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding=ENCODING)
     print(ret)
     return ret
+    '''
+    ret = '''<?xml version="1.0" encoding="UTF-8"?>
+<Capabilities xmlns="http://www.opengis.net/wmts/1.0"
+xmlns:ows="http://www.opengis.net/ows/1.1"
+xmlns:xlink="http://www.w3.org/1999/xlink"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:gml="http://www.opengis.net/gml" xsi:schemaLocation="http://www.opengis.net/wmts/1.0 http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"
+version="1.0.0">
+<ows:ServiceIdentification>
+  <ows:Title>tiles</ows:Title>
+  <ows:ServiceType>OGC WMTS</ows:ServiceType>
+  <ows:ServiceTypeVersion>1.0.0</ows:ServiceTypeVersion>
+</ows:ServiceIdentification>
+<ows:OperationsMetadata>
+  <ows:Operation name="GetCapabilities">
+    <ows:DCP>
+      <ows:HTTP>
+        <ows:Get xlink:href="http://%s:%s/wmts?REQUEST=getcapabilities">
+          <ows:Constraint name="GetEncoding">
+            <ows:AllowedValues>
+              <ows:Value>KVP</ows:Value>
+            </ows:AllowedValues>
+          </ows:Constraint>
+        </ows:Get>
+      </ows:HTTP>
+    </ows:DCP>
+  </ows:Operation>
+  <ows:Operation name="GetTile">
+    <ows:DCP>
+      <ows:HTTP>
+        <ows:Get xlink:href="http://%s:%s/wmts?REQUEST=gettile">
+          <ows:Constraint name="GetEncoding">
+            <ows:AllowedValues>
+              <ows:Value>KVP</ows:Value>
+            </ows:AllowedValues>
+          </ows:Constraint>
+        </ows:Get>
+      </ows:HTTP>
+    </ows:DCP>
+  </ows:Operation>
+</ows:OperationsMetadata>
+<Contents>
+  <Layer>
+    <ows:Title>arcgis_sat</ows:Title>
+    <ows:WGS84BoundingBox>
+      <ows:LowerCorner>-180.0 -90.0</ows:LowerCorner>
+      <ows:UpperCorner>180.0 90.0</ows:UpperCorner>
+    </ows:WGS84BoundingBox>
+    <ows:Identifier>arcgis_sat</ows:Identifier>
+    <Style isDefault="true">
+      <ows:Identifier>_null</ows:Identifier>
+    </Style>
+    <Format>image/jpg</Format>
+    <TileMatrixSetLink>
+      <TileMatrixSet>arcgis_sat</TileMatrixSet>
+    </TileMatrixSetLink> 
+  </Layer>
 
+  <TileMatrixSet>
+    <ows:Identifier>arcgis_sat</ows:Identifier>
+    <ows:SupportedCRS>urn:ogc:def:crs:EPSG::900913</ows:SupportedCRS>
+    <TileMatrix>
+      <ows:Identifier>0</ows:Identifier>
+      <ScaleDenominator>5.590822639508929E8</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>1</MatrixWidth>
+      <MatrixHeight>1</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>1</ows:Identifier>
+      <ScaleDenominator>2.7954113197544646E8</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>2</MatrixWidth>
+      <MatrixHeight>2</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>2</ows:Identifier>
+      <ScaleDenominator>1.3977056598772323E8</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>4</MatrixWidth>
+      <MatrixHeight>4</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>3</ows:Identifier>
+      <ScaleDenominator>6.988528299386162E7</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>8</MatrixWidth>
+      <MatrixHeight>8</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>4</ows:Identifier>
+      <ScaleDenominator>3.494264149693081E7</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>16</MatrixWidth>
+      <MatrixHeight>16</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>5</ows:Identifier>
+      <ScaleDenominator>1.7471320748465404E7</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>32</MatrixWidth>
+      <MatrixHeight>32</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>6</ows:Identifier>
+      <ScaleDenominator>8735660.374232702</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>64</MatrixWidth>
+      <MatrixHeight>64</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>7</ows:Identifier>
+      <ScaleDenominator>4367830.187116351</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>128</MatrixWidth>
+      <MatrixHeight>128</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>8</ows:Identifier>
+      <ScaleDenominator>2183915.0935581755</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>256</MatrixWidth>
+      <MatrixHeight>256</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>9</ows:Identifier>
+      <ScaleDenominator>1091957.5467790877</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>512</MatrixWidth>
+      <MatrixHeight>512</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>10</ows:Identifier>
+      <ScaleDenominator>545978.7733895439</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>1024</MatrixWidth>
+      <MatrixHeight>1024</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>11</ows:Identifier>
+      <ScaleDenominator>272989.38669477194</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>2048</MatrixWidth>
+      <MatrixHeight>2048</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>12</ows:Identifier>
+      <ScaleDenominator>136494.69334738597</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>4096</MatrixWidth>
+      <MatrixHeight>4096</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>13</ows:Identifier>
+      <ScaleDenominator>68247.34667369298</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>8192</MatrixWidth>
+      <MatrixHeight>8192</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>14</ows:Identifier>
+      <ScaleDenominator>34123.67333684649</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>16384</MatrixWidth>
+      <MatrixHeight>16384</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>15</ows:Identifier>
+      <ScaleDenominator>17061.836668423246</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>32768</MatrixWidth>
+      <MatrixHeight>32768</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>16</ows:Identifier>
+      <ScaleDenominator>8530.918334211623</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>65536</MatrixWidth>
+      <MatrixHeight>65536</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>17</ows:Identifier>
+      <ScaleDenominator>4265.4591671058115</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>131072</MatrixWidth>
+      <MatrixHeight>131072</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>18</ows:Identifier>
+      <ScaleDenominator>2132.7295835529058</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>262144</MatrixWidth>
+      <MatrixHeight>262144</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>19</ows:Identifier>
+      <ScaleDenominator>1066.3647917764529</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>524288</MatrixWidth>
+      <MatrixHeight>524288</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>20</ows:Identifier>
+      <ScaleDenominator>533.1823958882264</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>1048576</MatrixWidth>
+      <MatrixHeight>1048576</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>21</ows:Identifier>
+      <ScaleDenominator>266.5911979441132</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>2097152</MatrixWidth>
+      <MatrixHeight>2097152</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>22</ows:Identifier>
+      <ScaleDenominator>133.2955989720566</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>4194304</MatrixWidth>
+      <MatrixHeight>4194304</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>23</ows:Identifier>
+      <ScaleDenominator>66.6477994860283</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>8388608</MatrixWidth>
+      <MatrixHeight>8388608</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>24</ows:Identifier>
+      <ScaleDenominator>33.32389974301415</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>16777216</MatrixWidth>
+      <MatrixHeight>16777216</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>25</ows:Identifier>
+      <ScaleDenominator>16.661949871507076</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>33554432</MatrixWidth>
+      <MatrixHeight>33554432</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>26</ows:Identifier>
+      <ScaleDenominator>8.330974935753538</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>67108864</MatrixWidth>
+      <MatrixHeight>67108864</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>27</ows:Identifier>
+      <ScaleDenominator>4.165487467876769</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>134217728</MatrixWidth>
+      <MatrixHeight>134217728</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>28</ows:Identifier>
+      <ScaleDenominator>2.0827437339383845</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>268435456</MatrixWidth>
+      <MatrixHeight>268435456</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>29</ows:Identifier>
+      <ScaleDenominator>1.0413718669691923</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>536870912</MatrixWidth>
+      <MatrixHeight>536870912</MatrixHeight>
+    </TileMatrix>
+    <TileMatrix>
+      <ows:Identifier>30</ows:Identifier>
+      <ScaleDenominator>0.5206859334845961</ScaleDenominator>
+      <TopLeftCorner>-2.003750834E7 2.0037508E7</TopLeftCorner>
+      <TileWidth>256</TileWidth>
+      <TileHeight>256</TileHeight>
+      <MatrixWidth>1073741824</MatrixWidth>
+      <MatrixHeight>1073741824</MatrixHeight>
+    </TileMatrix>
+  </TileMatrixSet>
+</Contents>
+</Capabilities>''' % (
+            str(gConfig['wmts']['host']), 
+            str(gConfig['wmts']['port']), 
+            str(gConfig['wmts']['host']), 
+            str(gConfig['wmts']['port']))
+#<ServiceMetadataURL xlink:href="http://%s:%s/wmts?REQUEST=getcapabilities"/>
+    return ret
+    
     
  
 def download_callback(*args, **kwargs):
@@ -635,103 +979,28 @@ def download_callback(*args, **kwargs):
                 gMapTileCache[key] = f1.read()
     
     
-#def handle_wmts_GetTile(params):
-    #global gConfig,  gMapTileCache, gSatTileCache, gTerrainCache
-    #global STATICRESOURCE_IMG_DIR
-    #headers = {}
-    #picpath = os.path.join(STATICRESOURCE_IMG_DIR, gConfig['wmts']['missing'])
-    #root = gConfig['wmts']['tiles_sat_root']
-    ##gMapConf.map_service = 'Google'
-    #lyrtype = mapConst.LAYER_SAT
-    #if params.has_key('TILEMATRIXSET'):
-        #if 'google_sat' in params['TILEMATRIXSET']:
-            #root = os.path.abspath(gConfig['wmts']['tiles_sat_root'])
-            #lyrtype = mapConst.LAYER_SAT
-        #elif 'google_map' in params['TILEMATRIXSET']:
-            #root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
-            #lyrtype = mapConst.LAYER_MAP
-        #elif 'osm_map' in params['TILEMATRIXSET']:
-            #root = os.path.abspath(gConfig['wmts']['tiles_map_root'])
-            #lyrtype = mapConst.LAYER_MAP
-        #if not os.path.exists(os.path.abspath(gConfig['wmts']['tiles_root'])):
-            #os.mkdir(gConfig['wmts']['tiles_root'])
-        #if not os.path.exists(root):
-            #os.mkdir(root)
-    #zoomlevel, row, col = None, None, None
-    #if params.has_key('TILEMATRIX'):
-        #if params['TILEMATRIX']=='undefined' or len(params['TILEMATRIX'])==0:
-            #zoomlevel = 1
-        #else:
-            #zoomlevel = int(params['TILEMATRIX'])
-    #if params.has_key('TILEROW'):
-        #if params['TILEROW']=='undefined':
-            #row = 0
-        #else:
-            #row = int(params['TILEROW'])
-    #if params.has_key('TILECOL'):
-        #if params['TILECOL']=='undefined':
-            #col = 0
-        #else:
-            #col = int(params['TILECOL'])
-        
-    
-    #zoom = int(gConfig['wmts']['max_zoom_level'])-2-zoomlevel
-        
-        
-    #p = os.path.join(root,
-                    #str(zoom),
-                    #str(col / 1024),
-                    #str(col % 1024),
-                    #str(row / 1024),
-                    #str(row % 1024) + gConfig['wmts']['format']
-                    #)
-    #p = os.path.abspath(p)
-    #if os.path.exists(p):
-        #picpath = p
-        #key = '%d-%d-%d' % (zoom, col, row)
-    #else:
-        #key = '%d-%d-%d' % (zoom, col, row)
-        #gMapDownloader.query_tile((col, row, zoom),lyrtype, download_callback)
-    #start_response('200 OK', [('Content-Type',str(gConfig['mime_type'][gConfig['wmts']['format']])), ])
-    #if lyrtype == mapConst.LAYER_SAT:    
-        #if not gSatTileCache.has_key(key):
-            #try:
-                #with open(picpath, 'rb') as f:
-                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    #gSatTileCache[key] = f1.read()
-            #except:
-                #foundit = False
-                #if not foundit:
-                    #key = 'missing'
-                #if not gSatTileCache.has_key(key):
-                    #picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
-                    #with open(picpath, 'rb') as f:
-                        #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        #gSatTileCache[key] = f1.read()
-                    #print(key)
-    #if lyrtype == mapConst.LAYER_MAP:    
-        #if not gMapTileCache.has_key(key):
-            #try:
-                #with open(picpath, 'rb') as f:
-                    #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                    #gMapTileCache[key] = f1.read()
-            #except:
-                #foundit = False
-                #if not foundit:
-                    #key = 'missing'
-                #if not gMapTileCache.has_key(key):
-                    #picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
-                    #with open(picpath, 'rb') as f:
-                        #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-                        #gMapTileCache[key] = f1.read()
-                    #print(key)
-         
-    #ret = None
-    #if lyrtype == mapConst.LAYER_SAT:
-        #ret = gSatTileCache[key]
-    #if lyrtype == mapConst.LAYER_MAP:
-        #ret = gMapTileCache[key]
-    #return [ret,]
+def handle_wmts_GetTile(params):
+    global gConfig
+    mimetype, ret = None, None
+    tiletype = 'tiles'
+    subtype = None
+    if params.has_key('TILEMATRIXSET'):
+        subtype = params['TILEMATRIXSET']
+    level, y, x = None, None, None
+    if params.has_key('TILEMATRIX'):
+        level = int(params['TILEMATRIX'])
+    if params.has_key('TILEROW'):
+        y = int(params['TILEROW'])
+    if params.has_key('TILECOL'):
+        x = int(params['TILECOL'])
+    if subtype is not None and level is not None and y is not None and x is not None:
+        tilepath = '%d/%d/%d%s' % (level, x, y, str(gConfig[tiletype][subtype]))
+        d = {}
+        d['x'] = [str(x)]
+        d['y'] = [str(y)]
+        d['level'] = [str(level)]
+        mimetype, ret = db_util.gridfs_tile_find(tiletype, subtype, tilepath, d)
+    return mimetype, ret
 
 def handle_tiles(environ):
     global gConfig, gTileCache
@@ -928,26 +1197,18 @@ def handle_wmts(environ):
     dd = cgi.parse(None, environ)
     d = {}
     headers = {}
-    #s = 'method=' + environ['REQUEST_METHOD'] + '\n'
+    mimetype, ret = None, None
     for k in dd.keys():
         d[k.upper()] = dd[k][0]
-    if d.has_key('SERVICE') and d['SERVICE'] in ['WMTS'] :
-        #if d.has_key('VERSION') and d['VERSION'] in ['1.0.0', '1.0']:
-        if d.has_key('REQUEST') :
-            if d['REQUEST'] in ['GetCapabilities']:
-                return handle_wmts_GetCapabilities(d)
-            elif d['REQUEST'] in ['GetTile']:
-                return handle_wmts_GetTile(d)
-            else:
-                headers['Content-Type'] = 'text/plain;charset=' + ENCODING
-                s =  'Unsupported WMTS request'
-        else:
-            headers['Content-Type'] = 'text/plain;charset=' + ENCODING
-            s = 'Unsupported WMTS version'
-    else:
-        headers['Content-Type'] = 'text/plain;charset=' + ENCODING
-        s = 'Unsupported service'
-    return '200 OK', headers, s
+    ret, mimetype = None, None
+    if d.has_key('REQUEST') :
+        d['REQUEST'] = d['REQUEST'].replace('/1.0.0/WMTSCapabilities.xml', '')
+        if d['REQUEST'].lower() in ['getcapabilities']:
+            mimetype, ret = handle_wmts_GetCapabilities(d)
+        elif d['REQUEST'].lower() in ['gettile']:
+            mimetype, ret = handle_wmts_GetTile(d)
+    headers['Content-Type'] = mimetype
+    return '200 OK', headers, ret
 
     
 def handle_cluster(environ):
@@ -1665,8 +1926,8 @@ def application(environ, start_response):
         statuscode, headers, body = handle_get_method(environ)
     elif path_info == '/post':
         statuscode, headers, body = handle_post_method(environ)
-    #elif path_info == '/wmts':
-        #return handle_wmts(environ)
+    elif path_info == '/wmts':
+        statuscode, headers, body = handle_wmts(environ)
     elif path_info == '/tiles':
         statuscode, headers, body = handle_tiles(environ)
     elif '/arcgistile' in path_info:
@@ -1947,16 +2208,10 @@ def handle_requset_sync(obj):
     ret = {'result':''}
     if obj.has_key('area') and obj['area'] and len(obj['area'])>0:
         kmgd, kmgdgeo, kmgdgeotmp = db_util.create_sde_conn(obj['area'])
-        if obj.has_key('arcpy'):
-            if obj['arcpy'] == 'ListFeatureClasses':
-                env.workspace = kmgdgeo
-                l = []#arcpy.ListFeatureClasses(obj['feature_name'])
-                ret['result'] = l
-        elif obj.has_key('odbc'):
+        if obj.has_key('odbc'):
             if obj['odbc'] == 'TABLE_LINE':
                 l = db_util.odbc_get_records('TABLE_LINE', '1=1', obj['area'])
                 ret['result']= l
-                
                     
             elif obj['odbc'] == 'TABLE_TOWER':
                 l = db_util.odbc_get_records('TABLE_TOWER', '1=1', obj['area'])
@@ -1978,11 +2233,9 @@ def handle_requset_sync(obj):
                 #if obj.has_key('format'):
                     #f  = obj['format']
                 #ret['result']= db_util.get_latest_3dd_stamp(f, obj['area'])
-            #elif obj['op']=='analyse_buffer2d':
-                #result, msg = db_util.analyse_buffer2d(kmgdgeo)
     else:
         print('unknown area')
-        ret['result'] = ['']
+        ret['result'] = []
     return ret
 
 

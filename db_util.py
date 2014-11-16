@@ -4067,8 +4067,30 @@ def mobile_action(mobileaction, area, data):
                     sqls.append(sql)
                     
                 odbc_execute_sqls(sqls)
+    elif mobileaction == 'download_tunnel_task':
+        condition = '1=1'
+        if isinstance(data, dict):
+            for k in data.keys():
+                if isinstance(data[k],str) or isinstance(data[k],unicode):
+                    condition += " AND %s='%s'" % (k, data[k])
+                if isinstance(data[k], list):
+                    condliststr = ''
+                    for j in data[k]:
+                        if isinstance(j, str) or isinstance(data[k], unicode):
+                            condliststr += u"'%s'" % j
+                        elif isinstance(j, int):
+                            condliststr += "%d" % j
+                        elif isinstance(j, float):
+                            condliststr += "%f" % j
+                        else:
+                            print('other list item type')
+                            pass
+                        if data[k].index(j) < len(data[k]) - 1:
+                            condliststr += ","
+                    condition += " AND %s IN (%s)" % (k, condliststr)
                 
-                    
+            l = db_util.odbc_get_records('TABLE_TC_WORK_PLAN_LIST', condition, area)
+            ret['result']= l
     return ret
     
 def save_tracks(tracks, area):
@@ -9064,7 +9086,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                                 ret1 = response.read()
                                 if len(ret1) == gClientMetadata[tiletype][subtype]['missing_file_size']:
                                     ret1 = gClientMetadata[tiletype][subtype]['missing_file_content']
-                                    print('get blank tile size=%d' % len(ret1))
+                                    #print('get blank tile size=%d' % len(ret1))
                                 else:
                                     if gIsSaveTileToDB:
                                         gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
