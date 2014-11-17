@@ -499,108 +499,110 @@ def create_wfs_GetCapabilities():
     return ret
 
 
-def handle_wmts_GetCapabilities(params):
+def handle_wmts_GetCapabilities(params={}):
     headers = {}
     mimetype = 'text/xml;charset=' + ENCODING
-    s = create_wmts_GetCapabilities()
+    s = ''
+    if params.has_key('TILETYPE') and params.has_key('SUBTYPE'):
+        s = create_wmts_GetCapabilities(params['TILETYPE'], params['SUBTYPE'])
     return mimetype, s
     
-def create_wmts_GetCapabilities():
+def create_wmts_GetCapabilities(tiletype, subtype):
     global gConfig
-    '''
-    namespace = {'ows':"http://www.opengis.net/ows/1.1", 'xlink':"http://www.w3.org/1999/xlink", 'xsi':"http://www.w3.org/2001/XMLSchema-instance", 'gml':"http://www.opengis.net/gml", 'schemaLocation':"http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"}
-    ows = '{%s}' % namespace['ows']
-    xlink = '{%s}' % namespace['xlink']
-    root = etree.Element("Capabilities", xmlns="http://www.opengis.net/wmts/1.0", nsmap=namespace, version="1.0.0")
-    #ServiceIdentification
-    ServiceIdentification = etree.SubElement(root, ows + "ServiceIdentification")
-    Title = etree.SubElement(ServiceIdentification, ows + "Title").text = gConfig['wmts']['ServiceIdentification_Title']
-    ServiceType = etree.SubElement(ServiceIdentification, ows + "ServiceType").text = 'OGC WMTS'
-    ServiceTypeVersion = etree.SubElement(ServiceIdentification, ows + "ServiceTypeVersion").text = '1.0.0'
+    #'''
+    #namespace = {'ows':"http://www.opengis.net/ows/1.1", 'xlink':"http://www.w3.org/1999/xlink", 'xsi':"http://www.w3.org/2001/XMLSchema-instance", 'gml':"http://www.opengis.net/gml", 'schemaLocation':"http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"}
+    #ows = '{%s}' % namespace['ows']
+    #xlink = '{%s}' % namespace['xlink']
+    #root = etree.Element("Capabilities", xmlns="http://www.opengis.net/wmts/1.0", nsmap=namespace, version="1.0.0")
+    ##ServiceIdentification
+    #ServiceIdentification = etree.SubElement(root, ows + "ServiceIdentification")
+    #Title = etree.SubElement(ServiceIdentification, ows + "Title").text = gConfig['wmts']['ServiceIdentification_Title']
+    #ServiceType = etree.SubElement(ServiceIdentification, ows + "ServiceType").text = 'OGC WMTS'
+    #ServiceTypeVersion = etree.SubElement(ServiceIdentification, ows + "ServiceTypeVersion").text = '1.0.0'
     
-    #OperationsMetadata
-    OperationsMetadata = etree.SubElement(root, ows + "OperationsMetadata")
-    Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetCapabilities")
-    DCP= etree.SubElement(Operation, ows + "DCP")
-    HTTP= etree.SubElement(DCP, ows + "HTTP")
-    href = xlink + 'href'
-    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
-    Constraint= etree.SubElement(Get, ows + "Constraint", name="GetEncoding")
-    AllowedValues= etree.SubElement(Constraint, ows + "AllowedValues")
-    Value= etree.SubElement(AllowedValues, ows + "Value").text = 'KVP'
-    Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetTile")
-    DCP= etree.SubElement(Operation, ows + "DCP")
-    HTTP= etree.SubElement(DCP, ows + "HTTP")
-    Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
+    ##OperationsMetadata
+    #OperationsMetadata = etree.SubElement(root, ows + "OperationsMetadata")
+    #Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetCapabilities")
+    #DCP= etree.SubElement(Operation, ows + "DCP")
+    #HTTP= etree.SubElement(DCP, ows + "HTTP")
+    #href = xlink + 'href'
+    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
+    #Constraint= etree.SubElement(Get, ows + "Constraint", name="GetEncoding")
+    #AllowedValues= etree.SubElement(Constraint, ows + "AllowedValues")
+    #Value= etree.SubElement(AllowedValues, ows + "Value").text = 'KVP'
+    #Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetTile")
+    #DCP= etree.SubElement(Operation, ows + "DCP")
+    #HTTP= etree.SubElement(DCP, ows + "HTTP")
+    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
     
-    #Contents
-    Contents = etree.SubElement(root, "Contents")
-    Layer = etree.SubElement(Contents, "Layer")
-    Title = etree.SubElement(Layer, ows + "Title").text = gConfig['wmts']['Layer_Title']
-    WGS84BoundingBox = etree.SubElement(Layer, ows + "WGS84BoundingBox")
-    LowerCorner = etree.SubElement(WGS84BoundingBox, ows + "LowerCorner").text = gConfig['wmts']['WGS84BoundingBox']['LowerCorner']
-    UpperCorner = etree.SubElement(WGS84BoundingBox, ows + "UpperCorner").text = gConfig['wmts']['WGS84BoundingBox']['UpperCorner']
-    Identifier = etree.SubElement(Layer, ows + "Identifier").text = gConfig['wmts']['Layer_Identifier']
-    Style = etree.SubElement(Layer, "Style", isDefault="true")
-    Title = etree.SubElement(Style, ows + "Title" ).text = 'Default'
-    Identifier = etree.SubElement(Style, ows + "Identifier" ).text = 'default'
-    Format = etree.SubElement(Layer, "Format" ).text = gConfig['mime_type'][gConfig['wmts']['format']]
-    TileMatrixSetLink = etree.SubElement(Layer, "TileMatrixSetLink" )
-    TileMatrixSet = etree.SubElement(TileMatrixSetLink, "TileMatrixSet" ).text = gConfig['wmts']['TileMatrixSet']
+    ##Contents
+    #Contents = etree.SubElement(root, "Contents")
+    #Layer = etree.SubElement(Contents, "Layer")
+    #Title = etree.SubElement(Layer, ows + "Title").text = gConfig['wmts']['Layer_Title']
+    #WGS84BoundingBox = etree.SubElement(Layer, ows + "WGS84BoundingBox")
+    #LowerCorner = etree.SubElement(WGS84BoundingBox, ows + "LowerCorner").text = gConfig['wmts']['WGS84BoundingBox']['LowerCorner']
+    #UpperCorner = etree.SubElement(WGS84BoundingBox, ows + "UpperCorner").text = gConfig['wmts']['WGS84BoundingBox']['UpperCorner']
+    #Identifier = etree.SubElement(Layer, ows + "Identifier").text = gConfig['wmts']['Layer_Identifier']
+    #Style = etree.SubElement(Layer, "Style", isDefault="true")
+    #Title = etree.SubElement(Style, ows + "Title" ).text = 'Default'
+    #Identifier = etree.SubElement(Style, ows + "Identifier" ).text = 'default'
+    #Format = etree.SubElement(Layer, "Format" ).text = gConfig['mime_type'][gConfig['wmts']['format']]
+    #TileMatrixSetLink = etree.SubElement(Layer, "TileMatrixSetLink" )
+    #TileMatrixSet = etree.SubElement(TileMatrixSetLink, "TileMatrixSet" ).text = gConfig['wmts']['TileMatrixSet']
         
-    TileMatrixSet = etree.SubElement(Contents, "TileMatrixSet")
-    Identifier = etree.SubElement(TileMatrixSet, ows + "Identifier" ).text = gConfig['wmts']['TileMatrixSet']
-    SupportedCRS = etree.SubElement(TileMatrixSet, ows + "SupportedCRS" ).text = gConfig['wmts']['SupportedCRS']
-    WellKnownScaleSet = etree.SubElement(TileMatrixSet, "WellKnownScaleSet" ).text = gConfig['wmts']['WellKnownScaleSet']
+    #TileMatrixSet = etree.SubElement(Contents, "TileMatrixSet")
+    #Identifier = etree.SubElement(TileMatrixSet, ows + "Identifier" ).text = gConfig['wmts']['TileMatrixSet']
+    #SupportedCRS = etree.SubElement(TileMatrixSet, ows + "SupportedCRS" ).text = gConfig['wmts']['SupportedCRS']
+    #WellKnownScaleSet = etree.SubElement(TileMatrixSet, "WellKnownScaleSet" ).text = gConfig['wmts']['WellKnownScaleSet']
     
-    max_zoom_level, min_zoom_level = int(gConfig['wmts']['max_zoom_level']), int(gConfig['wmts']['min_zoom_level'])
-    if max_zoom_level < min_zoom_level:
-        max_zoom_level, min_zoom_level =  min_zoom_level, max_zoom_level  
-    #zoomlist = range(max_zoom_level,min_zoom_level, -1)
-    zoomlist = range(min_zoom_level, max_zoom_level+1, 1)
+    #max_zoom_level, min_zoom_level = int(gConfig['wmts']['max_zoom_level']), int(gConfig['wmts']['min_zoom_level'])
+    #if max_zoom_level < min_zoom_level:
+        #max_zoom_level, min_zoom_level =  min_zoom_level, max_zoom_level  
+    ##zoomlist = range(max_zoom_level,min_zoom_level, -1)
+    #zoomlist = range(min_zoom_level, max_zoom_level+1, 1)
     
     
-    pixelSize = float(gConfig['wmts']['pixelSize'])
-    tileWidth,tileHeight = int(gConfig['wmts']['TileWidth']), int(gConfig['wmts']['TileHeight'])
-    minLonLat,maxLonLat  = (float(gConfig['wmts']['minLonLat'][0]), float(gConfig['wmts']['minLonLat'][1])), (float(gConfig['wmts']['maxLonLat'][0]), float(gConfig['wmts']['maxLonLat'][1]))
-    #tileMatrixMinX, tileMatrixMaxX = (26.0, 102.0), (26.0, 104.0)
-    #tileMatrixMinY, tileMatrixMaxY = (24.0, 102.0), (26.0, 102.0)
-    tileMatrixMinX, tileMatrixMaxX = (maxLonLat[1], minLonLat[0]), (maxLonLat[1], maxLonLat[0])
-    tileMatrixMinY, tileMatrixMaxY = (minLonLat[1], minLonLat[0]), (maxLonLat[1], minLonLat[0])
+    #pixelSize = float(gConfig['wmts']['pixelSize'])
+    #tileWidth,tileHeight = int(gConfig['wmts']['TileWidth']), int(gConfig['wmts']['TileHeight'])
+    #minLonLat,maxLonLat  = (float(gConfig['wmts']['minLonLat'][0]), float(gConfig['wmts']['minLonLat'][1])), (float(gConfig['wmts']['maxLonLat'][0]), float(gConfig['wmts']['maxLonLat'][1]))
+    ##tileMatrixMinX, tileMatrixMaxX = (26.0, 102.0), (26.0, 104.0)
+    ##tileMatrixMinY, tileMatrixMaxY = (24.0, 102.0), (26.0, 102.0)
+    #tileMatrixMinX, tileMatrixMaxX = (maxLonLat[1], minLonLat[0]), (maxLonLat[1], maxLonLat[0])
+    #tileMatrixMinY, tileMatrixMaxY = (minLonLat[1], minLonLat[0]), (maxLonLat[1], minLonLat[0])
     
-    metersPerUnit = 0.0
-    if gConfig['wmts'].has_key('metersPerUnit'):
-        metersPerUnit = float(gConfig['wmts']['metersPerUnit'])
-    else:
-        metersPerUnitX = mapUtils.countDistanceFromLatLon(tileMatrixMaxX , tileMatrixMinX)/2*1000
-        #print('metersPerUnitX=%f' % metersPerUnitX)
-        metersPerUnitY = mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY)/2*1000
-        #print('metersPerUnitY=%f' % metersPerUnitY)
-        metersPerUnit = metersPerUnitY 
-    #print('metersPerUnit=%f' % metersPerUnit)
-    for i in zoomlist:
-        #matrixHeight = matrixWidth = mapUtils.tiles_on_level(i)
-        matrixHeight = matrixWidth = mapUtils.tiles_on_level(max_zoom_level-(i-1))
-        #print('%d=%d' % (i , matrixHeight))
-        #scaleDenominatorX   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxX , tileMatrixMinX) * 1000./(tileWidth * matrixWidth)
-        #scaleDenominatorY   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY) * 1000./(tileHeight * matrixHeight)
-        #print('scaleDenominatorX=%f, scaleDenominatorY=%f' % (scaleDenominatorX, scaleDenominatorY))
-        #scaleDenominator   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY) * 1000. /(tileHeight * matrixHeight)
-        scaleDenominator   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY)  /(tileHeight * matrixHeight)
-        TileMatrix = etree.SubElement(TileMatrixSet, "TileMatrix" )
-        #Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = "ynsat_" + str(i)
-        Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = str(i)
-        ScaleDenominator = etree.SubElement(TileMatrix, "ScaleDenominator" ).text = '%.8f' % scaleDenominator
-        TopLeftCorner = etree.SubElement(TileMatrix, "TopLeftCorner" ).text = gConfig['wmts']['TopLeftCorner']
-        TileWidth = etree.SubElement(TileMatrix, "TileWidth" ).text = str(tileWidth)
-        TileHeight = etree.SubElement(TileMatrix, "TileHeight" ).text = str(tileHeight)
-        MatrixWidth = etree.SubElement(TileMatrix, "MatrixWidth" ).text = str(matrixWidth)
-        MatrixHeight = etree.SubElement(TileMatrix, "MatrixHeight" ).text = str(matrixHeight)
+    #metersPerUnit = 0.0
+    #if gConfig['wmts'].has_key('metersPerUnit'):
+        #metersPerUnit = float(gConfig['wmts']['metersPerUnit'])
+    #else:
+        #metersPerUnitX = mapUtils.countDistanceFromLatLon(tileMatrixMaxX , tileMatrixMinX)/2*1000
+        ##print('metersPerUnitX=%f' % metersPerUnitX)
+        #metersPerUnitY = mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY)/2*1000
+        ##print('metersPerUnitY=%f' % metersPerUnitY)
+        #metersPerUnit = metersPerUnitY 
+    ##print('metersPerUnit=%f' % metersPerUnit)
+    #for i in zoomlist:
+        ##matrixHeight = matrixWidth = mapUtils.tiles_on_level(i)
+        #matrixHeight = matrixWidth = mapUtils.tiles_on_level(max_zoom_level-(i-1))
+        ##print('%d=%d' % (i , matrixHeight))
+        ##scaleDenominatorX   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxX , tileMatrixMinX) * 1000./(tileWidth * matrixWidth)
+        ##scaleDenominatorY   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY) * 1000./(tileHeight * matrixHeight)
+        ##print('scaleDenominatorX=%f, scaleDenominatorY=%f' % (scaleDenominatorX, scaleDenominatorY))
+        ##scaleDenominator   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY) * 1000. /(tileHeight * matrixHeight)
+        #scaleDenominator   = metersPerUnit/pixelSize * mapUtils.countDistanceFromLatLon(tileMatrixMaxY , tileMatrixMinY)  /(tileHeight * matrixHeight)
+        #TileMatrix = etree.SubElement(TileMatrixSet, "TileMatrix" )
+        ##Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = "ynsat_" + str(i)
+        #Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = str(i)
+        #ScaleDenominator = etree.SubElement(TileMatrix, "ScaleDenominator" ).text = '%.8f' % scaleDenominator
+        #TopLeftCorner = etree.SubElement(TileMatrix, "TopLeftCorner" ).text = gConfig['wmts']['TopLeftCorner']
+        #TileWidth = etree.SubElement(TileMatrix, "TileWidth" ).text = str(tileWidth)
+        #TileHeight = etree.SubElement(TileMatrix, "TileHeight" ).text = str(tileHeight)
+        #MatrixWidth = etree.SubElement(TileMatrix, "MatrixWidth" ).text = str(matrixWidth)
+        #MatrixHeight = etree.SubElement(TileMatrix, "MatrixHeight" ).text = str(matrixHeight)
     
-    ret = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding=ENCODING)
-    print(ret)
-    return ret
-    '''
+    #ret = etree.tostring(root, pretty_print=True, xml_declaration=True, encoding=ENCODING)
+    #print(ret)
+    #return ret
+    #'''
     ret = '''<?xml version="1.0" encoding="UTF-8"?>
 <Capabilities xmlns="http://www.opengis.net/wmts/1.0"
 xmlns:ows="http://www.opengis.net/ows/1.1"
@@ -609,7 +611,7 @@ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xmlns:gml="http://www.opengis.net/gml" xsi:schemaLocation="http://www.opengis.net/wmts/1.0 http://schemas.opengis.net/wmts/1.0/wmtsGetCapabilities_response.xsd"
 version="1.0.0">
 <ows:ServiceIdentification>
-  <ows:Title>tiles</ows:Title>
+  <ows:Title>%s</ows:Title>
   <ows:ServiceType>OGC WMTS</ows:ServiceType>
   <ows:ServiceTypeVersion>1.0.0</ows:ServiceTypeVersion>
 </ows:ServiceIdentification>
@@ -643,23 +645,23 @@ version="1.0.0">
 </ows:OperationsMetadata>
 <Contents>
   <Layer>
-    <ows:Title>arcgis_sat</ows:Title>
+    <ows:Title>%s</ows:Title>
     <ows:WGS84BoundingBox>
       <ows:LowerCorner>-180.0 -90.0</ows:LowerCorner>
       <ows:UpperCorner>180.0 90.0</ows:UpperCorner>
     </ows:WGS84BoundingBox>
-    <ows:Identifier>arcgis_sat</ows:Identifier>
+    <ows:Identifier>%s</ows:Identifier>
     <Style isDefault="true">
       <ows:Identifier>_null</ows:Identifier>
     </Style>
-    <Format>image/jpg</Format>
+    <Format>%s</Format>
     <TileMatrixSetLink>
-      <TileMatrixSet>arcgis_sat</TileMatrixSet>
+      <TileMatrixSet>%s</TileMatrixSet>
     </TileMatrixSetLink> 
   </Layer>
 
   <TileMatrixSet>
-    <ows:Identifier>arcgis_sat</ows:Identifier>
+    <ows:Identifier>%s</ows:Identifier>
     <ows:SupportedCRS>urn:ogc:def:crs:EPSG::900913</ows:SupportedCRS>
     <TileMatrix>
       <ows:Identifier>0</ows:Identifier>
@@ -943,10 +945,17 @@ version="1.0.0">
   </TileMatrixSet>
 </Contents>
 </Capabilities>''' % (
+            str(tiletype),
             str(gConfig['wmts']['host']), 
-            str(gConfig['wmts']['port']), 
+            str(gConfig['wmts']['port']),
             str(gConfig['wmts']['host']), 
-            str(gConfig['wmts']['port']))
+            str(gConfig['wmts']['port']),
+            str(subtype),
+            str(subtype),
+            str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']]),
+            str(subtype),
+            str(subtype),
+                   )
 #<ServiceMetadataURL xlink:href="http://%s:%s/wmts?REQUEST=getcapabilities"/>
     return ret
     
@@ -1203,6 +1212,10 @@ def handle_wmts(environ):
     ret, mimetype = None, None
     if d.has_key('REQUEST') :
         d['REQUEST'] = d['REQUEST'].replace('/1.0.0/WMTSCapabilities.xml', '')
+        if d.has_key('TILETYPE'):
+            d['TILETYPE'] = d['TILETYPE'].replace('/1.0.0/WMTSCapabilities.xml', '')
+        if d.has_key('SUBTYPE'):
+            d['SUBTYPE'] = d['SUBTYPE'].replace('/1.0.0/WMTSCapabilities.xml', '')
         if d['REQUEST'].lower() in ['getcapabilities']:
             mimetype, ret = handle_wmts_GetCapabilities(d)
         elif d['REQUEST'].lower() in ['gettile']:

@@ -25,6 +25,7 @@ var g_image_thumbnail_tower_info = [];
 var g_terrain_z_offset = -40;
 var g_node_connect_mode = false;
 var g_leaflet_geojson_layer;
+var g_leaflet_old_style = {};
 //var g_leaflet_markercluster_layer;
 $.g_heatmap_layers = {};
 $.g_userinfo = {};
@@ -102,7 +103,7 @@ $(function() {
 			InitSearchBox(viewer);
 			InitToolPanel(viewer);
 			//InitModelList(viewer);
-			//InitKeyboardEvent(viewer);
+			InitKeyboardEvent(viewer);
 			load_init_data();
 		});
 	}
@@ -473,6 +474,12 @@ function InitLeafletViewer()
 			});
 			layer.on('click', function (e) {
 				console.log(e.target.feature._id);
+				ClearSelectColor2D(map);
+				if(!g_leaflet_old_style[e.target.feature._id])
+				{
+					g_leaflet_old_style[e.target.feature._id] = {color:e.target.options.color, weight:e.target.options.weight};
+				}
+				e.target.setStyle({color:'green', weight: 10});
 			});
 			
 		}
@@ -646,6 +653,39 @@ function InitCesiumViewer()
 	return viewer;
 }
 
+
+function ClearSelectColor2D(viewer)
+{
+	if(g_leaflet_geojson_layer)
+	{
+		g_leaflet_geojson_layer.eachLayer(function(layer){
+			if(layer.feature && layer.feature._id)
+			{
+				if(g_leaflet_old_style[layer.feature._id])
+				{
+					var opt = g_leaflet_old_style[layer.feature._id];
+					layer.setStyle({color:opt.color, weight:opt.weight});
+					delete g_leaflet_old_style[layer.feature._id];
+				}
+			}
+		});
+	}
+	viewer.eachLayer(function(layer){
+		if(layer.eachLayer)
+		{
+			layer.eachLayer(function(lyr){
+				if(lyr._id && g_leaflet_old_style[lyr._id])
+				{
+					var opt = g_leaflet_old_style[lyr._id];
+					lyr.setStyle({color:opt.color, weight:opt.weight});
+					delete g_leaflet_old_style[lyr._id];
+				}
+				
+			});
+		}
+	});
+}
+
 function InitKeyboardEvent(viewer)
 {
 	var get_current_edge = function(id0, id1)
@@ -675,6 +715,15 @@ function InitKeyboardEvent(viewer)
 			p.material = m;
 		}
 	};
+	
+	if($.g_map_backend === 'leaflet')
+	{
+		viewer.on('click', function(e){
+			//console.log('mapclick');
+			ClearSelectColor2D(viewer);
+		});
+	}
+	
 	$(document).on('keyup', function(e){
 		if(e.keyCode == 76)//ctrl(17) L(76)
 		{
@@ -2323,7 +2372,11 @@ function DrawEdges2D(viewer, webgis_type)
 		lyr_polylinegroup.name = webgis_type;
 		
 		lyr_polylinegroup.on('click', function(e){
+			ClearSelectColor2D(viewer);		
 			console.log('edge:' + e.layer._id);
+			g_leaflet_old_style[e.layer._id] = {color:e.layer.options.color, weight:e.layer.options.weight};
+			e.layer.setStyle({color : 'green', weight:10});
+			//console.log(e);
 		});		
 		lyr_polylinegroup.addTo(viewer);
 		var lyr = L.polylineDecorator(pairlist1, {
