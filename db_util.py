@@ -7194,6 +7194,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret = []
                     if isinstance(data, list):
                         for i in data:
+                            #i['type'] = 'Feature'
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
                                 if i['properties']['webgis_type'] == 'polygon_buffer':
                                     z_aware = False
@@ -7201,6 +7202,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             _id = db[collection_name].save(i)
                             ids.append(str(_id))
                     if isinstance(data, dict):
+                        #data['type'] = 'Feature'
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
                             if data['properties']['webgis_type'] == 'polygon_buffer':
                                 z_aware = False
@@ -7210,13 +7212,13 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                         elif check_edge_ring(dbname, collection_name, data):
                             ret.append({'result':u'保存失败:存在回路'});
                         else:
-                            project = None
+                            line_names = None
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'polyline_line':
                                 data['properties']['py'] = piny.hanzi2pinyin_first_letter(data['properties']['name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'point_tower':
-                                if data['properties'].has_key('project'):
-                                    project = data['properties']['project']
-                                    del data['properties']['project']
+                                if data['properties'].has_key('line_names'):
+                                    line_names = data['properties']['line_names']
+                                    del data['properties']['line_names']
                                 if data['properties'].has_key('model'):
                                     models = mongo_find(dbname, 'models')
                                     findmodel = False
@@ -7232,10 +7234,10 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                         mongo_action(dbname, 'models',action='save', data=modeldata)
                             _id = db[collection_name].save(data)
                             #print(_id)
-                            if _id is not None and project is not None:
-                                if isinstance(project, ObjectId):
-                                    project = [project, ]
-                                mongo_update_line_towers(dbname, _id, project)
+                            if _id is not None and line_names is not None:
+                                if isinstance(line_names, ObjectId):
+                                    line_names = [line_names, ]
+                                mongo_update_line_towers(dbname, _id, line_names)
                             if _id:
                                 ids.append(str(_id))
                     if len(ids) > 0:
@@ -7383,9 +7385,9 @@ def get_heatmap_tile_service_list(name):
     
     
 
-def mongo_update_line_towers(dbname, id, project=[]):
+def mongo_update_line_towers(dbname, id, line_names=[]):
     lines = mongo_find(dbname, 'network', conditions={'properties.webgis_type':'polyline_line'})
-    projectlist = [str(i) for i in project]
+    line_names_list = [str(i) for i in line_names]
     l = []
     for i in lines:
         modified = False
@@ -7393,10 +7395,10 @@ def mongo_update_line_towers(dbname, id, project=[]):
             i['properties'] = {}
         if not i['properties'].has_key('nodes'):
             i['properties']['nodes'] = []
-        if i['_id'] in projectlist and not str(id) in i['properties']['nodes']:
+        if i['_id'] in line_names_list and not str(id) in i['properties']['nodes']:
             i['properties']['nodes'].append(str(id))
             modified = True
-        if not i['_id'] in projectlist and id in i['properties']['nodes']:
+        if not i['_id'] in line_names_list and id in i['properties']['nodes']:
             i['properties']['nodes'].remove(str(id))
             modified = True
         if modified:
@@ -8982,10 +8984,14 @@ def command_batch_tile_download(options):
     
     
     pathlist = batch_tile_download(options.tiletype, options.subtype, westsouth, eastnorth, zoomrange)
-    print('%d tile files need processing' % len(pathlist))
+    totallen = len(pathlist)
+    print('%d tile files need processing' % totallen)
+    idx = 0
     for i in pathlist:
         #print(i[0])
         if pathlist.index(i) % options.num_cocurrent == 0:
+            idx += options.num_cocurrent
+            print('...%d%%...' % int(float(idx)/float(totallen) * 100.0))
             gevent.sleep(options.wait_sec)
         else:
             gevent.spawn(gridfs_tile_find, options.tiletype, options.subtype, i[0], i[1])

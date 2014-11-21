@@ -177,8 +177,9 @@
 	cursor: pointer;
 	}
 .leaflet-container {
-	cursor: -webkit-grab;
-	cursor:    -moz-grab;
+	/*cursor: -webkit-grab;*/
+	/*cursor:    -moz-grab;*/
+	cursor: default;
 	}
 .leaflet-crosshair,
 .leaflet-crosshair .leaflet-interactive {

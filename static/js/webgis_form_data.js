@@ -306,8 +306,9 @@ var g_tower_baseinfo_fields = [
 	//土木
 	{ display: "水平档距", id: "horizontal_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true, range:[0, 9999]} },
 	{ display: "垂直档距", id: "vertical_span", newline: false,  type: "spinner", step:0.1, min:0,max:9999, group:'土木', width:85, validate:{number: true, range:[0, 9999]} },
-	//工程
-	{ display: "所属工程", id: "project", newline: true,  type: "multiselect", editor:{data:[]},  group:'工程', width:330 }
+	//线路工程
+	{ display: "线路名称", id: "line_names", newline: true,  type: "multiselect", editor:{data:[]},  group:'线路工程', width:330 },
+	{ display: "所属工程", id: "project", newline: true,  type: "text",  group:'线路工程', width:330 }
 ];
 
 
