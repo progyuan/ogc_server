@@ -8,7 +8,6 @@ import math
 import shutil
 import subprocess
 
-import numpy as np
 from collections import OrderedDict
 import decimal
 import json
@@ -17,7 +16,7 @@ import urllib2
 import StringIO
 import re
 import gzip
-import sqlite3
+#import sqlite3
 import base64
 import random
 from optparse import OptionParser
@@ -35,64 +34,68 @@ from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc
 
 
 try:
+    import numpy as np
+except:
+    print('lxml numpy error')
+try:
     from lxml import etree
-except ImportError:
+except:
     print('lxml import error')
 
 try:
     import catenary
-except ImportError:
+except:
     print('catenary import error')
 
 try:
     import pypyodbc
-except ImportError:
+except:
     print('pypyodbc import error')
 
 try:
     import shapefile
-except ImportError:
+except:
     print('shapefile import error')
 try:
     from PIL import Image
-except ImportError:
+except :
     print('PIL import error')
 try:
     from geventhttpclient import HTTPClient, URL
-except ImportError:
+except:
     print('geventhttpclient import error')
 
 try:
     import shapely
     import shapely.geometry
     import shapely.wkt
-except ImportError:
+except:
     print('shapely import error')
 try:
     import pyproj
-except ImportError:
+except:
     print('pyproj import error')
 try:
     import geojson
-except ImportError:
+except:
     print('geojson import error')
 try:
     from pinyin import PinYin
-except ImportError:
+except:
     print('pinyin import error')
 try:
     from pyquery import PyQuery as pq
-except ImportError:
+except:
     print('pyquery import error')
 try:
     import xlrd
     import xlwt
-except ImportError:
+except:
     print('xlrd xlwt import error')
 try:
     import psycopg2 as psycopg
     from psycopg2 import errorcodes
-except ImportError:
+except:
     print('psycopg2 import error')
 
 CONFIGFILE = None

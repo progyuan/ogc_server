@@ -9,20 +9,6 @@ import math
 import decimal
 import datetime
 import threading
-from gevent import pywsgi
-import gevent
-import gevent.fileobject
-try:
-    import geventwebsocket
-    from geventwebsocket.handler import WebSocketHandler
-except ImportError:
-    print('geventwebsocket import error')
-try:
-    from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
-    from pysimplesoap.client import SoapClient, SoapFault
-except ImportError:
-    print('pysimplesoap import error')
-    
 import exceptions
 import time
 import base64
@@ -38,36 +24,48 @@ import re
 #from PIL import Image
 import StringIO
 import cgi
-import configobj
-#from gmapcatcher import mapUtils
+import uuid
+from contextlib import contextmanager
+
+from gevent import pywsgi
+import gevent
+import gevent.fileobject
+from gevent.local import local
+try:
+    import geventwebsocket
+    from geventwebsocket.handler import WebSocketHandler
+except:
+    print('geventwebsocket import error')
+try:
+    from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
+    from pysimplesoap.client import SoapClient, SoapFault
+except:
+    print('pysimplesoap import error')
+    
 from lxml import etree
 try:
     import czml
-except ImportError:
+except:
     print('czml import error')
 
-try:
-    import pypyodbc
-except :
-    print('pypyodbc import error')
     
-import uuid
-import db_util
-from module_locator import module_path, dec, dec1, enc, enc1
 
 try:
     from geventhttpclient import HTTPClient, URL
-except ImportError:
+except:
     print('geventhttpclient import error')
 
-from gevent.local import local
 from werkzeug.wrappers import Request, BaseResponse
 from werkzeug.local import LocalProxy
 from werkzeug.contrib.sessions import FilesystemSessionStore
 from werkzeug.utils import dump_cookie, parse_cookie
 from werkzeug.routing import Map, Rule, BaseConverter, ValidationError, HTTPException
-from contextlib import contextmanager
+
+
 from sessions import MongoClient, MongodbSessionStore
+import configobj
+import db_util
+from module_locator import module_path, dec, dec1, enc, enc1
 
 
 
