@@ -1931,7 +1931,7 @@ def check_session(environ, request, session_store):
     is_expire = False
     sess = None
     
-    session_store.delete_expired_list()
+    #session_store.delete_expired_list()
     if sid is None:
         request.session = session_store.new({})
         session_store.save(request.session)
@@ -1948,6 +1948,7 @@ def check_session(environ, request, session_store):
             is_expire = True
         sess = request.session
     return sess, cookie, is_expire
+
 
 def session_handle(environ, request, session_store):
     global gConfig
@@ -2627,8 +2628,19 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
     return ret
 
 
-
-
+def delete_expired_session(interval):
+    global gSessionStore
+    while 1:
+        gevent.sleep(interval)
+        if gSessionStore:
+            print('session recycle checking')
+            gSessionStore.delete_expired_list()
+    
+    
+    
+def cycles_task():
+    global gConfig
+    gevent.spawn(delete_expired_session, int(gConfig['authorize_platform']['session']['session_cycle_check_interval']))
     
     
     
@@ -2639,6 +2651,7 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
     app = application
     if gConfig['authorize_platform']['enable'].lower() in ['true',u'true','1', u'1']:
         app = application_authorize_platform
+        cycles_task()
     if port and not enable_cluster:
         if enable_ssl:
             print('listening at host 127.0.0.1, port %d with ssl crypted' % port)
