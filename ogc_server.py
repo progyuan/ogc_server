@@ -48,7 +48,7 @@ except ImportError:
 
 try:
     import pypyodbc
-except ImportError:
+except :
     print('pypyodbc import error')
     
 import uuid
