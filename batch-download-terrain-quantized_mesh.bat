@@ -1,0 +1,1 @@
+ogc_server.exe --batch_download_tile_enable --tiletype terrain --subtype quantized_mesh --zoom_max 16 --west 99.0 --east 106.90 --north 28.58 --south 23.0 --num_cocurrent 10 --wait_sec 2 --save_to_db

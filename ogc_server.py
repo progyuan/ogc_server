@@ -2,6 +2,7 @@
 
 import codecs
 import os, sys
+import copy
 import random
 import json
 import math
@@ -11,10 +12,17 @@ import threading
 from gevent import pywsgi
 import gevent
 import gevent.fileobject
-import geventwebsocket
-from geventwebsocket.handler import WebSocketHandler
-from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
-from pysimplesoap.client import SoapClient, SoapFault
+try:
+    import geventwebsocket
+    from geventwebsocket.handler import WebSocketHandler
+except ImportError:
+    print('geventwebsocket import error')
+try:
+    from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
+    from pysimplesoap.client import SoapClient, SoapFault
+except ImportError:
+    print('pysimplesoap import error')
+    
 import exceptions
 import time
 import base64
@@ -33,20 +41,33 @@ import cgi, multipart
 import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
-import czml
+try:
+    import czml
+except ImportError:
+    print('czml import error')
 
-import pypyodbc
+try:
+    import pypyodbc
+except ImportError:
+    print('pypyodbc import error')
+    
 import uuid
 import db_util
 from module_locator import module_path, dec, dec1, enc, enc1
-from geventhttpclient import HTTPClient, URL
+
+try:
+    from geventhttpclient import HTTPClient, URL
+except ImportError:
+    print('geventhttpclient import error')
 
 from gevent.local import local
 from werkzeug.wrappers import Request, BaseResponse
 from werkzeug.local import LocalProxy
 from werkzeug.contrib.sessions import FilesystemSessionStore
 from werkzeug.utils import dump_cookie, parse_cookie
+from werkzeug.routing import Map, Rule, BaseConverter, ValidationError, HTTPException
 from contextlib import contextmanager
+from sessions import MongoClient, MongodbSessionStore
 
 
 
@@ -76,6 +97,7 @@ gTerrainCache = {}
 gGreenlets = {}
 gClusterProcess = {}
 gLoginToken = {}
+gSecurityConfig = {}
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -105,7 +127,7 @@ def session_manager(environ):
 
 def init_global():
     global ENCODING, ENCODING1, STATICRESOURCE_DIR, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
-    global gConfig, gStaticCache, gGreenlets, gClusterProcess
+    global gConfig, gStaticCache, gGreenlets, gClusterProcess, gSecurityConfig
     ENCODING = 'utf-8'
     ENCODING1 = 'gb18030'
     
@@ -126,23 +148,14 @@ def init_global():
     UPLOAD_PHOTOS_DIR = os.path.join(STATICRESOURCE_DIR,'photos', 'upload')
     UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
     
-    
-    #try:
-        #gCtxMap = MapServ()
-        #proxy, port = None, None
-        #try:
-            #proxy = str(gConfig['proxy']['host'])
-            #port = int(gConfig['proxy']['port'])
-            #if len(proxy)>0:
-                #gMapDownloader = MapDownloaderSocks5(gCtxMap, proxy, port)
-            #else:
-                #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-        #except:
-            #gMapDownloader = MapDownloaderGevent(gCtxMap, None, None)
-            
-    #except:
-        #print(sys.exc_info()[1])
-        #pass
+    if gConfig['authorize_platform']['enable'].lower() in ['true',u'true','1', u'1']:
+        gSecurityConfig = db_util.mongo_find_one(gConfig['authorize_platform']['mongodb']['database'],
+                                             gConfig['authorize_platform']['mongodb']['collection_security_config'],
+                                             {},
+                                             'authorize_platform'
+                                             )
+        if gSecurityConfig is None:
+            gSecurityConfig = {}
     
 
 
@@ -1579,14 +1592,14 @@ def handle_upload_file(environ, qsdict, filedata):
                 os.mkdir(p)
             save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, filedata)
             ret = True
-        if qsdict.has_key('voice_file_name'):
+        elif qsdict.has_key('voice_file_name'):
             fn = qsdict['voice_file_name'][0]
             p = os.path.join(root, 'voice')
             if not os.path.exists(p):
                 os.mkdir(p)
             save_file_to(UPLOAD_VOICE_DIR, None, fn, filedata)
             ret = True
-        if qsdict.has_key('import_xls'):
+        elif qsdict.has_key('import_xls'):
             root = create_upload_xls_dir()
             area = urllib.unquote_plus( qsdict['area'][0])
             line_name = urllib.unquote_plus( qsdict['line_name'][0])
@@ -1595,7 +1608,7 @@ def handle_upload_file(environ, qsdict, filedata):
             fn = str(uuid.uuid4()) + '.xls'
             import_xls(os.path.join(root, fn), filedata, dec(area), dec(line_name), dec(voltage),  dec(category))
             ret = True
-        if qsdict.has_key('db'):
+        elif qsdict.has_key('db'):
             mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
             filename, filedata1 = parse_form_data(environ, mimetype, filedata)
             #with open(ur'd:\aaa.png','wb') as f:
@@ -1716,7 +1729,10 @@ def handle_post_method(environ):
             del obj[u'db']
             del obj[u'collection']
             if action:
-                l = db_util.mongo_action(dbname, collection, action, data, obj)
+                if 'markdown_' in action or u'markdown_' in action:
+                    l = db_util.mongo_action(dbname, collection, action, data, obj, 'markdown')
+                else:
+                    l = db_util.mongo_action(dbname, collection, action, data, obj)
             else:
                 l = db_util.mongo_find(dbname, collection, obj)
             if get_extext:
@@ -1802,9 +1818,36 @@ def handle_post_method(environ):
     #return [urllib.quote(enc(json.dumps(ret)))]
     return '200 OK', headers, json.dumps(ret, ensure_ascii=True, indent=4)
 
+
+
+
+def handle_login_authorize_platform(environ):
+    global ENCODING
+    global gRequest
+    buf = environ['wsgi.input'].read()
+    ret = None
+    try:
+        ds_plus = urllib.unquote_plus(buf)
+        obj = json.loads(dec(ds_plus))
+        if obj.has_key(u'username') and obj.has_key(u'password'):
+            ret = db_util.mongo_find_one(
+                gConfig['authorize_platform']['mongodb']['database'],
+                gConfig['authorize_platform']['mongodb']['collection_user_account'],
+                {'username':obj['username']},
+                'authorize_platform'
+            )
+    except:
+        raise
+    return ret
+    
+    
+    
+    
+    
+    
 def handle_login(environ):
     global ENCODING
-    global gRequest, gLoginToken
+    global gRequest
     buf = environ['wsgi.input'].read()
     ret = None
     try:
@@ -1876,6 +1919,41 @@ def handle_websocket(environ):
 
 
 
+def check_session(environ, request, session_store):
+    global gConfig
+    
+        
+    def set_cookie(key, value):
+        secure = False
+        if gConfig['listen_port']['enable_ssl'].lower() == 'true':
+            secure = True
+        max_age = int(gConfig['authorize_platform']['session']['session_age'])
+        cookie = ('Set-Cookie', dump_cookie(key, value, domain=str(gConfig['authorize_platform']['session']['session_domain']), max_age=max_age, secure=secure))
+        return cookie
+    
+    sid = request.cookies.get('authorize_platform_session_id')
+    cookie = None
+    is_expire = False
+    sess = None
+    
+    session_store.delete_expired_list()
+    if sid is None:
+        request.session = session_store.new({})
+        session_store.save(request.session)
+        is_expire = True
+        cookie = set_cookie('authorize_platform_session_id', request.session.sid )
+        sess = request.session
+    else:
+        request.session = session_store.get(sid)
+        if request.session:
+            cookie = set_cookie('authorize_platform_session_id', request.session.sid)
+            session_store.save_if_modified(request.session)
+        else:
+            cookie = set_cookie('authorize_platform_session_id', '')
+            is_expire = True
+        sess = request.session
+    return sess, cookie, is_expire
+
 def session_handle(environ, request, session_store):
     global gConfig
     def set_cookie(key, value):
@@ -1887,7 +1965,7 @@ def session_handle(environ, request, session_store):
         return cookie
     
     sid = request.cookies.get('session_id')
-    #return "Hello " + gRequest.remote_addr
+    
     is_expire = False
     if sid is None:
         request.session = session_store.new()
@@ -1897,7 +1975,7 @@ def session_handle(environ, request, session_store):
         request.session = session_store.get(sid)
     cookie = set_cookie('session_id', request.session.sid)
     if request.session.should_save:
-        print('should_save')
+        #print('should_save')
         session_store.save(request.session)
     return cookie, is_expire
         
@@ -1912,6 +1990,16 @@ def get_token_from_env(environ):
             ret = gLoginToken[session_id]
     return session_id, ret
 
+def get_session_from_env(environ):
+    global gSessionStore
+    cookie = parse_cookie(environ)
+    session_id = None
+    ret = None
+    if cookie.has_key('session_id'):
+        session_id = cookie['session_id']
+        ret = gSessionStore.get(session_id)
+    return ret
+
 def get_userinfo_from_env(environ):
     global gConfig, gLoginToken
     cookie = parse_cookie(environ)
@@ -1923,10 +2011,219 @@ def get_userinfo_from_env(environ):
             ret = gLoginToken[session_id]
     return session_id, ret
     
+
+def auth_check(session, username, isnew):
+    global ENCODING
+    global gRequest, gSessionStore
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    if session :
+        if username.strip()>0:
+            if isnew is True:
+                session['username'] = username.strip()
+                gSessionStore.save(session)
+                body = json.dumps({'result':u'auth_ok_session_saved'}, ensure_ascii=True, indent=4)
+            else:
+                if session.sid:
+                    user = gSessionStore.get_data_by_username(session.sid, username.strip())
+                    if user:
+                        body = json.dumps({'result':u'auth_ok_user_exist'}, ensure_ascii=True, indent=4)
+                    else:
+                        body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+                else:
+                    body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+        else:
+            body = json.dumps({'result':u'auth_fail_username_require'}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body    
+    
+    
+    
+    
+def auth_check_get_post(environ, session):
+    global ENCODING
+    global gRequest, gSessionStore
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    username = None
+    isnew = False
+    querydict = {}
+    if environ.has_key('QUERY_STRING'):
+        querydict = urlparse.parse_qs(environ['QUERY_STRING'])
+        if querydict.has_key('username'):
+            username = querydict['username']
+            if isinstance(username, list):
+                username = username[0]
+        if querydict.has_key('isnew'):
+            isnew = querydict['isnew']
+            if isinstance(isnew, list):
+                isnew = isnew[0]
+            isnew = isnew.lower()
+            if isnew == 'true':
+                isnew = True
+    else:
+        try:
+            buf = environ['wsgi.input'].read()
+            ds_plus = urllib.unquote_plus(buf)
+            obj = json.loads(dec(ds_plus))
+            if obj.has_key('username'):
+                username = obj['username']
+            if obj.has_key('isnew') and obj['isnew'] is True:
+                isnew = True
+        except:
+            body = json.dumps({'result':u'auth_fail_wrong_param_format'}, ensure_ascii=True, indent=4)
+    statuscode, headers, body = auth_check(session, username, isnew)
+                
+    return statuscode, headers, body    
+
+
+class BooleanConverter(BaseConverter):
+    def __init__(self, url_map, randomify=False):
+        super(BooleanConverter, self).__init__(url_map)
+        self.regex = '(?:true|false)'
+
+    def to_python(self, value):
+        return value == 'true'
+
+    def to_url(self, value):
+        return value and 'true' or 'false'
+
+    
+def auth_check_restful(environ, session):
+    global ENCODING
+    global gRequest, gSessionStore, gUrlMapAuth
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    username = None
+    isnew = False
+    urls = gUrlMapAuth.bind_to_environ(environ)
+    try:
+        endpoint, args = urls.match()
+        #print('-------')
+        #print(endpoint)
+        #print(args)
+        #body = endpoint
+        if endpoint == 'saveuser':
+            if args.has_key('username'):
+                username = args['username']
+            if args.has_key('isnew') and args['isnew'] is True:
+                isnew = True
+            statuscode, headers, body = auth_check(session, username, isnew)
+        elif endpoint == 'checkuser':
+            if args.has_key('username'):
+                username = args['username']
+            statuscode, headers, body = auth_check(session, username, isnew)
+        elif endpoint == 'login':
+            obj = handle_login_authorize_platform(environ)
+            if obj:
+                body = json.dumps({'result':u'login_ok'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':u'login_fail_wrong_user_or_password'}, ensure_ascii=True, indent=4)
+        elif endpoint == 'logout':
+            if session:
+                gSessionStore.delete(session)
+            body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
+        else:
+            body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    except HTTPException, e:
+        body = json.dumps({'result':u'auth_fail_access_deny'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+
+
+gUrlMapAuth = Map([
+    Rule('/', endpoint='firstaccess'),
+    Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
+    Rule('/auth_check/<username>', endpoint='checkuser'),
+    Rule('/login', endpoint='login'),
+    Rule('/logout', endpoint='logout'),
+], converters={'bool': BooleanConverter})
+
+
+
+def application_authorize_platform(environ, start_response):
+    global gConfig, gRequest, gSessionStore
+    headers = {}
+    headers['Access-Control-Allow-Origin'] = '*'
+    headerslist = []
+    cookie_header = None
+    body = None
+    statuscode = '200 OK'
+    
+    path_info = environ['PATH_INFO']
+    
+    if gSessionStore is None:
+        gSessionStore = MongodbSessionStore(host=gConfig['authorize_platform']['mongodb']['host'], 
+                                            port=int(gConfig['authorize_platform']['mongodb']['port']), 
+                                            replicaset=gConfig['authorize_platform']['mongodb']['replicaset'],
+                                            db = gConfig['authorize_platform']['mongodb']['database'],
+                                            collection = gConfig['authorize_platform']['mongodb']['collection_session'],
+                                            )
+    is_expire = False
+    
+    if path_info not in gConfig['authorize_platform']['session']['session_control']:
+        if path_info[-1:] == '/':
+            path_info += gConfig['web']['indexpage']
+        statuscode, headers, body =  handle_static(environ, path_info)
+    else:    
+        with session_manager(environ):
+            sess, cookie_header, is_expire = check_session(environ, gRequest, gSessionStore)
+            if is_expire:
+                headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                statuscode = '200 OK'
+                body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
+            else:
+                statuscode, headers, body = auth_check_restful(environ, sess)
+                
+            #elif path_info == '/auth_check':
+                #statuscode, headers, body = auth_check(environ, sess)
+            #elif path_info == '/logout':
+                #if sess:
+                    #gSessionStore.delete(sess)
+                #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                #statuscode = '200 OK'
+                #body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
+            #elif path_info == '/login':
+                #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                #statuscode = '200 OK'
+                #if sess:
+                    #obj = handle_login_authorize_platform(environ)
+                    #if obj:
+                        #sess['username'] = obj['username']
+                        #body = json.dumps({'result':u'login_ok'}, ensure_ascii=True, indent=4)
+                    #else:
+                        #body = json.dumps({'result':u'login_fail_wrong_user_or_password'}, ensure_ascii=True, indent=4)
+                    
+                #else:
+                    #body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
+                    
+        
+            #elif path_info == '/get':
+                #statuscode, headers, body = handle_get_method(environ)
+            #elif path_info == '/post':
+                #statuscode, headers, body = handle_post_method(environ)
+            if sess:
+                gSessionStore.save(sess)
+    if cookie_header:
+        headerslist.append(cookie_header)
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    #print(headerslist)
+    start_response(statuscode, headerslist)
+    return [body]
+    
+    
     
 def application(environ, start_response):
     global gConfig, gRequest, gSessionStore
     headers = {}
+    headers['Access-Control-Allow-Origin'] = '*'
     headerslist = []
     cookie_header = None
         
@@ -1962,53 +2259,77 @@ def application(environ, start_response):
             print('application Exception:%s' % str(e))
         
     else:
-        if gConfig['web']['enable_session'].lower() == 'true' :
+        if gConfig['web']['session']['enable_session'].lower() == 'true' :
             #return handle_session(environ, start_response)
             if gSessionStore is None:
                 gSessionStore = FilesystemSessionStore()
             is_expire = False
             with session_manager(environ):
-                #print(gSessionStore.get_session_filename(cookie['session_id']))
                 cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
+                
+                for k in headers:
+                    headerslist.append((k, headers[k]))
+                
                 if is_expire:
                     headerslist.append(('Location', str(gConfig['web']['expirepage'])))
                     headerslist.append(cookie_header)
                     start_response('302 Redirect', headerslist)        
                     return ['']
                 if path_info == '/logout':
-                    session_id, token = get_token_from_env(environ)
-                    if session_id and gLoginToken.has_key(session_id):
-                        del gLoginToken[session_id]
+                    #session_id, token = get_token_from_env(environ)
+                    #if session_id and gLoginToken.has_key(session_id):
+                        #del gLoginToken[session_id]
+                    sess = get_session_from_env(environ)
+                    if sess:
+                        gSessionStore.delete(sess)
                     headerslist.append(cookie_header)
                     headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                     start_response('200 OK', headerslist)        
                     return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
                 if path_info == '/login':
-                    session_id, token = get_token_from_env(environ)
+                    sess = get_session_from_env(environ)
+                    if sess is None:
+                        sess = gSessionStore.new()
                     objlist = handle_login(environ)
-                    if session_id and len(objlist)>0:
-                        gLoginToken[session_id] = objlist[0]
-                        ##headerslist.append(('Location', str(gConfig['web']['mainpage'])))
-                        ##headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
-                        ##headerslist.append(cookie_header)
-                        ##start_response('302 Redirect', headerslist)        
-                        ##return ['']
-                        #path_info = gConfig['web']['mainpage']
-                        #statuscode, headers, body =  handle_static(environ, path_info)
-                        headerslist.append(cookie_header)
-                        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                        start_response('200 OK', headerslist)        
-                        return [json.dumps(objlist[0], ensure_ascii=True, indent=4)]
+                    if len(objlist)>0:
+                        #sess = gSessionStore.new()
+                        sess = gSessionStore.session_class(objlist[0], sess.sid, False)
+                        gSessionStore.save(sess)
+                        start_response('200 OK', headerslist)
+                        return [json.dumps(sess, ensure_ascii=True, indent=4)]
                     else:
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                         start_response('200 OK', headerslist)        
                         return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
+                            
+                    #else:
+                        #headerslist.append(cookie_header)
+                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                        #start_response('200 OK', headerslist)        
+                        #return [json.dumps(copy.copy(sess), ensure_ascii=True, indent=4)]
+                        
+                        
+                    ##session_id, token = get_token_from_env(environ)
+                    #objlist = handle_login(environ)
+                    #if session_id and len(objlist)>0:
+                        ##gLoginToken[session_id] = objlist[0]
+                        #headerslist.append(cookie_header)
+                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                        #start_response('200 OK', headerslist)        
+                        #return [json.dumps(objlist[0], ensure_ascii=True, indent=4)]
+                    #else:
+                        #headerslist.append(cookie_header)
+                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                        #start_response('200 OK', headerslist)        
+                        #return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
                         
                 if path_info == gConfig['web']['mainpage']:
-                    session_id, token = get_token_from_env(environ)
+                    #session_id, token = get_token_from_env(environ)
+                    sess = get_session_from_env(environ)
                     #401 Unauthorized
-                    if session_id is None or token is None:
+                    #if session_id is None or token is None:
+                    if sess is None or len(sess.keys())==0:
                         headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
                         headerslist.append(cookie_header)
                         statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
@@ -2017,16 +2338,16 @@ def application(environ, start_response):
                         return [body]
         if path_info[-1:] == '/':
             path_info += gConfig['web']['indexpage']
-        if path_info == '/login' and not gConfig['web']['enable_session'].lower() == 'true':
+        if path_info == '/login' and not gConfig['web']['session']['enable_session'].lower() == 'true':
             path_info = gConfig['web']['mainpage']
         statuscode, headers, body =  handle_static(environ, path_info)
         
-
-    headers['Access-Control-Allow-Origin'] = '*'
+    #headkeys = set([i[0] for i in headerslist])
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
         headerslist.append((k, headers[k]))
+    #print(headerslist)
     start_response(statuscode, headerslist)
     return [body]
 
@@ -2310,16 +2631,20 @@ def soap_GetFlashofEnvelope(start_time, end_time, lng1, lng2, lat1, lat2):
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
+    global gConfig
     gen_model_app_cache()
     server = None
+    app = application
+    if gConfig['authorize_platform']['enable'].lower() in ['true',u'true','1', u'1']:
+        app = application_authorize_platform
     if port and not enable_cluster:
         if enable_ssl:
             print('listening at host 127.0.0.1, port %d with ssl crypted' % port)
-            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+            server = pywsgi.WSGIServer(('127.0.0.1', port), app, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
         else:    
             print('listening at host 127.0.0.1, port %d' % port)
-            server = pywsgi.WSGIServer(('127.0.0.1', port), application, handler_class = WebSocketHandler)
-            #server = pywsgi.WSGIServer(('127.0.0.1', port), application)
+            server = pywsgi.WSGIServer(('127.0.0.1', port), app, handler_class = WebSocketHandler)
+            
         server.start()
         server.serve_forever()
     else:
@@ -2352,9 +2677,9 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
             if isinstance(pport, int):
                 for i in host_list:
                     if enable_ssl:
-                        server = pywsgi.WSGIServer((i, pport), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                        server = pywsgi.WSGIServer((i, pport), app, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
                     else:
-                        server = pywsgi.WSGIServer((i, pport), application, handler_class = WebSocketHandler)
+                        server = pywsgi.WSGIServer((i, pport), app, handler_class = WebSocketHandler)
                     servers.append(server)
                         
                     if idx < len(host_list)-1:
@@ -2365,9 +2690,9 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
             elif isinstance(pport, unicode):
                 for i in host_list:
                     if enable_ssl:
-                        server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                        server = pywsgi.WSGIServer((i, int(pport)), app, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
                     else:
-                        server = pywsgi.WSGIServer((i, int(pport)), application, handler_class = WebSocketHandler)
+                        server = pywsgi.WSGIServer((i, int(pport)), app, handler_class = WebSocketHandler)
                         #server = pywsgi.WSGIServer((i, int(pport)), application)
                     servers.append(server)
                     if idx < len(host_list)-1:
@@ -2379,9 +2704,9 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                 for i in host_list:
                     for j in pport:
                         if enable_ssl:
-                            server = pywsgi.WSGIServer((i, int(j)), application, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
+                            server = pywsgi.WSGIServer((i, int(j)), app, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
                         else:    
-                            server = pywsgi.WSGIServer((i, int(j)), application, handler_class = WebSocketHandler)
+                            server = pywsgi.WSGIServer((i, int(j)), app, handler_class = WebSocketHandler)
                         servers.append(server)
                         if idx < len(host_list) * len(pport)-1:
                             server.start()

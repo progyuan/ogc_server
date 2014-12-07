@@ -60,6 +60,7 @@
 					Login($('#username').val(),  $('#password').val(), function(data){
 						$(that).removeAttr('disabled');
 						ShowProgressBar(false);
+						console.log(data);
 						if(data.username) {
 							var json = encodeURIComponent(JSON.stringify(data));
 							var encrypted = CryptoJS.AES.encrypt(json, g_encrypt_key);

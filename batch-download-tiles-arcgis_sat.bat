@@ -1,0 +1,1 @@
+ogc_server.exe --batch_download_tile_enable --tiletype tiles --subtype arcgis_sat --west 101.72 --east 103.54 --north 25.26 --south 24.01 --num_cocurrent 5 --wait_sec 2

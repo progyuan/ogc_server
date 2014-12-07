@@ -778,6 +778,16 @@ function InitKeyboardEvent(viewer)
 	$(document).on('keyup', function(e){
 		if(e.keyCode == 76)//ctrl(17) L(76)
 		{
+			//if()
+			//{
+				//$.jGrowl("请先勾选“线路-->显示结点关系”",{
+					//life: 2000,
+					//position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+					//theme: 'bubblestylefail',
+					//glue:'before'
+				//});
+				//return;
+			//}
 			g_node_connect_mode = !g_node_connect_mode;
 			if(g_node_connect_mode)
 			{
@@ -1042,7 +1052,7 @@ function InitLogout(viewer)
     var LogoutButtonViewModel = function() {
         var that = this;
         this._command = Cesium.createCommand(function() {
-            console.log('logout');
+            //console.log('logout');
 			ShowConfirm(null, 500, 200,
 				'登出确认',
 				'确认要登出吗?',
@@ -5430,9 +5440,12 @@ function RemoveSegmentsBetweenTwoNode(viewer, node0, node1, webgis_type)
 		var seg = RemoveSegmentsFromArray(node0, node1);
 		if(seg)
 		{
-			while(!seg.primitive.isDestroyed())
+			if($.g_map_backend === 'cesium')
 			{
-				var ret = scene.primitives.remove(seg.primitive);
+				while(!seg.primitive.isDestroyed())
+				{
+					var ret = scene.primitives.remove(seg.primitive);
+				}
 			}
 		}
 	}
@@ -6415,7 +6428,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			{
 				var $fotoramaDiv = $('#' + container_id).fotorama(options);
 				g_image_slider_tower_info = $fotoramaDiv.data('fotorama');
-				console.log(g_image_slider_tower_info);
+				//console.log(g_image_slider_tower_info);
 			}
 		}
 		ShowProgressBar(false);

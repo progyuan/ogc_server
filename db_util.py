@@ -3,49 +3,97 @@ from gevent import monkey; monkey.patch_all()
 import codecs
 import os, sys, time, datetime
 import traceback
-from lxml import etree
-import pypyodbc
 import uuid
 import math
 import shutil
 import subprocess
-import xlrd
-import xlwt
+
 import numpy as np
 from collections import OrderedDict
-import catenary
 import decimal
 import json
 import urllib
 import urllib2
 import StringIO
 import re
-import configobj
-import psycopg2 as psycopg
-from psycopg2 import errorcodes
-#import gdal, osr
-import shapefile
+import gzip
 import sqlite3
 import base64
 import random
-from PIL import Image
-from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc1
+from optparse import OptionParser
+from collections import OrderedDict
+import gevent
+
+
+import configobj
 from pymongo import MongoClient, ReadPreference
 from bson.objectid import ObjectId
 from bson.timestamp import Timestamp
 import gridfs
-import gevent
-from geventhttpclient import HTTPClient, URL
-import gzip
-import shapely
-import shapely.geometry
-import shapely.wkt
-import pyproj
-import geojson
-from pinyin import PinYin
-from collections import OrderedDict
-from pyquery import PyQuery as pq
-from optparse import OptionParser
+from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc1
+
+
+
+try:
+    from lxml import etree
+except ImportError:
+    print('lxml import error')
+
+try:
+    import catenary
+except ImportError:
+    print('catenary import error')
+
+try:
+    import pypyodbc
+except ImportError:
+    print('pypyodbc import error')
+
+try:
+    import shapefile
+except ImportError:
+    print('shapefile import error')
+try:
+    from PIL import Image
+except ImportError:
+    print('PIL import error')
+try:
+    from geventhttpclient import HTTPClient, URL
+except ImportError:
+    print('geventhttpclient import error')
+
+try:
+    import shapely
+    import shapely.geometry
+    import shapely.wkt
+except ImportError:
+    print('shapely import error')
+try:
+    import pyproj
+except ImportError:
+    print('pyproj import error')
+try:
+    import geojson
+except ImportError:
+    print('geojson import error')
+try:
+    from pinyin import PinYin
+except ImportError:
+    print('pinyin import error')
+try:
+    from pyquery import PyQuery as pq
+except ImportError:
+    print('pyquery import error')
+try:
+    import xlrd
+    import xlwt
+except ImportError:
+    print('xlrd xlwt import error')
+try:
+    import psycopg2 as psycopg
+    from psycopg2 import errorcodes
+except ImportError:
+    print('psycopg2 import error')
 
 CONFIGFILE = None
 gConfig = None
@@ -7093,7 +7141,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
             if action.lower() == 'login':
                 if collection_name in db.collection_names(): 
                     if conditions.has_key('username') and conditions.has_key('password'):
-                        ret = mongo_find(dbname, collection_name, conditions)
+                        ret = mongo_find(dbname, collection_name, conditions, )
                     else:
                         ret = []
                 else:
@@ -7112,18 +7160,18 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                         elif isinstance(conditions['_id'], str) or isinstance(conditions['_id'], unicode):
                             def check_network_has_node(network_id):
                                 result = False
-                                network = mongo_find_one(dbname, 'network', {'_id':network_id})
+                                network = mongo_find_one(dbname, 'network', {'_id':network_id}, )
                                 if network:
                                     if len(network['properties']['nodes']) > 0:
                                         result = True
                                 return result
                             
                             remove_check = ''
-                            one = mongo_find_one(dbname, collection_name, {'_id':str(conditions['_id'])})
+                            one = mongo_find_one(dbname, collection_name, {'_id':str(conditions['_id'])}, )
                             if collection_name == 'features':
                                 if one and one.has_key('properties') and one['properties'].has_key('webgis_type') and one['properties']['webgis_type'] in ['point_dn','point_tower']:
                                     def check_has_edge(node_id):
-                                        edgelist = mongo_find(dbname, 'edges', conditions = {'$or':[{'properties.start':node_id}, {'properties.end':node_id}]})
+                                        edgelist = mongo_find(dbname, 'edges', {'$or':[{'properties.start':node_id}, {'properties.end':node_id}]}, )
                                         if len(edgelist)>0:
                                             return True
                                         else:
@@ -7133,28 +7181,28 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             if check_network_has_node(str(conditions['_id'])):
                                 remove_check = u'nodes_exist'
                             if len(remove_check) == 0:
-                                wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])})
+                                wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])}, )
                                     
                                 if one and one.has_key('properties') and one['properties'].has_key('webgis_type') :
                                     def delete_node_from_network(node_id, collectionname):
-                                        networklist = mongo_find(dbname, collectionname)
+                                        networklist = mongo_find(dbname, collectionname, {}, )
                                         for network in networklist:
                                             if node_id in network['properties']['nodes']:
                                                 network['properties']['nodes'].remove(node_id)
-                                                mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, conditions={'_id':network['_id']})
+                                                mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, {'_id':network['_id']}, )
                                     def delete_segment_by_tower(node_id):
-                                        seglist = mongo_find(dbname, 'segments', conditions = {'$or':[{'start_tower':node_id}, {'end_tower':node_id}]})
+                                        seglist = mongo_find(dbname, 'segments', {'$or':[{'start_tower':node_id}, {'end_tower':node_id}]}, )
                                         ids = []
                                         for seg in seglist:
                                             ids.append(seg['_id'])
-                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids})
+                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids}, )
                                         return wr1
                                     def delete_segment_by_edge(node_id0, node_id1):
-                                        seglist = mongo_find(dbname, 'segments', conditions = {'$or':[{'start_tower':node_id0, 'end_tower':node_id1}, {'start_tower':node_id1, 'end_tower':node_id0}]})
+                                        seglist = mongo_find(dbname, 'segments', {'$or':[{'start_tower':node_id0, 'end_tower':node_id1}, {'start_tower':node_id1, 'end_tower':node_id0}]}, )
                                         ids = []
                                         for seg in seglist:
                                             ids.append(seg['_id'])
-                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids})
+                                        wr1 = mongo_remove(dbname, 'segments', {'_id':ids}, )
                                         return wr1
                                         
                                     if one['properties']['webgis_type'] == 'point_tower':
@@ -7182,7 +7230,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret = []
                     conditions = add_mongo_id(conditions)
                     result = db[collection_name].update(conditions, {'$set': add_mongo_id(data)}, multi=True, upsert=False)
-                    ret = mongo_find(dbname, collection_name, conditions=conditions)
+                    ret = mongo_find(dbname, collection_name, conditions, )
                     #print(ret)
             elif action.lower() == 'save':
                 if data is None:
@@ -7220,7 +7268,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                     line_names = data['properties']['line_names']
                                     del data['properties']['line_names']
                                 if data['properties'].has_key('model'):
-                                    models = mongo_find(dbname, 'models')
+                                    models = mongo_find(dbname, 'models', )
                                     findmodel = False
                                     for model in models:
                                         if model['model_code'] == data['properties']['model']['model_code'] and model['model_code_height'] == data['properties']['model']['model_code_height']:
@@ -7231,17 +7279,17 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                         modeldata['model_code'] = data['properties']['model']['model_code']
                                         modeldata['model_code_height'] = data['properties']['model']['model_code_height']
                                         modeldata['contact_points'] = []
-                                        mongo_action(dbname, 'models',action='save', data=modeldata)
+                                        mongo_action(dbname, 'models','save', modeldata, )
                             _id = db[collection_name].save(data)
                             #print(_id)
                             if _id is not None and line_names is not None:
                                 if isinstance(line_names, ObjectId):
                                     line_names = [line_names, ]
-                                mongo_update_line_towers(dbname, _id, line_names)
+                                mongo_update_line_towers(dbname, _id, line_names, )
                             if _id:
                                 ids.append(str(_id))
                     if len(ids) > 0:
-                        ret = mongo_find(dbname, collection_name, conditions={'_id':ids})
+                        ret = mongo_find(dbname, collection_name, {'_id':ids}, )
                 else:
                     s = 'collection [%s] does not exist.' % collection_name
                     raise Exception(s)
@@ -7265,7 +7313,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 for i in arr:
                     if len(tyarr)>0:
                         #ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
-                        ret.extend(mongo_find(dbname, i, {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit=limit))
+                        ret.extend(mongo_find(dbname, i, {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit, ))
                 for i in gFeatureslist:
                     if i in tyarr: 
                         tyarr.remove(i)   
@@ -7339,7 +7387,35 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                         for edge in edges:
                             if edge['properties']['start'] in towers or edge['properties']['end'] in towers:
                                 ret.append(edge)
-                            
+            elif action.lower() == 'markdown_name_list':
+                ret = []
+                cond = {}
+                if conditions.has_key('name'):
+                    cond = {'name':{'$regex':'^.*' + conditions['name'] + '.*$'}}
+                doclist = mongo_find(dbname, collection_name, cond, 0, 'markdown')
+                for i in doclist:
+                    del i['content']
+                    ret.append(i)
+            elif action.lower() == 'markdown_document_content':
+                ret = []
+                #if conditions.has_key('name'):
+                doc = mongo_find_one(dbname, collection_name, conditions, 'markdown')
+                if doc:
+                    ret.append(doc)
+            elif action.lower() == 'markdown_document_save':
+                ret = []
+                if data is None:
+                    raise Exception('data is none, nothing to save')
+                if collection_name in db.collection_names(): 
+                    data = add_mongo_id(data)
+                    if isinstance(data, dict):
+                        _id = db[collection_name].save(data)
+                        ret.append({'_id':str(_id)})
+            elif action.lower() == 'markdown_document_remove':
+                ret = []
+                if conditions.has_key('_id'):
+                    wr = mongo_remove(dbname, collection_name, {'_id':str(conditions['_id'])}, 'markdown')
+                    ret.append(remove_mongo_id(wr))
             #else:
                 #s = 'collection [%s] does not exist.' % collection_name
                 #raise Exception(s)
@@ -7385,8 +7461,8 @@ def get_heatmap_tile_service_list(name):
     
     
 
-def mongo_update_line_towers(dbname, id, line_names=[]):
-    lines = mongo_find(dbname, 'network', conditions={'properties.webgis_type':'polyline_line'})
+def mongo_update_line_towers(dbname, id, line_names=[], ):
+    lines = mongo_find(dbname, 'network', {'properties.webgis_type':'polyline_line'},)
     line_names_list = [str(i) for i in line_names]
     l = []
     for i in lines:
@@ -7402,7 +7478,7 @@ def mongo_update_line_towers(dbname, id, line_names=[]):
             i['properties']['nodes'].remove(str(id))
             modified = True
         if modified:
-            mongo_action(dbname, 'network',action='save', data=i)
+            mongo_action(dbname, 'network','save', i, )
     
     
 def check_edge_exist(db_name, collection_name, data):
@@ -8629,51 +8705,70 @@ def test_delete_import_xlsdata(line_id):
         print(sys.exc_info()[1])
 
  
-def gridfs_save(qsdict, filename, data, clienttype='default'):
+def gridfs_save(qsdict, filename, data):
     global gClientMongo, gConfig
     
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
     dbname = qsdict['db'][0]
     
+    clienttype = 'default'
+    if qsdict.has_key('clienttype'):
+        clienttype = str(qsdict['clienttype'][0])
+    collection = 'fs'
     if qsdict.has_key('collection'):
-        collection = qsdict['collection'][0]
-    else:
-        collection = 'fs'
-        
-    if not qsdict.has_key('bindcollection'):
-        raise Exception('bindcollection not specified in parameter')
-    bindcollection = qsdict['bindcollection'][0]
-    
-    
-    if not qsdict.has_key('key'):
-        raise Exception('key not specified in parameter')
-    key = qsdict['key'][0]
-    
-    if not qsdict.has_key('category'):
-        raise Exception('category not specified in parameter')
-    category = qsdict['category'][0]
-    
-    
+        collection = str(qsdict['collection'][0])
+
     if not qsdict.has_key('mimetype'):
         raise Exception('mimetype not specified in parameter')
     mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
+
+     
+    if qsdict.has_key('_id'):
+        _id = qsdict['_id'][0]
+        try:
+            _id = ObjectId(_id)
+        except:
+            _id = ObjectId()
+        try:
+            mongo_init_client(clienttype)
+            db = gClientMongo[clienttype][dbname]
+            fs = gridfs.GridFS(db, collection=collection)
+            fs.put(data, _id=_id, mimetype=mimetype, filename=filename, )
+        except:
+            traceback.print_exc()
+            raise
+    else:
+        if not qsdict.has_key('bindcollection'):
+            raise Exception('bindcollection not specified in parameter')
+        bindcollection = qsdict['bindcollection'][0]
+        
+        
+        if not qsdict.has_key('key'):
+            raise Exception('key not specified in parameter')
+        key = qsdict['key'][0]
     
-    description = u''
-    if qsdict.has_key('description'):
-        description = dec(urllib.unquote_plus(qsdict['description'][0]))
-    
-    
-    #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
-    #size = int(qsdict['size'][0])
-    try:
-        mongo_init_client(clienttype)
-        db = gClientMongo[clienttype][dbname]
-        fs = gridfs.GridFS(db, collection=collection)
-        fs.put(data, bindcollection=bindcollection, key=ObjectId(key), mimetype=mimetype, filename=filename, category=category, description=description)
-    except:
-        traceback.print_exc()
-        raise
+        if not qsdict.has_key('category'):
+            raise Exception('category not specified in parameter')
+        category = qsdict['category'][0]
+        
+        
+        
+        description = u''
+        if qsdict.has_key('description'):
+            description = dec(urllib.unquote_plus(qsdict['description'][0]))
+        
+        
+        #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
+        #size = int(qsdict['size'][0])
+        try:
+            mongo_init_client(clienttype)
+            db = gClientMongo[clienttype][dbname]
+            fs = gridfs.GridFS(db, collection=collection)
+            fs.put(data, bindcollection=bindcollection, key=ObjectId(key), mimetype=mimetype, filename=filename, category=category, description=description)
+        except:
+            traceback.print_exc()
+            raise
         
 def gridfs_delete(qsdict, clienttype='default'):
     global gClientMongo, gConfig
@@ -8728,10 +8823,10 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
     global gClientMongo, gClientMongoTiles, gConfig
     try:
         if clienttype == 'default':
-            if gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+            if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
                 gClientMongo[clienttype].close()
                 gClientMongo[clienttype] = None
-            if gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
                 if host is None:
                     host = gConfig['mongodb']['host']
                 if port is None:
@@ -8743,16 +8838,46 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'geofeature':
-            if gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+            if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
                 gClientMongo[clienttype].close()
                 gClientMongo[clienttype] = None
-            if gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
                 if host is None:
                     host = gConfig['geofeature']['mongodb']['host']
                 if port is None:
                     port = int(gConfig['geofeature']['mongodb']['port'])
                 if replicaset is None:
                     replicaset = gConfig['geofeature']['mongodb']['replicaset']
+                if len(replicaset) == 0:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'markdown':
+            if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+                gClientMongo[clienttype].close()
+                gClientMongo[clienttype] = None
+            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+                if host is None:
+                    host = gConfig['markdown']['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['markdown']['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['markdown']['mongodb']['replicaset']
+                if len(replicaset) == 0:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'authorize_platform':
+            if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+                gClientMongo[clienttype].close()
+                gClientMongo[clienttype] = None
+            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+                if host is None:
+                    host = gConfig['authorize_platform']['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['authorize_platform']['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['authorize_platform']['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
@@ -8841,17 +8966,16 @@ def gridfs_find(qsdict, clienttype='default'):
         raise
     
     _id, bindcollection, key, category = None, None, None, None
+    skip, limit = 0, 0
     if qsdict.has_key('_id'):
         _id = qsdict['_id'][0]
-    else:
-        if not qsdict.has_key('bindcollection'):
-            raise Exception('bindcollection not specified in parameter')
+    if qsdict.has_key('skip') and qsdict.has_key('limit'):
+        skip = int(qsdict['skip'][0])
+        limit = int(qsdict['limit'][0])
+        
+    if qsdict.has_key('bindcollection') and qsdict.has_key('key'):
         bindcollection = qsdict['bindcollection'][0]
-        
-        if not qsdict.has_key('key'):
-            raise Exception('key not specified in parameter')
         key = qsdict['key'][0]
-        
         #if not qsdict.has_key('category'):
             #raise Exception('category not specified in parameter')
         #category = qsdict['category'][0]
@@ -8863,7 +8987,7 @@ def gridfs_find(qsdict, clienttype='default'):
         mongo_init_client(clienttype)
         db = gClientMongo[clienttype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
-        if _id:
+        if qsdict.has_key('_id'):
             if fs.exists({'_id': ObjectId(_id)}):
                 for i in fs.find({'_id':ObjectId(_id)}):
                     mimetype = str(i.mimetype)
@@ -8878,14 +9002,24 @@ def gridfs_find(qsdict, clienttype='default'):
                         return mimetype, ret, i.filename
                     break
             return mimetype, ret
-        else:
+        #elif qsdict.has_key('skip') and qsdict.has_key('limit'):
+            #pass
+        if qsdict.has_key('bindcollection') and qsdict.has_key('key'):
             ret = []
             if fs.exists({'bindcollection':bindcollection, 'key':ObjectId(key), }):
-                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), }):
+                for i in fs.find({'bindcollection':bindcollection, 'key':ObjectId(key), }, skip=skip, limit=limit):
                     size = (width , height)
                     t = thumbnail(i, size, True)
                     ret.append({'_id':str(i._id), 'filename':i.filename, 'description':i.description, 'mimetype':str(i.mimetype), 'data':t})
             return ret
+        else:
+            ret = []
+            for i in fs.find(skip=skip, limit=limit):
+                size = (width , height)
+                t = thumbnail(i, size, True)
+                ret.append({'_id':str(i._id), 'filename':i.filename, 'mimetype':str(i.mimetype), 'data':t})
+            return ret
+            
     except:
         traceback.print_exc()
         raise
