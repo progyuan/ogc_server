@@ -36,7 +36,7 @@ from module_locator import module_path, ENCODING, ENCODING1, dec, dec1, enc, enc
 try:
     import numpy as np
 except:
-    print('lxml numpy error')
+    print('numpy import error')
 try:
     from lxml import etree
 except:

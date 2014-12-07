@@ -2442,19 +2442,26 @@ def handle_proxy_cgi(environ):
 
 def get_host_ip():
     ret = []
-    ret.append('127.0.0.1')
-    localIP = socket.gethostbyname(socket.gethostname())
-    #print ("local ip:%s " % localIP)
-    ipList = socket.gethostbyname_ex(socket.gethostname())
-    for i in ipList:
-        if i != localIP:
-            #if isinstance(i, str):
-                #print(re.findall('\d+\.\d+\.\d+\.\d+',i))
-            if isinstance(i, list):
-                for ii in i:
-                    if len(re.findall('\d+\.\d+\.\d+\.\d+',ii))>0:
-                        ret.append(ii)
-            #print("external IP:%s" % i )
+    if sys.platform == 'win32':
+        ret.append('127.0.0.1')
+        localIP = socket.gethostbyname(socket.gethostname())
+        #print ("local ip:%s " % localIP)
+        ipList = socket.gethostbyname_ex(socket.gethostname())
+        for i in ipList:
+            if i != localIP:
+                #if isinstance(i, str):
+                    #print(re.findall('\d+\.\d+\.\d+\.\d+',i))
+                if isinstance(i, list):
+                    for ii in i:
+                        if len(re.findall('\d+\.\d+\.\d+\.\d+',ii))>0:
+                            ret.append(ii)
+                #print("external IP:%s" % i )
+    elif 'linux' in sys.platform:
+        import commands
+        ips = commands.getoutput("/sbin/ifconfig | grep -i \"inet\" | grep -iv \"inet6\" |  awk {'print $2'} | sed -ne 's/addr\:/ /p'")
+        arr = ips.split('\n')
+        for i in arr:
+            ret.append(i.strip())
     return ret
            
         
