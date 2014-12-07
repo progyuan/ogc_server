@@ -37,7 +37,7 @@ import shutil
 import re
 #from PIL import Image
 import StringIO
-import cgi, multipart
+import cgi
 import configobj
 #from gmapcatcher import mapUtils
 from lxml import etree
@@ -1754,9 +1754,6 @@ def handle_post_method(environ):
     except:
         if len(querydict.keys())>0:
             try:
-                #forms, files = multipart.parse_form_data(environ)
-                #with open(ur'd:\aaa.png','wb') as f:
-                    #f.write(buf)
                 is_upload = handle_upload_file(environ, querydict, buf)
                 ret['result'] = ''
             except:
