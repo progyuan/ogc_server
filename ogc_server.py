@@ -1814,23 +1814,24 @@ def handle_post_method(environ):
     return '200 OK', headers, json.dumps(ret, ensure_ascii=True, indent=4)
 
 
-
-
-def handle_login_authorize_platform(environ):
-    global ENCODING
-    global gRequest
-    buf = environ['wsgi.input'].read()
+def register_authorize_platform(username, password):
     ret = None
     try:
-        ds_plus = urllib.unquote_plus(buf)
-        obj = json.loads(dec(ds_plus))
-        if obj.has_key(u'username') and obj.has_key(u'password'):
-            ret = db_util.mongo_find_one(
-                gConfig['authorize_platform']['mongodb']['database'],
-                gConfig['authorize_platform']['mongodb']['collection_user_account'],
-                {'username':obj['username']},
-                'authorize_platform'
-            )
+        db_util.mongo_init_client('authorize_platform')
+        db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+        collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+        ret = collection.save({'username':username, 'password':password})
+    except:
+        raise
+    return ret
+    
+
+def login_authorize_platform(username, password, session):
+    global gRequest, gSessionStore
+    ret = None
+    try:
+        if gSessionStore and session:
+            ret = gSessionStore.get_data_by_username_password(session.sid, username, password)
     except:
         raise
     return ret
@@ -2016,7 +2017,7 @@ def auth_check(session, username, isnew):
     statuscode = '200 OK'
     body = ''
     if session :
-        if username.strip()>0:
+        if len(username.strip())>0:
             if isnew is True:
                 session['username'] = username.strip()
                 gSessionStore.save(session)
@@ -2039,43 +2040,6 @@ def auth_check(session, username, isnew):
     
     
     
-def auth_check_get_post(environ, session):
-    global ENCODING
-    global gRequest, gSessionStore
-    headers = {}
-    headers['Content-Type'] = 'text/json;charset=' + ENCODING
-    statuscode = '200 OK'
-    body = ''
-    username = None
-    isnew = False
-    querydict = {}
-    if environ.has_key('QUERY_STRING'):
-        querydict = urlparse.parse_qs(environ['QUERY_STRING'])
-        if querydict.has_key('username'):
-            username = querydict['username']
-            if isinstance(username, list):
-                username = username[0]
-        if querydict.has_key('isnew'):
-            isnew = querydict['isnew']
-            if isinstance(isnew, list):
-                isnew = isnew[0]
-            isnew = isnew.lower()
-            if isnew == 'true':
-                isnew = True
-    else:
-        try:
-            buf = environ['wsgi.input'].read()
-            ds_plus = urllib.unquote_plus(buf)
-            obj = json.loads(dec(ds_plus))
-            if obj.has_key('username'):
-                username = obj['username']
-            if obj.has_key('isnew') and obj['isnew'] is True:
-                isnew = True
-        except:
-            body = json.dumps({'result':u'auth_fail_wrong_param_format'}, ensure_ascii=True, indent=4)
-    statuscode, headers, body = auth_check(session, username, isnew)
-                
-    return statuscode, headers, body    
 
 
 class BooleanConverter(BaseConverter):
@@ -2090,14 +2054,45 @@ class BooleanConverter(BaseConverter):
         return value and 'true' or 'false'
 
     
-def auth_check_restful(environ, session):
+def handle_authorize_platform(environ, session):
     global ENCODING
-    global gRequest, gSessionStore, gUrlMapAuth
+    global gConfig, gRequest, gSessionStore, gUrlMapAuth, gSecurityConfig
+    
+    def get_username_password_by_GET_POST(environ):
+        username = None
+        password = None
+        querydict = {}
+        if environ.has_key('QUERY_STRING'):
+            querydict = urlparse.parse_qs(environ['QUERY_STRING'])
+            if querydict.has_key('username'):
+                username = querydict['username']
+                if isinstance(username, list):
+                    username = username[0]
+            if querydict.has_key('password'):
+                password = querydict['password']
+                if isinstance(password, list):
+                    password = password[0]
+                
+        else:
+            try:
+                buf = environ['wsgi.input'].read()
+                ds_plus = urllib.unquote_plus(buf)
+                obj = json.loads(dec(ds_plus))
+                if obj.has_key('username'):
+                    username = obj['username']
+                if obj.has_key('password') :
+                    password = obj['password']
+            except:
+                pass
+        return username, password    
+    
+    
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
     body = ''
     username = None
+    password = None
     isnew = False
     urls = gUrlMapAuth.bind_to_environ(environ)
     try:
@@ -2106,38 +2101,67 @@ def auth_check_restful(environ, session):
         #print(endpoint)
         #print(args)
         #body = endpoint
-        if endpoint == 'saveuser':
-            if args.has_key('username'):
-                username = args['username']
-            if args.has_key('isnew') and args['isnew'] is True:
-                isnew = True
-            statuscode, headers, body = auth_check(session, username, isnew)
-        elif endpoint == 'checkuser':
-            if args.has_key('username'):
-                username = args['username']
-            statuscode, headers, body = auth_check(session, username, isnew)
-        elif endpoint == 'login':
-            obj = handle_login_authorize_platform(environ)
-            if obj:
-                body = json.dumps({'result':u'login_ok'}, ensure_ascii=True, indent=4)
+        if args.has_key('username'):
+            username = args['username']
+        if args.has_key('password'):
+            password = args['password']
+        if username is None and password is None:
+            username, password = get_username_password_by_GET_POST(environ)
+        
+        if endpoint == 'auth_check':
+            if username:
+                statuscode, headers, body = auth_check(session, username, False)
             else:
-                body = json.dumps({'result':u'login_fail_wrong_user_or_password'}, ensure_ascii=True, indent=4)
+                body = json.dumps({'result':u'checkuser_fail_username_required'}, ensure_ascii=True, indent=4)
+        elif endpoint == 'get_salt':
+            if len(gSecurityConfig.keys())>0:
+                body = json.dumps({'result':'get_salt_ok','salt':gSecurityConfig['password_salt']}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':'get_salt_fail'}, ensure_ascii=True, indent=4)
+        elif endpoint == 'register':
+            if username is not None and password is not None:
+                _id = register_authorize_platform(username, password)
+                if _id:
+                    body = json.dumps({'result':u'register_ok'}, ensure_ascii=True, indent=4)
+                    if gConfig['authorize_platform']['register']['login_when_register_success'].lower() == 'true':
+                        session['username'] = username.strip()
+                else:
+                    body = json.dumps({'result':u'register_fail'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':u'register_fail_username_password_required'}, ensure_ascii=True, indent=4)
+            
+        elif endpoint == 'login':
+            if username is not None and password is not None:
+                obj = login_authorize_platform(username, password, session)
+                if obj:
+                    body = json.dumps({'result':u'login_ok'}, ensure_ascii=True, indent=4)
+                    session['username'] = username.strip()
+                else:
+                    body = json.dumps({'result':u'login_fail_wrong_user_or_password'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':u'login_fail_username_password_required'}, ensure_ascii=True, indent=4)
         elif endpoint == 'logout':
-            if session:
+            if gSessionStore and session:
                 gSessionStore.delete(session)
+                session = None
             body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     except HTTPException, e:
-        body = json.dumps({'result':u'auth_fail_access_deny'}, ensure_ascii=True, indent=4)
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    if session:
+        gSessionStore.save(session)
+        
     return statuscode, headers, body
 
 
 gUrlMapAuth = Map([
     Rule('/', endpoint='firstaccess'),
-    Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
-    Rule('/auth_check/<username>', endpoint='checkuser'),
-    Rule('/login', endpoint='login'),
+    #Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
+    Rule('/get_salt', endpoint='get_salt'),
+    Rule('/auth_check/<username>', endpoint='auth_check'),
+    Rule('/register/<username>/<password>', endpoint='register'),
+    Rule('/login/<username>/<password>', endpoint='login'),
     Rule('/logout', endpoint='logout'),
 ], converters={'bool': BooleanConverter})
 
@@ -2174,38 +2198,11 @@ def application_authorize_platform(environ, start_response):
                 headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                 statuscode = '200 OK'
                 body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
+                if sess:
+                    gSessionStore.save_if_modified(sess)
             else:
-                statuscode, headers, body = auth_check_restful(environ, sess)
+                statuscode, headers, body = handle_authorize_platform(environ, sess)
                 
-            #elif path_info == '/auth_check':
-                #statuscode, headers, body = auth_check(environ, sess)
-            #elif path_info == '/logout':
-                #if sess:
-                    #gSessionStore.delete(sess)
-                #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                #statuscode = '200 OK'
-                #body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
-            #elif path_info == '/login':
-                #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                #statuscode = '200 OK'
-                #if sess:
-                    #obj = handle_login_authorize_platform(environ)
-                    #if obj:
-                        #sess['username'] = obj['username']
-                        #body = json.dumps({'result':u'login_ok'}, ensure_ascii=True, indent=4)
-                    #else:
-                        #body = json.dumps({'result':u'login_fail_wrong_user_or_password'}, ensure_ascii=True, indent=4)
-                    
-                #else:
-                    #body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
-                    
-        
-            #elif path_info == '/get':
-                #statuscode, headers, body = handle_get_method(environ)
-            #elif path_info == '/post':
-                #statuscode, headers, body = handle_post_method(environ)
-            if sess:
-                gSessionStore.save(sess)
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
@@ -2633,7 +2630,7 @@ def delete_expired_session(interval):
     while 1:
         gevent.sleep(interval)
         if gSessionStore:
-            print('session recycle checking')
+            #print('session recycle checking')
             gSessionStore.delete_expired_list()
     
     
