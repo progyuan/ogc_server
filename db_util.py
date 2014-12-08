@@ -9802,6 +9802,16 @@ def test_import_sysrole(db_name):
               })
     mongo_action(db_name, 'sysrole', 'save', l)
     
+def test_auth():
+    global gClientMongo
+    mongo_init_client('authorize_platform')
+    db = gClientMongo['authorize_platform']['authorize']
+    collection = db['user_account']
+    wr = collection.update({'username':'bbbb'}, {'$set':{'password':'222222'}},  multi=True, upsert=False)
+    print(wr)
+    
+    
+    
     
 if __name__=="__main__":
     opts = init_global()
@@ -9885,6 +9895,7 @@ if __name__=="__main__":
     #print(get_heatmap_tile_service_list('yn'))
     #test_import_userinfo()
     #test_import_sysrole('ztgd')
+    #test_auth()
     
     
     

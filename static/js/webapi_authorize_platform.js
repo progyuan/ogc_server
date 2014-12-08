@@ -59,7 +59,32 @@ $.auth_platform.register = function(username, password, callback)
 };
 
 
+$.auth_platform.unregister = function(username, callback)
+{
+    var url = $.auth_platform.AUTH_PROTOCOL + '://' + $.auth_platform.AUTH_HOST + ':' + $.auth_platform.AUTH_PORT + '/unregister';
+    var data = {username:username};
+    $.post( url, data, function(data1) {
+        var ret = JSON.parse(decodeURIComponent(data1));
+        if(callback)
+        {
+            callback(ret);
+        }
+    }, 'text');
+};
 
+
+$.auth_platform.reset_password = function(username, password, callback)
+{
+    var url = $.auth_platform.AUTH_PROTOCOL + '://' + $.auth_platform.AUTH_HOST + ':' + $.auth_platform.AUTH_PORT + '/reset_password';
+    var data = {username:username, password:password};
+    $.post( url, data, function(data1) {
+        var ret = JSON.parse(decodeURIComponent(data1));
+        if(callback)
+        {
+            callback(ret);
+        }
+    }, 'text');
+};
 
 
 

@@ -1820,9 +1820,33 @@ def register_authorize_platform(username, password):
         db_util.mongo_init_client('authorize_platform')
         db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
         collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+        existone = collection.find_one({'username':username})
+        if existone:
+            raise Exception('username_exist')
         ret = collection.save({'username':username, 'password':password})
     except:
         raise
+    return ret
+def unregister_authorize_platform(username):
+    ret = None
+    try:
+        db_util.mongo_init_client('authorize_platform')
+        db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+        collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+        existone = collection.find_one({'username':username})
+        if existone is None:
+            raise Exception('username_not_exist')
+        ret = collection.remove({'_id':existone['_id']})
+    except:
+        raise
+    return ret
+
+def reset_password_authorize_platform(username, password):
+    ret = None
+    db_util.mongo_init_client('authorize_platform')
+    db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+    collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+    ret = collection.update({'username':username}, {'$set':{'password':password}},  multi=True, upsert=False)
     return ret
     
 
@@ -1831,7 +1855,10 @@ def login_authorize_platform(username, password, session):
     ret = None
     try:
         if gSessionStore and session:
-            ret = gSessionStore.get_data_by_username_password(session.sid, username, password)
+            db_util.mongo_init_client('authorize_platform')
+            db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+            collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+            ret = collection.find_one({'username':username, 'password':password})
     except:
         raise
     return ret
@@ -2017,24 +2044,24 @@ def auth_check(session, username, isnew):
     statuscode = '200 OK'
     body = ''
     if session :
-        if len(username.strip())>0:
+        if username and len(username.strip())>0:
             if isnew is True:
                 session['username'] = username.strip()
                 gSessionStore.save(session)
-                body = json.dumps({'result':u'auth_ok_session_saved'}, ensure_ascii=True, indent=4)
+                body = json.dumps({'result':u'auth_check_ok_session_saved'}, ensure_ascii=True, indent=4)
             else:
                 if session.sid:
                     user = gSessionStore.get_data_by_username(session.sid, username.strip())
                     if user:
-                        body = json.dumps({'result':u'auth_ok_user_exist'}, ensure_ascii=True, indent=4)
+                        body = json.dumps({'result':u'auth_check_ok_user_exist'}, ensure_ascii=True, indent=4)
                     else:
-                        body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+                        body = json.dumps({'result':u'auth_check_fail_session_expired'}, ensure_ascii=True, indent=4)
                 else:
-                    body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+                    body = json.dumps({'result':u'auth_check_fail_session_expired'}, ensure_ascii=True, indent=4)
         else:
-            body = json.dumps({'result':u'auth_fail_username_require'}, ensure_ascii=True, indent=4)
+            body = json.dumps({'result':u'auth_check_fail_username_require'}, ensure_ascii=True, indent=4)
     else:
-        body = json.dumps({'result':u'auth_fail_session_expired'}, ensure_ascii=True, indent=4)
+        body = json.dumps({'result':u'auth_check_fail_session_expired'}, ensure_ascii=True, indent=4)
     return statuscode, headers, body    
     
     
@@ -2109,10 +2136,10 @@ def handle_authorize_platform(environ, session):
             username, password = get_username_password_by_GET_POST(environ)
         
         if endpoint == 'auth_check':
-            if username:
+            if username is not None:
                 statuscode, headers, body = auth_check(session, username, False)
             else:
-                body = json.dumps({'result':u'checkuser_fail_username_required'}, ensure_ascii=True, indent=4)
+                body = json.dumps({'result':u'auth_check_fail_username_required'}, ensure_ascii=True, indent=4)
         elif endpoint == 'get_salt':
             if len(gSecurityConfig.keys())>0:
                 body = json.dumps({'result':'get_salt_ok','salt':gSecurityConfig['password_salt']}, ensure_ascii=True, indent=4)
@@ -2120,16 +2147,52 @@ def handle_authorize_platform(environ, session):
                 body = json.dumps({'result':'get_salt_fail'}, ensure_ascii=True, indent=4)
         elif endpoint == 'register':
             if username is not None and password is not None:
-                _id = register_authorize_platform(username, password)
+                _id = None
+                try:
+                    _id = register_authorize_platform(username, password)
+                except:
+                    if hasattr(sys.exc_info()[1], 'message') and sys.exc_info()[1].message == 'username_exist':
+                        body = json.dumps({'result':u'register_fail_username_exist'}, ensure_ascii=True, indent=4)
+                    _id = None    
                 if _id:
                     body = json.dumps({'result':u'register_ok'}, ensure_ascii=True, indent=4)
                     if gConfig['authorize_platform']['register']['login_when_register_success'].lower() == 'true':
                         session['username'] = username.strip()
                 else:
-                    body = json.dumps({'result':u'register_fail'}, ensure_ascii=True, indent=4)
+                    if len(body)==0:
+                        body = json.dumps({'result':u'register_fail'}, ensure_ascii=True, indent=4)
             else:
                 body = json.dumps({'result':u'register_fail_username_password_required'}, ensure_ascii=True, indent=4)
+        elif endpoint == 'unregister':
+            if username is not None:
+                wr = None
+                try:
+                    wr = unregister_authorize_platform(username, password)
+                except:
+                    if hasattr(sys.exc_info()[1], 'message') and sys.exc_info()[1].message == 'username_not_exist':
+                        body = json.dumps({'result':u'unregister_fail_username_not_exist'}, ensure_ascii=True, indent=4)
+                    
+                if wr and wr['n']>0:
+                    body = json.dumps({'result':u'unregister_ok'}, ensure_ascii=True, indent=4)
+                else:
+                    if len(body)==0:
+                        body = json.dumps({'result':u'unregister_fail'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':u'unregister_fail_username_required'}, ensure_ascii=True, indent=4)
             
+        elif endpoint == 'reset_password':
+            if username is not None and password is not None:
+                wr = reset_password_authorize_platform(username, password)
+                if wr :
+                    if wr['n']>0:
+                        body = json.dumps({'result':u'reset_password_ok'}, ensure_ascii=True, indent=4)
+                    else:
+                        body = json.dumps({'result':u'reset_password_fail_username_not_exist'}, ensure_ascii=True, indent=4)
+                else:
+                    if len(body)==0:
+                        body = json.dumps({'result':u'reset_password_fail'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':u'reset_password_fail_username_password_required'}, ensure_ascii=True, indent=4)
         elif endpoint == 'login':
             if username is not None and password is not None:
                 obj = login_authorize_platform(username, password, session)
@@ -2160,15 +2223,48 @@ gUrlMapAuth = Map([
     #Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
     Rule('/get_salt', endpoint='get_salt'),
     Rule('/auth_check/<username>', endpoint='auth_check'),
+    Rule('/auth_check', endpoint='auth_check'),
     Rule('/register/<username>/<password>', endpoint='register'),
+    Rule('/register/<username>', endpoint='register'),
+    Rule('/register', endpoint='register'),
+    Rule('/unregister/<username>', endpoint='unregister'),
+    Rule('/unregister', endpoint='unregister'),
     Rule('/login/<username>/<password>', endpoint='login'),
+    Rule('/login/<username>', endpoint='login'),
+    Rule('/login', endpoint='login'),
     Rule('/logout', endpoint='logout'),
+    Rule('/reset_password/<username>/<password>', endpoint='reset_password'),
+    Rule('/reset_password/<username>', endpoint='reset_password'),
+    Rule('/reset_password', endpoint='reset_password'),
 ], converters={'bool': BooleanConverter})
 
 
 
 def application_authorize_platform(environ, start_response):
+    global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
+    
+    def check_is_static(aUrl):
+        ret = False
+        surl = dec(aUrl)
+        if surl[0:2] == '//':
+            surl = surl[2:]
+        if surl[0] == '/':
+            surl = surl[1:]
+        p = os.path.join(STATICRESOURCE_DIR , surl)
+        isBin = False
+        ext = os.path.splitext(p)[1]
+        if '.' in surl:
+            ext = surl[surl.rindex('.'):]
+        else:
+            ext = os.path.splitext(p)[1]
+        if len(ext)>0 and  gConfig['mime_type'].has_key(ext):
+            ret = True
+        return ret
+        
+    
+    
+    
     headers = {}
     headers['Access-Control-Allow-Origin'] = '*'
     headerslist = []
@@ -2187,9 +2283,13 @@ def application_authorize_platform(environ, start_response):
                                             )
     is_expire = False
     
-    if path_info not in gConfig['authorize_platform']['session']['session_control']:
-        if path_info[-1:] == '/':
-            path_info += gConfig['web']['indexpage']
+    headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+    statuscode = '200 OK'
+    if path_info[-1:] == '/':
+        #path_info += gConfig['web']['indexpage']
+        #statuscode, headers, body =  handle_static(environ, path_info)
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    elif check_is_static(path_info):
         statuscode, headers, body =  handle_static(environ, path_info)
     else:    
         with session_manager(environ):
