@@ -8932,7 +8932,7 @@ def gridfs_find(qsdict, clienttype='default'):
             if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
                 if os.path.exists(gConfig['web']['webroot']):
                     STATICRESOURCE_DIR = gConfig['web']['webroot']
-            print(fp.mimetype)
+            #print(fp.mimetype)
             if gConfig['web']['thumbnail'].has_key( fp.mimetype):
                 p = os.path.join(STATICRESOURCE_DIR, 'img', 'thumbnail', gConfig['web']['thumbnail'][fp.mimetype])
             else:
