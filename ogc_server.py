@@ -146,7 +146,7 @@ def init_global():
     UPLOAD_PHOTOS_DIR = os.path.join(STATICRESOURCE_DIR,'photos', 'upload')
     UPLOAD_VOICE_DIR = os.path.join(STATICRESOURCE_DIR,'voice')
     
-    if gConfig['authorize_platform']['enable'].lower() in ['true',u'true','1', u'1']:
+    if gConfig['wsgi']['application'].lower() == 'authorize_platform':
         gSecurityConfig = db_util.mongo_find_one(gConfig['authorize_platform']['mongodb']['database'],
                                              gConfig['authorize_platform']['mongodb']['collection_security_config'],
                                              {},
@@ -2313,7 +2313,7 @@ def application_authorize_platform(environ, start_response):
     
     
     
-def application(environ, start_response):
+def application_webgis(environ, start_response):
     global gConfig, gRequest, gSessionStore
     headers = {}
     headers['Access-Control-Allow-Origin'] = '*'
@@ -2396,26 +2396,6 @@ def application(environ, start_response):
                         start_response('200 OK', headerslist)        
                         return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
                             
-                    #else:
-                        #headerslist.append(cookie_header)
-                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                        #start_response('200 OK', headerslist)        
-                        #return [json.dumps(copy.copy(sess), ensure_ascii=True, indent=4)]
-                        
-                        
-                    ##session_id, token = get_token_from_env(environ)
-                    #objlist = handle_login(environ)
-                    #if session_id and len(objlist)>0:
-                        ##gLoginToken[session_id] = objlist[0]
-                        #headerslist.append(cookie_header)
-                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                        #start_response('200 OK', headerslist)        
-                        #return [json.dumps(objlist[0], ensure_ascii=True, indent=4)]
-                    #else:
-                        #headerslist.append(cookie_header)
-                        #headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                        #start_response('200 OK', headerslist)        
-                        #return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
                         
                 if path_info == gConfig['web']['mainpage']:
                     #session_id, token = get_token_from_env(environ)
@@ -2444,7 +2424,27 @@ def application(environ, start_response):
     start_response(statuscode, headerslist)
     return [body]
 
-#def handle_session(environ, start_response):
+
+def application_markdown(environ, start_response):
+    global gConfig, gRequest, gSessionStore
+    headers = {}
+    headers['Access-Control-Allow-Origin'] = '*'
+    headerslist = []
+        
+    path_info = environ['PATH_INFO']
+    if path_info == '/get':
+        statuscode, headers, body = handle_get_method(environ)
+    elif path_info == '/post':
+        statuscode, headers, body = handle_post_method(environ)
+    else:
+        if path_info[-1:] == '/':
+            path_info += gConfig['web']['indexpage']
+        statuscode, headers, body =  handle_static(environ, path_info)
+        
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    start_response(statuscode, headerslist)
+    return [body]
     
     
     
@@ -2745,9 +2745,18 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
     global gConfig
     gen_model_app_cache()
     server = None
-    app = application
-    if gConfig['authorize_platform']['enable'].lower() in ['true',u'true','1', u'1']:
-        app = application_authorize_platform
+    app = None
+    
+    
+    key = 'application_' + gConfig['wsgi']['application']
+    if globals().has_key(key):
+        print('application ready to start:%s' % gConfig['wsgi']['application'])
+        app = globals()[key]
+    else:
+        print('unknown application:%s' % gConfig['wsgi']['application'])
+        return
+    
+    if gConfig['wsgi']['application'].lower() == 'authorize_platform':
         cycles_task()
     if port and not enable_cluster:
         if enable_ssl:
@@ -2805,7 +2814,6 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                         server = pywsgi.WSGIServer((i, int(pport)), app, handler_class = WebSocketHandler, keyfile = gConfig['listen_port']['keyfile'], certfile = gConfig['listen_port']['certfile'])
                     else:
                         server = pywsgi.WSGIServer((i, int(pport)), app, handler_class = WebSocketHandler)
-                        #server = pywsgi.WSGIServer((i, int(pport)), application)
                     servers.append(server)
                     if idx < len(host_list)-1:
                         server.start()
@@ -2880,7 +2888,6 @@ def create_cluster():
         idx += 1
     print('nginx is starting...')
     popen = subprocess.Popen([os.path.abspath(gConfig['cluster']['nginx_exe']), '-c', p ])
-    #g1 = gevent.spawn(mainloop_nginx, popen)
     
     
     
@@ -3003,12 +3010,22 @@ def gen_model_app_cache():
    
 
 
+if __name__=="__main1__":
+    freeze_support()
+    options = db_util.init_global()
+    #print(options)
+    init_global()
+    key = 'application_' + gConfig['wsgi']['application']
+    if globals().has_key(key):
+        app = globals()[key]
+    else:
+        print('unknown application:%s' % gConfig['wsgi']['application'])
 
 
 if __name__=="__main__":
     freeze_support()
     options = db_util.init_global()
-    #print(options)
+    
     init_global()
     if options.signcert_enable:
         create_self_signed_cert( options.signcert_directory,  options.signcert_year)
