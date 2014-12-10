@@ -2737,7 +2737,8 @@ def delete_expired_session(interval):
     
 def cycles_task():
     global gConfig
-    gevent.spawn(delete_expired_session, int(gConfig['authorize_platform']['session']['session_cycle_check_interval']))
+    if gConfig['wsgi']['application'].lower() == 'authorize_platform':
+        gevent.spawn(delete_expired_session, int(gConfig['authorize_platform']['session']['session_cycle_check_interval']))
     
     
     
@@ -2756,8 +2757,8 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
         print('unknown application:%s' % gConfig['wsgi']['application'])
         return
     
-    if gConfig['wsgi']['application'].lower() == 'authorize_platform':
-        cycles_task()
+    
+    cycles_task()
     if port and not enable_cluster:
         if enable_ssl:
             print('listening at host 127.0.0.1, port %d with ssl crypted' % port)
