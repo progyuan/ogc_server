@@ -2,8 +2,8 @@ var g_arcserver_host = 'xiejun-desktop';//10.181.160.72
 var g_host = 'xiejun-desktop';//10.181.160.72
 //var g_arcserver_host = '192.168.1.107';//10.181.160.72
 //var g_host = '192.168.1.107';//10.181.160.72
-var g_port = 88;
-var g_tile_port = 88;
+var g_port = 8088;
+var g_tile_port = 8088;
 //var g_db_name = 'kmgd';
 var g_db_name = 'ztgd';
 var g_progress_interval;
@@ -867,7 +867,7 @@ function MongoFind(data, success, host)
 	if(data.url) url = h + data.url;
 	//console.log(data);
 	$.post(url, encodeURIComponent(JSON.stringify(data)), function( data1 ){
-		console.log(data1);
+		//console.log(data1);
 		//if(data.redirect) return;
 		ret = JSON.parse(decodeURIComponent(data1));
 		if(success)

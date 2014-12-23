@@ -12,7 +12,7 @@ import threading
 import exceptions
 import time
 import base64
-#import numpy as np
+import md5
 import socket
 import urllib, urllib2, urlparse
 from socket import error
@@ -31,6 +31,13 @@ from gevent import pywsgi
 import gevent
 import gevent.fileobject
 from gevent.local import local
+
+import pymongo
+from bson.objectid import ObjectId
+try:
+    from geventhttpclient import HTTPClient, URL
+except:
+    print('geventhttpclient import error')
 try:
     import geventwebsocket
     from geventwebsocket.handler import WebSocketHandler
@@ -50,10 +57,6 @@ except:
 
     
 
-try:
-    from geventhttpclient import HTTPClient, URL
-except:
-    print('geventhttpclient import error')
 
 from werkzeug.wrappers import Request, BaseResponse
 from werkzeug.local import LocalProxy
@@ -155,6 +158,19 @@ def init_global():
         if gSecurityConfig is None:
             gSecurityConfig = {}
     
+    if gConfig['wsgi']['application'].lower() in ['pay_platform', 'fake_gateway_alipay']:
+        l = db_util.mongo_find(gConfig['pay_platform']['mongodb']['database'],
+                                             gConfig['pay_platform']['mongodb']['collection_config'],
+                                             {},
+                                             0,
+                                             'pay_platform'
+                                             )
+        for i in l:
+            del i['_id']
+            key = i.keys()[0]
+            gSecurityConfig[key] = i[key]
+        if len(l) == 0:
+            gSecurityConfig = {}
 
 
 def handle_static(environ, aUrl):
@@ -2080,6 +2096,616 @@ class BooleanConverter(BaseConverter):
     def to_url(self, value):
         return value and 'true' or 'false'
 
+
+def get_sign_alipay(sign_data):
+    global gConfig
+    ret = ''
+    text = sign_data + gConfig['pay_platform']['alipay']['partner_key']
+    text = enc_by_code(gConfig['pay_platform']['alipay']['input_charset'], text)
+    if (gConfig['pay_platform']['alipay']['sign_type']).lower() == 'md5':
+        md5.digest_size = 32
+        ret = md5.new(text).hexdigest()
+    return ret
+
+def check_sign_alipay(input_charset, signature, sign_type, original_data):
+    global gConfig
+    text = original_data + gConfig['pay_platform']['alipay']['partner_key']
+    text = enc_by_code(str(input_charset), text)
+    ret = ''
+    if str(sign_type).lower() == 'md5':
+        md5.digest_size = 32
+        ret = md5.new(text).hexdigest()
+    return ret == str(signature)
+    
+def build_query_string(data={}):
+    ret = ''
+    keys = data.keys()
+    keys.sort()
+    for k in keys:
+        ret += '%s=%s' % (k, data[k])
+        if keys.index(k) < len(keys) - 1:
+            ret += '&'
+    return ret
+        
+def get_pay_record_by_id(querydict):
+    ret = None
+    if querydict['pay_channel'] == 'alipay':
+        out_trade_no = querydict['out_trade_no']
+        db_util.mongo_init_client('pay_platform')
+        client = db_util.gClientMongo['pay_platform']
+        db = client['pay']
+        if 'pay_log' in db.collection_names(False):
+            collection = db['pay_log']
+            ret = collection.find_one({"out_trade_no":out_trade_no})
+    return ret
+    
+    
+def refund_alipay(querydict):
+    global ENCODING
+    global gConfig,  gSecurityConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    href = str(gConfig['pay_platform']['alipay']['submit_gateway'])
+    sign_data = {}
+    sign_data['_input_charset'] = gConfig['pay_platform']['alipay']['input_charset']
+    sign_data['partner'] = gConfig['pay_platform']['alipay']['partner_id']
+    sign_data['service'] = 'refund_fastpay_by_platform_pwd'
+    sign_data['refund_date'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sign_data['batch_no'] = datetime.datetime.now().strftime("%Y%m%d") + str(ObjectId())
+    sign_data['batch_num'] = '1'
+    querydict['refund_date'] = sign_data['refund_date']
+    querydict['batch_no'] = sign_data['batch_no']
+    querydict['batch_num'] = int(sign_data['batch_num'])
+    if len(gConfig['pay_platform']['alipay']['return_url'])>0:
+        sign_data['return_url'] = gConfig['pay_platform']['alipay']['return_url']
+    if len(gConfig['pay_platform']['alipay']['error_notify_url'])>0:
+        sign_data['error_notify_url'] =  gConfig['pay_platform']['alipay']['error_notify_url']
+    if len(gConfig['pay_platform']['alipay']['notify_url'])>0:
+        sign_data['notify_url'] = gConfig['pay_platform']['alipay']['notify_url']
+    
+    rec = get_pay_record_by_id(querydict)
+    if rec:
+        if rec.has_key('error_code'):
+            body = json.dumps({'result':'refund_fail_pay_has_fail' }, ensure_ascii=True, indent=4)
+        else:
+            if rec.has_key('seller_email') \
+               and rec.has_key('trade_no') :
+                trade_no = rec['trade_no']
+                sign_data['seller_email'] = rec['seller_email']
+                querydict['seller_email'] = sign_data['seller_email']
+                querydict['trade_no'] = trade_no
+                detail_data = '%s^%.2f^%s' % (trade_no, float(querydict['refund_fee']), querydict['refund_desc'] )
+                sign_data['detail_data'] = detail_data
+            if not rec.has_key('seller_email'):
+                body = json.dumps({'result':'refund_fail_seller_email_required' }, ensure_ascii=True, indent=4)
+            if not rec.has_key('trade_no'):
+                body = json.dumps({'result':'refund_fail_trade_no_required' }, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result':'refund_fail_pay_trade_not_found:%s' % querydict['out_trade_no']}, ensure_ascii=True, indent=4)
+        
+    
+    if len(body) == 0:
+        querydict['refund_result'] = 'refund_sending_to_alipay'
+        querydict['refund_fee'] = float(querydict['refund_fee'])
+        g = gevent.spawn(update_refund_log, querydict['out_trade_no'], querydict)
+        g1 = sign_and_send_alipay('post', href, sign_data)
+        g1.join()
+        resp = g1.value
+        s = resp.read()
+        print('refund response: [%s]' % dec(s))
+        body = json.dumps({'result':'refund_sending_to_alipay'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+    
+
+def pay_alipay(querydict):
+    global ENCODING
+    global gConfig,  gSecurityConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    href = str(gConfig['pay_platform']['alipay']['submit_gateway'])
+    if not href[-1:] == '?':
+        href += '?'
+    sign_data = {}
+    sign_data['_input_charset'] = gConfig['pay_platform']['alipay']['input_charset']
+    sign_data['total_fee'] = querydict['total_fee']
+    sign_data['out_trade_no'] = querydict['out_trade_no']
+    sign_data['partner'] = gConfig['pay_platform']['alipay']['partner_id']
+    sign_data['payment_type']  =  '1'
+    sign_data['seller_email'] = querydict['seller_email']
+    sign_data['buyer_email'] =  querydict['buyer_email']
+    sign_data['service'] = 'create_direct_pay_by_user'
+    sign_data['subject'] = querydict['subject']
+    if len(gConfig['pay_platform']['alipay']['return_url'])>0:
+        sign_data['return_url'] = gConfig['pay_platform']['alipay']['return_url']
+    if len(gConfig['pay_platform']['alipay']['error_notify_url'])>0:
+        sign_data['error_notify_url'] =  gConfig['pay_platform']['alipay']['error_notify_url']
+    if len(gConfig['pay_platform']['alipay']['notify_url'])>0:
+        sign_data['notify_url'] = gConfig['pay_platform']['alipay']['notify_url']
+    
+    querydict['trade_status'] = 'pay_sending_to_alipay'
+    querydict['total_fee'] = float(querydict['total_fee'])
+    
+    if querydict.has_key('defaultbank'):
+        if gSecurityConfig['alipay']['bank_code'].has_key(querydict['defaultbank']):
+            sign_data['defaultbank'] = querydict['defaultbank']
+            sign_data['paymethod'] = 'bankPay'
+        else:
+            body = json.dumps({'result':'pay_fail_wrong_bank_code'}, ensure_ascii=True, indent=4)
+            return statuscode, headers, body
+        
+    if gConfig['pay_platform']['alipay']['need_ctu_check'].lower() == 'true':
+        sign_data['need_ctu_check'] = 'Y'
+    if gConfig['pay_platform']['alipay']['anti_fishing'].lower() == 'true':
+        sign_data['anti_phishing_key'] = ''
+        sign_data['exter_invoke_ip'] = ''
+        
+    g = gevent.spawn(update_pay_log, querydict['out_trade_no'], querydict)
+    g1 = sign_and_send_alipay('post', href, sign_data)
+    body = json.dumps({'result':'pay_sending_to_alipay'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+    
+
+def handle_refund(environ):
+    global ENCODING
+    global gConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    querydict = {}
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querydict = urlparse.parse_qs(dec(querystring))
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    
+    try:
+        buf = environ['wsgi.input'].read()
+        ds_plus = urllib.unquote_plus(buf)
+        d = json.loads(dec(ds_plus))
+        for k in d.keys():
+            querydict[k] = d[k]
+    except:
+        pass
+            
+    if len(querydict.keys()) > 0:        
+        if querydict.has_key('out_trade_no') and len(querydict['out_trade_no'])>0\
+           and querydict.has_key('pay_channel') and len(querydict['pay_channel'])>0\
+           and querydict.has_key('refund_fee') and len(querydict['refund_fee'])>0\
+           and querydict.has_key('refund_desc') and len(querydict['refund_desc'])>0:
+            if querydict['pay_channel'] == 'alipay':
+                refund_fee = 0
+                try:
+                    refund_fee = float(querydict['refund_fee'])
+                except:
+                    body = json.dumps({'result':'refund_fail_refund_fee_wrong_format'}, ensure_ascii=True, indent=4)
+                    refund_fee = 0
+                if '^' in querydict['refund_desc'] \
+                   or '#' in querydict['refund_desc'] \
+                   or '|' in querydict['refund_desc'] \
+                   or '$' in querydict['refund_desc'] \
+                   or len(querydict['refund_desc'])>128 :
+                    refund_fee = 0
+                    body = json.dumps({'result':'refund_fail_refund_desc_wrong_charactor'}, ensure_ascii=True, indent=4) 
+                if refund_fee>0:
+                    statuscode, headers, body = refund_alipay(querydict)
+                #else:
+                    #body = json.dumps({'result':'refund_fail_refund_fee_wrong_format'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':'refund_fail_unsupport_pay_channel'}, ensure_ascii=True, indent=4) 
+            
+        if not querydict.has_key('out_trade_no') or len(querydict['out_trade_no'])==0:
+            body = json.dumps({'result':'refund_fail_out_trade_no_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('refund_fee') \
+           or (isinstance(querydict['refund_fee'], unicode) and len(querydict['refund_fee'])==0) \
+           or (isinstance(querydict['refund_fee'], float) and querydict['refund_fee']==0.0):
+            body = json.dumps({'result':'refund_fail_refund_fee_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('refund_desc') or len(querydict['refund_desc'])==0:
+            body = json.dumps({'result':'refund_fail_refund_desc_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('pay_channel') or len(querydict['pay_channel'])==0:
+            body = json.dumps({'result':'refund_fail_pay_channel_required'}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result':'refund_fail_wrong_data_format'}, ensure_ascii=True, indent=4)
+        
+    return statuscode, headers, body
+    
+    
+    
+def handle_pay_getinfo(environ):
+    global ENCODING
+    global gConfig, gSecurityConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    querydict = {}
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querydict = urlparse.parse_qs(dec(querystring))
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    
+    try:
+        buf = environ['wsgi.input'].read()
+        ds_plus = urllib.unquote_plus(buf)
+        d = json.loads(dec(ds_plus))
+        for k in d.keys():
+            querydict[k] = d[k]
+    except:
+        pass
+    if len(querydict.keys()) > 0:
+        if querydict.has_key('q'):
+            if querydict['q'] == 'bank_info':
+                if querydict.has_key('bank_code'):
+                    if querydict['bank_code'] == 'all' or len(querydict['bank_code'])==0:
+                        body = json.dumps(gSecurityConfig['alipay']['bank_code'], ensure_ascii=True, indent=4)
+                    else:
+                        if gSecurityConfig['alipay']['bank_code'].has_key(querydict['bank_code']):
+                            body = json.dumps({'result':gSecurityConfig['alipay']['bank_code'][querydict['bank_code']]}, ensure_ascii=True, indent=4)
+                        else:
+                            body = json.dumps({'result':'wrong_bank_code'}, ensure_ascii=True, indent=4)
+                else:
+                    body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
+            else:
+                body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+                
+    
+def handle_pay(environ):
+    global ENCODING
+    global gConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    querydict = {}
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querydict = urlparse.parse_qs(dec(querystring))
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    
+    try:
+        buf = environ['wsgi.input'].read()
+        ds_plus = urllib.unquote_plus(buf)
+        d = json.loads(dec(ds_plus))
+        for k in d.keys():
+            querydict[k] = d[k]
+    except:
+        pass
+            
+    if len(querydict.keys()) > 0:        
+        if querydict.has_key('out_trade_no') and len(querydict['out_trade_no'])>0 \
+           and querydict.has_key('subject') and len(querydict['subject'])>0 \
+           and querydict.has_key('total_fee')  and len(querydict['total_fee'])>0 \
+           and querydict.has_key('buyer_email')  and len(querydict['buyer_email'])>0 \
+           and querydict.has_key('seller_email')  and len(querydict['seller_email'])>0 \
+           and querydict.has_key('pay_channel') and len(querydict['pay_channel'])>0 :
+            if querydict['pay_channel'] == 'alipay':
+                #if querydict.has_key('service'):
+                
+                total_fee = 0
+                try:
+                    total_fee = float(querydict['total_fee'])
+                except:
+                    body = json.dumps({'result':'pay_fail_total_fee_wrong_format'}, ensure_ascii=True, indent=4)
+                    total_fee = 0
+                    
+                if '^' in querydict['subject'] \
+                   or '#' in querydict['subject'] \
+                   or '|' in querydict['subject'] \
+                   or '$' in querydict['subject'] \
+                   or '%' in querydict['subject'] \
+                   or '&' in querydict['subject'] \
+                   or '+' in querydict['subject'] \
+                   or len(querydict['subject'])>128 :
+                    total_fee = 0
+                    body = json.dumps({'result':'pay_fail_subject_wrong_charactor'}, ensure_ascii=True, indent=4) 
+                if total_fee>0:
+                    statuscode, headers, body = pay_alipay(querydict)
+                else:
+                    body = json.dumps({'result':'pay_fail_total_fee_wrong_format'}, ensure_ascii=True, indent=4) 
+            else:
+                body = json.dumps({'result':'pay_fail_unsupport_pay_channel'}, ensure_ascii=True, indent=4) 
+            
+        if not querydict.has_key('out_trade_no') or len(querydict['out_trade_no'])==0:
+            body = json.dumps({'result':'pay_fail_out_trade_no_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('subject') or len(querydict['subject'])==0:
+            body = json.dumps({'result':'pay_fail_subject_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('total_fee') \
+           or (isinstance(querydict['total_fee'], unicode) and len(querydict['total_fee'])==0) \
+           or (isinstance(querydict['total_fee'], float) and querydict['total_fee']==0.0):
+            body = json.dumps({'result':'pay_fail_total_fee_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('buyer_email') or len(querydict['buyer_email'])==0:
+            body = json.dumps({'result':'pay_fail_buyer_email_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('seller_email') or len(querydict['seller_email'])==0:
+            body = json.dumps({'result':'pay_fail_seller_email_required'}, ensure_ascii=True, indent=4)
+        if not querydict.has_key('pay_channel') or len(querydict['pay_channel'])==0:
+            body = json.dumps({'result':'pay_fail_pay_channel_required'}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result':'pay_fail_wrong_data_format'}, ensure_ascii=True, indent=4)
+        
+    return statuscode, headers, body
+
+
+    
+def update_refund_log(out_trade_no, data, is_insert=True):
+    db_util.mongo_init_client('pay_platform')
+    client = db_util.gClientMongo['pay_platform']
+    db = client['pay']
+    if not 'refund_log' in db.collection_names(False):
+        collection = db.create_collection('refund_log')
+        collection.ensure_index([("out_trade_no", pymongo.ASCENDING),])
+    else:        
+        collection = db['refund_log']
+    rec = collection.find_one({"out_trade_no":out_trade_no})
+    if data.has_key('refund_fee') and (isinstance(data['refund_fee'], unicode) or isinstance(data['refund_fee'], str)):
+        data['refund_fee'] = float(data['refund_fee'])
+    if rec:
+        for k in data.keys():
+            rec[k] = data[k]
+        wr = collection.update({'_id':rec['_id']}, db_util.add_mongo_id(rec),  multi=False, upsert=False)
+        
+        if wr and wr['n'] == 0:
+            print('update out_trade_no [%s] failed' % out_trade_no)
+    else:
+        if is_insert:
+            try:
+                _id = collection.insert( db_util.add_mongo_id(data))
+                #print('refund_log insert _id=%s' % str(_id))
+            except:
+                print('refund_log insert out_trade_no [%s] failed' % out_trade_no)
+
+    
+    
+def update_pay_log(out_trade_no, data, is_insert=True):
+    db_util.mongo_init_client('pay_platform')
+    client = db_util.gClientMongo['pay_platform']
+    db = client['pay']
+    if not 'pay_log' in db.collection_names(False):
+        collection = db.create_collection('pay_log')
+        collection.ensure_index([("out_trade_no", pymongo.ASCENDING),])
+    else:        
+        collection = db['pay_log']
+    rec = collection.find_one({"out_trade_no":out_trade_no})
+    if data.has_key('total_fee') and (isinstance(data['total_fee'], unicode) or isinstance(data['total_fee'], str)):
+        data['total_fee'] = float(data['total_fee'])
+    if data.has_key('refund_fee') and (isinstance(data['refund_fee'], unicode) or isinstance(data['refund_fee'], str)):
+        data['refund_fee'] = float(data['refund_fee'])
+    if data.has_key('price') and (isinstance(data['price'], unicode) or isinstance(data['price'], str)):
+        data['price'] = float(data['price'])
+    if data.has_key('quantity') and (isinstance(data['quantity'], unicode) or isinstance(data['quantity'], str)):
+        data['quantity'] = int(data['quantity'])
+    if rec:
+        for k in data.keys():
+            rec[k] = data[k]
+        wr = collection.update({'_id':rec['_id']}, db_util.add_mongo_id(rec),  multi=False, upsert=False)
+        #print(wr)
+        if wr and wr['n'] == 0:
+            print('update out_trade_no [%s] failed' % out_trade_no)
+    else:
+        if is_insert:
+            try:
+                _id = collection.insert( db_util.add_mongo_id(data))
+                #print('pay_log insert _id=%s' % str(_id))
+            except:
+                print('pay_log insert out_trade_no [%s] failed' % out_trade_no)
+        
+            
+    
+def handle_alipay_return_url(environ):
+    global ENCODING
+    global gConfig,  gUrlMapAuth, gSecurityConfig
+    querydict = {}
+    data = {}
+    data['pay_channel'] = 'alipay'
+    querystring = ''
+    if environ.has_key('QUERY_STRING'):
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querystring = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], querystring)
+        querydict = urlparse.parse_qs(querystring)
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    if querydict.has_key('notify_type') and 'trade_status_' in querydict['notify_type'] and  querydict.has_key('out_trade_no'):
+        if querydict.has_key('is_success'):
+            if querydict['is_success'] == 'T':
+                data['trade_status'] = 'send_to_alipay_success'
+            
+        if querydict.has_key('seller_email'):
+            data['seller_email'] = querydict['seller_email']
+        if querydict.has_key('buyer_email'):
+            data['buyer_email'] = querydict['buyer_email']
+        if querydict.has_key('seller_id'):
+            data['seller_id'] = querydict['seller_id']
+        if querydict.has_key('buyer_id'):
+            data['buyer_id'] = querydict['buyer_id']
+        if querydict.has_key('notify_time'):
+            data['notify_time'] = querydict['notify_time']
+        if querydict.has_key('notify_type'):
+            data['notify_type'] = querydict['notify_type']
+        if querydict.has_key('notify_id'):
+            data['notify_id'] = querydict['notify_id']
+        if querydict.has_key('out_trade_no'):
+            data['out_trade_no'] = querydict['out_trade_no']
+        if querydict.has_key('subject'):
+            data['subject'] = querydict['subject']
+        if querydict.has_key('payment_type'):
+            data['payment_type'] = querydict['payment_type']
+            
+        if querydict.has_key('trade_no'):
+            data['trade_no'] = querydict['trade_no']
+        if querydict.has_key('trade_status'):
+            data['trade_status'] = querydict['trade_status']
+            if gSecurityConfig['alipay']['trade_status'].has_key(data['trade_status']):
+                data['trade_status_desc'] = gSecurityConfig['alipay']['trade_status'][data['trade_status']]
+        if querydict.has_key('gmt_create'):
+            data['gmt_create'] = querydict['gmt_create']
+        if querydict.has_key('gmt_payment'):
+            data['gmt_payment'] = querydict['gmt_payment']
+        if querydict.has_key('gmt_close'):
+            data['gmt_close'] = querydict['gmt_close']
+        if querydict.has_key('gmt_refund'):
+            data['gmt_refund'] = querydict['gmt_refund']
+        if querydict.has_key('body'):
+            data['body'] = querydict['body']
+        if querydict.has_key('error_code'):
+            data['error_code'] = querydict['error_code']
+        if querydict.has_key('bank_seq_no'):
+            data['bank_seq_no'] = querydict['bank_seq_no']
+        if querydict.has_key('out_channel_type'):
+            data['out_channel_type'] = querydict['out_channel_type']
+        if querydict.has_key('out_channel_amount'):
+            data['out_channel_amount'] = querydict['out_channel_amount']
+        if querydict.has_key('out_channel_inst'):
+            data['out_channel_inst'] = querydict['out_channel_inst']
+        if querydict.has_key('business_scene'):
+            data['business_scene'] = querydict['business_scene']
+        if querydict.has_key('total_fee'):
+            data['total_fee'] = querydict['total_fee']
+        if data.has_key('out_trade_no'):
+            g = gevent.spawn(update_pay_log, data['out_trade_no'], data, False)
+    
+    
+        
+    
+        
+    
+def handle_alipay_notify_url(environ):
+    global gConfig, gUrlMapAuth, gSecurityConfig
+    buf = environ['wsgi.input'].read()
+    ds_plus = urllib.unquote_plus(buf)
+    ds_plus = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], ds_plus)
+    querydict = {}
+    data = {}
+    data['pay_channel'] = 'alipay'
+    try:
+        querydict = urlparse.parse_qs(ds_plus)
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    except:
+        querydict = {}
+    if querydict.has_key('seller_email'):
+        data['seller_email'] = querydict['seller_email']
+    if querydict.has_key('buyer_email'):
+        data['buyer_email'] = querydict['buyer_email']
+    if querydict.has_key('seller_id'):
+        data['seller_id'] = querydict['seller_id']
+    if querydict.has_key('buyer_id'):
+        data['buyer_id'] = querydict['buyer_id']
+    if querydict.has_key('notify_time'):
+        data['notify_time'] = querydict['notify_time']
+    if querydict.has_key('notify_id'):
+        data['notify_id'] = querydict['notify_id']
+    if querydict.has_key('notify_type'):
+        data['notify_type'] = querydict['notify_type']
+    if querydict.has_key('out_trade_no'):
+        data['out_trade_no'] = querydict['out_trade_no']
+    if querydict.has_key('subject'):
+        data['subject'] = querydict['subject']
+    if querydict.has_key('payment_type'):
+        data['payment_type'] = querydict['payment_type']
+        
+    if querydict.has_key('trade_no'):
+        data['trade_no'] = querydict['trade_no']
+    if querydict.has_key('trade_status'):
+        data['trade_status'] = querydict['trade_status']
+        if gSecurityConfig['alipay']['trade_status'].has_key(data['trade_status']):
+            data['trade_status_desc'] = gSecurityConfig['alipay']['trade_status'][data['trade_status']]
+    
+    if querydict.has_key('gmt_create'):
+        data['gmt_create'] = querydict['gmt_create']
+    if querydict.has_key('gmt_payment'):
+        data['gmt_payment'] = querydict['gmt_payment']
+    if querydict.has_key('gmt_close'):
+        data['gmt_close'] = querydict['gmt_close']
+    if querydict.has_key('gmt_refund'):
+        data['gmt_refund'] = querydict['gmt_refund']
+    if querydict.has_key('body'):
+        data['body'] = querydict['body']
+    if querydict.has_key('error_code'):
+        data['error_code'] = querydict['error_code']
+    if querydict.has_key('bank_seq_no'):
+        data['bank_seq_no'] = querydict['bank_seq_no']
+        
+        
+    if querydict.has_key('out_channel_type'):
+        data['out_channel_type'] = querydict['out_channel_type']
+    if querydict.has_key('out_channel_amount'):
+        data['out_channel_amount'] = querydict['out_channel_amount']
+    if querydict.has_key('out_channel_inst'):
+        data['out_channel_inst'] = querydict['out_channel_inst']
+    if querydict.has_key('business_scene'):
+        data['business_scene'] = querydict['business_scene']
+    
+    
+    if querydict.has_key('total_fee'):
+        data['total_fee'] = querydict['total_fee']
+    if querydict.has_key('notify_type') and 'trade_status_' in querydict['notify_type']  and data.has_key('out_trade_no'):
+        g = gevent.spawn(update_pay_log, data['out_trade_no'], data, False)
+    if querydict.has_key('notify_type') and querydict['notify_type'] == 'batch_refund_notify':
+        if querydict.has_key('batch_no'):
+            data['batch_no'] = querydict['batch_no']
+        if querydict.has_key('success_num'):
+            data['success_num'] = int(querydict['success_num'])
+        if querydict.has_key('result_details'):
+            arr = querydict['result_details'].split('^')
+            trade_no = arr[0]
+            refund_fee = float(arr[1])
+            refund_status = arr[2]
+            data['trade_no'] = trade_no
+            data['refund_fee'] = refund_fee
+            data['refund_status'] = refund_status
+        g = gevent.spawn(update_refund_log, data['trade_no'], data, False)
+        
+        
+    
+def handle_alipay_error_notify_url(environ):
+    global gConfig, gUrlMapAuth, gSecurityConfig
+    buf = environ['wsgi.input'].read()
+    ds_plus = urllib.unquote_plus(buf)
+    ds_plus = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], ds_plus)
+    querydict = {}
+    data = {}
+    data['pay_channel'] = 'alipay'
+    try:
+        querydict = urlparse.parse_qs(ds_plus)
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    except:
+        querydict = {}
+    if querydict.has_key('out_trade_no'):
+        data['out_trade_no'] = querydict['out_trade_no']
+    if querydict.has_key('error_code'):
+        data['error_code'] = querydict['error_code']
+        if gSecurityConfig['alipay']['error_code'].has_key(data['error_code']):
+            data['error_desc'] = gSecurityConfig['alipay']['error_code'][data['error_code']]
+    if data.has_key('out_trade_no'):
+        g = gevent.spawn(update_pay_log, data['out_trade_no'], data, False)
+        #g.join()
+    
+    
+    
+    
     
 def handle_authorize_platform(environ, session):
     global ENCODING
@@ -2124,10 +2750,6 @@ def handle_authorize_platform(environ, session):
     urls = gUrlMapAuth.bind_to_environ(environ)
     try:
         endpoint, args = urls.match()
-        #print('-------')
-        #print(endpoint)
-        #print(args)
-        #body = endpoint
         if args.has_key('username'):
             username = args['username']
         if args.has_key('password'):
@@ -2240,36 +2862,84 @@ gUrlMapAuth = Map([
 
 
 
+def CORS_header():
+    global gConfig
+    def default_header():
+        ret = {};
+        ret['Access-Control-Allow-Origin'] = '*'
+        ret['Access-Control-Allow-Credentials'] = 'true'
+        ret['Access-Control-Expose-Headers'] = 'true'
+        ret['Access-Control-Max-Age'] = '3600'
+        ret['Access-Control-Allow-Methods'] = 'POST,GET,OPTIONS'
+        return ret
+    headers = {}
+    if gConfig['web']['cors']['enable_cors'].lower() == 'true':
+        app = gConfig['wsgi']['application']
+        if gConfig.has_key(app) and gConfig[app].has_key('cors'):
+            try:
+                if gConfig[app]['cors'].has_key('Access-Control-Allow-Origin'):
+                    headers['Access-Control-Allow-Origin'] = str(gConfig[app]['cors']['Access-Control-Allow-Origin'])
+                if gConfig[app]['cors'].has_key('Access-Control-Allow-Credentials'):    
+                    headers['Access-Control-Allow-Credentials'] = str(gConfig[app]['cors']['Access-Control-Allow-Credentials'])
+                if gConfig[app]['cors'].has_key('Access-Control-Expose-Headers'):  
+                    headers['Access-Control-Expose-Headers'] = str(gConfig[app]['cors']['Access-Control-Expose-Headers'])
+                if gConfig[app]['cors'].has_key('Access-Control-Max-Age'):
+                    headers['Access-Control-Max-Age'] = str(gConfig[app]['cors']['Access-Control-Max-Age'])
+                if gConfig[app]['cors'].has_key('Access-Control-Allow-Methods'):
+                    s = gConfig[app]['cors']['Access-Control-Allow-Methods']
+                    if isinstance(s, list):
+                        s = ','.join(s)
+                    headers['Access-Control-Allow-Methods'] = str(s)
+            except:
+                headers = default_header()
+        else:
+            try:
+                if gConfig['web']['cors'].has_key('Access-Control-Allow-Origin'):
+                    headers['Access-Control-Allow-Origin'] = str(gConfig['web']['cors']['Access-Control-Allow-Origin'])
+                if gConfig['web']['cors'].has_key('Access-Control-Allow-Credentials'):    
+                    headers['Access-Control-Allow-Credentials'] = str(gConfig['web']['cors']['Access-Control-Allow-Credentials'])
+                if gConfig['web']['cors'].has_key('Access-Control-Expose-Headers'):  
+                    headers['Access-Control-Expose-Headers'] = str(gConfig['web']['cors']['Access-Control-Expose-Headers'])
+                if gConfig['web']['cors'].has_key('Access-Control-Max-Age'):
+                    headers['Access-Control-Max-Age'] = str(gConfig['web']['cors']['Access-Control-Max-Age'])
+                if gConfig['web']['cors'].has_key('Access-Control-Allow-Methods'):
+                    s = gConfig['web']['cors']['Access-Control-Allow-Methods']
+                    if isinstance(s, list):
+                        s = ','.join(s)
+                    headers['Access-Control-Allow-Methods'] = str(s)
+            except:
+                headers = default_header()
+    return headers
+    
+def check_is_static(aUrl):
+    global STATICRESOURCE_DIR
+    global gConfig
+    ret = False
+    surl = dec(aUrl)
+    if surl[0:2] == '//':
+        surl = surl[2:]
+    if surl[0] == '/':
+        surl = surl[1:]
+    p = os.path.join(STATICRESOURCE_DIR , surl)
+    isBin = False
+    ext = os.path.splitext(p)[1]
+    if '.' in surl:
+        ext = surl[surl.rindex('.'):]
+    else:
+        ext = os.path.splitext(p)[1]
+    if len(ext)>0 and  gConfig['mime_type'].has_key(ext):
+        ret = True
+    return ret
+
 def application_authorize_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
     
-    def check_is_static(aUrl):
-        ret = False
-        surl = dec(aUrl)
-        if surl[0:2] == '//':
-            surl = surl[2:]
-        if surl[0] == '/':
-            surl = surl[1:]
-        p = os.path.join(STATICRESOURCE_DIR , surl)
-        isBin = False
-        ext = os.path.splitext(p)[1]
-        if '.' in surl:
-            ext = surl[surl.rindex('.'):]
-        else:
-            ext = os.path.splitext(p)[1]
-        if len(ext)>0 and  gConfig['mime_type'].has_key(ext):
-            ret = True
-        return ret
-        
     
-    
-    
-    headers = {}
-    headers['Access-Control-Allow-Origin'] = '*'
+    headers = CORS_header()
     headerslist = []
     cookie_header = None
-    body = None
+    body = ''
     statuscode = '200 OK'
     
     path_info = environ['PATH_INFO']
@@ -2283,11 +2953,11 @@ def application_authorize_platform(environ, start_response):
                                             )
     is_expire = False
     
-    headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
     statuscode = '200 OK'
     if path_info[-1:] == '/':
         #path_info += gConfig['web']['indexpage']
         #statuscode, headers, body =  handle_static(environ, path_info)
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     elif check_is_static(path_info):
         statuscode, headers, body =  handle_static(environ, path_info)
@@ -2310,13 +2980,344 @@ def application_authorize_platform(environ, start_response):
     #print(headerslist)
     start_response(statuscode, headerslist)
     return [body]
+
+def sign_and_send_alipay(method, href, data, need_sign=True):
+    global gConfig
+    qs = build_query_string(data)
+    if need_sign:
+        signed = get_sign_alipay(qs)
+        qs += '&sign=%s' %  signed
+        qs += '&sign_type=%s' %  gConfig['pay_platform']['alipay']['sign_type']
     
+    text = qs
+    text = enc_by_code(gConfig['pay_platform']['alipay']['input_charset'], text)
+    connection_timeout, network_timeout = float(gConfig['pay_platform']['alipay']['connection_timeout']), float(gConfig['pay_platform']['alipay']['network_timeout'])
+    client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+    g = None
+    if method == 'get':
+        if not href[-1:] == '?':
+            href += '?'
+        href += urllib.quote(text)
+        g = gevent.spawn(client.get, href)
+    if method == 'post':
+        postdata = urllib.quote(text)
+        headers = {}
+        headers['Content-Type'] = 'application/x-www-form-urlencoded; text/html; charset=%s' % str(gConfig['pay_platform']['alipay']['input_charset'])
+        g = gevent.spawn(client.post, href, body=postdata, headers=headers)
+    return g
+    
+    
+
+def fake_gateway_alipay_return(querydict):
+    global gConfig
+    sign_data = {}
+    if querydict['service'] == 'refund_fastpay_by_platform_pwd':
+        sign_data['is_success'] = 'T'
+        #sign_data['refund_result'] = 'TRADE_PENDING'
+    elif querydict['service'] == 'create_direct_pay_by_user':
+        if querydict.has_key('out_trade_no'):
+            sign_data['is_success'] = 'T'
+            sign_data['notify_id']  = str(ObjectId())
+            sign_data['notify_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sign_data['notify_type'] = 'trade_status_sync'
+            sign_data['out_trade_no'] = querydict['out_trade_no']
+            sign_data['partner'] = gConfig['fake_gateway_alipay']['alipay']['partner_id']
+            if querydict.has_key('seller_email'):
+                sign_data['seller_email'] = querydict['seller_email']
+            if querydict.has_key('subject'):
+                sign_data['subject'] = querydict['subject']
+            if querydict.has_key('buyer_email'):
+                sign_data['buyer_email'] = querydict['buyer_email']
+            if querydict.has_key('total_fee'):
+                sign_data['total_fee'] = querydict['total_fee']
+            
+            #sign_data['trade_no'] =  ''
+            sign_data['trade_status'] = 'TRADE_PENDING'
+            
+            
+            href = str(gConfig['pay_platform']['alipay']['return_url'])
+            if querydict.has_key('return_url'):
+                href = querydict['return_url']
+            sign_and_send_alipay('get', href, sign_data)
+        else:
+            print('fake_gateway_alipay_return out_trade_no required')
+
+def fake_gateway_alipay_notify(querydict):
+    global gConfig
+    
+    def get_pay_log_rec_by_trade_no(trade_no):
+        ret = None
+        db_util.mongo_init_client('pay_platform')
+        client = db_util.gClientMongo['pay_platform']
+        db = client['pay']
+        if 'pay_log' in db.collection_names(False):
+            collection = db['pay_log']
+            ret = collection.find_one({"trade_no":trade_no})
+        return ret
+        
+    
+    data = {}
+    if querydict['service'] == 'refund_fastpay_by_platform_pwd':
+        data['notify_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data['notify_type'] = 'batch_refund_notify'
+        data['notify_id']  = str(ObjectId())
+        data['batch_no']  = querydict['batch_no'] 
+        data['success_num']  = '1'
+        detail_data = querydict['detail_data']
+        arr = detail_data.split('^')
+        trade_no = arr[0]
+        refund_fee = float(arr[1])
+        result_details = '%s^%s^%s' % (arr[0], arr[1], 'SUCCESS')
+        data['result_details'] = result_details
+        href = str(gConfig['pay_platform']['alipay']['notify_url'])
+        sign_and_send_alipay('post', href, data)
+        rec = get_pay_log_rec_by_trade_no(trade_no)
+        if rec:
+            data = {}
+            data['notify_type'] = 'trade_status_sync'
+            data['out_trade_no'] = rec['out_trade_no']
+            data['refund_status'] = 'REFUND_SUCCESS'
+            if refund_fee < rec['total_fee']:
+                data['trade_status'] = 'TRADE_SUCCESS'
+            else:
+                data['trade_status'] = 'TRADE_CLOSED'
+            sign_and_send_alipay('post', href, data)
+        
+    elif querydict['service'] == 'create_direct_pay_by_user':
+        if querydict.has_key('out_trade_no'):
+            data['out_trade_no'] = querydict['out_trade_no']
+            data['notify_id'] = str(ObjectId())
+            data['notify_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            data['notify_type'] = 'trade_status_sync'
+            data['partner'] = gConfig['fake_gateway_alipay']['alipay']['partner_id']
+            if querydict.has_key('buyer_email'):
+                data['buyer_email' ] = querydict['buyer_email']
+            if querydict.has_key('seller_email'):
+                data['seller_email'] = querydict['seller_email']
+            if querydict.has_key('subject'):
+                data['subject'] = querydict['subject']
+            if querydict.has_key('total_fee'):
+                data['total_fee'] = querydict['total_fee']
+                
+            if querydict.has_key('paymethod') and querydict['paymethod'] == 'bankPay':
+                data['bank_seq_no'] = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            
+            data['trade_no'] = datetime.datetime.now().strftime("%Y%m%d%H%M%S") + str(ObjectId())
+            data['trade_status'] = 'TRADE_SUCCESS'
+            href = str(gConfig['pay_platform']['alipay']['notify_url'])
+            sign_and_send_alipay('post', href, data)
+        else:
+            print('fake_gateway_alipay_notify out_trade_no required')
+
+def fake_gateway_alipay_error_notify(querydict, error_code):
+    global gConfig
+    data = {}
+    if querydict['service'] == 'refund_fastpay_by_platform_pwd':
+        data['notify_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data['notify_type'] = 'batch_refund_notify'
+        data['notify_id']  = str(ObjectId())
+        data['batch_no']  = querydict['batch_no'] 
+        data['success_num']  = '0'
+        detail_data = querydict['detail_data']
+        arr = detail_data.split('^')
+        result_details = '%s^%s^%s' % (arr[0], arr[1], error_code)
+        data['result_details'] = result_details
+        href = str(gConfig['pay_platform']['alipay']['notify_url'])
+        if querydict.has_key('notify_url'):
+            href = str(querydict['notify_url'])
+        sign_and_send_alipay('post', href, data)
+        
+    elif querydict['service'] == 'create_direct_pay_by_user':    
+        data['partner'] = gConfig['fake_gateway_alipay']['alipay']['partner_id']
+        if querydict.has_key('out_trade_no'):
+            data['out_trade_no'] = querydict['out_trade_no']
+            data['error_code'] = error_code
+            if querydict.has_key('buyer_email'):
+                data['buyer_email'] = querydict['buyer_email']
+            if querydict.has_key('seller_email'):
+                data['seller_email'] = querydict['seller_email']
+                
+            href = str(gConfig['pay_platform']['alipay']['error_notify_url'])
+            sign_and_send_alipay('post', href, data, need_sign=False)
+        else:
+            print('fake_gateway_alipay_error_notify out_trade_no required')
+    
+    
+def dec_by_code(code, string):
+    encode, decode, reader, writer =  codecs.lookup(str(code))
+    text = string
+    text, length = decode(text, 'replace')
+    return text
+
+def enc_by_code(code, string):
+    encode, decode, reader, writer =  codecs.lookup(str(code))
+    text = string
+    text, length = encode(text, 'replace')
+    return text
+
+def handle_fake_gateway_alipay(environ, error_code_pay=None, error_code_refund=None):
+    global ENCODING
+    global gConfig
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    d = {}
+    querydict = {}
+    querystring = ''
+    querystring1 = ''
+    if environ.has_key('QUERY_STRING'):
+        querystring = environ['QUERY_STRING']
+        querydict = urlparse.parse_qs(querystring)
+        for key in querydict.keys():
+            d[key] = querydict[key][0]
+        querydict = d
+    if not environ.has_key('QUERY_STRING') or len(environ['QUERY_STRING'])==0:
+        buf = environ['wsgi.input'].read()
+        querystring = urllib.unquote_plus(buf)
+        querystring = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], querystring)
+        querydict = urlparse.parse_qs(querystring)
+        d = {}
+        for key in querydict.keys():
+            d[key] = querydict[key][0]
+        querydict = d
+        
+    
+    try:
+        querystring1 = querystring[:querystring.index('&sign=')]
+    except:
+        pass
+    try:
+        querystring1 = querystring1[:querystring1.index('&sign_type=')]
+    except:
+        pass
+    signed1 = None
+    if querydict['service'] == 'create_direct_pay_by_user':
+        fake_gateway_alipay_return(querydict)
+        
+    if querydict['service'] == 'refund_fastpay_by_platform_pwd':
+        headers['Content-Type'] = 'text/xml;charset=' + ENCODING
+        body = '<?xml version="1.0" encoding="UTF-8"?><IS_SUCCESS>T</IS_SUCCESS>'
+        
+    gevent.sleep(float(gConfig['fake_gateway_alipay']['alipay']['process_second']))
+    #print(querydict)
+    if querydict.has_key('sign') and  querydict.has_key('sign_type') and querydict.has_key('_input_charset'):
+        ok = check_sign_alipay(querydict['_input_charset'], querydict['sign'], querydict['sign_type'],  querystring1)
+        if ok:
+            error_code = error_code_pay
+            if error_code is None:
+                error_code = error_code_refund
+            if error_code:
+                fake_gateway_alipay_error_notify(querydict, error_code)
+            else:
+                fake_gateway_alipay_notify(querydict)
+        else:
+            print('signature check error')
+            fake_gateway_alipay_error_notify(querydict, 'ILLEGAL_SIGN')
+    else:
+        print('need sign or sign_type or _input_charset')
+    
+    return statuscode, headers, body
+
+
+def application_fake_gateway_alipay(environ, start_response):
+    global STATICRESOURCE_DIR
+    global gConfig, gSecurityConfig
+    
+    headers = CORS_header()
+    headerslist = []
+    body = ''
+    statuscode = '200 OK'
+    path_info = environ['PATH_INFO']
+    
+    statuscode = '200 OK'
+    if path_info[-1:] == '/':
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    elif check_is_static(path_info):
+        statuscode, headers, body =  handle_static(environ, path_info)
+    elif path_info == '/gateway.do':
+        error_code_pay = gConfig['fake_gateway_alipay']['alipay']['error_code_pay']
+        error_code_refund = gConfig['fake_gateway_alipay']['alipay']['error_code_refund']
+        if len(error_code_pay) == 0:
+            error_code_pay = None
+        if error_code_pay and not gSecurityConfig['alipay']['error_code'].has_key(error_code_pay):
+            error_code_pay = None
+        if len(error_code_refund) == 0:
+            error_code_refund = None
+        if error_code_refund and not gSecurityConfig['alipay']['error_code'].has_key(error_code_refund):
+            error_code_refund = None
+        statuscode, headers, body = handle_fake_gateway_alipay(environ, error_code_pay, error_code_refund)
+                
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    
+    start_response(statuscode, headerslist)
+    return [body]
+
+    
+def application_pay_platform(environ, start_response):
+    global STATICRESOURCE_DIR
+    global gConfig
+    
+    def check_is_static(aUrl):
+        ret = False
+        surl = dec(aUrl)
+        if surl[0:2] == '//':
+            surl = surl[2:]
+        if surl[0] == '/':
+            surl = surl[1:]
+        p = os.path.join(STATICRESOURCE_DIR , surl)
+        isBin = False
+        ext = os.path.splitext(p)[1]
+        if '.' in surl:
+            ext = surl[surl.rindex('.'):]
+        else:
+            ext = os.path.splitext(p)[1]
+        if len(ext)>0 and  gConfig['mime_type'].has_key(ext):
+            ret = True
+        return ret
+    headers = CORS_header()
+    headerslist = []
+    body = ''
+    statuscode = '200 OK'
+    path_info = environ['PATH_INFO']
+    
+    headerslist = []
+    statuscode = '200 OK'
+    #print('path_info=%s' % path_info)
+    if path_info[-1:] == '/':
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    elif check_is_static(path_info):
+        statuscode, headers, body =  handle_static(environ, path_info)
+    elif path_info == '/pay':   
+        statuscode, headers, body = handle_pay(environ)
+    elif path_info == '/refund':   
+        statuscode, headers, body = handle_refund(environ)
+    elif path_info == '/query':   
+        statuscode, headers, body = handle_pay_getinfo(environ)
+    elif path_info == '/alipay_return_url':   
+        headerslist.append(('Content-Type', 'text/plain;charset=' + ENCODING))
+        handle_alipay_return_url(environ)
+    elif path_info == '/alipay_notify_url':
+        headerslist.append(('Content-Type', 'text/plain;charset=' + ENCODING))
+        handle_alipay_notify_url(environ)
+        body = 'success'
+    elif path_info == '/alipay_error_notify_url':   
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        handle_alipay_error_notify_url(environ)
+                
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    #print(headerslist)
+    start_response(statuscode, headerslist)
+    return [body]
     
     
 def application_webgis(environ, start_response):
     global gConfig, gRequest, gSessionStore
-    headers = {}
-    headers['Access-Control-Allow-Origin'] = '*'
+    headers = CORS_header()
     headerslist = []
     cookie_header = None
         
@@ -2427,8 +3428,7 @@ def application_webgis(environ, start_response):
 
 def application_markdown(environ, start_response):
     global gConfig, gRequest, gSessionStore
-    headers = {}
-    headers['Access-Control-Allow-Origin'] = '*'
+    headers = CORS_header()
     headerslist = []
         
     path_info = environ['PATH_INFO']
@@ -3016,11 +4016,15 @@ if __name__=="__main1__":
     options = db_util.init_global()
     #print(options)
     init_global()
-    key = 'application_' + gConfig['wsgi']['application']
-    if globals().has_key(key):
-        app = globals()[key]
-    else:
-        print('unknown application:%s' % gConfig['wsgi']['application'])
+    s = get_sign_alipay(u'dsadsadsadsadsadsa')
+    print(s)
+    print(len(s))
+    #print(gSecurityConfig)
+    #key = 'application_' + gConfig['wsgi']['application']
+    #if globals().has_key(key):
+        #app = globals()[key]
+    #else:
+        #print('unknown application:%s' % gConfig['wsgi']['application'])
 
 
 if __name__=="__main__":
