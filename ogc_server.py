@@ -2711,34 +2711,125 @@ def handle_authorize_platform(environ, session):
     global ENCODING
     global gConfig, gRequest, gSessionStore, gUrlMapAuth, gSecurityConfig
     
-    def get_username_password_by_GET_POST(environ):
-        username = None
-        password = None
+    def get_querydict_by_GET_POST(environ):
         querydict = {}
         if environ.has_key('QUERY_STRING'):
-            querydict = urlparse.parse_qs(environ['QUERY_STRING'])
-            if querydict.has_key('username'):
-                username = querydict['username']
-                if isinstance(username, list):
-                    username = username[0]
-            if querydict.has_key('password'):
-                password = querydict['password']
-                if isinstance(password, list):
-                    password = password[0]
-                
+            querystring = environ['QUERY_STRING']
+            querystring = urllib.unquote_plus(querystring)
+            querystring = dec(querystring)
+            querydict = urlparse.parse_qs(querystring)
+            d = {}
+            for k in querydict.keys():
+                d[k] = querydict[k][0]
+            querydict = d
+        try:
+            buf = environ['wsgi.input'].read()
+            ds_plus = urllib.unquote_plus(buf)
+            obj = json.loads(dec(ds_plus))
+            for k in obj.keys():
+                querydict[k] = obj[k]
+        except:
+            pass
+        return querydict
+        
+    def get_collection(collection):
+        ret = None
+        db_util.mongo_init_client('authorize_platform')
+        db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+        if not collection in db.collection_names(False):
+            ret = db.create_collection(collection)
         else:
-            try:
-                buf = environ['wsgi.input'].read()
-                ds_plus = urllib.unquote_plus(buf)
-                obj = json.loads(dec(ds_plus))
-                if obj.has_key('username'):
-                    username = obj['username']
-                if obj.has_key('password') :
-                    password = obj['password']
-            except:
-                pass
-        return username, password    
+            ret = db[collection]
+        return ret
+        
+    def get_all_functions():
+        ret = {}
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
+        cur = collection.find({})
+        for i in cur:
+            ret[i['_id']] = i
+        return ret
     
+    def get_all_roles():
+        ret = []
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
+        cur = collection.find({})
+        for i in cur:
+            ret.append(i)
+        return ret
+        
+        
+    def function_add(querydict):
+        ret = ''
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
+        if querydict.has_key('name'):
+            existone = collection.find_one({'name':querydict['name']})
+            if existone:
+                ret = json.dumps({'result':u'function_add_fail_name_exist'}, ensure_ascii=True, indent=4)
+            else:
+                _id = collection.save(querydict)
+                rec = collection.find_one({'_id':_id})
+                ret = db_util.remove_mongo_id(rec)
+                ret = json.dumps(ret, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'function_add_fail_name_required'}, ensure_ascii=True, indent=4)
+        return ret
+    def function_query(querydict):
+        d = get_all_functions()
+        ret = json.dumps(db_util.remove_mongo_id(d), ensure_ascii=True, indent=4)
+        return ret
+    
+    def function_update(querydict):
+        ret = ''
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
+        if querydict.has_key('_id'):
+            wr = collection.update({'_id':db_util.add_mongo_id(querydict['_id'])}, db_util.add_mongo_id(querydict),  multi=False, upsert=False)
+            rec = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            ret = db_util.remove_mongo_id(rec)
+            ret = json.dumps(ret, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'function_update_fail_id_required'}, ensure_ascii=True, indent=4)
+        return ret
+        
+    def function_delete(querydict):
+        ret = ''
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
+        if querydict.has_key('_id'):
+            existone = collection.find_one({'_id': db_util.add_mongo_id(querydict['_id'])})
+            if existone:
+                wr = collection.remove({'_id':existone['_id']})
+                ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'function_delete_fail_not_exist'}, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'function_delete_fail_id_required'}, ensure_ascii=True, indent=4)
+        return ret
+        
+    def role_template_get(querydict):
+        ret = ''
+        l = get_all_roles()
+        for i in l:
+            if i['name'] == 'template':
+                ret = json.dumps(db_util.remove_mongo_id(i), ensure_ascii=True, indent=4)
+                break
+        if len(ret) == 0:
+            ret = json.dumps({}, ensure_ascii=True, indent=4)
+        return ret
+        
+    def role_template_save(querydict):
+        ret = ''
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
+        if querydict.has_key('_id'):
+            wr = collection.update({'_id':db_util.add_mongo_id(querydict['_id'])}, db_util.add_mongo_id(querydict),  multi=False, upsert=False)
+            rec = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            ret = db_util.remove_mongo_id(rec)
+            ret = json.dumps(ret, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'role_template_save_fail_id_required'}, ensure_ascii=True, indent=4)
+        return ret
+        
+        
+        
     
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
@@ -2748,6 +2839,7 @@ def handle_authorize_platform(environ, session):
     password = None
     isnew = False
     urls = gUrlMapAuth.bind_to_environ(environ)
+    querydict = get_querydict_by_GET_POST(environ)
     try:
         endpoint, args = urls.match()
         if args.has_key('username'):
@@ -2755,8 +2847,11 @@ def handle_authorize_platform(environ, session):
         if args.has_key('password'):
             password = args['password']
         if username is None and password is None:
-            username, password = get_username_password_by_GET_POST(environ)
-        
+            querydict = get_querydict_by_GET_POST(environ)
+            if querydict.has_key('username'):
+                username = querydict['username']
+            if querydict.has_key('password'):
+                password = querydict['password']
         if endpoint == 'auth_check':
             if username is not None:
                 statuscode, headers, body = auth_check(session, username, False)
@@ -2830,6 +2925,27 @@ def handle_authorize_platform(environ, session):
                 gSessionStore.delete(session)
                 session = None
             body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
+        
+        elif endpoint == 'function_add':
+            body = function_add(querydict)
+        elif endpoint == 'function_query':
+            body = function_query(querydict)
+        elif endpoint == 'function_update':
+            body = function_update(querydict)
+        elif endpoint == 'function_delete':
+            body = function_delete(querydict)
+        elif endpoint == 'role_add':
+            pass
+        elif endpoint == 'role_update':
+            pass
+        elif endpoint == 'role_query':
+            pass
+        elif endpoint == 'role_delete':
+            pass
+        elif endpoint == 'role_template_save':
+            body = role_template_save(querydict)
+        elif endpoint == 'role_template_get':
+            body = role_template_get(querydict)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     except HTTPException, e:
@@ -2858,6 +2974,16 @@ gUrlMapAuth = Map([
     Rule('/reset_password/<username>/<password>', endpoint='reset_password'),
     Rule('/reset_password/<username>', endpoint='reset_password'),
     Rule('/reset_password', endpoint='reset_password'),
+    Rule('/function_add', endpoint='function_add'),
+    Rule('/function_query', endpoint='function_query'),
+    Rule('/function_update', endpoint='function_update'),
+    Rule('/function_delete', endpoint='function_delete'),
+    Rule('/role_add', endpoint='role_add'),
+    Rule('/role_update', endpoint='role_update'),
+    Rule('/role_query', endpoint='role_query'),
+    Rule('/role_delete', endpoint='role_delete'),
+    Rule('/role_template_save', endpoint='role_template_save'),
+    Rule('/role_template_get', endpoint='role_template_get'),
 ], converters={'bool': BooleanConverter})
 
 

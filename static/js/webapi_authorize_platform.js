@@ -106,10 +106,10 @@ $.auth_platform.function_add = function(data, callback)
 
 $.auth_platform.function_query = function(data, callback)
 {
-    if(data.name === undefined || data.name.length == 0)
-    {
-        data.name = '';
-    }
+    //if(data.name === undefined || data.name.length == 0)
+    //{
+        //data.name = '';
+    //}
     $.auth_platform.post_cors('function_query', data, callback)
 };
 
@@ -147,6 +147,15 @@ $.auth_platform.role_add = function(data, callback)
     $.auth_platform.post_cors('role_add', data, callback)
 };
 
+$.auth_platform.role_query = function(data, callback)
+{
+    if(data.name === undefined || data.name.length == 0)
+    {
+        data.name = '';
+    }
+    $.auth_platform.post_cors('role_query', data, callback)
+};
+
 $.auth_platform.role_update = function(data, callback)
 {
     if(data._id === undefined || data._id.length == 0)
@@ -165,21 +174,25 @@ $.auth_platform.role_delete = function(data, callback)
     $.auth_platform.post_cors('role_delete', data, callback)
 };
 
-$.auth_platform.role_func_template_save = function(data, callback)
+$.auth_platform.role_template_save = function(data, callback)
 {
-    $.auth_platform.post_cors('role_func_template_save', data, callback)
+    if(data.name === undefined || data.name !== 'template')
+    {
+        throw "data.name must be 'template'";
+    }
+    $.auth_platform.post_cors('role_template_save', data, callback)
 };
 
-$.auth_platform.role_func_template_get = function(callback)
+$.auth_platform.role_template_get = function(callback)
 {
-    $.auth_platform.post_cors('role_func_template_get', data, callback)
+    $.auth_platform.post_cors('role_template_get', data, callback)
 };
 
 
 if($.auth_platform.DEBUG)
 {
 
-function beforeDrag(treeId, treeNodes) {
+function BeforeDragFunc(treeId, treeNodes) {
 	for (var i=0,l=treeNodes.length; i<l; i++) {
 		if (treeNodes[i].drag === false) {
 			return false;
@@ -187,18 +200,103 @@ function beforeDrag(treeId, treeNodes) {
 	}
 	return true;
 }
-function beforeDrop(treeId, treeNodes, targetNode, moveType) {
-	return targetNode ? targetNode.drop !== false : true;
+function BeforeDropFunc(treeId, treeNodes, targetNode, moveType) {
+	return CheckIsCategory(treeId, targetNode);
+}
+
+function BeforeDragTemplate(treeId, treeNodes) {
+	ret = true;
+	return ret;
+}
+
+function BeforeDropTemplate(treeId, treeNodes, targetNode, moveType) {
+	console.log(moveType);
+	return CheckIsSible(treeId, targetNode) && moveType !== 'inner';
 }
 
 function BeforeRemoveTemplate(treeId, treeNode)
 {
-}
-function BeforeRenameTemplate(treeId, treeNode, newName, isCancelBoolean)
-{
-	console.log(treeNode._id);
+	var ret = CheckIsCategory(treeId, treeNode) || CheckIsSible(treeId, treeNode);
+	if(ret)
+	{
+		ret = confirm("确定删除[" + treeNode.name + "]及其下属功能吗?");
+	}
+	return ret;
 }
 
+function BeforeRemoveFunc(treeId, treeNode)
+{
+	ret = confirm("确定删除功能[" + treeNode.name + "]吗?");
+	
+	return ret;
+}
+function OnRemoveFunc(e, treeId, treeNode)
+{
+	$('#func_id').val("");
+	$('#func_name').val("");
+	
+	$.auth_platform.function_delete({_id:treeNode._id}, function(data){
+		console.log(data);
+	});
+	
+}
+function OnClickFunc(e, treeId, treeNode)
+{
+	if(treeNode._id)
+	{
+		$('#func_id').val(treeNode._id);
+		$('#func_name').val(treeNode.name);
+	}
+}
+
+function ShowRemoveTemplate(treeId, treeNode)
+{
+	return CheckIsCategory(treeId, treeNode) || CheckIsSible(treeId, treeNode);
+}
+function ShowRenameTemplate(treeId, treeNode)
+{
+	return CheckIsCategory(treeId, treeNode) ;
+}
+
+function BeforeRenameTemplate(treeId, treeNode, newName, isCancelBoolean)
+{
+	return CheckIsCategory(treeId, treeNode);
+}
+
+function OnRemoveTemplate(e, treeId, treeNode)
+{
+	console.log(treeNode.name);
+}
+
+function CheckIsCategory(treeId, treeNode)
+{
+	var ret = false;
+	if(treeId === 'roletemplate' && treeNode.type && treeNode.type === 'category')
+	{
+		ret = true;
+	}
+	return ret;
+}
+
+function CheckIsRoot(treeId, treeNode)
+{
+	var ret = false;
+	if(treeId === 'roletemplate' && treeNode.type && treeNode.type === 'root')
+	{
+		ret = true;
+	}
+	return ret;
+}
+
+function CheckIsSible(treeId, treeNode)
+{
+	var ret = false;
+	if(treeId === 'roletemplate' && treeNode && treeNode._id  && treeNode.getParentNode()  && treeNode.getParentNode().type && treeNode.getParentNode().type === 'category')
+	{
+		ret = true;
+	}
+	return ret;
+}
 
 function init_left()
 {
@@ -209,35 +307,68 @@ function init_left()
 				isMove : false
 			},
 			enable: true,
-			showRemoveBtn: false,
+			showRemoveBtn: true,
 			showRenameBtn: false
 		},
 		callback: {
-			beforeDrag: beforeDrag,
-			beforeDrop: beforeDrop
+			beforeDrag: BeforeDragFunc,
+			beforeDrop: BeforeDropFunc,
+			beforeRemove:BeforeRemoveFunc,
+			onClick: OnClickFunc,
+			onRemove: OnRemoveFunc
 		}
 	};
 
     var nodes = [];
     for(var i=0; i<10; i++)
     {
-        nodes.push({_id:i.toString(), name:"功能" + i});
+        nodes.push({_id:i.toString(), name:"功能" + i, title:"功能" + i + "描述"});
     }
-    $.fn.zTree.init($("#funclist"), setting, nodes);
+	$.auth_platform.function_query( {}, function(nodes){
+		$.fn.zTree.init($("#funclist"), setting, nodes);
+	});
+	
 }
+
+function AddHoverDom(treeId, treeNode) {
+	var sObj = $("#" + treeNode.tId + "_span");
+	if (treeNode.editNameFlag || $("#addBtn_"+treeNode.tId).length>0) return;
+	var addStr = "<span class='button add' id='addBtn_" + treeNode.tId
+		+ "' title='add node' onfocus='this.blur();'></span>";
+	sObj.after(addStr);
+	var btn = $("#addBtn_"+treeNode.tId);
+	if (btn) btn.bind("click", function(){
+		var zTree = $.fn.zTree.getZTreeObj("roletemplate");
+		zTree.addNodes(treeNode, {type:"category", name:"类别" });
+		return false;
+	});
+}
+function RemoveHoverDom(treeId, treeNode) {
+	$("#addBtn_"+treeNode.tId).unbind().remove();
+}
+
+
+
 function init_right()
 {
 	var setting = {
+	
+		view: {
+			addHoverDom: AddHoverDom,
+			removeHoverDom: RemoveHoverDom,
+			selectedMulti: false
+		},	
 		edit: {
 			enable: true,
-			showRemoveBtn: true,
-			showRenameBtn: true
+			showRemoveBtn: ShowRemoveTemplate,
+			showRenameBtn: ShowRenameTemplate
 		},
 		callback: {
-			beforeDrag: beforeDrag,
-			beforeDrop: beforeDrop,
+			beforeDrag: BeforeDragTemplate,
+			beforeDrop: BeforeDropTemplate,
 			beforeRemove:BeforeRemoveTemplate,
-			beforeRename:BeforeRenameTemplate
+			beforeRename:BeforeRenameTemplate,
+			onRemove: OnRemoveTemplate
 		},
 		check:{
 			enable : true,
@@ -246,18 +377,123 @@ function init_right()
 			chkboxType: { "Y": "ps", "N": "ps" }
 		}
 	};
-    var nodes = [];
-    for(var i=0; i<3; i++)
-    {
-        nodes.push({_id:"cat_" + i, name:"类别" + i});
-    }
-    $.fn.zTree.init($("#roletemplate"), setting, nodes);
+    //var nodes = [];
+    //for(var i=0; i<3; i++)
+    //{
+        //nodes.push({type:"category", name:"类别" + i});
+    //}
+	
+	$.auth_platform.role_template_get( {}, function(node){
+		if(node === {})
+		{
+			node = {name:"template", type:"root", children:[]};
+		}
+		$.fn.zTree.init($("#roletemplate"), setting, node);
+		ztree.expandAll(true);
+	});
+}
 
+
+function NodeToObject(node)
+{
+	var ret = {};
+	if(node._id)
+	{
+		ret._id = node._id
+	}
+	if(node.name)
+	{
+		ret.name = node.name
+	}
+	if(node.desc)
+	{
+		ret.desc = node.desc
+	}
+	if(node.children && node.children.length>0)
+	{
+		ret.children = [];
+		for(var i in node.children)
+		{
+			var o = NodeToObject(node.children[i]);
+			if(o != {})
+			{
+				if(o._id)
+				{
+					if(o.checked === undefined)
+					{
+						ret.children.push({_id:o._id, checked:false});
+					}
+					else
+					{
+						ret.children.push({_id:o._id, checked:o.checked});
+					}
+				}
+				else
+				{
+					ret.children.push(o);
+				}
+			}
+		}
+		if(ret.children.length===0)
+		{
+			ret.children = undefined;
+		}
+	}
+	return ret;
+}
+
+function NodesToTemplateJson(nodes)
+{
+	var ret;
+	if(nodes.length>0)
+	{
+		nodes[0].name = 'template';
+		ret = NodeToObject(nodes[0])
+	}
+	return ret;
+}
+
+
+function init_button()
+{
+	$('#func_new').on('click', function(){
+		var func_name = $('#func_name').val();
+		var func_desc = $('#func_desc').val();
+		$('#func_id').val('');
+		if(func_name.length>0)
+		{
+			$.auth_platform.function_add({name:func_name, desc:func_desc}, function(data){
+				$.fn.zTree.getZTreeObj("funclist").addNodes(null, data);
+			});
+		}
+	});
+	$('#func_update').on('click', function(){
+		var func_name = $('#func_name').val();
+		var func_id = $('#func_id').val();
+		var func_desc = $('#func_desc').val();
+		if(func_name.length>0 && func_id.length>0)
+		{
+			$.auth_platform.function_update({_id: func_id, name:func_name, desc:func_desc}, function(data){
+				$.fn.zTree.getZTreeObj("funclist").updateNode(data);
+			});
+		}
+	});
+	$('#template_update').on('click', function(){
+		var o = NodesToTemplateJson($.fn.zTree.getZTreeObj("roletemplate").getNodes());
+		console.log(o);
+	});
+}
+
+function init()
+{
+	init_left();
+	init_right();
+	init_button();
 }
 
     
 $(function() {
-    
+    init();
 });
 }
 

@@ -12,7 +12,7 @@
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.ztree.all-3.5.min.js"></script>
     <script type="text/javascript" src="js/webapi_authorize_platform.js"></script>
-	<style>
+	<style type="text/css">
 		html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td {
 			margin: 0;padding: 0;border: 0;outline: 0;font-weight: inherit;font-style: inherit;font-size: 100%;font-family: inherit;vertical-align: baseline;}
 		body {color: #2f332a;font: 15px/21px Arial, Helvetica, simsun, sans-serif;background: #f0f6e4 \9;}
@@ -46,15 +46,24 @@
 		/* ruler */
 		div.ruler {height:20px; width:220px; background-color:#f0f6e4;border: 1px solid #333; margin-bottom: 5px; cursor: pointer}
 		div.ruler div.cursor {height:20px; width:30px; background-color:#3C6E31; color:white; text-align: right; padding-right: 5px; cursor: pointer}	
+	
+		.ztree li span.button.add {margin-left:2px; margin-right: -1px; background-position:-144px 0; vertical-align:top; *vertical-align:middle}
+	
 	</style>
 </head>
 <body>
 	<div class="content_wrap">
+		功能ID:<input id="func_id" type="text" value=""></input><br/>
+		功能名称:<input id="func_name" type="text" value=""></input><br/>
+		功能描述:<input id="func_desc" type="text" value=""></input><br/>
+		<button id="func_new">新增</button><button id="func_update">保存</button><br/>
 		<div class="left">
 			<ul id="funclist" class="ztree"></ul>
 		</div>
+		
 		<div class="right">
 			<ul id="roletemplate" class="ztree"></ul>
+			<button id="template_update">保存模板</button><br/>
 		</div>
 	</div>
 </body>
