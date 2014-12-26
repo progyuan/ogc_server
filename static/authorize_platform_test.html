@@ -32,9 +32,9 @@
 		li.title {list-style: none;}
 		ul.list {margin-left: 17px;}
 		
-		div.content_wrap {width: 600px;height:380px;}
-		div.content_wrap div.left{float: left;width: 250px;}
-		div.content_wrap div.right{float: right;width: 340px;}
+		div.content_wrap {width: 1500px;height:580px;}
+		div.content_wrap div.left{float: left;width: 300px;}
+		div.content_wrap div.right{float: right;width: 300px; top:10px}
 		div.zTreeDemoBackground {width:250px;height:362px;text-align:left;}
 		
 		ul.ztree {margin-top: 10px;border: 1px solid #617775;background: #f0f6e4;width:220px;height:360px;overflow-y:scroll;overflow-x:auto;}
@@ -53,18 +53,41 @@
 </head>
 <body>
 	<div class="content_wrap">
-		功能ID:<input id="func_id" type="text" value=""></input><br/>
-		功能名称:<input id="func_name" type="text" value=""></input><br/>
-		功能描述:<input id="func_desc" type="text" value=""></input><br/>
-		<button id="func_new">新增</button><button id="func_update">保存</button><br/>
 		<div class="left">
+			<div style="text-align:center;"> 功能列表</div>
 			<ul id="funclist" class="ztree"></ul>
+			功能ID:<input id="func_id" type="text" value=""></input><br/>
+			功能名称:<input id="func_name" type="text" value=""></input><br/>
+			功能描述:<input id="func_desc" type="text" value=""></input><br/>
+			<button id="func_new">新增功能</button><button id="func_update">保存功能</button><br/>
 		</div>
 		
-		<div class="right">
+		<div class="left">
+			<div style="text-align:center;"> 角色功能模板</div>
 			<ul id="roletemplate" class="ztree"></ul>
-			<button id="template_update">保存模板</button><br/>
+			<button id="template_update">保存模板</button><button id="template_copy">复制模板</button><br/>
 		</div>
+		
+		<div class="left">
+		    <div style="text-align:center;"> 角色功能设置</div>
+			<ul id="roles" class="ztree"></ul>
+			选择角色:<select id="role_list" ></select><br/>
+			角色名称:<input id="role_name" type="text" value=""></input><br/>
+			角色描述:<input id="role_desc" type="text" value=""></input><br/>
+			<button id="role_new">新增角色</button><button id="role_update">更新角色</button><button id="role_delete">删除角色</button><br/>
+		</div>
+		
+		<div class="left">
+		    <div style="text-align:center;"> 用户角色设置</div>
+			<ul id="userrole" class="ztree"></ul>
+			选择用户:<select id="user_list" ></select><br/>
+			用户名称:<input id="user_name" type="text" value=""></input><br/>
+			登录用户名:<input id="user_username" type="text" value=""></input><br/>
+			<button id="user_new">新增用户</button><button id="user_update">更新用户</button><button id="user_delete">删除用户</button><br/>
+			<button id="add_role_to_user">添加角色</button>
+		</div>
+		
+		
 	</div>
 </body>
 </html>

@@ -3,6 +3,10 @@ $.auth_platform.AUTH_HOST = 'yncaiyun.com';
 $.auth_platform.AUTH_PROTOCOL = 'http';
 $.auth_platform.AUTH_PORT = '8088';
 $.auth_platform.DEBUG = true;
+$.auth_platform.FUNCTION_MAP = {};
+$.auth_platform.ROLE_LIST = [];
+$.auth_platform.ROLE_TEMPLATE = {};
+$.auth_platform.USER_LIST = [];
 
 $.auth_platform.post_cors = function(action, data, callback)
 {
@@ -19,7 +23,24 @@ $.auth_platform.post_cors = function(action, data, callback)
         success: function(data1){
             if(callback)
             {
-                callback(data1);
+                var ret = JSON.parse(decodeURIComponent(data1));
+				if(action === 'role_template_get')
+				{
+					$.auth_platform.ROLE_TEMPLATE = ret;
+				}
+				if(action === 'function_query')
+				{
+					$.auth_platform.FUNCTION_MAP = ret;
+				}
+				if(action === 'role_query')
+				{
+					$.auth_platform.ROLE_LIST = ret;
+				}
+				if(action === 'user_query')
+				{
+					$.auth_platform.USER_LIST = ret;
+				}
+                callback(ret);
             }
         }
     });
@@ -104,13 +125,9 @@ $.auth_platform.function_add = function(data, callback)
     $.auth_platform.post_cors('function_add', data, callback)
 };
 
-$.auth_platform.function_query = function(data, callback)
+$.auth_platform.function_query = function(callback)
 {
-    //if(data.name === undefined || data.name.length == 0)
-    //{
-        //data.name = '';
-    //}
-    $.auth_platform.post_cors('function_query', data, callback)
+    $.auth_platform.post_cors('function_query', {}, callback)
 };
 
 $.auth_platform.function_update = function(data, callback)
@@ -147,13 +164,9 @@ $.auth_platform.role_add = function(data, callback)
     $.auth_platform.post_cors('role_add', data, callback)
 };
 
-$.auth_platform.role_query = function(data, callback)
+$.auth_platform.role_query = function(callback)
 {
-    if(data.name === undefined || data.name.length == 0)
-    {
-        data.name = '';
-    }
-    $.auth_platform.post_cors('role_query', data, callback)
+    $.auth_platform.post_cors('role_query', {}, callback)
 };
 
 $.auth_platform.role_update = function(data, callback)
@@ -185,7 +198,7 @@ $.auth_platform.role_template_save = function(data, callback)
 
 $.auth_platform.role_template_get = function(callback)
 {
-    $.auth_platform.post_cors('role_template_get', data, callback)
+    $.auth_platform.post_cors('role_template_get', {}, callback)
 };
 
 
@@ -227,18 +240,22 @@ function BeforeRemoveTemplate(treeId, treeNode)
 function BeforeRemoveFunc(treeId, treeNode)
 {
 	ret = confirm("确定删除功能[" + treeNode.name + "]吗?");
-	
+	if(ret)
+	{
+		$.auth_platform.function_delete({_id:treeNode._id}, function(data1){
+			if(data1.result)
+			{
+				alert(data1.result);
+			}
+		});
+	}
 	return ret;
 }
 function OnRemoveFunc(e, treeId, treeNode)
 {
 	$('#func_id').val("");
 	$('#func_name').val("");
-	
-	$.auth_platform.function_delete({_id:treeNode._id}, function(data){
-		console.log(data);
-	});
-	
+	$('#func_desc').val("");
 }
 function OnClickFunc(e, treeId, treeNode)
 {
@@ -246,6 +263,7 @@ function OnClickFunc(e, treeId, treeNode)
 	{
 		$('#func_id').val(treeNode._id);
 		$('#func_name').val(treeNode.name);
+		$('#func_desc').val(treeNode.desc);
 	}
 }
 
@@ -298,7 +316,7 @@ function CheckIsSible(treeId, treeNode)
 	return ret;
 }
 
-function init_left()
+function init_functions()
 {
 	var setting = {
 		edit: {
@@ -319,15 +337,17 @@ function init_left()
 		}
 	};
 
-    var nodes = [];
-    for(var i=0; i<10; i++)
-    {
-        nodes.push({_id:i.toString(), name:"功能" + i, title:"功能" + i + "描述"});
-    }
-	$.auth_platform.function_query( {}, function(nodes){
-		$.fn.zTree.init($("#funclist"), setting, nodes);
-	});
-	
+	var nodes = $.auth_platform.FUNCTION_MAP;
+	var list = [];
+	if(!$.isEmptyObject(nodes))
+	{
+		for(var k in nodes)
+		{
+			list.push(nodes[k]);
+		}
+	}
+	//console.log(list);
+	$.fn.zTree.init($("#funclist"), setting, list);
 }
 
 function AddHoverDom(treeId, treeNode) {
@@ -349,7 +369,7 @@ function RemoveHoverDom(treeId, treeNode) {
 
 
 
-function init_right()
+function init_role_template()
 {
 	var setting = {
 	
@@ -383,18 +403,173 @@ function init_right()
         //nodes.push({type:"category", name:"类别" + i});
     //}
 	
-	$.auth_platform.role_template_get( {}, function(node){
-		if(node === {})
+	$.auth_platform.role_template_get( function(node){
+		if($.isEmptyObject(node))
 		{
 			node = {name:"template", type:"root", children:[]};
+		}else
+		{
+			node = BuildTreeHirachy(node);
 		}
-		$.fn.zTree.init($("#roletemplate"), setting, node);
+		var ztree = $.fn.zTree.init($("#roletemplate"), setting, node);
 		ztree.expandAll(true);
+		
 	});
 }
 
+function CheckIsUser(treeId, treeNode)
+{
+	var ret = false;
+	if(treeNode.username)
+	{
+		ret = true;
+	}
+	return ret;
+}
+function BeforeRemoveUser(treeId, treeNode)
+{
+	ret = confirm("确定删除用户[" + treeNode.name + "]吗?");
+	if(ret)
+	{
+		$.auth_platform.unregister({username:treeNode.username}, function(data1){
+			if(data1.result)
+			{
+				alert(data1.result);
+			}
+		});
+	}
+	return ret;
+}
+function OnRemoveUser(e, treeId, treeNode)
+{
+}
 
-function NodeToObject(node)
+function init_users(nodes)
+{
+	try{
+		$.fn.zTree.destroy("userrole");
+	}catch(e)
+	{
+	}
+	var setting = {
+		edit: {
+			enable: true,
+			showRemoveBtn: CheckIsUser
+		},
+		callback: {
+			beforeRemove:BeforeRemoveUser,
+			onRemove: OnRemoveUser
+		},
+	};
+	
+	var ztree = $.fn.zTree.init($("#roles"), setting, nodes);
+	ztree.expandAll(true);
+}
+
+function init_roles(nodes)
+{
+	try{
+		$.fn.zTree.destroy("roles");
+	}catch(e)
+	{
+	}
+	var setting = {
+		check:{
+			enable : true,
+			autoCheckTrigger: true,
+			chkStyle : "checkbox",
+			chkboxType: { "Y": "ps", "N": "ps" }
+		}
+	};
+	
+	var ztree = $.fn.zTree.init($("#roles"), setting, nodes);
+	ztree.expandAll(true);
+}
+
+function UpdateRolesData(node)
+{
+	for(var i in $.auth_platform.ROLE_LIST)
+	{
+		var item = $.auth_platform.ROLE_LIST[i];
+		if(item._id === node._id)
+		{
+			$.auth_platform.ROLE_LIST[i] = node;
+			break;
+		}
+	}
+}
+
+function DeleteRolesData(_id)
+{
+	for(var i in $.auth_platform.ROLE_LIST)
+	{
+		var item = $.auth_platform.ROLE_LIST[i];
+		if(item._id === _id)
+		{
+			$.auth_platform.ROLE_LIST.splice(i,1);
+			break;
+		}
+	}
+}
+
+
+
+function RefreshRoleTree(_id)
+{
+	for(var i in $.auth_platform.ROLE_LIST)
+	{
+		var item = $.auth_platform.ROLE_LIST[i];
+		if(item._id === _id)
+		{
+			init_roles([BuildTreeHirachy(item)]);
+			break;
+		}
+	}
+
+}
+
+function FillRoleForm(_id)
+{
+	for(var i in $.auth_platform.ROLE_LIST)
+	{
+		var item = $.auth_platform.ROLE_LIST[i];
+		if(item._id === _id)
+		{
+			$('#role_name').val(item.name);
+			$('#role_desc').val(item.desc);
+			break;
+		}
+	}
+}
+
+function BuildTreeHirachy(node)
+{
+	
+	if(node._id) 
+	{
+		if($.auth_platform.FUNCTION_MAP[node._id] && $.auth_platform.FUNCTION_MAP[node._id]._id === node._id)
+		{
+			node.name = $.auth_platform.FUNCTION_MAP[node._id].name;
+		}else
+		{
+			node.type = 'root';
+		}
+	}
+	if(node._id === undefined) 
+	{
+		node.type = 'category';
+	}
+	if(node.children)
+	{
+		for(var i in node.children)
+		{
+			node.children[i] = BuildTreeHirachy(node.children[i]);
+		}
+	}
+	return node;
+}
+
+function NodeToObject(node, istemplate)
 {
 	var ret = {};
 	if(node._id)
@@ -409,6 +584,19 @@ function NodeToObject(node)
 	{
 		ret.desc = node.desc
 	}
+	if(istemplate && istemplate === true)
+	{
+		ret.checked = false;
+	}else
+	{
+		if(node.checked === 'true' || node.checked === true)
+		{
+			ret.checked = true;
+		}else
+		{
+			ret.checked = false;
+		}
+	}
 	if(node.children && node.children.length>0)
 	{
 		ret.children = [];
@@ -419,13 +607,19 @@ function NodeToObject(node)
 			{
 				if(o._id)
 				{
-					if(o.checked === undefined)
+					if(istemplate && istemplate === true)
 					{
 						ret.children.push({_id:o._id, checked:false});
 					}
 					else
 					{
-						ret.children.push({_id:o._id, checked:o.checked});
+						if(o.checked === true || o.checked === 'true')
+						{
+							ret.children.push({_id:o._id, checked:true});
+						}else
+						{
+							ret.children.push({_id:o._id, checked:false});
+						}
 					}
 				}
 				else
@@ -448,7 +642,7 @@ function NodesToTemplateJson(nodes)
 	if(nodes.length>0)
 	{
 		nodes[0].name = 'template';
-		ret = NodeToObject(nodes[0])
+		ret = NodeToObject(nodes[0], true);
 	}
 	return ret;
 }
@@ -462,8 +656,14 @@ function init_button()
 		$('#func_id').val('');
 		if(func_name.length>0)
 		{
-			$.auth_platform.function_add({name:func_name, desc:func_desc}, function(data){
-				$.fn.zTree.getZTreeObj("funclist").addNodes(null, data);
+			$.auth_platform.function_add({name:func_name, desc:func_desc}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}else
+				{
+					$.fn.zTree.getZTreeObj("funclist").addNodes(null, data1);
+				}
 			});
 		}
 	});
@@ -473,22 +673,214 @@ function init_button()
 		var func_desc = $('#func_desc').val();
 		if(func_name.length>0 && func_id.length>0)
 		{
-			$.auth_platform.function_update({_id: func_id, name:func_name, desc:func_desc}, function(data){
-				$.fn.zTree.getZTreeObj("funclist").updateNode(data);
+			$.auth_platform.function_update({_id: func_id, name:func_name, desc:func_desc}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result)
+				}
+				else
+				{
+					$.fn.zTree.getZTreeObj("funclist").updateNode(data1);
+				}
 			});
 		}
 	});
 	$('#template_update').on('click', function(){
 		var o = NodesToTemplateJson($.fn.zTree.getZTreeObj("roletemplate").getNodes());
-		console.log(o);
+		if(o)
+		{
+			$.auth_platform.role_template_save(o, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result)
+				}
+				console.log(data1);
+			});
+		}
+		
 	});
+	
+	$('#template_copy').on('click', function(){
+		var o = NodesToTemplateJson($.fn.zTree.getZTreeObj("roletemplate").getNodes());
+		if(o && $('#role_name').val().length>0)
+		{
+			o.name = $('#role_name').val();
+			if($('#role_list').val() &&  $('#role_list').val().length>0)
+			{
+				o._id = $('#role_list').val();
+			}
+			else
+			{
+				o._id = undefined;
+			}
+			init_roles([BuildTreeHirachy(o)]);
+		}else
+		{
+			alert('role name required');
+		}
+	});
+	
+	
+	$('#role_new').on('click', function(){
+		var role_name = $('#role_name').val();
+		var role_desc = $('#role_desc').val();
+		if( role_name.length>0 && $.fn.zTree.getZTreeObj("roles").getNodes().length>0)
+		{
+			var node = $.fn.zTree.getZTreeObj("roles").getNodes()[0];
+			var data = NodeToObject(node, false);
+			data._id = undefined;
+			data.name = role_name;
+			data.desc = role_desc;
+			$.auth_platform.role_add(data, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}else
+				{
+					UpdateRolesData(data1);
+					RefreshRoleTree(data1._id);
+					var html = $('#role_list').html();
+					html += '<option value="' + data1._id + '">' + data1.name + '</option>';
+					$('#role_list').html(html);
+					$('#role_list').val(data1._id);
+				}
+			});
+		}
+	});
+	$('#role_update').on('click', function(){
+		var role_name = $('#role_name').val();
+		var role_desc = $('#role_desc').val();
+		if( $('#role_list').val() && $('#role_list').val().length>0 && role_name.length>0 && $.fn.zTree.getZTreeObj("roles").getNodes().length>0)
+		{
+			var node = $.fn.zTree.getZTreeObj("roles").getNodes()[0];
+			var data = NodeToObject(node, false);
+			data._id = $('#role_list').val();
+			data.name = role_name;
+			data.desc = role_desc;
+			//console.log(node);
+			//console.log(data);
+			$.auth_platform.role_update(data, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}else
+				{
+					UpdateRolesData(data1);
+					RefreshRoleTree(data1._id);
+				}
+			});
+		}
+	});
+	$('#role_delete').on('click', function(){
+		if( $('#role_list').val() && $('#role_list').val().length>0)
+		{
+			if(confirm("确定删除角色[" + $('#role_name').val() + "]吗?"))
+			{
+				$.auth_platform.role_delete({_id:$('#role_list').val()}, function(data1){
+					if(data1.result)
+					{
+						alert(data1.result);
+					}else
+					{
+						$('#role_name').val("");
+						$('#role_desc').val("");
+						DeleteRolesData(data1._id);
+						$.fn.zTree.destroy("roles");
+						$('#role_list option[value="'+ data1._id + '"]').remove();
+						$('#role_list').val('');
+					}
+				});
+			}
+		}
+	
+	});
+	
+	$('#role_name').on('blur', function(){
+		if($.fn.zTree.getZTreeObj("roles") && $.fn.zTree.getZTreeObj("roles").getNodes().length>0)
+		{
+			var o = NodeToObject($.fn.zTree.getZTreeObj("roles").getNodes()[0], false);
+			if(o)
+			{
+				o.name = $(this).val();
+				init_roles([BuildTreeHirachy(o)]);
+			}
+		}
+	});
+}
+
+function init_select()
+{
+	$.auth_platform.role_query(function(){
+		var html = '<option value=""></option>';
+		var data = $.auth_platform.ROLE_LIST;
+		//console.log(data);
+		for(var i in data)
+		{
+			html += '<option value="' + data[i]._id + '">' + data[i].name + '</option>';
+		}
+		$('#role_list').append(html);
+		
+		$('#role_list').on('change', function(e){
+			
+			if(e.target.value.length>0)
+			{
+				RefreshRoleTree(e.target.value);
+				FillRoleForm(e.target.value);
+			}else
+			{
+				try{
+					$.fn.zTree.destroy("roles");
+				}catch(e)
+				{
+				}
+				$('#role_name').val('');
+				$('#role_desc').val('');
+			}
+		});
+		init_roles([]);
+	});
+	
+	$.auth_platform.user_query(function(){
+		var html = '<option value=""></option>';
+		var data = $.auth_platform.USER_LIST;
+		//console.log(data);
+		for(var i in data)
+		{
+			html += '<option value="' + data[i]._id + '">' + data[i].username + '</option>';
+		}
+		$('#user_list').append(html);
+		
+		$('#user_list').on('change', function(e){
+			
+			if(e.target.value.length>0)
+			{
+				RefreshRoleTree(e.target.value);
+				FillRoleForm(e.target.value);
+			}else
+			{
+				try{
+					$.fn.zTree.destroy("userrole");
+				}catch(e)
+				{
+				}
+				$('#user_name').val('');
+				$('#user_username').val('');
+			}
+		});
+		init_users([]);
+	});
+
 }
 
 function init()
 {
-	init_left();
-	init_right();
-	init_button();
+
+	$.auth_platform.function_query(  function(nodes){
+		init_functions();
+		init_role_template();
+		init_button();
+		init_select();
+	});
 }
 
     
