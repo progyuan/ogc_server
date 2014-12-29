@@ -2678,6 +2678,23 @@ def handle_authorize_platform(environ, session):
             ret.append(i)
         return ret
     
+    def check_role_can_be_delete(_id):
+        def get_id_list(node):
+            reet = []
+            if node.has_key('roles'):
+                for i in node['roles']:
+                    reet.append(i)
+            return reet
+        ret = True
+        for i in get_user():
+            idlist = get_id_list(i)
+            if _id in idlist:
+                ret = False
+                break
+        return ret
+        
+        
+        
     def check_function_can_be_delete(_id):
         def get_id_list(node):
             reet = []
@@ -2694,8 +2711,17 @@ def handle_authorize_platform(environ, session):
                 ret = False
                 break
         return ret
-        
-    def function_add(querydict):
+    def check_valid_user(session, user=None):
+        ret = False
+        if session and session.has_key('username') and len(session['username'])>0:
+            if user:
+                ret = session['username'] == user
+            else:
+                ret = True
+        return ret
+    def function_add(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
         if querydict.has_key('name'):
@@ -2703,19 +2729,23 @@ def handle_authorize_platform(environ, session):
             if existone:
                 ret = json.dumps({'result':u'function_add_fail_name_exist'}, ensure_ascii=True, indent=4)
             else:
-                _id = collection.save(querydict)
+                _id = collection.save(db_util.add_mongo_id(querydict))
                 rec = collection.find_one({'_id':_id})
                 ret = db_util.remove_mongo_id(rec)
                 ret = json.dumps(ret, ensure_ascii=True, indent=4)
         else:
             ret = json.dumps({'result':u'function_add_fail_name_required'}, ensure_ascii=True, indent=4)
         return ret
-    def function_query(querydict):
+    def function_query(session, querydict):
+        #if not check_valid_user(session, 'admin'):
+            #return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         d = get_all_functions()
         ret = json.dumps(db_util.remove_mongo_id(d), ensure_ascii=True, indent=4)
         return ret
     
-    def function_update(querydict):
+    def function_update(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
         if querydict.has_key('_id'):
@@ -2727,7 +2757,9 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'function_update_fail_id_required'}, ensure_ascii=True, indent=4)
         return ret
         
-    def function_delete(querydict):
+    def function_delete(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
         
@@ -2745,15 +2777,17 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'function_delete_fail_id_required'}, ensure_ascii=True, indent=4)
         return ret
     
-    def role_add(querydict):
+    def role_add(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
         if querydict.has_key('name'):
             existone = collection.find_one({'name':querydict['name']})
             if existone:
-                ret = json.dumps({'result':u'role_add_fail_name_exist'}, ensure_ascii=True, indent=4)
+                ret = json.dumps({'result':u'role_add_fail_name_already_exist'}, ensure_ascii=True, indent=4)
             else:
-                _id = collection.save(querydict)
+                _id = collection.save(db_util.add_mongo_id(querydict))
                 rec = collection.find_one({'_id':_id})
                 ret = db_util.remove_mongo_id(rec)
                 ret = json.dumps(ret, ensure_ascii=True, indent=4)
@@ -2761,13 +2795,17 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'role_add_fail_name_required'}, ensure_ascii=True, indent=4)
         return ret
     
-    def role_query(querydict):    
+    def role_query(session, querydict):    
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         l = get_all_roles(True)
         ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)    
         return ret
     
     
-    def role_update(querydict):
+    def role_update(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
         if querydict.has_key('_id'):
@@ -2779,14 +2817,19 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'role_update_fail_id_required'}, ensure_ascii=True, indent=4)
         return ret
     
-    def role_delete(querydict):
+    def role_delete(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
         if querydict.has_key('_id'):
             existone = collection.find_one({'_id': db_util.add_mongo_id(querydict['_id'])})
             if existone:
-                wr = collection.remove({'_id':db_util.add_mongo_id(existone['_id'])})
-                ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                if check_role_can_be_delete(existone['_id']):
+                    wr = collection.remove({'_id':db_util.add_mongo_id(existone['_id'])})
+                    ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'role_delete_fail_need_delete_in_user_first'}, ensure_ascii=True, indent=4) 
             else:
                 ret = json.dumps({'result':u'role_delete_fail_not_exist'}, ensure_ascii=True, indent=4)
         else:
@@ -2795,7 +2838,9 @@ def handle_authorize_platform(environ, session):
     
     
     
-    def role_template_get(querydict):
+    def role_template_get(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         l = get_all_roles()
         for i in l:
@@ -2806,7 +2851,9 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({}, ensure_ascii=True, indent=4)
         return ret
         
-    def role_template_save(querydict):
+    def role_template_save(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
         ret = ''
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
         if querydict.has_key('_id'):
@@ -2823,15 +2870,99 @@ def handle_authorize_platform(environ, session):
             else:
                 ret = json.dumps({'result':u'role_template_save_fail'}, ensure_ascii=True, indent=4)
         return ret
+    
+    def get_user(user=None):
+        ret = []
+        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
+        if user:
+            cur = collection.find({'username':user})
+        else:
+            cur = collection.find({})
+        for i in cur:
+            ret.append(i)
+        return ret
+    
+    def get_funclist_by_roles(roles):
+        def get_func_list(node):
+            ret = []
+            if node.has_key('_id'):
+                if node.has_key('checked') and node['checked'] is True:
+                    ret.append(node['_id'])
+            if node.has_key('children'):
+                for i in node['children']:
+                    ret.extend(get_func_list(i))
+            return ret
+                    
+        ret = []
+        rolelist = get_all_roles(True)
+        for node in rolelist:
+            if node.has_key('_id') and node['_id'] in roles: 
+                ret.extend(get_func_list(node))
+        return ret
         
-    def user_add(querydict):
+        
+    def check_user_has_function(session, querydict):
+        ret = ''
+        if not check_valid_user(session):
+            return json.dumps({'result':u'username_required'}, ensure_ascii=True, indent=4)
+    
+        if querydict.has_key('username') :
+            if querydict.has_key('functions') :
+                if len(querydict['functions'])>0:
+                    userlist = get_user(querydict['username'])
+                    if len(userlist)>0:
+                        if userlist[0].has_key('roles') and isinstance(userlist[0]['roles'], list) and len(userlist[0]['roles'])>0:
+                            roles = userlist[0]['roles']
+                            funclist = get_funclist_by_roles(roles)
+                            retlist = []
+                            for f in querydict['functions']:
+                                o = {}
+                                o['_id'] = f
+                                if ObjectId(f) in funclist:
+                                    o['enable'] = True
+                                else:
+                                    o['enable'] = False
+                                retlist.append(o)
+                            ret = json.dumps(retlist, ensure_ascii=True, indent=4)
+                        else:
+                            ret = json.dumps({'result':u'this_user_has_no_role'}, ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'username_not_exist'}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'function_id_list_required'}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'functions_required'}, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'username_required'}, ensure_ascii=True, indent=4)
+        return ret    
+        
+        
+    def user_query(session, querydict):
+        if not check_valid_user(session, 'admin'):
+            return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
+        ret = ''
+        if querydict.has_key('username')  and len(querydict['username'])>0:
+            l = get_user(querydict['username'])
+            if len(l)>0:
+                ret = json.dumps(db_util.remove_mongo_id(l[0]), ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'username_not_found'}, ensure_ascii=True, indent=4)
+                
+        else:
+            l = get_user()
+            ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)
+        return ret
+                    
+            
+        
+    def user_add(session, querydict):
         ret = ''
         if querydict.has_key('username') and querydict.has_key('password') and len(querydict['username'])>0 and len(querydict['password'])>0:        
             try:
                 db_util.mongo_init_client('authorize_platform')
                 db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
                 collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
-                existone = collection.find_one({'username':username})
+                existone = collection.find_one({'username':querydict['username']})
                 if existone:
                     ret = json.dumps({'result':u'register_fail_username_already_exist'}, ensure_ascii=True, indent=4)
                 else:
@@ -2847,7 +2978,7 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'register_fail_username_password_required'}, ensure_ascii=True, indent=4)
         return ret
     
-    def user_delete(querydict):
+    def user_delete(session, querydict):
         ret = ''
         if querydict.has_key('username') and len(querydict['username'])>0:
             try:
@@ -2869,7 +3000,29 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'unregister_fail_username_required'}, ensure_ascii=True, indent=4)
         return ret
     
-    def user_update(querydict):
+    def reset_password(session, querydict):
+        ret = ''
+        if querydict.has_key('username')  and len(querydict['username'])>0 and querydict.has_key('password')  and len(querydict['password'])>0:        
+            try:
+                db_util.mongo_init_client('authorize_platform')
+                db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
+                collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                one = collection.find_one({'username':querydict['username']})
+                if one:
+                    collection.update({'username':querydict['username']}, {'$set':{'password':querydict['password']}},  multi=False, upsert=False)
+                    ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'reset_password_fail_not_exist'}, ensure_ascii=True, indent=4)
+            except:
+                if hasattr(sys.exc_info()[1], 'message'):
+                    ret = json.dumps({'result':u'reset_password_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'reset_password_fail' }, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'reset_password_fail_username_password_required'}, ensure_ascii=True, indent=4)
+        return ret
+    
+    def user_update(session, querydict):
         ret = ''
         if querydict.has_key('username')  and len(querydict['username'])>0 :        
             try:
@@ -2888,11 +3041,11 @@ def handle_authorize_platform(environ, session):
                 else:
                     ret = json.dumps({'result':u'user_update_fail' }, ensure_ascii=True, indent=4)
         else:
-            ret = json.dumps({'result':u'user_update_fail_username_password_required'}, ensure_ascii=True, indent=4)
+            ret = json.dumps({'result':u'user_update_fail_username_required'}, ensure_ascii=True, indent=4)
         return ret
         
     
-    def login_authorize_platform(session, querydict):
+    def login(session, querydict):
         global gRequest, gSessionStore
         ok = False
         ret = ''
@@ -2944,15 +3097,6 @@ def handle_authorize_platform(environ, session):
         return ret
      
      
-    def user_query(querydict):    
-        
-        l = []
-        collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
-        cur = collection.find({})
-        for i in cur:
-            l.append(i)
-        ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)    
-        return ret
      
      
         
@@ -2977,14 +3121,20 @@ def handle_authorize_platform(environ, session):
                 body = json.dumps({'result':'get_salt_ok','salt':gSecurityConfig['password_salt']}, ensure_ascii=True, indent=4)
             else:
                 body = json.dumps({'result':'get_salt_fail'}, ensure_ascii=True, indent=4)
-        elif endpoint == 'register':
-            body = user_add(querydict)
-        elif endpoint == 'unregister':
-            body = user_delete(querydict)
+        elif endpoint == 'user_add':
+            body = user_add(session, querydict)
+        elif endpoint == 'user_check':
+            body = check_user_has_function(session, querydict)
+        elif endpoint == 'user_delete':
+            body = user_delete(session, querydict)
+        elif endpoint == 'user_query':
+            body = user_query(session, querydict)
         elif endpoint == 'user_update':
-            body = user_update(querydict)
+            body = user_update(session, querydict)
+        elif endpoint == 'reset_password':
+            body = reset_password(session, querydict)
         elif endpoint == 'login':
-            body, loginok = login_authorize_platform(session, querydict)
+            body, loginok = login(session, querydict)
             if loginok:
                 if querydict.has_key('username') and len(querydict['username'])>0:
                     session['username'] = querydict['username']
@@ -2995,25 +3145,25 @@ def handle_authorize_platform(environ, session):
             body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
         
         elif endpoint == 'function_add':
-            body = function_add(querydict)
+            body = function_add(session, querydict)
         elif endpoint == 'function_query':
-            body = function_query(querydict)
+            body = function_query(session, querydict)
         elif endpoint == 'function_update':
-            body = function_update(querydict)
+            body = function_update(session, querydict)
         elif endpoint == 'function_delete':
-            body = function_delete(querydict)
+            body = function_delete(session, querydict)
         elif endpoint == 'role_add':
-            body = role_add(querydict)
+            body = role_add(session, querydict)
         elif endpoint == 'role_update':
-            body = role_update(querydict)
+            body = role_update(session, querydict)
         elif endpoint == 'role_query':
-            body = role_query(querydict)
+            body = role_query(session, querydict)
         elif endpoint == 'role_delete':
-            body = role_delete(querydict)
+            body = role_delete(session, querydict)
         elif endpoint == 'role_template_save':
-            body = role_template_save(querydict)
+            body = role_template_save(session, querydict)
         elif endpoint == 'role_template_get':
-            body = role_template_get(querydict)
+            body = role_template_get(session, querydict)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     except HTTPException, e:
@@ -3030,18 +3180,20 @@ gUrlMapAuth = Map([
     Rule('/get_salt', endpoint='get_salt'),
     Rule('/auth_check/<username>', endpoint='auth_check'),
     Rule('/auth_check', endpoint='auth_check'),
-    Rule('/register/<username>/<password>', endpoint='register'),
-    Rule('/register/<username>', endpoint='register'),
-    Rule('/register', endpoint='register'),
-    Rule('/unregister/<username>', endpoint='unregister'),
-    Rule('/unregister', endpoint='unregister'),
+    Rule('/register/<username>/<password>', endpoint='user_add'),
+    Rule('/register/<username>', endpoint='user_add'),
+    Rule('/register', endpoint='user_add'),
+    Rule('/unregister/<username>', endpoint='user_delete'),
+    Rule('/unregister', endpoint='user_delete'),
     Rule('/login/<username>/<password>', endpoint='login'),
     Rule('/login/<username>', endpoint='login'),
     Rule('/login', endpoint='login'),
     Rule('/logout', endpoint='logout'),
-    Rule('/reset_password/<username>/<password>', endpoint='user_update'),
-    Rule('/reset_password/<username>', endpoint='user_update'),
-    Rule('/reset_password', endpoint='user_update'),
+    Rule('/reset_password/<username>/<password>', endpoint='reset_password'),
+    Rule('/reset_password/<username>', endpoint='reset_password'),
+    Rule('/reset_password', endpoint='reset_password'),
+    Rule('/user_check', endpoint='user_check'),
+    Rule('/user_query', endpoint='user_query'),
     Rule('/user_update', endpoint='user_update'),
     Rule('/function_add', endpoint='function_add'),
     Rule('/function_query', endpoint='function_query'),

@@ -5,6 +5,7 @@ $.auth_platform.AUTH_PORT = '8088';
 $.auth_platform.DEBUG = true;
 $.auth_platform.FUNCTION_MAP = {};
 $.auth_platform.ROLE_LIST = [];
+$.auth_platform.ROLE_MAP = {};
 $.auth_platform.ROLE_TEMPLATE = {};
 $.auth_platform.USER_LIST = [];
 
@@ -35,6 +36,10 @@ $.auth_platform.post_cors = function(action, data, callback)
 				if(action === 'role_query')
 				{
 					$.auth_platform.ROLE_LIST = ret;
+					for(var i in ret)
+					{
+						$.auth_platform.ROLE_MAP[ret[i]._id] = ret[i];
+					}
 				}
 				if(action === 'user_query')
 				{
@@ -56,15 +61,27 @@ $.auth_platform.login = function(data, callback)
     {
         throw "data.password required";
     }
-    $.auth_platform.post_cors('login', data, callback)
+    $.auth_platform.post_cors('login', data, callback);
 };
 
 
 $.auth_platform.logout = function(callback)
 {
-    $.auth_platform.post_cors('logout', {}, callback)
+    $.auth_platform.post_cors('logout', {}, callback);
 };
 
+$.auth_platform.user_check = function(data, callback)
+{
+    if(data.username === undefined || data.username.length == 0)
+    {
+        throw "data.username required";
+    }
+    if(data.functions === undefined || data.functions.length == 0)
+    {
+        throw "data.functions required";
+    }
+    $.auth_platform.post_cors('user_check', data, callback);
+}
 
 $.auth_platform.auth_check = function(data, callback)
 {
@@ -72,7 +89,7 @@ $.auth_platform.auth_check = function(data, callback)
     {
         throw "data.username required";
     }
-    $.auth_platform.post_cors('auth_check', data, callback)
+    $.auth_platform.post_cors('auth_check', data, callback);
 };
 
 $.auth_platform.register = function(data, callback)
@@ -85,7 +102,7 @@ $.auth_platform.register = function(data, callback)
     {
         throw "data.password required";
     }
-    $.auth_platform.post_cors('register', data, callback)
+    $.auth_platform.post_cors('register', data, callback);
 };
 
 
@@ -95,7 +112,7 @@ $.auth_platform.unregister = function(data, callback)
     {
         throw "data.username required";
     }
-    $.auth_platform.post_cors('unregister', data, callback)
+    $.auth_platform.post_cors('unregister', data, callback);
 };
 
 
@@ -109,7 +126,25 @@ $.auth_platform.reset_password = function(data, callback)
     {
         throw "data.password required";
     }
-    $.auth_platform.post_cors('reset_password', data, callback)
+    $.auth_platform.post_cors('reset_password', data, callback);
+};
+
+$.auth_platform.user_query = function( callback)
+{
+    $.auth_platform.post_cors('user_query', {}, callback);
+};
+
+$.auth_platform.user_update = function(data, callback)
+{
+    if(data.username === undefined || data.username.length == 0)
+    {
+        throw "data.username required";
+    }
+    if(data.password === undefined || data.password.length == 0)
+    {
+        throw "data.password required";
+    }
+    $.auth_platform.post_cors('user_update', data, callback);
 };
 
 $.auth_platform.function_add = function(data, callback)
@@ -122,12 +157,12 @@ $.auth_platform.function_add = function(data, callback)
     {
         throw "data._id DO NOT required";
     }
-    $.auth_platform.post_cors('function_add', data, callback)
+    $.auth_platform.post_cors('function_add', data, callback);
 };
 
 $.auth_platform.function_query = function(callback)
 {
-    $.auth_platform.post_cors('function_query', {}, callback)
+    $.auth_platform.post_cors('function_query', {}, callback);
 };
 
 $.auth_platform.function_update = function(data, callback)
@@ -136,7 +171,7 @@ $.auth_platform.function_update = function(data, callback)
     {
         throw "data._id required";
     }
-    $.auth_platform.post_cors('function_update', data, callback)
+    $.auth_platform.post_cors('function_update', data, callback);
 };
 
 $.auth_platform.function_delete = function(data, callback)
@@ -145,7 +180,7 @@ $.auth_platform.function_delete = function(data, callback)
     {
         throw "data._id required";
     }
-    $.auth_platform.post_cors('function_delete', data, callback)
+    $.auth_platform.post_cors('function_delete', data, callback);
 };
 
 
@@ -161,12 +196,12 @@ $.auth_platform.role_add = function(data, callback)
     {
         throw "data._id DO NOT required";
     }
-    $.auth_platform.post_cors('role_add', data, callback)
+    $.auth_platform.post_cors('role_add', data, callback);
 };
 
 $.auth_platform.role_query = function(callback)
 {
-    $.auth_platform.post_cors('role_query', {}, callback)
+    $.auth_platform.post_cors('role_query', {}, callback);
 };
 
 $.auth_platform.role_update = function(data, callback)
@@ -175,7 +210,7 @@ $.auth_platform.role_update = function(data, callback)
     {
         throw "data._id required";
     }
-    $.auth_platform.post_cors('role_update', data, callback)
+    $.auth_platform.post_cors('role_update', data, callback);
 };
 
 $.auth_platform.role_delete = function(data, callback)
@@ -184,7 +219,7 @@ $.auth_platform.role_delete = function(data, callback)
     {
         throw "data._id required";
     }
-    $.auth_platform.post_cors('role_delete', data, callback)
+    $.auth_platform.post_cors('role_delete', data, callback);
 };
 
 $.auth_platform.role_template_save = function(data, callback)
@@ -193,12 +228,12 @@ $.auth_platform.role_template_save = function(data, callback)
     {
         throw "data.name must be 'template'";
     }
-    $.auth_platform.post_cors('role_template_save', data, callback)
+    $.auth_platform.post_cors('role_template_save', data, callback);
 };
 
 $.auth_platform.role_template_get = function(callback)
 {
-    $.auth_platform.post_cors('role_template_get', {}, callback)
+    $.auth_platform.post_cors('role_template_get', {}, callback);
 };
 
 
@@ -316,6 +351,50 @@ function CheckIsSible(treeId, treeNode)
 	return ret;
 }
 
+
+function init_test(result)
+{
+	try{
+		$.fn.zTree.destroy('userfunctiontest');
+	}catch(e)
+	{
+	}
+	
+	var setting = {
+		check:{
+			enable : true,
+			autoCheckTrigger: true,
+			chkStyle : "checkbox",
+			chkboxType: { "Y": "ps", "N": "ps" }
+		}
+	};
+	var list = [];
+	var nodes = $.auth_platform.FUNCTION_MAP;
+	var maap = {};
+	if(result)
+	{
+		for(var i in result)
+		{
+			maap[result[i]._id] = result[i].enable;
+		}
+	}
+	
+	if(!$.isEmptyObject(nodes))
+	{
+		for(var k in nodes)
+		{
+			var enable = false;
+			if(maap[k] === true)
+			{
+				enable = true;
+			}
+			list.push({_id:k, name:nodes[k].name, checked:enable});
+		}
+	}
+	//console.log(list);
+	$.fn.zTree.init($("#userfunctiontest"), setting, list);
+}
+
 function init_functions()
 {
 	var setting = {
@@ -336,6 +415,12 @@ function init_functions()
 			onRemove: OnRemoveFunc
 		}
 	};
+
+	if($.auth_platform.FUNCTION_MAP.result)
+	{
+		alert($.auth_platform.FUNCTION_MAP.result);
+		return;
+	}
 
 	var nodes = $.auth_platform.FUNCTION_MAP;
 	var list = [];
@@ -404,6 +489,11 @@ function init_role_template()
     //}
 	
 	$.auth_platform.role_template_get( function(node){
+		if(node.result)
+		{
+			alert(node.result);
+			return;
+		}
 		if($.isEmptyObject(node))
 		{
 			node = {name:"template", type:"root", children:[]};
@@ -417,30 +507,37 @@ function init_role_template()
 	});
 }
 
-function CheckIsUser(treeId, treeNode)
+function CheckIsLeaf(treeId, treeNode)
 {
 	var ret = false;
-	if(treeNode.username)
+	if(!treeNode.isParent)
 	{
 		ret = true;
 	}
 	return ret;
 }
-function BeforeRemoveUser(treeId, treeNode)
+
+
+function BeforeRemoveUserRole(treeId, treeNode)
 {
-	ret = confirm("确定删除用户[" + treeNode.name + "]吗?");
-	if(ret)
+	var username = $('#user_username').val();
+	var password = $('#user_password').val();
+	if(username.length>0 && password.length>0)
 	{
-		$.auth_platform.unregister({username:treeNode.username}, function(data1){
-			if(data1.result)
-			{
-				alert(data1.result);
-			}
-		});
+		var ret = confirm("确定删除该用户的角色[" + treeNode.name + "]吗?");
+		if(ret)
+		{
+			$.auth_platform.user_update({username:username,password:password, roles:ExtractRolesFromTree(treeNode._id)}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}
+			});
+		}
 	}
 	return ret;
 }
-function OnRemoveUser(e, treeId, treeNode)
+function OnRemoveUserRole(e, treeId, treeNode)
 {
 }
 
@@ -454,15 +551,16 @@ function init_users(nodes)
 	var setting = {
 		edit: {
 			enable: true,
-			showRemoveBtn: CheckIsUser
+			showRenameBtn: false,
+			showRemoveBtn: CheckIsLeaf
 		},
 		callback: {
-			beforeRemove:BeforeRemoveUser,
-			onRemove: OnRemoveUser
+			beforeRemove:BeforeRemoveUserRole,
+			onRemove: OnRemoveUserRole
 		},
 	};
 	
-	var ztree = $.fn.zTree.init($("#roles"), setting, nodes);
+	var ztree = $.fn.zTree.init($("#userrole"), setting, nodes);
 	ztree.expandAll(true);
 }
 
@@ -499,6 +597,19 @@ function UpdateRolesData(node)
 	}
 }
 
+function DeleteUsersData(_id)
+{
+	for(var i in $.auth_platform.USER_LIST)
+	{
+		var item = $.auth_platform.USER_LIST[i];
+		if(item._id === _id)
+		{
+			$.auth_platform.USER_LIST.splice(i,1);
+			break;
+		}
+	}
+}
+
 function DeleteRolesData(_id)
 {
 	for(var i in $.auth_platform.ROLE_LIST)
@@ -510,6 +621,7 @@ function DeleteRolesData(_id)
 			break;
 		}
 	}
+	delete $.auth_platform.ROLE_MAP[_id];
 }
 
 
@@ -806,11 +918,214 @@ function init_button()
 			}
 		}
 	});
+	
+	$('#login_admin').on('click', function(){
+		$.auth_platform.login({username:'admin', password:'admin'}, function(data1){
+			if(data1.result)
+			{
+				alert(data1.result);
+			}		
+		});
+	});
+	
+	$('#user_new').on('click', function(){
+		if($('#user_username').val().length>0 && $('#user_password').val().length>0)
+		{
+			$.auth_platform.register({username:$('#user_username').val(), password:$('#user_password').val(), roles:ExtractRolesFromTree()}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}else
+				{
+					var html = $('#user_list').html();
+					html += '<option value="' + data1._id + '">' + data1.username + '</option>';
+					$('#user_list').html(html);
+					$('#user_list').val(data1._id);
+				
+				}
+			});
+		}else
+		{
+			alert('username or password cannot be null');
+		}
+	});
+	$('#user_update').on('click', function(){
+		if($('#user_username').val().length>0 && $('#user_password').val().length>0)
+		{
+			$.auth_platform.user_update({username:$('#user_username').val(), password:$('#user_password').val(), roles:ExtractRolesFromTree()}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}		
+			});
+		}else
+		{
+			alert('username or password cannot be null');
+		}
+	});
+	$('#user_delete').on('click', function(){
+		if($('#user_username').val().length>0 )
+		{
+			if(confirm('确定要删除用户[' + $('#user_username').val() + ']吗?'))
+			{
+				$.auth_platform.unregister({username:$('#user_username').val()}, function(data1){
+					if(data1.result)
+					{
+						alert(data1.result);
+					}else
+					{
+						$('#user_username').val('');
+						$('#user_password').val('');
+						DeleteUsersData(data1._id);
+						$.fn.zTree.destroy("userrole");
+						$('#user_list option[value="'+ data1._id + '"]').remove();
+						$('#user_list').val('');
+					}
+				});
+			}
+		}else
+		{
+			alert('username  cannot be null');
+		}
+	});
+	
+	$('#add_role_to_user').on('click', function(){
+		if($('#role_list').val().length>0 && $('#user_username').val().length>0)
+		{
+			var roots = $.fn.zTree.getZTreeObj("userrole").getNodes();
+			if(roots.length === 0)
+			{
+				$.fn.zTree.getZTreeObj("userrole").addNodes(null,{name:$('#user_username').val()});
+				roots = $.fn.zTree.getZTreeObj("userrole").getNodes();
+			}
+			var root = roots[0];
+			var o = {};
+			var roleid = $('#role_list').val();
+			if($.auth_platform.ROLE_MAP[roleid])
+			{
+				o._id = roleid;
+				o.name = $.auth_platform.ROLE_MAP[roleid].name;
+				$.fn.zTree.getZTreeObj("userrole").addNodes(root,o);
+			}
+		}
+	});
+	$('#test').on('click', function(){
+		if($('#user_username').val().length>0)
+		{
+			var nodes = $.fn.zTree.getZTreeObj("userfunctiontest").getNodes();
+			var list = [];
+			for(var i in nodes)
+			{
+				list.push(nodes[i]._id);
+			}
+			$.auth_platform.user_check({username:$('#user_username').val(), functions:list}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+					return;
+				}else
+				{
+					var s = '';
+					
+					init_test(data1);
+					$('#test_username').html($('#user_username').val());
+					//for(var i in data1)
+					//{
+						//if( $.auth_platform.FUNCTION_MAP[data1[i].id])
+						//{
+							//s += $.auth_platform.FUNCTION_MAP[data1[i].id].name + ':' + data1[i].enable + '\n';
+						//}
+					//}
+					//alert(s);
+				}
+			});
+		}
+	});
+	
+	
+}
+
+
+function ExtractRolesFromTree(deleteId)
+{
+	var ret = [];
+	var roots = $.fn.zTree.getZTreeObj("userrole").getNodes();
+	if(roots.length>0)
+	{
+		var root = roots[0];
+		if(root.children && root.children.length>0)
+		{
+			for(var i in root.children)
+			{
+				if(deleteId)
+				{
+					if(root.children[i]._id && root.children[i]._id != deleteId)
+					{
+						ret.push(root.children[i]._id);
+					}
+				}else
+				{
+					if(root.children[i]._id)
+					{
+						ret.push(root.children[i]._id);
+					}
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+function RefreshUserTree(_id)
+{
+	var root = {}
+	for(var i in $.auth_platform.USER_LIST)
+	{
+		if($.auth_platform.USER_LIST[i]._id === _id)
+		{
+			var user = $.auth_platform.USER_LIST[i];
+			root.name = user.username;
+			root.children = [];
+			var roles = user.roles;
+			for(var j in roles)
+			{
+				if($.auth_platform.ROLE_MAP[roles[j]])
+				{
+					root.children.push({_id:roles[j], name:$.auth_platform.ROLE_MAP[roles[j]].name});
+				}
+			}
+			break;
+		}
+	}
+	if(!$.isEmptyObject(root))
+	{
+		init_users([root]);
+	}
+}
+
+function FillUserForm(_id)
+{
+	for(var i in $.auth_platform.USER_LIST)
+	{
+		var user = $.auth_platform.USER_LIST[i];
+		if(user._id === _id)
+		{
+			$('#user_username').val(user.username);
+			$('#user_password').val(user.password);
+			break;
+		}
+	}
+	
 }
 
 function init_select()
 {
-	$.auth_platform.role_query(function(){
+	$.auth_platform.role_query(function(data1){
+		if(data1.result)
+		{
+			alert(data1.result);
+			return;
+		}
 		var html = '<option value=""></option>';
 		var data = $.auth_platform.ROLE_LIST;
 		//console.log(data);
@@ -839,8 +1154,12 @@ function init_select()
 		});
 		init_roles([]);
 	});
-	
-	$.auth_platform.user_query(function(){
+	$.auth_platform.user_query(function(data1){
+		if(data1.result)
+		{
+			alert(data1.result);
+			return;
+		}
 		var html = '<option value=""></option>';
 		var data = $.auth_platform.USER_LIST;
 		//console.log(data);
@@ -854,8 +1173,8 @@ function init_select()
 			
 			if(e.target.value.length>0)
 			{
-				RefreshRoleTree(e.target.value);
-				FillRoleForm(e.target.value);
+				RefreshUserTree(e.target.value);
+				FillUserForm(e.target.value);
 			}else
 			{
 				try{
@@ -863,13 +1182,11 @@ function init_select()
 				}catch(e)
 				{
 				}
-				$('#user_name').val('');
 				$('#user_username').val('');
 			}
 		});
 		init_users([]);
 	});
-
 }
 
 function init()
@@ -877,6 +1194,7 @@ function init()
 
 	$.auth_platform.function_query(  function(nodes){
 		init_functions();
+		init_test();
 		init_role_template();
 		init_button();
 		init_select();
