@@ -4387,6 +4387,8 @@ def create_self_signed_cert(cert_dir, year=10):
     
 def gen_model_app_cache():
     global gConfig
+    if not gConfig.has_key('web_cache'):
+        return
     s = 'CACHE MANIFEST\n'
     s += '#' + gConfig['web_cache']['version'] + '\n'
     
