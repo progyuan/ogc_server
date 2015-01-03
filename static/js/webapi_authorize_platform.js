@@ -3,6 +3,7 @@ $.auth_platform.AUTH_HOST = 'yncaiyun.com';
 $.auth_platform.AUTH_PROTOCOL = 'http';
 $.auth_platform.AUTH_PORT = '8088';
 $.auth_platform.DEBUG = true;
+$.auth_platform.FUNCTION_LIST = [];
 $.auth_platform.FUNCTION_MAP = {};
 $.auth_platform.ROLE_LIST = [];
 $.auth_platform.ROLE_MAP = {};
@@ -31,7 +32,11 @@ $.auth_platform.post_cors = function(action, data, callback)
 				}
 				if(action === 'function_query')
 				{
-					$.auth_platform.FUNCTION_MAP = ret;
+					$.auth_platform.FUNCTION_LIST = ret;
+					for(var i in ret)
+					{
+						$.auth_platform.FUNCTION_MAP[ret[i]._id] = ret[i];
+					}
 				}
 				if(action === 'role_query')
 				{
@@ -369,7 +374,7 @@ function init_test(result)
 		}
 	};
 	var list = [];
-	var nodes = $.auth_platform.FUNCTION_MAP;
+	var nodes = $.auth_platform.FUNCTION_LIST;
 	var maap = {};
 	if(result)
 	{
@@ -381,14 +386,14 @@ function init_test(result)
 	
 	if(!$.isEmptyObject(nodes))
 	{
-		for(var k in nodes)
+		for(var i in nodes)
 		{
 			var enable = false;
-			if(maap[k] === true)
+			if(maap[nodes[i]._id] === true)
 			{
 				enable = true;
 			}
-			list.push({_id:k, name:nodes[k].name, checked:enable});
+			list.push({_id:nodes[i]._id, name:nodes[i].name, checked:enable});
 		}
 	}
 	//console.log(list);
@@ -416,23 +421,14 @@ function init_functions()
 		}
 	};
 
-	if($.auth_platform.FUNCTION_MAP.result)
-	{
-		alert($.auth_platform.FUNCTION_MAP.result);
-		return;
-	}
+	//if($.auth_platform.FUNCTION_MAP.result)
+	//{
+		//alert($.auth_platform.FUNCTION_MAP.result);
+		//return;
+	//}
 
-	var nodes = $.auth_platform.FUNCTION_MAP;
-	var list = [];
-	if(!$.isEmptyObject(nodes))
-	{
-		for(var k in nodes)
-		{
-			list.push(nodes[k]);
-		}
-	}
-	//console.log(list);
-	$.fn.zTree.init($("#funclist"), setting, list);
+	var nodes = $.auth_platform.FUNCTION_LIST;
+	$.fn.zTree.init($("#funclist"), setting, nodes);
 }
 
 function AddHoverDom(treeId, treeNode) {

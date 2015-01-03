@@ -233,16 +233,17 @@ def init_global():
     gClientMongoTiles = {}
     gClientMetadata = {}
     ODBC_STRING = {}
-    #print(gConfig.keys())
-    for k in gConfig['odbc'].keys():
-        if not k in ['odbc_driver']:
-            if len(gConfig['odbc'][k]['db_instance'])>0:
-                ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s\\%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'], gConfig['odbc'][k]['db_instance'], gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
-            else:
-                ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
+    if gConfig.has_key('odbc'):
+        for k in gConfig['odbc'].keys():
+            if not k in ['odbc_driver']:
+                if len(gConfig['odbc'][k]['db_instance'])>0:
+                    ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s\\%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'], gConfig['odbc'][k]['db_instance'], gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
+                else:
+                    ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
     gFeatureslist = []
-    for i in gConfig['analyze']['feature_list']:
-        gFeatureslist.append(str(i)) 
+    if gConfig.has_key('analyze'):
+        for i in gConfig['analyze']['feature_list']:
+            gFeatureslist.append(str(i)) 
     return options
 
 class DemExtrctor(object):

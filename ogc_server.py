@@ -2238,6 +2238,25 @@ def handle_refund(environ):
 def handle_pay_getinfo(environ):
     global ENCODING
     global gConfig, gSecurityConfig
+    
+    def get_collection(collection):
+        ret = None
+        db_util.mongo_init_client('pay_platform')
+        db = db_util.gClientMongo['pay_platform'][gConfig['pay_platform']['mongodb']['database']]
+        if not collection in db.collection_names(False):
+            ret = db.create_collection(collection)
+        else:
+            ret = db[collection]
+        return ret
+    def query_pay_log(condition):
+        ret = []
+        collection = get_collection(gConfig['pay_platform']['mongodb']['collection_pay_log'])
+        cur = collection.find(condition)
+        for i in cur:
+            ret.append(i)
+        return ret
+        
+    
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
@@ -2268,11 +2287,56 @@ def handle_pay_getinfo(environ):
                         body = json.dumps(gSecurityConfig['alipay']['bank_code'], ensure_ascii=True, indent=4)
                     else:
                         if gSecurityConfig['alipay']['bank_code'].has_key(querydict['bank_code']):
-                            body = json.dumps({'result':gSecurityConfig['alipay']['bank_code'][querydict['bank_code']]}, ensure_ascii=True, indent=4)
+                            body = json.dumps(gSecurityConfig['alipay']['bank_code'][querydict['bank_code']], ensure_ascii=True, indent=4)
                         else:
                             body = json.dumps({'result':'wrong_bank_code'}, ensure_ascii=True, indent=4)
                 else:
                     body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
+            if querydict['q'] == 'error_info':
+                if querydict.has_key('error_code'):
+                    if querydict['error_code'] == 'all' or len(querydict['error_code'])==0:
+                        body = json.dumps(gSecurityConfig['alipay']['error_code'], ensure_ascii=True, indent=4)
+                    else:
+                        if gSecurityConfig['alipay']['error_code'].has_key(querydict['error_code']):
+                            body = json.dumps(gSecurityConfig['alipay']['error_code'][querydict['error_code']], ensure_ascii=True, indent=4)
+                        else:
+                            body = json.dumps({'result':'wrong_error_code'}, ensure_ascii=True, indent=4)
+                else:
+                    body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
+            elif querydict['q'] == 'trade_status':
+                if querydict.has_key('out_trade_no'):
+                    if len(querydict['out_trade_no'])>0:
+                        l = []
+                        if isinstance(querydict['out_trade_no'], unicode):
+                            l = query_pay_log({'out_trade_no': querydict['out_trade_no']})
+                        elif isinstance(querydict['out_trade_no'], list):
+                            idlist = [ObjectId(i) for i in querydict['out_trade_no']]
+                            l = query_pay_log({'out_trade_no': {'$in': idlist}})
+                        if len(l) > 0:
+                            ll = []
+                            for i in l:
+                                o = {}
+                                o['out_trade_no'] = i['out_trade_no']
+                                if i.has_key('trade_status'):
+                                    o['trade_status'] = i['trade_status']
+                                else:
+                                    o['trade_status'] = None
+                                if i.has_key('error_code'):
+                                    o['error_code'] = i['error_code']
+                                else:
+                                    o['error_code'] = None
+                                if i.has_key('refund_status'):
+                                    o['refund_status'] = i['refund_status']
+                                else:
+                                    o['refund_status'] = None
+                                ll.append(o)
+                            body = json.dumps(db_util.remove_mongo_id(ll), ensure_ascii=True, indent=4)
+                        else:
+                            body = json.dumps({'result':'out_trade_no_not_exist'}, ensure_ascii=True, indent=4)
+                    else:
+                        body = json.dumps({'result':'out_trade_cannot_be_null'}, ensure_ascii=True, indent=4)
+                else:
+                    body = json.dumps({'result':'out_trade_no_required'}, ensure_ascii=True, indent=4)
             else:
                 body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
     return statuscode, headers, body
@@ -2660,11 +2724,11 @@ def handle_authorize_platform(environ, session):
         return ret
         
     def get_all_functions():
-        ret = {}
+        ret = []
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
         cur = collection.find({})
         for i in cur:
-            ret[str(i['_id'])] = i
+            ret.append(i)
         return ret
     
     def get_all_roles(exclude_template=False):
@@ -2739,8 +2803,8 @@ def handle_authorize_platform(environ, session):
     def function_query(session, querydict):
         #if not check_valid_user(session, 'admin'):
             #return json.dumps({'result':u'admin_permission_required'}, ensure_ascii=True, indent=4)
-        d = get_all_functions()
-        ret = json.dumps(db_util.remove_mongo_id(d), ensure_ascii=True, indent=4)
+        l = get_all_functions()
+        ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)
         return ret
     
     def function_update(session, querydict):
@@ -2985,7 +3049,7 @@ def handle_authorize_platform(environ, session):
                 db_util.mongo_init_client('authorize_platform')
                 db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
                 collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
-                existone = collection.find_one({'username':username})
+                existone = collection.find_one({'username':querydict['username']})
                 if existone:
                     collection.remove({'_id':existone['_id']})
                     ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
