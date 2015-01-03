@@ -1436,7 +1436,7 @@ def handle_get_method(environ):
     if querydict.has_key('op'):
         op = querydict['op']
         if op == "gridfs":
-            ret = db_util.gridfs_find(querydict)
+            ret = db_util.gridfs_find(querydict, str(gConfig['wsgi']['application']))
             if isinstance(ret, tuple) and ret[0] and ret[1]:
                 headers['Content-Type'] = str(ret[0])
                 if d.has_key('attachmentdownload'):
@@ -1447,7 +1447,7 @@ def handle_get_method(environ):
                 s = json.dumps(ret, ensure_ascii=True, indent=4)
         elif op == "gridfs_delete":
             try:
-                db_util.gridfs_delete(querydict)
+                db_util.gridfs_delete(querydict, str(gConfig['wsgi']['application']))
                 ret = ''
             except:
                 ret["result"] = sys.exc_info()[1].message

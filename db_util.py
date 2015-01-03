@@ -229,7 +229,7 @@ def init_global():
     
         
     gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
-    gClientMongo = {'default':None, 'geofeature':None,}
+    gClientMongo = {'webgis':None, 'geofeature':None,}
     gClientMongoTiles = {}
     gClientMetadata = {}
     ODBC_STRING = {}
@@ -5975,7 +5975,7 @@ def test_import_shape_to_mongo():
     #if True:return
     try:
         mongo_init_client()
-        db = gClientMongo['default']['feature_yn']
+        db = gClientMongo['webgis']['feature_yn']
         if not 'features' in db.collection_names(False):
             collection = db.create_collection(k)
         collection = db['features']   
@@ -7134,7 +7134,7 @@ def update_geometry2d(adict = {}, z_aware = False):
     
     
     
-def mongo_action(dbname, collection_name, action, data, conditions={}, clienttype='default'):
+def mongo_action(dbname, collection_name, action, data, conditions={}, clienttype='webgis'):
     global gClientMongo, gConfig, gFeatureslist
     ret = []
     try:
@@ -7588,7 +7588,7 @@ def extract_many_altitudes(lnglatlist):
     return ret
     
 
-def mongo_remove(dbname, collection_name, conditions={}, clienttype='default'):
+def mongo_remove(dbname, collection_name, conditions={}, clienttype='webgis'):
     global gClientMongo, gConfig
     ret = None
     try:
@@ -7651,7 +7651,7 @@ def mongo_geowithin(dbname, geojsonobj, webgis_type_list, intersect=False, limit
         
     return ret
 
-def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='default'):
+def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='webgis'):
     global gClientMongo, gConfig
     ret = []
     try:
@@ -7695,7 +7695,7 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='defa
 
 
 
-def mongo_find_one(dbname, collection_name, conditions, clienttype='default'):
+def mongo_find_one(dbname, collection_name, conditions, clienttype='webgis'):
     global gClientMongo
     ret = None
     try:
@@ -7796,7 +7796,7 @@ def test_mongo_import_segments(db_name, area):
     
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'segments' in db.collection_names(False):
             db.drop_collection('segments')
         collection = db.create_collection('segments')
@@ -7979,7 +7979,7 @@ def mongo_import_same_tower_mapping(db_name, area):
     same_tower_mapping = get_same_tower_mapping(db_name, mapping, area)
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'towers_refer' in db.collection_names(False):
             db.drop_collection('towers_refer')
         collection = db.create_collection('towers_refer')
@@ -8019,7 +8019,7 @@ def test_mongo_import_towers(db_name, area):
         #f.write(enc(s))
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if not 'features' in db.collection_names(False):
             collection = db.create_collection('features')
         else:
@@ -8046,7 +8046,7 @@ def test_mongo_import_models(db_name, area):
     host, port = 'localhost', 27017
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'models' in db.collection_names(False):
             db.drop_collection('models')
         collection = db.create_collection('models')
@@ -8061,7 +8061,7 @@ def create_id_mapping(db_name, area):
     global gClientMongo
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             print('tower_ids_mapping exist in %s' % db_name)
         else:
@@ -8103,7 +8103,7 @@ def test_build_tower_odbc_mongo_id_mapping(db_name):
     host, port = 'localhost', 27017
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'tower_ids_mapping' in db.collection_names(False):
             db.drop_collection('tower_ids_mapping')
         collection = db.create_collection('tower_ids_mapping')
@@ -8120,7 +8120,7 @@ def test_build_line_odbc_mongo_id_mapping(db_name):
     host, port = 'localhost', 27017
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'line_ids_mapping' in db.collection_names(False):
             db.drop_collection('line_ids_mapping')
         collection = db.create_collection('line_ids_mapping')
@@ -8137,7 +8137,7 @@ def test_build_model_odbc_mongo_id_mapping(db_name):
     host, port = 'localhost', 27017
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'model_ids_mapping' in db.collection_names(False):
             db.drop_collection('model_ids_mapping')
         collection = db.create_collection('model_ids_mapping')
@@ -8170,7 +8170,7 @@ def test_mongo_import_line(db_name, area):
     piny = get_pinyin_data()
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         if 'network' in db.collection_names(False):
             db.drop_collection('network')
         collection = db.create_collection('network')
@@ -8258,7 +8258,7 @@ def test_mongo_import_code(db_name, area):
     host, port = 'localhost', 27017
     try:
         mongo_init_client()
-        db = gClientMongo['default'][db_name]
+        db = gClientMongo['webgis'][db_name]
         cods = {
             'equipment_class':'TABLE_COD_EQU_CLASS',
             'equipment_container':'TABLE_COD_EQU_CONT',
@@ -8716,9 +8716,7 @@ def gridfs_save(qsdict, filename, data):
         raise Exception('db not specified in parameter')
     dbname = qsdict['db']
     
-    clienttype = 'default'
-    if qsdict.has_key('clienttype'):
-        clienttype = str(qsdict['clienttype'])
+    clienttype = str(gConfig['wsgi']['application'])
     collection = 'fs'
     if qsdict.has_key('collection'):
         collection = str(qsdict['collection'])
@@ -8774,14 +8772,12 @@ def gridfs_save(qsdict, filename, data):
             traceback.print_exc()
             raise
         
-def gridfs_delete(qsdict, clienttype='default'):
+def gridfs_delete(qsdict, clienttype='webgis'):
     global gClientMongo, gConfig
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
     dbname = qsdict['db']
     
-    if qsdict.has_key('clienttype'):
-        clienttype = str(qsdict['clienttype'])
     if qsdict.has_key('collection'):
         collection = qsdict['collection']
     else:
@@ -8825,10 +8821,10 @@ def gridfs_delete(qsdict, clienttype='default'):
 
 
 
-def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, replicaset=None):
+def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, replicaset=None):
     global gClientMongo, gClientMongoTiles, gConfig
     try:
-        if clienttype == 'default':
+        if clienttype == 'webgis':
             if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
                 gClientMongo[clienttype].close()
                 gClientMongo[clienttype] = None
@@ -8929,7 +8925,7 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
     
     
     
-def gridfs_find(qsdict, clienttype='default'):
+def gridfs_find(qsdict, clienttype='webgis'):
     global gClientMongo, gConfig
     def thumbnail(fp, size, use_base64=False):
         ret = None
@@ -8963,11 +8959,12 @@ def gridfs_find(qsdict, clienttype='default'):
                 ret = base64.b64encode(ret)
         return ret
         
-    if qsdict.has_key('clienttype'):
-        clienttype = str(qsdict['clienttype'])
+    
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
     dbname = qsdict['db']
+    #if gConfig['wsgi']['application'] == 'markdown':
+    
     
     download = False
     if qsdict.has_key('attachmentdownload'):
@@ -9425,7 +9422,7 @@ def gridfs_tile_delete(tiletype, subtype, tilepath=None):
         raise
 
     
-def test_clear_gridfs(dbname, clienttype='default'):
+def test_clear_gridfs(dbname, clienttype='webgis'):
     global gClientMongo, gConfig
     try:
         mongo_init_client(clienttype)
@@ -9444,7 +9441,7 @@ def test_clear_gridfs(dbname, clienttype='default'):
     except:
         traceback.print_exc()
     
-def test_resize_image(dbname, clienttype='default'):
+def test_resize_image(dbname, clienttype='webgis'):
     global gClientMongo, gConfig 
     
     size = (100, 100)
