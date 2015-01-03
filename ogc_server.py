@@ -2297,7 +2297,7 @@ def handle_pay_getinfo(environ):
                             body = json.dumps({'result':'wrong_bank_code'}, ensure_ascii=True, indent=4)
                 else:
                     body = json.dumps({'result':'unknown_query_type'}, ensure_ascii=True, indent=4)
-            if querydict['q'] == 'error_info':
+            elif querydict['q'] == 'error_info':
                 if querydict.has_key('error_code'):
                     if querydict['error_code'] == 'all' or len(querydict['error_code'])==0:
                         body = json.dumps(gSecurityConfig['alipay']['error_code'], ensure_ascii=True, indent=4)
