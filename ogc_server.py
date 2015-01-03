@@ -1286,15 +1286,15 @@ def get_condition_from_dict(dct):
     for k in dct.keys():
         if k in ['voltage', 'line_id', 'id', 'tower_id', 'start_tower_id', 'end_tower_id', 'model_code', 'side', 'position']:
             if k == 'side':
-                if dct[k][0]=='1':
+                if dct[k]=='1':
                     cond += " AND %s='%s'" % (k, u'正')
-                elif dct[k][0]=='0':
+                elif dct[k]=='0':
                     cond += " AND %s='%s'" % (k, u'反')
             else:    
-                cond += " AND %s='%s'" % (k, dct[k][0])
+                cond += " AND %s='%s'" % (k, dct[k])
         else:
-            cond += " AND %s=%s" % (k, dct[k][0])
-    print(cond)
+            cond += " AND %s=%s" % (k, dct[k])
+    #print(cond)
     return cond
 
 def mongo_get_condition_from_dict(dct):
@@ -1310,31 +1310,41 @@ def handle_get_method(environ):
     global gConfig
     ret = {}
     s = ''
-    d = cgi.parse(None, environ)
+    querydict = {}
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querydict = urlparse.parse_qs(dec(querystring))
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    
     isgrid = False
     area = ''
     data = {}
     headers = {}
-    if d.has_key('grid'):
+    clienttype = 'default'
+    if querydict.has_key('clienttype'):
+        clienttype = querydict['clienttype']
+    if querydict.has_key('grid'):
         isgrid = True
-        del d['grid']
-    if d.has_key('area'):
-        area = d['area'][0]
-        del d['area']
-    if d.has_key('geojson'):
-        if d['geojson'][0]=='line_towers':
+    if querydict.has_key('area'):
+        area = querydict['area']
+    if querydict.has_key('geojson'):
+        if querydict['geojson']=='line_towers':
             data = db_util.gen_geojson_by_lines(area)
             s = json.dumps(data, ensure_ascii=True, indent=4)        
-        elif d['geojson'][0]=='tracks':
+        elif querydict['geojson']=='tracks':
             data = db_util.gen_geojson_tracks(area)
             s = json.dumps(data, ensure_ascii=True, indent=4)        
         else:
-            k = d['geojson'][0]
+            k = querydict['geojson']
             p = os.path.abspath(STATICRESOURCE_DIR)
             if k == 'potential_risk':
                 k = 'geojson_%s_%s' % (k, area)
             p = os.path.join(p, 'geojson', area, '%s.json' % k)
-            print(p)
+            #print(p)
             if os.path.exists(p):
                 with open(p) as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'r')
@@ -1346,35 +1356,30 @@ def handle_get_method(environ):
                     with open(p) as f:
                         f1 = gevent.fileobject.FileObjectThread(f, 'r')
                         s = f1.read()
-        del d['geojson']
         
         
-    if d.has_key('table'):
-        table = d['table'][0]
-        del d['table']
-        #cond = '1=1'
+        
+    if querydict.has_key('table'):
+        table = querydict['table']
         dbtype = 'odbc'
-        if d.has_key('dbtype'):
-            dbtype = d['dbtype'][0]
-            del d['dbtype']
-        if  dbtype == 'pg':
-            data = db_util.pg_get_records(table, get_condition_from_dict(d))
+        if querydict.has_key('dbtype'):
+            dbtype = querydict['dbtype']
             
+        if dbtype == 'pg':
+            data = db_util.pg_get_records(table, get_condition_from_dict(querydict))
         else:
-            data = db_util.odbc_get_records(table, get_condition_from_dict(d), area)
+            data = db_util.odbc_get_records(table, get_condition_from_dict(querydict), area)
             if table in ['TABLE_TOWER']:
-                if d.has_key('line_id'):
-                    data = db_util.odbc_get_sorted_tower_by_line(d['line_id'][0], area)
+                if querydict.has_key('line_id'):
+                    data = db_util.odbc_get_sorted_tower_by_line(querydict['line_id'], area)
                 
         if isgrid:
             data = {'Rows':data}
         s = json.dumps(data, ensure_ascii=True, indent=4)
         
-    if d.has_key('check_file'):
-        fn = dec(d['check_file'][0])
-        dir_name = dec(d['dir_name'][0])
-        del d['check_file']
-        del d['dir_name']
+    if querydict.has_key('check_file'):
+        fn = querydict['check_file']
+        dir_name = querydict['dir_name']
         ret["result"] = {}
         ret["result"]["filename"] = fn
         if dir_name == 'voice':
@@ -1388,11 +1393,9 @@ def handle_get_method(environ):
             else:
                 ret["result"]["exist"] = "false"
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if d.has_key('delete_file'):
-        fn = dec(d['delete_file'][0])
-        dir_name = dec(d['dir_name'][0])
-        del d['delete_file']
-        del d['dir_name']
+    if querydict.has_key('delete_file'):
+        fn = querydict['delete_file']
+        dir_name = querydict['dir_name']
         ret["result"] = {}
         ret["result"]["filename"] = fn
         if dir_name == 'voice':
@@ -1414,9 +1417,8 @@ def handle_get_method(environ):
             else:
                 ret["result"]["removed"] = "false"
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if d.has_key('list_file_dir_name'):
-        dir_name = dec(d['list_file_dir_name'][0])
-        del d['list_file_dir_name']
+    if querydict.has_key('list_file_dir_name'):
+        dir_name = querydict['list_file_dir_name']
         ret["result"] = {}
         ret["result"]["dirs"] = [dir_name, ]
         p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name)
@@ -1426,16 +1428,15 @@ def handle_get_method(environ):
         else:
             ret["result"]["files"] = []
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if d.has_key('get_voice_files'):
-        get_voice_files = d['get_voice_files'][0]
+    if querydict.has_key('get_voice_files'):
+        get_voice_files = querydict['get_voice_files']
         ret["result"] = {}
         ret["result"]["ids"] = get_voice_file_all()
         s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if d.has_key('op'):
-        op = d['op'][0]
-        del d['op']
+    if querydict.has_key('op'):
+        op = querydict['op']
         if op == "gridfs":
-            ret = db_util.gridfs_find(d)
+            ret = db_util.gridfs_find(querydict)
             if isinstance(ret, tuple) and ret[0] and ret[1]:
                 headers['Content-Type'] = str(ret[0])
                 if d.has_key('attachmentdownload'):
@@ -1446,7 +1447,7 @@ def handle_get_method(environ):
                 s = json.dumps(ret, ensure_ascii=True, indent=4)
         elif op == "gridfs_delete":
             try:
-                db_util.gridfs_delete(d)
+                db_util.gridfs_delete(querydict)
                 ret = ''
             except:
                 ret["result"] = sys.exc_info()[1].message
@@ -1595,9 +1596,9 @@ def handle_upload_file(environ, qsdict, filedata):
     try:
         #task item picture
         if qsdict.has_key('pic_file_name'):
-            fn = dec(qsdict['pic_file_name'][0])
-            dir_name = dec(qsdict['dir_name'][0])
-            #pic_type = qsdict['pic_type'][0]
+            fn = dec(qsdict['pic_file_name'])
+            dir_name = dec(qsdict['dir_name'])
+            
             p = os.path.join(root, 'photos')
             if not os.path.exists(p):
                 os.mkdir(p)
@@ -1607,7 +1608,7 @@ def handle_upload_file(environ, qsdict, filedata):
             save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, filedata)
             ret = True
         elif qsdict.has_key('voice_file_name'):
-            fn = qsdict['voice_file_name'][0]
+            fn = qsdict['voice_file_name']
             p = os.path.join(root, 'voice')
             if not os.path.exists(p):
                 os.mkdir(p)
@@ -1615,15 +1616,15 @@ def handle_upload_file(environ, qsdict, filedata):
             ret = True
         elif qsdict.has_key('import_xls'):
             root = create_upload_xls_dir()
-            area = urllib.unquote_plus( qsdict['area'][0])
-            line_name = urllib.unquote_plus( qsdict['line_name'][0])
-            voltage = urllib.unquote_plus( qsdict['voltage'][0])
-            category = urllib.unquote_plus( qsdict['category'][0])
+            area = urllib.unquote_plus( qsdict['area'])
+            line_name = urllib.unquote_plus( qsdict['line_name'])
+            voltage = urllib.unquote_plus( qsdict['voltage'])
+            category = urllib.unquote_plus( qsdict['category'])
             fn = str(uuid.uuid4()) + '.xls'
             import_xls(os.path.join(root, fn), filedata, dec(area), dec(line_name), dec(voltage),  dec(category))
             ret = True
         elif qsdict.has_key('db'):
-            mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
+            mimetype = urllib.unquote_plus(qsdict['mimetype'])
             filename, filedata1 = parse_form_data(environ, mimetype, filedata)
             #with open(ur'd:\aaa.png','wb') as f:
                 #f.write(filedata)
@@ -1701,70 +1702,33 @@ def geojson_to_czml(aList):
     
 def handle_post_method(environ):
     global ENCODING
-    global gRequest, gLoginToken
-    buf = environ['wsgi.input'].read()
+    global gRequest
+    
     
     querydict = {}
-    if environ.has_key('QUERY_STRING'):
-        querydict = urlparse.parse_qs(environ['QUERY_STRING'])
-    #for k in d.keys():
-        #kv = pair.split('=')
-        #try:
-            #d[kv[0]] = eval(kv[1])
-        #except:
-            #d[kv[0]] = kv[1]
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querydict = urlparse.parse_qs(dec(querystring))
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
     ret = {}
     is_upload = False
     is_mongo = False
     use_czml = False
     get_extext = False
     headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    
     try:
+        buf = environ['wsgi.input'].read()
         ds_plus = urllib.unquote_plus(buf)
         obj = json.loads(dec(ds_plus))
-        if obj.has_key(u'db') and obj.has_key(u'collection'):
-            is_mongo = True
-            dbname = obj[u'db']
-            collection = obj[u'collection']
-            action = None
-            data = None
-            if obj.has_key(u'action'):
-                action = obj[u'action']
-                del obj[u'action']
-            if obj.has_key(u'data'):
-                data = obj[u'data']
-                del obj[u'data']
-            if obj.has_key(u'use_czml') and obj[u'use_czml']:
-                use_czml = True
-                del obj[u'use_czml']
-            if obj.has_key(u'get_extext') and obj[u'get_extext']:
-                get_extext = True
-                del obj[u'get_extext']
-            del obj[u'db']
-            del obj[u'collection']
-            if action:
-                if 'markdown_' in action or u'markdown_' in action:
-                    l = db_util.mongo_action(dbname, collection, action, data, obj, 'markdown')
-                else:
-                    l = db_util.mongo_action(dbname, collection, action, data, obj)
-            else:
-                l = db_util.mongo_find(dbname, collection, obj)
-            if get_extext:
-                l = db_util.find_extent(l)
-            if use_czml:
-                l = geojson_to_czml(l)
-            if isinstance(l, list) and len(l) >= 0:
-                ret = l
-            elif isinstance(l, dict) and len(l.keys()) > 0:
-                ret = l
-            elif isinstance(l, czml.CZML):
-                headers['Content-Type'] = 'text/json;charset=' + ENCODING
-                return '200 OK', headers, enc(l.dumps())
-            #else:
-                #ret["result"] = "%s.%s return 0 record" % (dbname, collection)
-        else:
-            ret["result"] = "unknown query operation"
-        
+        if isinstance(obj, dict):
+            for k in obj.keys():
+                querydict[k] = obj[k]
     except:
         if len(querydict.keys())>0:
             try:
@@ -1772,11 +1736,58 @@ def handle_post_method(environ):
                 ret['result'] = ''
             except:
                 ret['result'] = sys.exc_info()[1]
-        obj = {}
+        querydict = {}
+
+                
+    if querydict.has_key('db') and querydict.has_key('collection'):
+        is_mongo = True
+        dbname = querydict['db']
+        collection = querydict['collection']
+        action = None
+        data = None
+        if querydict.has_key('action'):
+            action = querydict['action']
+            del querydict['action']
+        if querydict.has_key('data'):
+            data = querydict['data']
+            del querydict['data']
+        if querydict.has_key('use_czml') and querydict['use_czml']:
+            use_czml = True
+            del querydict['use_czml']
+        if querydict.has_key('get_extext') and querydict['get_extext']:
+            get_extext = True
+            del querydict['get_extext']
+        del querydict['db']
+        del querydict['collection']
+        if action:
+            if 'markdown_' in action or u'markdown_' in action:
+                l = db_util.mongo_action(dbname, collection, action, data, querydict, 'markdown')
+            else:
+                l = db_util.mongo_action(dbname, collection, action, data, querydict)
+        else:
+            l = db_util.mongo_find(dbname, collection, querydict)
+        if get_extext:
+            l = db_util.find_extent(l)
+        if use_czml:
+            l = geojson_to_czml(l)
+        if isinstance(l, list) and len(l) >= 0:
+            ret = l
+        elif isinstance(l, dict) and len(l.keys()) > 0:
+            ret = l
+        elif isinstance(l, czml.CZML):
+            headers['Content-Type'] = 'text/json;charset=' + ENCODING
+            return '200 OK', headers, enc(l.dumps())
+        #else:
+            #ret["result"] = "%s.%s return 0 record" % (dbname, collection)
+    #else:
+        #ret["result"] = "unknown query operation"
+    
+        
+        
     if not is_mongo:
-        if obj.has_key('thunder_counter'):
+        if querydict.has_key('thunder_counter'):
             try:
-                ret = handle_thunder_soap(obj)
+                ret = handle_thunder_soap(querydict)
             except:
                 e = sys.exc_info()[1]
                 if hasattr(e, 'message'):
@@ -1784,23 +1795,23 @@ def handle_post_method(environ):
                 else:
                     ret['result'] = str(e)
                 
-        elif obj.has_key('op'):
-            if obj.has_key('area') and obj['area'] and len(obj['area'])>0:
-                if obj['op'] in ['save','delete','update']:
-                    ret = db_util.odbc_save_data_to_table(obj['table'], obj['op'], obj['data'], obj['line_id'], obj['start_tower_id'], obj['end_tower_id'], obj['area'])
+        elif querydict.has_key('op'):
+            if querydict.has_key('area') and querydict['area'] and len(querydict['area'])>0:
+                if querydict['op'] in ['save','delete','update']:
+                    ret = db_util.odbc_save_data_to_table(querydict['table'], querydict['op'], querydict['data'], querydict['line_id'], querydict['start_tower_id'], querydict['end_tower_id'], querydict['area'])
                 else:
-                    ret = handle_requset_sync(obj)
-            elif obj['op'] in ['alt','height'] :
-                if obj.has_key('lng') and obj.has_key('lat') and isinstance(obj['lng'], float) and isinstance(obj['lat'], float):
-                    ret = db_util.extract_one_altitude(obj['lng'], obj['lat'])
-                if obj.has_key('data')  and isinstance(obj['data'], list):
-                    ret = db_util.extract_many_altitudes(obj['data'])
+                    ret = handle_requset_sync(querydict)
+            elif querydict['op'] in ['alt','height'] :
+                if querydict.has_key('lng') and querydict.has_key('lat') and isinstance(querydict['lng'], float) and isinstance(querydict['lat'], float):
+                    ret = db_util.extract_one_altitude(querydict['lng'], querydict['lat'])
+                if querydict.has_key('data')  and isinstance(querydict['data'], list):
+                    ret = db_util.extract_many_altitudes(querydict['data'])
             else:
                 ret["result"] = "unknown area"
-        elif obj.has_key('tracks') and obj.has_key('area'):
-            ret = db_util.save_tracks(obj['tracks'], obj['area'])
-        elif obj.has_key('mobile_action') and obj.has_key('area') and obj.has_key('data'):
-            ret = db_util.mobile_action(obj['mobile_action'], obj['area'], obj['data'])
+        elif querydict.has_key('tracks') and querydict.has_key('area'):
+            ret = db_util.save_tracks(querydict['tracks'], querydict['area'])
+        elif querydict.has_key('mobile_action') and querydict.has_key('area') and querydict.has_key('data'):
+            ret = db_util.mobile_action(querydict['mobile_action'], querydict['area'], querydict['data'])
         
     if isinstance(ret, list): 
         pass
@@ -1823,17 +1834,11 @@ def handle_post_method(environ):
             ret["result"] = "unknown operation"
     else:    
         ret["result"] = "unknown operation"
-    headers['Content-Type'] = 'text/json;charset=' + ENCODING
     #time.sleep(6)
     #print(ret)
-    #return [urllib.quote(enc(json.dumps(ret)))]
+    
     return '200 OK', headers, json.dumps(ret, ensure_ascii=True, indent=4)
 
-
-    
-    
-    
-    
     
     
 def handle_login(environ):

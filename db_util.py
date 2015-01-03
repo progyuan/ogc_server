@@ -8714,22 +8714,22 @@ def gridfs_save(qsdict, filename, data):
     
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
-    dbname = qsdict['db'][0]
+    dbname = qsdict['db']
     
     clienttype = 'default'
     if qsdict.has_key('clienttype'):
-        clienttype = str(qsdict['clienttype'][0])
+        clienttype = str(qsdict['clienttype'])
     collection = 'fs'
     if qsdict.has_key('collection'):
-        collection = str(qsdict['collection'][0])
+        collection = str(qsdict['collection'])
 
     if not qsdict.has_key('mimetype'):
         raise Exception('mimetype not specified in parameter')
-    mimetype = urllib.unquote_plus(qsdict['mimetype'][0])
+    mimetype = urllib.unquote_plus(qsdict['mimetype'])
 
      
     if qsdict.has_key('_id'):
-        _id = qsdict['_id'][0]
+        _id = qsdict['_id']
         try:
             _id = ObjectId(_id)
         except:
@@ -8745,26 +8745,26 @@ def gridfs_save(qsdict, filename, data):
     else:
         if not qsdict.has_key('bindcollection'):
             raise Exception('bindcollection not specified in parameter')
-        bindcollection = qsdict['bindcollection'][0]
+        bindcollection = qsdict['bindcollection']
         
         
         if not qsdict.has_key('key'):
             raise Exception('key not specified in parameter')
-        key = qsdict['key'][0]
+        key = qsdict['key']
     
         if not qsdict.has_key('category'):
             raise Exception('category not specified in parameter')
-        category = qsdict['category'][0]
+        category = qsdict['category']
         
         
         
         description = u''
         if qsdict.has_key('description'):
-            description = dec(urllib.unquote_plus(qsdict['description'][0]))
+            description = qsdict['description']
         
         
-        #filename = dec(urllib.unquote_plus(qsdict['filename'][0]))
-        #size = int(qsdict['size'][0])
+        #filename = dec(urllib.unquote_plus(qsdict['filename']))
+        #size = int(qsdict['size'])
         try:
             mongo_init_client(clienttype)
             db = gClientMongo[clienttype][dbname]
@@ -8778,27 +8778,29 @@ def gridfs_delete(qsdict, clienttype='default'):
     global gClientMongo, gConfig
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
-    dbname = qsdict['db'][0]
+    dbname = qsdict['db']
     
+    if qsdict.has_key('clienttype'):
+        clienttype = str(qsdict['clienttype'])
     if qsdict.has_key('collection'):
-        collection = qsdict['collection'][0]
+        collection = qsdict['collection']
     else:
         collection = 'fs'
     _id, bindcollection, key, category = None, None, None, None
     if qsdict.has_key('_id'):
-        _id = qsdict['_id'][0]
+        _id = qsdict['_id']
     
     if  qsdict.has_key('bindcollection'):
         #raise Exception('bindcollection not specified in parameter')
-        bindcollection = qsdict['bindcollection'][0]
+        bindcollection = qsdict['bindcollection']
     
     if qsdict.has_key('key'):
         #raise Exception('key not specified in parameter')
-        key = qsdict['key'][0]
+        key = qsdict['key']
         
     if qsdict.has_key('category'):
         #raise Exception('category not specified in parameter')
-        category = qsdict['category'][0]
+        category = qsdict['category']
     try:
         mongo_init_client(clienttype)
         db = gClientMongo[clienttype][dbname]
@@ -8929,7 +8931,6 @@ def mongo_init_client(clienttype='default', subtype=None, host=None, port=None, 
     
 def gridfs_find(qsdict, clienttype='default'):
     global gClientMongo, gConfig
-    
     def thumbnail(fp, size, use_base64=False):
         ret = None
         print(fp.mimetype)
@@ -8962,43 +8963,44 @@ def gridfs_find(qsdict, clienttype='default'):
                 ret = base64.b64encode(ret)
         return ret
         
-        
+    if qsdict.has_key('clienttype'):
+        clienttype = str(qsdict['clienttype'])
     if not qsdict.has_key('db'):
         raise Exception('db not specified in parameter')
-    dbname = qsdict['db'][0]
+    dbname = qsdict['db']
     
     download = False
     if qsdict.has_key('attachmentdownload'):
         download = True
     
     if qsdict.has_key('collection'):
-        collection = qsdict['collection'][0]
+        collection = qsdict['collection']
     else:
         collection = 'fs'
         
     width, height = 128, 128
     try:
         if qsdict.has_key('width'):
-            width = int(qsdict['width'][0])
+            width = int(qsdict['width'])
         if qsdict.has_key('height'):
-            height = int(qsdict['height'][0])
+            height = int(qsdict['height'])
     except:
         raise
     
     _id, bindcollection, key, category = None, None, None, None
     skip, limit = 0, 0
     if qsdict.has_key('_id'):
-        _id = qsdict['_id'][0]
+        _id = qsdict['_id']
     if qsdict.has_key('skip') and qsdict.has_key('limit'):
-        skip = int(qsdict['skip'][0])
-        limit = int(qsdict['limit'][0])
+        skip = int(qsdict['skip'])
+        limit = int(qsdict['limit'])
         
     if qsdict.has_key('bindcollection') and qsdict.has_key('key'):
-        bindcollection = qsdict['bindcollection'][0]
-        key = qsdict['key'][0]
+        bindcollection = qsdict['bindcollection']
+        key = qsdict['key']
         #if not qsdict.has_key('category'):
             #raise Exception('category not specified in parameter')
-        #category = qsdict['category'][0]
+        #category = qsdict['category']
     
     
     mimetype, ret = None, None
