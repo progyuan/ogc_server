@@ -1931,9 +1931,9 @@ def check_session(environ, request, session_store):
     sess = None
     
     #session_store.delete_expired_list()
-    if sid is None:
+    if sid is None or len(sid)==0:
         request.session = session_store.new({})
-        session_store.save(request.session)
+        #session_store.save(request.session)
         is_expire = True
         cookie = set_cookie('authorize_platform_session_id', request.session.sid )
         sess = request.session
@@ -3115,11 +3115,15 @@ def handle_authorize_platform(environ, session):
         
     
     def login(session, querydict):
-        global gRequest, gSessionStore
         ok = False
         ret = ''
         if querydict.has_key('username') and querydict.has_key('password') and len(querydict['username'])>0 and len(querydict['password'])>0:        
             try:
+                check, ip = session_check_user_ip(environ, querydict['username'])
+                if gSessionStore and not check:
+                    ret = json.dumps({'result':u'other_ip_already_login:%s' % ip }, ensure_ascii=True, indent=4)
+                    return ret, ok
+                
                 if gSessionStore and session:
                     db_util.mongo_init_client('authorize_platform')
                     db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
@@ -3347,19 +3351,85 @@ def check_is_static(aUrl):
         ret = True
     return ret
 
+def whitelist_check(environ, start_response):
+    global gConfig
+    ret = True
+    if gConfig['listen_port'].has_key('whitelist') and len(gConfig['listen_port']['whitelist'])>0:
+        if isinstance(gConfig['listen_port']['whitelist'], unicode):
+            s = str(gConfig['listen_port']['whitelist'])
+            rere = re.compile(s)
+            if environ.has_key('REMOTE_ADDR') and len(rere.findall(environ['REMOTE_ADDR']))==0:
+                ret = False
+        elif isinstance(gConfig['listen_port']['whitelist'], list):
+            cnt = 0
+            ret = False
+            for i in gConfig['listen_port']['whitelist']:
+                s = str(i)
+                rere = re.compile(s)
+                if environ.has_key('REMOTE_ADDR') and len(rere.findall(environ['REMOTE_ADDR']))>0:
+                    cnt += 1
+            if cnt>0:
+                ret = True
+    return ret
+
+def blacklist_check(environ, start_response):
+    global gConfig
+    ret = True
+    if gConfig['listen_port'].has_key('blacklist') and len(gConfig['listen_port']['blacklist'])>0:
+        if isinstance(gConfig['listen_port']['blacklist'], unicode):
+            s = str(gConfig['listen_port']['blacklist'])
+            rere = re.compile(s)
+            if environ.has_key('REMOTE_ADDR') and len(rere.findall(environ['REMOTE_ADDR']))>0:
+                ret = False
+        elif isinstance(gConfig['listen_port']['blacklist'], list):
+            cnt = 0
+            ret = True
+            for i in gConfig['listen_port']['blacklist']:
+                s = str(i)
+                rere = re.compile(s)
+                if environ.has_key('REMOTE_ADDR') and len(rere.findall(environ['REMOTE_ADDR']))>0:
+                    cnt += 1
+            if cnt>0:
+                ret = False
+            
+    return ret
+
+def ip_check(environ, start_response):
+    ret = False
+    if whitelist_check(environ, start_response) and blacklist_check(environ, start_response):
+        ret = True
+    return ret
+
+def session_check_user_ip(environ, username):
+    global gConfig,  gSessionStore
+    ret = True
+    ip = environ['REMOTE_ADDR']
+    if gConfig['authorize_platform']['session']['session_check_ip'].lower() == 'true':
+        l = gSessionStore.get_list_by_username(username)
+        for i in l:
+            if i.has_key('ip') and i['ip'] != environ['REMOTE_ADDR']:
+                ret = False
+                break
+    return ret, ip
+
+
 def application_authorize_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
-    
-    
+        
+        
     headers = CORS_header()
     headerslist = []
     cookie_header = None
     body = ''
     statuscode = '200 OK'
+    if not ip_check(environ, start_response):
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'your_ip_access_deny'}, ensure_ascii=True, indent=4)
+        start_response(statuscode, headerslist)
+        return [body]
     
     path_info = environ['PATH_INFO']
-    
     if gSessionStore is None:
         gSessionStore = MongodbSessionStore(host=gConfig['authorize_platform']['mongodb']['host'], 
                                             port=int(gConfig['authorize_platform']['mongodb']['port']), 
@@ -3385,9 +3455,12 @@ def application_authorize_platform(environ, start_response):
                 statuscode = '200 OK'
                 body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
                 if sess:
+                    if  not sess.has_key('ip'):
+                        sess['ip'] = environ['REMOTE_ADDR']
                     gSessionStore.save_if_modified(sess)
             else:
                 statuscode, headers, body = handle_authorize_platform(environ, sess)
+                    
                 
     if cookie_header:
         headerslist.append(cookie_header)
@@ -3697,6 +3770,16 @@ def application_pay_platform(environ, start_response):
     headerslist = []
     body = ''
     statuscode = '200 OK'
+    
+    if not ip_check(environ, start_response):
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'your_ip_access_deny'}, ensure_ascii=True, indent=4)
+        start_response(statuscode, headerslist)
+        return [body]
+    
+    
+    
+    
     path_info = environ['PATH_INFO']
     
     headerslist = []

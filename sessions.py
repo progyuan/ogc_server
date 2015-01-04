@@ -173,6 +173,16 @@ class MongodbSessionStore(SessionStore):
         rec = self.collection.find_one({'_id':ObjectId(sid), 'username':username, 'session_timestamp':{"$gt":start_time}})
         return rec
     
+    def get_list_by_username(self, username):
+        ret = []
+        self.mongo_init()
+        seconds = int(db_util.gConfig['authorize_platform']['session']['session_age'])
+        start_time = datetime.now() - timedelta(seconds=seconds) 
+        cur = self.collection.find({ 'username':username, 'session_timestamp':{"$gt":start_time}})
+        for i in cur:
+            ret.append(i)
+        return ret
+    
     def get_data_by_username_password(self, sid, username, password):
         self.mongo_init()
         if not self.is_valid_key(sid):
