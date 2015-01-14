@@ -3420,12 +3420,17 @@ def get_websocket(environ):
     return ret
 
 def ws_send(environ,  string):
-    ws = get_websocket(environ)
-    if ws and not ws.closed:
-        try:
-            ws.send(string)
-        except geventwebsocket.WebSocketError, e:
-            print('ws_send exception:%s' % str(e))
+    global gWebSocketsMap
+    for k in gWebSocketsMap.keys():
+        ws = gWebSocketsMap[k]
+        if ws and not ws.closed:
+            try:
+                ws.send(string)
+            except geventwebsocket.WebSocketError, e:
+                print('ws_send exception:%s' % str(e))
+        elif ws and ws.closed:
+            del gWebSocketsMap[k]
+            
 
 def ws_session_query():
     ret = json.dumps(db_util.remove_mongo_id(gSessionStore.list()), ensure_ascii=True, indent=4)
@@ -3446,12 +3451,15 @@ def ws_recv(environ):
                 ret = json.loads(msg)
             except:
                 ret = msg
+        
     return ret
 
     
 def handle_websocket(environ):
+    global gWebSocketsMap
     ws = get_websocket(environ)
     while ws and not ws.closed:
+        gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
         obj = ws_recv(environ)
         if obj and isinstance(obj, dict) and obj.has_key('op'):
             #print(obj)
@@ -3460,8 +3468,9 @@ def handle_websocket(environ):
             if obj['op'] == 'session_remove':
                 if obj.has_key('id') and len(obj['id'])>0:
                     gSessionStore.delete_by_id(obj['id'])
+                    ws_send(environ,  ws_session_query())
         else:
-            ws_send(environ, '')
+            ws_send(environ,  '')
         gevent.sleep(1.0)
 
 
@@ -3510,6 +3519,7 @@ def application_authorize_platform(environ, start_response):
                     if  not sess.has_key('ip'):
                         sess['ip'] = environ['REMOTE_ADDR']
                     gSessionStore.save_if_modified(sess)
+                    
             else:
                 statuscode, headers, body = handle_authorize_platform(environ, sess)
                     
@@ -3519,9 +3529,11 @@ def application_authorize_platform(environ, start_response):
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
+    start_response(statuscode, headerslist)
     if len(gConfig['authorize_platform']['websocket']['url'])>0 and path_info == gConfig['authorize_platform']['websocket']['url']:
         handle_websocket(environ)
-    start_response(statuscode, headerslist)
+    
+    
     return [body]
 
 def sign_and_send_alipay(method, href, data, need_sign=True):
