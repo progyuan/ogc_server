@@ -99,6 +99,7 @@ gGreenlets = {}
 gClusterProcess = {}
 gLoginToken = {}
 gSecurityConfig = {}
+gWebSocketsMap = {}
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -1895,23 +1896,22 @@ def dishen_ws_loop(aWebSocket, aHash):
             break
         gevent.sleep(1.0)
 
-def handle_websocket(environ):
-    global gCapture, gGreenlets
-    #for k, v in environ.iteritems():
-        #print('%s=%s' % (k,str(v)))
-    headers = {}
-    ws = environ["wsgi.websocket"]
-    print(dir(ws))
-    #print(dir(ws.rfile))
-    #print(dir(ws.socket))
-    if environ['PATH_INFO'] == '/dishen_ws':
-        glet = gevent.getcurrent()
-        ghash = glet.__hash__()
-        gGreenlets[str(ghash)] = (glet, ws)
-        dishen_ws_loop(ws, ghash)
-    s = 'version=%s' % ( environ['wsgi.websocket_version'])
-    headers['Content-Type'] = 'text/plain;charset=' + ENCODING
-    return '200 OK', headers, s
+#def handle_websocket(environ):
+    #global ENCODING
+    #global gCapture, gGreenlets
+    #headers = {}
+    #ws = environ["wsgi.websocket"]
+    #print(dir(ws))
+    ##print(dir(ws.rfile))
+    ##print(dir(ws.socket))
+    #if environ['PATH_INFO'] == '/dishen_ws':
+        #glet = gevent.getcurrent()
+        #ghash = glet.__hash__()
+        #gGreenlets[str(ghash)] = [glet, ws]
+        #dishen_ws_loop(ws, ghash)
+    #s = 'version=%s' % ( environ['wsgi.websocket_version'])
+    #headers['Content-Type'] = 'text/plain;charset=' + ENCODING
+    #return '200 OK', headers, s
 
 
 
@@ -2695,8 +2695,7 @@ def handle_alipay_error_notify_url(environ):
     
 def handle_authorize_platform(environ, session):
     global ENCODING
-    global gConfig, gRequest, gSessionStore, gUrlMapAuth, gSecurityConfig
-    
+    global gConfig, gRequest, gSessionStore, gUrlMapAuth, gSecurityConfig, gWebSocketsMap
     def get_querydict_by_GET_POST(environ):
         querydict = {}
         if environ.has_key('QUERY_STRING'):
@@ -3005,6 +3004,8 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'username_required'}, ensure_ascii=True, indent=4)
         return ret    
         
+                    
+        
         
     def user_query(session, querydict):
         if not check_valid_user(session, 'admin'):
@@ -3169,11 +3170,6 @@ def handle_authorize_platform(environ, session):
             ret = json.dumps({'result':u'auth_check_fail_session_expired'}, ensure_ascii=True, indent=4)
         return ret
      
-     
-     
-     
-        
-    
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
@@ -3181,6 +3177,7 @@ def handle_authorize_platform(environ, session):
     isnew = False
     urls = gUrlMapAuth.bind_to_environ(environ)
     querydict = get_querydict_by_GET_POST(environ)
+    endpoint = ''
     try:
         endpoint, args = urls.match()
         if args.has_key('username'):
@@ -3239,11 +3236,14 @@ def handle_authorize_platform(environ, session):
             body = role_template_get(session, querydict)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+        
+            
     except HTTPException, e:
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     if session:
         gSessionStore.save(session)
-        
+    if endpoint in ['login', 'logout']:
+        ws_send(environ, ws_session_query())
     return statuscode, headers, body
 
 
@@ -3413,10 +3413,62 @@ def session_check_user_ip(environ, username):
     return ret, ip
 
 
+def get_websocket(environ):
+    ret = None
+    if environ.has_key("wsgi.websocket") and environ['wsgi.websocket']:
+        ret = environ['wsgi.websocket']
+    return ret
+
+def ws_send(environ,  string):
+    ws = get_websocket(environ)
+    if ws and not ws.closed:
+        try:
+            ws.send(string)
+        except geventwebsocket.WebSocketError, e:
+            print('ws_send exception:%s' % str(e))
+
+def ws_session_query():
+    ret = json.dumps(db_util.remove_mongo_id(gSessionStore.list()), ensure_ascii=True, indent=4)
+    return ret
+
+
+def ws_recv(environ):
+    ret = None
+    ws = get_websocket(environ)
+    if ws and not ws.closed:
+        msg = None
+        try:
+            msg = ws.receive()
+        except geventwebsocket.WebSocketError, e:
+            print('ws_recv exception:%s' % str(e))
+        if msg:
+            try:
+                ret = json.loads(msg)
+            except:
+                ret = msg
+    return ret
+
+    
+def handle_websocket(environ):
+    ws = get_websocket(environ)
+    while ws and not ws.closed:
+        obj = ws_recv(environ)
+        if obj and isinstance(obj, dict) and obj.has_key('op'):
+            #print(obj)
+            if obj['op'] == 'session_list':
+                ws_send(environ, ws_session_query())
+            if obj['op'] == 'session_remove':
+                if obj.has_key('id') and len(obj['id'])>0:
+                    gSessionStore.delete_by_id(obj['id'])
+        else:
+            ws_send(environ, '')
+        gevent.sleep(1.0)
+
+
 def application_authorize_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
-        
+
         
     headers = CORS_header()
     headerslist = []
@@ -3467,6 +3519,8 @@ def application_authorize_platform(environ, start_response):
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
+    if len(gConfig['authorize_platform']['websocket']['url'])>0 and path_info == gConfig['authorize_platform']['websocket']['url']:
+        handle_websocket(environ)
     start_response(statuscode, headerslist)
     return [body]
 
@@ -3843,13 +3897,9 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_wfs(environ)
     elif path_info =='/create_cluster' or  path_info =='/kill_cluster':
         statuscode, headers, body = handle_cluster(environ)
-    elif path_info == gConfig['websocket']['services']:
+    #elif path_info == gConfig['websocket']['services']:
         #if p=='/control':
             #print('websocket_version=%s' % environ['wsgi.websocket_version'])
-        try:
-            statuscode, headers, body = handle_websocket(environ)
-        except geventwebsocket.WebSocketError,e:
-            print('application Exception:%s' % str(e))
         
     else:
         if gConfig['web']['session']['enable_session'].lower() == 'true' :
@@ -4231,6 +4281,7 @@ def delete_expired_session(interval):
         if gSessionStore:
             #print('session recycle checking')
             gSessionStore.delete_expired_list()
+            
     
     
     

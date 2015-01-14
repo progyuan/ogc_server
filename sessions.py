@@ -221,6 +221,14 @@ class MongodbSessionStore(SessionStore):
             #print(len(ret))
         except:
             raise
+        
+    def delete_by_id(self, id):
+        ids = []
+        if isinstance(id, str):
+            ids.append(ObjectId(id))
+        if isinstance(id, list):
+            ids = [ObjectId(i) for i in id]
+        self.collection.remove({'_id':{'$in':ids}})
             
 #if __name__=="__main__":
     #db_util.init_global()

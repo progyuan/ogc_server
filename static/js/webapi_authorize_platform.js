@@ -1,5 +1,5 @@
 $.auth_platform = {};
-$.auth_platform.AUTH_HOST = 'yncaiyun.com';
+$.auth_platform.AUTH_HOST = 'yncaiyun1.com';
 $.auth_platform.AUTH_PROTOCOL = 'http';
 $.auth_platform.AUTH_PORT = '8088';
 $.auth_platform.DEBUG = true;
@@ -1037,7 +1037,13 @@ function init_button()
 			});
 		}
 	});
-	
+	$('#btn_session_list').on('click', function(){
+		if($.auth_platform.websocket)
+		{
+			//console.log($.auth_platform.websocket);
+			$.auth_platform.websocket.send(JSON.stringify({op:'session_list'}));
+		}		
+	});
 	
 }
 
@@ -1185,6 +1191,67 @@ function init_select()
 	});
 }
 
+function init_websocket()
+{
+	var wsurl =  "ws://" + $.auth_platform.AUTH_HOST + ":" + $.auth_platform.AUTH_PORT + "/websocket";
+	if($.auth_platform.websocket === undefined)
+	{
+		$.auth_platform.websocket = new WebSocket(wsurl);
+	}
+	if($.auth_platform.websocket)
+	{
+		$.auth_platform.websocket.onopen = function() 
+		{
+			$.auth_platform.websocket.send('{}');
+		};
+		$.auth_platform.websocket.onclose = function(e) 
+		{
+			console.log("websocket close");
+		};
+		$.auth_platform.websocket.onerror = function(e) 
+		{
+			console.log("websocket error:" + e);
+			$.auth_platform.websocket.close();
+		};
+		$.auth_platform.websocket.onmessage = function(e) 
+		{
+			//console.log("websocket onmessage:" + e.data);
+			if(e.data.length>0)
+			{
+				var obj = JSON.parse(e.data);
+				if(obj instanceof Array)
+				{
+					
+					init_table(obj);
+				}
+				
+			}
+		};
+	}		
+
+}
+
+function init_table(array)
+{
+	if($.auth_platform.table_session_list)
+	{
+		try{
+			$.auth_platform.table_session_list.fnDestroy();
+		}catch(e)
+		{}
+	}
+	$.auth_platform.table_session_list = $('#table_session_list').dataTable( {
+        data: array,
+        columns: [
+            { title: "ID", data: "_id", class: "center" ,  defaultContent:""},
+            { title: "IP地址", data: "ip" , class: "center",  defaultContent:""},
+            { title: "用户名", data: "username" , class: "center",  defaultContent:""},
+            { title: "最新活动时间", data: "session_timestamp" , class: "center",  defaultContent:""}
+        ]
+    } );
+	$.auth_platform.table_session_list.fnDraw();
+}
+
 function init()
 {
 
@@ -1194,6 +1261,8 @@ function init()
 		init_role_template();
 		init_button();
 		init_select();
+		init_websocket();
+		
 	});
 }
 
