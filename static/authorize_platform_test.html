@@ -9,10 +9,13 @@
     <title>认证平台测试</title>
 	<link rel="stylesheet" href="css/zTreeStyle.css" />
 	<link rel="stylesheet" href="css/jquery.dataTables.min.css" />
+	<!--<link rel="stylesheet" href="css/dataTables.tableTools.min.css" />-->
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
     <script type="text/javascript" src="js/json3.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.ztree.all-3.5.min.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.dataTables.min.js"></script>
+    <!--<script type="text/javascript" src="js/jquery/dataTables.tableTools.min.js"></script>-->
+    <!--<script type="text/javascript" src="js/jquery/dataTables.editor.min.js"></script>-->
     <script type="text/javascript" src="js/webapi_authorize_platform.js"></script>
 	<style type="text/css">
 		html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td {
@@ -98,7 +101,8 @@
 		
 	</div>
 	<div>
-		<div style="text-align:center;"> session列表<button id="btn_session_list">获取session列表</button></div>
+		<div style="text-align:center;"><h1> session列表</h1><button id="btn_session_list">获取session列表</button><input id="chb_session_list" type="checkbox">冻结表格</div>
+		<div ><button id="btn_logout">删除session</button><button id="btn_ip_add">加入黑名单</button></div>
 		<div><table cellpadding="0" cellspacing="0" border="0" class="display" id="table_session_list"></table></div>
 	</div>
 </body>

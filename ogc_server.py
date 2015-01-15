@@ -3242,8 +3242,8 @@ def handle_authorize_platform(environ, session):
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     if session:
         gSessionStore.save(session)
-    if endpoint in ['login', 'logout']:
-        ws_send(environ, ws_session_query())
+    #if endpoint in ['login', 'logout']:
+        #ws_send(ws_session_query())
     return statuscode, headers, body
 
 
@@ -3419,7 +3419,7 @@ def get_websocket(environ):
         ret = environ['wsgi.websocket']
     return ret
 
-def ws_send(environ,  string):
+def ws_send(string):
     global gWebSocketsMap
     for k in gWebSocketsMap.keys():
         ws = gWebSocketsMap[k]
@@ -3464,13 +3464,17 @@ def handle_websocket(environ):
         if obj and isinstance(obj, dict) and obj.has_key('op'):
             #print(obj)
             if obj['op'] == 'session_list':
-                ws_send(environ, ws_session_query())
-            if obj['op'] == 'session_remove':
+                ws_send(ws_session_query())
+            elif obj['op'] == 'session_add':
+                pass
+            elif obj['op'] == 'session_remove':
                 if obj.has_key('id') and len(obj['id'])>0:
+                    print('remove session from client:')
+                    print(obj['id'])
                     gSessionStore.delete_by_id(obj['id'])
-                    ws_send(environ,  ws_session_query())
+                    #ws_send(ws_session_query())
         else:
-            ws_send(environ,  '')
+            ws_send('')
         gevent.sleep(1.0)
 
 
@@ -4293,6 +4297,7 @@ def delete_expired_session(interval):
         if gSessionStore:
             #print('session recycle checking')
             gSessionStore.delete_expired_list()
+            ws_send(ws_session_query())
             
     
     

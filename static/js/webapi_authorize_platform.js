@@ -9,6 +9,7 @@ $.auth_platform.ROLE_LIST = [];
 $.auth_platform.ROLE_MAP = {};
 $.auth_platform.ROLE_TEMPLATE = {};
 $.auth_platform.USER_LIST = [];
+$.auth_platform.selected_session_mapping = {};
 
 $.auth_platform.post_cors = function(action, data, callback)
 {
@@ -1044,6 +1045,31 @@ function init_button()
 			$.auth_platform.websocket.send(JSON.stringify({op:'session_list'}));
 		}		
 	});
+	$('#btn_logout').on('click', function(){
+		if($.auth_platform.table_session_list)
+		{
+			var table = $.auth_platform.table_session_list;
+			var list = [];
+			for(var k in $.auth_platform.selected_session_mapping)
+			{
+				if($.auth_platform.selected_session_mapping[k] === true)
+				{
+					list.push(k);
+				}
+			}
+			console.log($.auth_platform.selected_session_mapping);
+			if(list.length>0)
+			{
+				$.auth_platform.websocket.send(JSON.stringify({op:'session_remove',id:list}));
+				table.api().rows(function ( idx, data, node ) {
+					return $.auth_platform.selected_session_mapping[data._id] === true ;
+				}).remove().draw();
+			}
+		}
+	});
+	$('#btn_ip_add').on('click', function(){
+		
+	});
 	
 }
 
@@ -1233,23 +1259,47 @@ function init_websocket()
 
 function init_table(array)
 {
-	if($.auth_platform.table_session_list)
+	if($.auth_platform.table_session_list === undefined)
 	{
-		try{
-			$.auth_platform.table_session_list.fnDestroy();
-		}catch(e)
-		{}
+		$.auth_platform.table_session_list = $('#table_session_list').dataTable( {
+			className:"dt-body-center",
+			data: array,
+			columns: [
+				//{ title: "选择", data: "_selected", className: "dt-body-center" , render: function ( data, type, row ) {
+					//return '<input type="checkbox" class="editor-active">';
+				//}},
+				{ title: "选择", data: "_selected", className: "dt-body-center" , defaultContent:'<input type="checkbox" class="editor-active">'},
+				{ title: "ID", data: "_id", className: "dt-body-center" ,  defaultContent:""},
+				{ title: "IP地址", data: "ip" , className: "dt-body-center",  defaultContent:""},
+				{ title: "用户名", data: "username" , className: "dt-body-center",  defaultContent:""},
+				{ title: "最新活动时间", data: "session_timestamp" , className: "dt-body-center",  defaultContent:""}
+			]
+		} );
+		
+		$('#table_session_list').on( 'change', 'input.editor-active', function () {
+			var id = $(this).parent().next().html();
+			if($(this).is(":checked"))
+			{
+				$.auth_platform.selected_session_mapping[id] = true;
+			}else
+			{
+				//if($.auth_platform.selected_session_mapping[id])
+				//{
+					delete $.auth_platform.selected_session_mapping[id];
+				//}
+			}
+		} );		
+		
+	}else
+	{
+		if(!$('#chb_session_list').is(":checked"))
+		{
+			$.auth_platform.table_session_list.fnClearTable();
+			$.auth_platform.table_session_list.fnAddData(array);
+			$.auth_platform.selected_session_mapping = {};
+		}
 	}
-	$.auth_platform.table_session_list = $('#table_session_list').dataTable( {
-        data: array,
-        columns: [
-            { title: "ID", data: "_id", class: "center" ,  defaultContent:""},
-            { title: "IP地址", data: "ip" , class: "center",  defaultContent:""},
-            { title: "用户名", data: "username" , class: "center",  defaultContent:""},
-            { title: "最新活动时间", data: "session_timestamp" , class: "center",  defaultContent:""}
-        ]
-    } );
-	$.auth_platform.table_session_list.fnDraw();
+	//$.auth_platform.table_session_list.fnDraw();
 }
 
 function init()
