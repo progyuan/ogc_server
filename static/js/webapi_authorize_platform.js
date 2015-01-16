@@ -1071,6 +1071,20 @@ function init_button()
 		
 	});
 	
+	$('#chb_session_refresh').on('click', function(){
+		if($(this).is(":checked"))
+		{
+			$.auth_platform.websocket.send(JSON.stringify({op:'subscribe/session_list'}));
+		}else
+		{
+			if($.auth_platform.websocket)
+			{
+				$.auth_platform.websocket.send(JSON.stringify({op:'unsubscribe/session_list'}));
+			}
+		}
+	});
+	
+	
 }
 
 
@@ -1228,7 +1242,8 @@ function init_websocket()
 	{
 		$.auth_platform.websocket.onopen = function() 
 		{
-			$.auth_platform.websocket.send('{}');
+			//$.auth_platform.websocket.send(JSON.stringify({op:'session_list'}));
+			$.auth_platform.websocket.send(JSON.stringify({}));
 		};
 		$.auth_platform.websocket.onclose = function(e) 
 		{
@@ -1247,7 +1262,6 @@ function init_websocket()
 				var obj = JSON.parse(e.data);
 				if(obj instanceof Array)
 				{
-					
 					init_table(obj);
 				}
 				
@@ -1292,12 +1306,12 @@ function init_table(array)
 		
 	}else
 	{
-		if(!$('#chb_session_list').is(":checked"))
-		{
+		//if($('#chb_session_refresh').is(":checked"))
+		//{
 			$.auth_platform.table_session_list.fnClearTable();
 			$.auth_platform.table_session_list.fnAddData(array);
 			$.auth_platform.selected_session_mapping = {};
-		}
+		//}
 	}
 	//$.auth_platform.table_session_list.fnDraw();
 }

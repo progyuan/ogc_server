@@ -3242,8 +3242,6 @@ def handle_authorize_platform(environ, session):
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     if session:
         gSessionStore.save(session)
-    #if endpoint in ['login', 'logout']:
-        #ws_send(ws_session_query())
     return statuscode, headers, body
 
 
@@ -3419,10 +3417,16 @@ def get_websocket(environ):
         ret = environ['wsgi.websocket']
     return ret
 
-def ws_send(string):
+def ws_send(channel=None, string=''):
     global gWebSocketsMap
+    
     for k in gWebSocketsMap.keys():
-        ws = gWebSocketsMap[k]
+        ws = None
+        if channel:
+            if '|' + channel in k:
+                ws = gWebSocketsMap[k]
+        else:
+            ws = gWebSocketsMap[k]
         if ws and not ws.closed:
             try:
                 ws.send(string)
@@ -3454,27 +3458,75 @@ def ws_recv(environ):
         
     return ret
 
+#def handle_wamp(environ):
+    #global gConfig, gSessionStore
+    #wamp = WampProtocol()
+    #ws = get_websocket(environ)
+    #def on_open():
+        #wamp.register_pubsub(str(gConfig['authorize_platform']['wamp']['channel_session_list']))
+        #wamp.on_open()
+    #def on_message(message, *args, **kwargs):
+        #if ws and not ws.closed:
+            #ws.send(message, **kwargs)
+    #on_open()
+    #while ws and not ws.closed:
+        #try:
+            #message = ws.receive()
+        #except geventwebsocket.WebSocketError:
+            #wamp.on_close()
+            #break
+        #wamp.on_message(message)
+        #gevent.sleep(1.0)
+    
+    
+    
+    
+    
+    
     
 def handle_websocket(environ):
-    global gWebSocketsMap
+    global gConfig, gWebSocketsMap
+    def sub(uid, channel, websocket):
+        if uid and websocket and not websocket.closed:
+            if not gWebSocketsMap.has_key(uid + '|' + channel):
+                gWebSocketsMap[uid + '|' + channel] = websocket
+    def unsub(uid, channels):
+        keys = channels
+        while len(keys)>0:
+            key = keys[0]
+            if uid and gWebSocketsMap.has_key(uid + '|' + key):
+                del gWebSocketsMap[uid + '|' + key]
+                del keys[0]
+            
     ws = get_websocket(environ)
+    app = gConfig['wsgi']['application']
+    session_id = None
+    channel = ''
+    if environ.has_key('HTTP_COOKIE'):
+        arr = environ['HTTP_COOKIE'].split('=')
+        if len(arr)>1:
+            session_id = arr[1]
+        
+        
     while ws and not ws.closed:
-        gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
+        #gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
         obj = ws_recv(environ)
         if obj and isinstance(obj, dict) and obj.has_key('op'):
             #print(obj)
             if obj['op'] == 'session_list':
-                ws_send(ws_session_query())
-            elif obj['op'] == 'session_add':
-                pass
+                ws.send(ws_session_query())
+            elif obj['op'] == 'subscribe/session_list':
+                sub(session_id, 'session_list', ws)
+            elif obj['op'] == 'unsubscribe/session_list':
+                unsub(session_id, ['session_list',])
             elif obj['op'] == 'session_remove':
                 if obj.has_key('id') and len(obj['id'])>0:
                     print('remove session from client:')
                     print(obj['id'])
                     gSessionStore.delete_by_id(obj['id'])
-                    #ws_send(ws_session_query())
+                    
         else:
-            ws_send('')
+            ws_send()
         gevent.sleep(1.0)
 
 
@@ -3534,8 +3586,10 @@ def application_authorize_platform(environ, start_response):
         headerslist.append((k, headers[k]))
     #print(headerslist)
     start_response(statuscode, headerslist)
-    if len(gConfig['authorize_platform']['websocket']['url'])>0 and path_info == gConfig['authorize_platform']['websocket']['url']:
+    if path_info == '/websocket':
         handle_websocket(environ)
+    #if gConfig['authorize_platform'].has_key('wamp') and len(gConfig['authorize_platform']['wamp']['url'])>0 and path_info == gConfig['authorize_platform']['wamp']['url']:
+        #handle_wamp(environ)
     
     
     return [body]
@@ -4297,7 +4351,7 @@ def delete_expired_session(interval):
         if gSessionStore:
             #print('session recycle checking')
             gSessionStore.delete_expired_list()
-            ws_send(ws_session_query())
+            ws_send('session_list', ws_session_query())
             
     
     
