@@ -94,7 +94,7 @@ $(function() {
 
 	
 	try{
-		throw "unsupport_cesium_exception";
+		//throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.viewer = viewer;

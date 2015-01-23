@@ -1,5 +1,5 @@
 $.auth_platform = {};
-$.auth_platform.AUTH_HOST = 'yncaiyun1.com';
+$.auth_platform.AUTH_HOST = 'yncaiyun.com';
 $.auth_platform.AUTH_PROTOCOL = 'http';
 $.auth_platform.AUTH_PORT = '8088';
 $.auth_platform.DEBUG = true;
