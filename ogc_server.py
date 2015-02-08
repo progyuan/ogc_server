@@ -2494,7 +2494,7 @@ def update_pay_log(out_trade_no, data, is_insert=True):
     
 def handle_alipay_return_url(environ):
     global ENCODING
-    global gConfig,  gUrlMapAuth, gSecurityConfig
+    global gConfig,  gSecurityConfig
     querydict = {}
     data = {}
     data['pay_channel'] = 'alipay'
@@ -2573,7 +2573,7 @@ def handle_alipay_return_url(environ):
         
     
 def handle_alipay_notify_url(environ):
-    global gConfig, gUrlMapAuth, gSecurityConfig
+    global gConfig, gSecurityConfig
     buf = environ['wsgi.input'].read()
     ds_plus = urllib.unquote_plus(buf)
     ds_plus = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], ds_plus)
@@ -2664,7 +2664,7 @@ def handle_alipay_notify_url(environ):
         
     
 def handle_alipay_error_notify_url(environ):
-    global gConfig, gUrlMapAuth, gSecurityConfig
+    global gConfig, gSecurityConfig
     buf = environ['wsgi.input'].read()
     ds_plus = urllib.unquote_plus(buf)
     ds_plus = dec_by_code(gConfig['pay_platform']['alipay']['input_charset'], ds_plus)
@@ -2689,33 +2689,135 @@ def handle_alipay_error_notify_url(environ):
         g = gevent.spawn(update_pay_log, data['out_trade_no'], data, False)
         #g.join()
     
+def get_querydict_by_GET_POST(environ):
+    querydict = {}
+    if environ.has_key('QUERY_STRING'):
+        querystring = environ['QUERY_STRING']
+        querystring = urllib.unquote_plus(querystring)
+        querystring = dec(querystring)
+        querydict = urlparse.parse_qs(querystring)
+        d = {}
+        for k in querydict.keys():
+            d[k] = querydict[k][0]
+        querydict = d
+    try:
+        buf = environ['wsgi.input'].read()
+        ds_plus = urllib.unquote_plus(buf)
+        obj = json.loads(dec(ds_plus))
+        for k in obj.keys():
+            querydict[k] = obj[k]
+    except:
+        pass
+    return querydict
     
+def handle_combiz_platform(environ):
+    global ENCODING
+    global gConfig, gRequest
     
+       
+    def get_collection(collection):
+        ret = None
+        db_util.mongo_init_client('combiz_platform')
+        db = db_util.gClientMongo['combiz_platform'][gConfig['combiz_platform']['mongodb']['database']]
+        if not collection in db.collection_names(False):
+            ret = db.create_collection(collection)
+        else:
+            ret = db[collection]
+        return ret
+    #Rule('/workflow_add', endpoint='workflow_add'),
+    #Rule('/workflow_query', endpoint='workflow_query'),
+    #Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
+    #Rule('/workflow_update', endpoint='workflow_update'),
+    #Rule('/workflow_delete', endpoint='workflow_delete'),
+    #Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
+    #Rule('/workflow_template_add', endpoint='workflow_template_add'),
+    #Rule('/workflow_template_query', endpoint='workflow_template_query'),
+    #Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
+    #Rule('/workflow_template_update', endpoint='workflow_template_update'),
+    #Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
+    #Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
+    
+    def workflow_add(querydict):
+        ret = ''
+        if querydict.has_key('data') \
+           and querydict['data'].has_key('order_id')\
+           and querydict['data'].has_key('nodes')\
+           and querydict['data'].has_key('edges')\
+           :
+            workflow = get_collection('workflow')
+            _id = workflow.save(querydict['data'])
+            o = workflow.find_one({'_id':_id})
+            ret = json.dumps([o,], ensure_ascii=True, indent=4)
+        else:
+            ret = 'workflow_wrong_format'
+        return ret
+        
+        
+    def workflow_query(querydict):
+        ret = ''
+        if querydict.has_key('order_id'):
+            pass
+            
+        return ret
+            
+    def workflow_update(querydict):
+        pass
+    def workflow_delete(querydict):
+        pass
+    def workflow_template_add(querydict):
+        pass
+    def workflow_template_query(querydict):
+        pass
+    def workflow_template_update(querydict):
+        pass
+    def workflow_template_delete(querydict):
+        pass
+    
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    statuscode = '200 OK'
+    body = ''
+    isnew = False
+    urls = gUrlMap.bind_to_environ(environ)
+    querydict = get_querydict_by_GET_POST(environ)
+    endpoint = ''
+    try:
+        endpoint, args = urls.match()
+        if args.has_key('wf_id'):
+            querydict['wf_id'] = args['wf_id']
+        if args.has_key('wf_tpl_id'):
+            querydict['wf_tpl_id'] = args['wf_tpl_id']
+            
+        if endpoint == 'workflow_add':
+            body = workflow_add(querydict)
+        elif endpoint == 'workflow_query':
+            body = workflow_query(querydict)
+        elif endpoint == 'workflow_update':
+            body = workflow_update(querydict)
+        elif endpoint == 'workflow_delete':
+            body = workflow_delete(querydict)
+        elif endpoint == 'workflow_template_add':
+            body = workflow_template_add(querydict)
+        elif endpoint == 'workflow_template_query':
+            body = workflow_template_query(querydict)
+        elif endpoint == 'workflow_template_update':
+            body = workflow_template_update(querydict)
+        elif endpoint == 'workflow_template_delete':
+            body = workflow_template_delete(querydict)
+        else:
+            body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    except HTTPException, e:
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+
+
+
+
     
     
 def handle_authorize_platform(environ, session):
     global ENCODING
-    global gConfig, gRequest, gSessionStore, gUrlMapAuth, gSecurityConfig, gWebSocketsMap
-    def get_querydict_by_GET_POST(environ):
-        querydict = {}
-        if environ.has_key('QUERY_STRING'):
-            querystring = environ['QUERY_STRING']
-            querystring = urllib.unquote_plus(querystring)
-            querystring = dec(querystring)
-            querydict = urlparse.parse_qs(querystring)
-            d = {}
-            for k in querydict.keys():
-                d[k] = querydict[k][0]
-            querydict = d
-        try:
-            buf = environ['wsgi.input'].read()
-            ds_plus = urllib.unquote_plus(buf)
-            obj = json.loads(dec(ds_plus))
-            for k in obj.keys():
-                querydict[k] = obj[k]
-        except:
-            pass
-        return querydict
+    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap
         
     def get_collection(collection):
         ret = None
@@ -3175,7 +3277,7 @@ def handle_authorize_platform(environ, session):
     statuscode = '200 OK'
     body = ''
     isnew = False
-    urls = gUrlMapAuth.bind_to_environ(environ)
+    urls = gUrlMap.bind_to_environ(environ)
     querydict = get_querydict_by_GET_POST(environ)
     endpoint = ''
     try:
@@ -3245,7 +3347,7 @@ def handle_authorize_platform(environ, session):
     return statuscode, headers, body
 
 
-gUrlMapAuth = Map([
+gUrlMap = Map([
     Rule('/', endpoint='firstaccess'),
     #Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
     Rule('/get_salt', endpoint='get_salt'),
@@ -3276,6 +3378,18 @@ gUrlMapAuth = Map([
     Rule('/role_delete', endpoint='role_delete'),
     Rule('/role_template_save', endpoint='role_template_save'),
     Rule('/role_template_get', endpoint='role_template_get'),
+    Rule('/workflow_add', endpoint='workflow_add'),
+    Rule('/workflow_query', endpoint='workflow_query'),
+    Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
+    Rule('/workflow_update', endpoint='workflow_update'),
+    Rule('/workflow_delete', endpoint='workflow_delete'),
+    Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
+    Rule('/workflow_template_add', endpoint='workflow_template_add'),
+    Rule('/workflow_template_query', endpoint='workflow_template_query'),
+    Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
+    Rule('/workflow_template_update', endpoint='workflow_template_update'),
+    Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
+    Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -3530,6 +3644,44 @@ def handle_websocket(environ):
         gevent.sleep(1.0)
 
 
+
+
+
+def application_combiz_platform(environ, start_response):
+    global STATICRESOURCE_DIR
+    global gConfig, gRequest, gSessionStore
+        
+    headers = CORS_header()
+    headerslist = []
+    cookie_header = None
+    body = ''
+    statuscode = '200 OK'
+    if not ip_check(environ, start_response):
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'your_ip_access_deny'}, ensure_ascii=True, indent=4)
+        start_response(statuscode, headerslist)
+        return [body]
+    
+    path_info = environ['PATH_INFO']
+    
+    statuscode = '200 OK'
+    if path_info[-1:] == '/':
+        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+    elif check_is_static(path_info):
+        statuscode, headers, body =  handle_static(environ, path_info)
+    else:    
+        statuscode, headers, body = handle_combiz_platform(environ)
+                    
+                
+    for k in headers:
+        headerslist.append((k, headers[k]))
+    #print(headerslist)
+    start_response(statuscode, headerslist)
+    #if path_info == '/websocket':
+        #handle_websocket(environ)
+    return [body]
+
 def application_authorize_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
@@ -3590,9 +3742,8 @@ def application_authorize_platform(environ, start_response):
         handle_websocket(environ)
     #if gConfig['authorize_platform'].has_key('wamp') and len(gConfig['authorize_platform']['wamp']['url'])>0 and path_info == gConfig['authorize_platform']['wamp']['url']:
         #handle_wamp(environ)
-    
-    
     return [body]
+
 
 def sign_and_send_alipay(method, href, data, need_sign=True):
     global gConfig
