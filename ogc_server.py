@@ -114,6 +114,7 @@ gSessionStore = None
 
 gRequests = None
 gRequest = None
+gJoinableQueue = None
 
 @contextmanager
 def session_manager(environ):
@@ -129,7 +130,7 @@ def session_manager(environ):
 
 def init_global():
     global ENCODING, ENCODING1, STATICRESOURCE_DIR, STATICRESOURCE_CSS_DIR, STATICRESOURCE_JS_DIR, STATICRESOURCE_IMG_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
-    global gConfig, gStaticCache, gGreenlets, gClusterProcess, gSecurityConfig
+    global gConfig, gStaticCache, gGreenlets, gClusterProcess, gSecurityConfig, gJoinableQueue
     ENCODING = 'utf-8'
     ENCODING1 = 'gb18030'
     
@@ -160,6 +161,7 @@ def init_global():
             gSecurityConfig = {}
     
     if gConfig['wsgi']['application'].lower() in ['pay_platform', 'fake_gateway_alipay']:
+        gJoinableQueue = gevent.queue.JoinableQueue(maxsize=int(gConfig['pay_platform']['queue']['max_queue_size']))
         l = db_util.mongo_find(gConfig['pay_platform']['mongodb']['database'],
                                              gConfig['pay_platform']['mongodb']['collection_config'],
                                              {},
@@ -2064,7 +2066,7 @@ def get_pay_record_by_id(querydict):
     
 def refund_alipay(querydict):
     global ENCODING
-    global gConfig,  gSecurityConfig
+    global gConfig,  gSecurityConfig, gJoinableQueue
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
@@ -2109,21 +2111,30 @@ def refund_alipay(querydict):
         
     
     if len(body) == 0:
-        querydict['refund_result'] = 'refund_sending_to_alipay'
+        #querydict['refund_result'] = 'refund_sending_to_alipay'
+        querydict['refund_result'] = 'refund_adding_to_queue'
         querydict['refund_fee'] = float(querydict['refund_fee'])
         g = gevent.spawn(update_refund_log, querydict['out_trade_no'], querydict)
-        g1 = sign_and_send_alipay('post', href, sign_data)
-        g1.join()
-        resp = g1.value
-        s = resp.read()
-        print('refund response: [%s]' % dec(s))
-        body = json.dumps({'result':'refund_sending_to_alipay'}, ensure_ascii=True, indent=4)
+        #g1 = sign_and_send_alipay('post', href, sign_data)
+        #g1.join()
+        #resp = g1.value
+        #s = resp.read()
+        #print('refund response: [%s]' % dec(s))
+        #body = json.dumps({'result':'refund_sending_to_alipay'}, ensure_ascii=True, indent=4)
+        
+        try:
+            gJoinableQueue.put({'thirdpay':'alipay', 'method':'post', 'url':href, 'data':sign_data})
+        except gevent.queue.Full:
+            body = json.dumps({'result':'refund_err_queue_full'}, ensure_ascii=True, indent=4)
+        body = json.dumps({'result':'refund_adding_to_queue'}, ensure_ascii=True, indent=4)
+        
     return statuscode, headers, body
     
-
+    
+    
 def pay_alipay(querydict):
     global ENCODING
-    global gConfig,  gSecurityConfig
+    global gConfig,  gSecurityConfig, gJoinableQueue
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
@@ -2148,7 +2159,8 @@ def pay_alipay(querydict):
     if len(gConfig['pay_platform']['alipay']['notify_url'])>0:
         sign_data['notify_url'] = gConfig['pay_platform']['alipay']['notify_url']
     
-    querydict['trade_status'] = 'pay_sending_to_alipay'
+    #querydict['trade_status'] = 'pay_sending_to_alipay'
+    querydict['trade_status'] = 'pay_adding_to_queue'
     querydict['total_fee'] = float(querydict['total_fee'])
     
     if querydict.has_key('defaultbank'):
@@ -2166,8 +2178,13 @@ def pay_alipay(querydict):
         sign_data['exter_invoke_ip'] = ''
         
     g = gevent.spawn(update_pay_log, querydict['out_trade_no'], querydict)
-    g1 = sign_and_send_alipay('post', href, sign_data)
-    body = json.dumps({'result':'pay_sending_to_alipay'}, ensure_ascii=True, indent=4)
+    #g1 = sign_and_send_alipay('post', href, sign_data)
+    #body = json.dumps({'result':'pay_sending_to_alipay'}, ensure_ascii=True, indent=4)
+    try:
+        gJoinableQueue.put({'thirdpay':'alipay','method':'post', 'url':href, 'data':sign_data})
+    except gevent.queue.Full:
+        body = json.dumps({'result':'pay_err_queue_full'}, ensure_ascii=True, indent=4)
+    body = json.dumps({'result':'pay_adding_to_queue'}, ensure_ascii=True, indent=4)
     return statuscode, headers, body
     
 
@@ -3599,7 +3616,7 @@ def ws_recv(environ):
     
     
 def handle_websocket(environ):
-    global gConfig, gWebSocketsMap
+    global gConfig, gWebSocketsMap, gJoinableQueue
     def sub(uid, channel, websocket):
         if uid and websocket and not websocket.closed:
             if not gWebSocketsMap.has_key(uid + '|' + channel):
@@ -3620,8 +3637,11 @@ def handle_websocket(environ):
         arr = environ['HTTP_COOKIE'].split('=')
         if len(arr)>1:
             session_id = arr[1]
-        
-        
+    interval = 1.0
+    try:
+        interval = float(gConfig[app]['websocket']['update_interval'])
+    except:
+        interval = 1.0
     while ws and not ws.closed:
         #gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
         obj = ws_recv(environ)
@@ -3638,10 +3658,14 @@ def handle_websocket(environ):
                     print('remove session from client:')
                     print(obj['id'])
                     gSessionStore.delete_by_id(obj['id'])
-                    
+            elif obj['op'] == 'queue_size':
+                qsize = 0
+                if gJoinableQueue:
+                    qsize = gJoinableQueue.qsize()
+                ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
         else:
             ws_send()
-        gevent.sleep(1.0)
+        gevent.sleep(interval)
 
 
 
@@ -3744,6 +3768,11 @@ def application_authorize_platform(environ, start_response):
         #handle_wamp(environ)
     return [body]
 
+def sign_and_send(thirdpay, method, href, data, need_sign=True):
+    ret = None
+    if thirdpay == 'alipay':
+        ret = sign_and_send_alipay(method, href, data, need_sign)
+    return ret
 
 def sign_and_send_alipay(method, href, data, need_sign=True):
     global gConfig
@@ -4086,6 +4115,8 @@ def application_pay_platform(environ, start_response):
         headerslist.append((k, headers[k]))
     #print(headerslist)
     start_response(statuscode, headerslist)
+    if path_info == '/websocket':
+        handle_websocket(environ)
     return [body]
     
     
@@ -4505,13 +4536,28 @@ def delete_expired_session(interval):
             ws_send('session_list', ws_session_query())
             
     
+def joinedqueue_consumer_pay():
+    global gConfig, gJoinableQueue
+    while 1:
+        gevent.sleep(float(gConfig['pay_platform']['queue']['queue_consume_interval']))
+        item = None
+        try:
+            item = gJoinableQueue.get()
+        except:
+            item = None
+        if item:
+            try:
+                sign_and_send(item['thirdpay'], item['method'], item['url'], item['data'])
+            finally:
+                gJoinableQueue.task_done()    
     
     
 def cycles_task():
-    global gConfig
+    global gConfig, gJoinableQueue
     if gConfig['wsgi']['application'].lower() == 'authorize_platform':
         gevent.spawn(delete_expired_session, int(gConfig['authorize_platform']['session']['session_cycle_check_interval']))
-    
+    if gConfig['wsgi']['application'].lower() == 'pay_platform' and gJoinableQueue:
+        gevent.spawn(joinedqueue_consumer_pay)
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):

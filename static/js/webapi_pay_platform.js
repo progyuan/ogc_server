@@ -1,8 +1,11 @@
 $.pay_platform = {};
-$.pay_platform.PAY_HOST = 'yncaiyun.com';
+$.pay_platform.PAY_HOST = 'yncaiyun1.com';
 $.pay_platform.PAY_PROTOCOL = 'http';
 $.pay_platform.PAY_PORT = '8089';
 $.pay_platform.DEBUG = true;
+$.pay_platform.plot = null;
+$.pay_platform.queue = [];
+$.pay_platform.PLOT_RANGE = 20;
 
 
 $.pay_platform.post_cors = function(action, data, callback)
@@ -91,7 +94,106 @@ $.pay_platform.query = function(data, callback)
 
 if($.pay_platform.DEBUG)
 {
+
+	function init_websocket()
+	{
+		var wsurl =  "ws://" + $.pay_platform.PAY_HOST + ":" + $.pay_platform.PAY_PORT + "/websocket";
+		if($.pay_platform.websocket === undefined)
+		{
+			$.pay_platform.websocket = new WebSocket(wsurl);
+		}
+		if($.pay_platform.websocket)
+		{
+			$.pay_platform.websocket.onopen = function() 
+			{
+				//$.pay_platform.websocket.send(JSON.stringify({}));
+				$.pay_platform.websocket.send(JSON.stringify({op:'queue_size'}));
+			};
+			$.pay_platform.websocket.onclose = function(e) 
+			{
+				console.log("websocket close");
+			};
+			$.pay_platform.websocket.onerror = function(e) 
+			{
+				console.log("websocket error:" + e);
+				$.pay_platform.websocket.close();
+			};
+			$.pay_platform.websocket.onmessage = function(e) 
+			{
+				if(e.data.length>0)
+				{
+					var obj = JSON.parse(e.data);
+					if(obj instanceof Array)
+					{
+					}
+					if(obj instanceof Object)
+					{
+						if($.pay_platform.queue.length >= $.pay_platform.PLOT_RANGE)
+						{
+							$.pay_platform.queue.shift();
+						}
+						var d = [(new Date()).getTime(), obj.queue_size]
+						$.pay_platform.queue.push(d);
+						$('#qsize').html(obj.queue_size);
+						//console.log($.pay_platform.queue);
+						$.pay_platform.plot.setData([{label:'支付队列交易量', data:$.pay_platform.queue}]);
+						$.pay_platform.plot.setupGrid();
+						$.pay_platform.plot.draw();
+						
+					}
+					
+				}
+				$.pay_platform.websocket.send(JSON.stringify({op:'queue_size'}));
+			};
+		}		
+	}
+
+
     $(function() {
+	
+		var initdata = [[(new Date()).getTime(), 0]];
+		$.pay_platform.plot = $.plot("#placeholder", [ initdata ], {
+			series: {
+				shadowSize: 0,
+				lines: {
+					show: true,
+				},
+				points: {
+					show: true,
+					radius: 4,
+					fill: true,
+					symbol: "circle"
+				}
+				//bars: {
+					//show: true
+				//}
+			},
+			yaxis: {
+				min: 0,
+				max: 50
+			},
+			xaxis: {
+				mode: "time",
+				minTickSize: [1, "second"]
+			},legend: {
+				show: true
+			}
+		});	
+	
+	
+		init_websocket();
+		
+		
+		
+		
+		
+		
+		
+		
+		
+        $('#out_trade_no').val('1');
+        $('#total_fee').val('100.0'),
+    
         $('#submit_pay').on('click', function(){
             var data = {
                 out_trade_no:$('#out_trade_no').val(),
@@ -102,8 +204,10 @@ if($.pay_platform.DEBUG)
                 seller_email:'b@b.com'
             };
             $.pay_platform.pay(data, function(data1){
-                console.log(data1);
+                //console.log(data1);
             });
+            $('#out_trade_no').val(parseInt($('#out_trade_no').val()) + 1);
+            $('#total_fee').val(parseFloat($('#total_fee').val()) + 10);
         });
         $('#submit_refund').on('click', function(){
             var data = {
