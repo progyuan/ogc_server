@@ -8914,6 +8914,21 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'chat_platform':
+            if gClientMongo.has_key(clienttype) and gClientMongo[clienttype] is not None and not gClientMongo[clienttype].alive():
+                gClientMongo[clienttype].close()
+                gClientMongo[clienttype] = None
+            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+                if host is None:
+                    host = gConfig['chat_platform']['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['chat_platform']['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['chat_platform']['mongodb']['replicaset']
+                if len(replicaset) == 0:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
+                else:
+                    gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         else:
             tiletype = clienttype
             if not gClientMongoTiles.has_key(tiletype):
