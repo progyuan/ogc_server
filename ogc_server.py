@@ -116,6 +116,66 @@ gRequests = None
 gRequest = None
 gJoinableQueue = None
 
+
+gUrlMap = Map([
+    Rule('/', endpoint='firstaccess'),
+    Rule('/websocket', endpoint='handle_websocket'),
+    #Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
+    Rule('/get_salt', endpoint='get_salt'),
+    Rule('/auth_check/<username>', endpoint='auth_check'),
+    Rule('/auth_check', endpoint='auth_check'),
+    Rule('/register/<username>/<password>', endpoint='user_add'),
+    Rule('/register/<username>', endpoint='user_add'),
+    Rule('/register', endpoint='user_add'),
+    Rule('/unregister/<username>', endpoint='user_delete'),
+    Rule('/unregister', endpoint='user_delete'),
+    Rule('/login/<username>/<password>', endpoint='login'),
+    Rule('/login/<username>', endpoint='login'),
+    Rule('/login', endpoint='login'),
+    Rule('/logout', endpoint='logout'),
+    Rule('/reset_password/<username>/<password>', endpoint='reset_password'),
+    Rule('/reset_password/<username>', endpoint='reset_password'),
+    Rule('/reset_password', endpoint='reset_password'),
+    Rule('/user_check', endpoint='user_check'),
+    Rule('/user_query', endpoint='user_query'),
+    Rule('/user_update', endpoint='user_update'),
+    Rule('/function_add', endpoint='function_add'),
+    Rule('/function_query', endpoint='function_query'),
+    Rule('/function_update', endpoint='function_update'),
+    Rule('/function_delete', endpoint='function_delete'),
+    Rule('/role_add', endpoint='role_add'),
+    Rule('/role_update', endpoint='role_update'),
+    Rule('/role_query', endpoint='role_query'),
+    Rule('/role_delete', endpoint='role_delete'),
+    Rule('/role_template_save', endpoint='role_template_save'),
+    Rule('/role_template_get', endpoint='role_template_get'),
+    Rule('/workflow_add', endpoint='workflow_add'),
+    Rule('/workflow_query', endpoint='workflow_query'),
+    Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
+    Rule('/workflow_update', endpoint='workflow_update'),
+    Rule('/workflow_delete', endpoint='workflow_delete'),
+    Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
+    Rule('/workflow_template_add', endpoint='workflow_template_add'),
+    Rule('/workflow_template_query', endpoint='workflow_template_query'),
+    Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
+    Rule('/workflow_template_update', endpoint='workflow_template_update'),
+    Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
+    Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
+    Rule('/user_add', endpoint='user_add'),
+    Rule('/user_get', endpoint='user_get'),
+    Rule('/user_remove', endpoint='user_remove'),
+    Rule('/group_add', endpoint='group_add'),
+    Rule('/group_get', endpoint='group_get'),
+    Rule('/group_update', endpoint='group_update'),
+    Rule('/group_remove', endpoint='group_remove'),
+    Rule('/user_group_get', endpoint='user_group_get'),
+    Rule('/user_contact_get', endpoint='user_contact_get'),
+], converters={'bool': BooleanConverter})
+
+
+
+
+
 @contextmanager
 def session_manager(environ):
     global gRequests, gRequest
@@ -1898,22 +1958,6 @@ def dishen_ws_loop(aWebSocket, aHash):
             break
         gevent.sleep(1.0)
 
-#def handle_websocket(environ):
-    #global ENCODING
-    #global gCapture, gGreenlets
-    #headers = {}
-    #ws = environ["wsgi.websocket"]
-    #print(dir(ws))
-    ##print(dir(ws.rfile))
-    ##print(dir(ws.socket))
-    #if environ['PATH_INFO'] == '/dishen_ws':
-        #glet = gevent.getcurrent()
-        #ghash = glet.__hash__()
-        #gGreenlets[str(ghash)] = [glet, ws]
-        #dishen_ws_loop(ws, ghash)
-    #s = 'version=%s' % ( environ['wsgi.websocket_version'])
-    #headers['Content-Type'] = 'text/plain;charset=' + ENCODING
-    #return '200 OK', headers, s
 
 
 
@@ -2831,7 +2875,7 @@ def handle_combiz_platform(environ):
 
 def handle_chat_platform(environ, session):
     global ENCODING
-    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap
+    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap,   gJoinableQueue
     def get_collection(collection):
         ret = None
         db_util.mongo_init_client('chat_platform')
@@ -2861,7 +2905,7 @@ def handle_chat_platform(environ, session):
             ret.append(i)
         return ret
     
-    def group_query(session, querydict):
+    def group_query(session, querydict={}):
         ret = []
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
         q = {}
@@ -2880,6 +2924,7 @@ def handle_chat_platform(environ, session):
             ret.append(i)
         if querydict.has_key('user_detail') and querydict['user_detail'] is True:
             for i in ret:
+                idx = ret.index(i)
                 detail = []
                 userlist = user_query(session, {'_id':i['members']})
                 for j in userlist:
@@ -2888,11 +2933,88 @@ def handle_chat_platform(environ, session):
                     if j.has_key('password'):
                         del j['password']
                     detail.append(j)
-                ret[ret.index(i)]['members'] = detail
+                ret[idx]['members'] = detail
+        return ret
+    
+    def group_get(session, querydict):
+        rec = group_query(session, querydict)
+        if len(rec)>0:
+            ret = json.dumps(db_util.remove_mongo_id(rec), ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'query_no_record'}, ensure_ascii=True, indent=4)
+        return ret
+    
+    
+    
+    def user_group_get(session, querydict):
+        ret = []
+        collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
+        q = {}
+        if querydict.has_key('username'):
+            if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode):
+                q['username'] = querydict['username']
+        if querydict.has_key('_id'):
+            if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                q['_id'] = db_util.add_mongo_id(querydict['_id'])
+        if len(q.keys())>0:
+            users = user_query(session, querydict)
+            if len(users)>0:
+                user0 = users[0]
+                _id = user0['_id']
+                grps = group_query(session)
+                for i in grps:
+                    if i.has_key('members') and _id in i['members']:
+                        ret.append(i)
+                ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'user_group_get_user_not_exist'}, ensure_ascii=True, indent=4)
+                
+        else:
+            ret = json.dumps({'result':u'user_group_get_one_user_required'}, ensure_ascii=True, indent=4)
+        return ret
+
+
+    
+    def user_contact_get(session, querydict):
+        ret = []
+        collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
+        q = {}
+        if querydict.has_key('username'):
+            if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode):
+                q['username'] = querydict['username']
+        if querydict.has_key('_id'):
+            if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                q['_id'] = db_util.add_mongo_id(querydict['_id'])
+        if len(q.keys())>0:
+            contacts = []
+            rec = collection.find_one(q)
+            if rec and rec.has_key('contacts'):
+                contacts = rec['contacts']
+                ret = contacts
+            if querydict.has_key('user_detail') and querydict['user_detail'] is True:
+                contactlist = user_query(session, {'_id':contacts})
+                ret = []
+                for i in contactlist:
+                    if i.has_key('contacts'):
+                        del i['contacts']
+                    if i.has_key('password'):
+                        del i['password']
+                    ret.append(i)
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'user_contact_query_one_user_required'}, ensure_ascii=True, indent=4)
         return ret
         
     def user_get(session, querydict):
         rec = user_query(session, querydict)
+        for i in rec:
+            idx = ret.index(i)
+            if i.has_key('contacts'):
+                del i['contacts']
+            if i.has_key('password'):
+                del i['password']
+            rec[idx] = i
+            
         if len(rec)>0:
             ret = json.dumps(db_util.remove_mongo_id(rec), ensure_ascii=True, indent=4)
         else:
@@ -2910,7 +3032,24 @@ def handle_chat_platform(environ, session):
                 if existone:
                     ret = json.dumps({'result':u'user_add_fail_username_already_exist'}, ensure_ascii=True, indent=4)
                 else:
-                    _id = collection.save(db_util.add_mongo_id(querydict))
+                    obj = {}
+                    obj['username'] = querydict['username']
+                    obj['display_name'] = querydict['username']
+                    obj['password'] = querydict['password']
+                    ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                    obj['register_date'] = ts
+                    obj['update_date'] = ts
+                    obj['description'] = ''
+                    obj['person_info'] = {}
+                    obj['contacts'] = []
+                    obj['avatar'] = None
+                    if querydict.has_key('person_info') :
+                        obj['person_info'] = querydict['person_info']
+                    if querydict.has_key('contacts') and isinstance(querydict['contacts'], list):
+                        obj['contacts'] = querydict['contacts']
+                    if querydict.has_key('avatar') and len(querydict['avatar']) > 0:
+                        obj['avatar'] = querydict['avatar']
+                    _id = collection.save(db_util.add_mongo_id(obj))
                     rec = collection.find_one({'_id':_id})
                     ret = json.dumps(db_util.remove_mongo_id(rec), ensure_ascii=True, indent=4)
             except:
@@ -2922,6 +3061,31 @@ def handle_chat_platform(environ, session):
             ret = json.dumps({'result':u'user_add_fail_username_password_required'}, ensure_ascii=True, indent=4)
         return ret
     
+    def user_update(session, querydict):
+        ret = ''
+        if querydict.has_key('_id') and len(querydict['_id'])>0:
+            try:
+                _id = db_util.add_mongo_id(querydict['_id'])
+                db_util.mongo_init_client('chat_platform')
+                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
+                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
+                existone = collection.find_one({'_id':_id})
+                if existone:
+                    del querydict['_id']
+                    collection.update({'_id':existone['_id']}, {'$set': db_util.add_mongo_id(querydict)}, multi=False, upsert=False)
+                    one = collection.find_one({'_id':_id})
+                    ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'user_update_user_not_exist'}, ensure_ascii=True, indent=4)
+            except:
+                if hasattr(sys.exc_info()[1], 'message'):
+                    ret = json.dumps({'result':u'user_update_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'user_update_fail' }, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'user_update_fail_user_id_required'}, ensure_ascii=True, indent=4)
+        return ret
+
     def user_remove(session, querydict):
         ret = ''
         if querydict.has_key('_id') and len(querydict['_id'])>0:
@@ -2934,7 +3098,7 @@ def handle_chat_platform(environ, session):
                     collection.remove({'_id':existone['_id']})
                     ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
                 else:
-                    ret = json.dumps({'result':u'user_remove_fail_user_not_exist'}, ensure_ascii=True, indent=4)
+                    ret = json.dumps({'result':u'user_remove_user_not_exist'}, ensure_ascii=True, indent=4)
             except:
                 if hasattr(sys.exc_info()[1], 'message'):
                     ret = json.dumps({'result':u'user_remove_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
@@ -2966,6 +3130,8 @@ def handle_chat_platform(environ, session):
                     obj['members'] = []
                     if querydict.has_key('avatar') and len(querydict['avatar']) > 0:
                         obj['avatar'] = querydict['avatar']
+                    if querydict.has_key('description') and len(querydict['description']) > 0:
+                        obj['description'] = querydict['description']
                     _id = collection.save(db_util.add_mongo_id(obj))
                     rec = collection.find_one({'_id':_id})
                     ret = json.dumps(db_util.remove_mongo_id(rec), ensure_ascii=True, indent=4)
@@ -2979,6 +3145,31 @@ def handle_chat_platform(environ, session):
                 ret = json.dumps({'result':u'group_add_fail_found_user_id_required'}, ensure_ascii=True, indent=4)
             if not querydict.has_key('group_name') or len(querydict['group_name']) == 0:
                 ret = json.dumps({'result':u'group_add_fail_group_name_required'}, ensure_ascii=True, indent=4)
+        return ret
+
+    def group_update(session, querydict):
+        ret = ''
+        if querydict.has_key('_id') and len(querydict['_id'])>0:
+            try:
+                _id = db_util.add_mongo_id(querydict['_id'])
+                db_util.mongo_init_client('chat_platform')
+                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
+                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
+                existone = collection.find_one({'_id':_id})
+                if existone:
+                    del querydict['_id']
+                    collection.update({'_id':existone['_id']}, {'$set': db_util.add_mongo_id(querydict)}, multi=False, upsert=False)
+                    one = collection.find_one({'_id':_id})
+                    ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'group_update_group_not_exist'}, ensure_ascii=True, indent=4)
+            except:
+                if hasattr(sys.exc_info()[1], 'message'):
+                    ret = json.dumps({'result':u'group_update_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'group_update_fail' }, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'group_update_fail_group_id_required'}, ensure_ascii=True, indent=4)
         return ret
 
     def group_remove(session, querydict):
@@ -3003,41 +3194,6 @@ def handle_chat_platform(environ, session):
             ret = json.dumps({'result':u'group_remove_fail_found_group_id_required'}, ensure_ascii=True, indent=4)
         return ret
 
-    def group_add_user(session, querydict):
-        ret = ''
-        if querydict.has_key('_id')\
-           and len(querydict['_id']) > 0\
-           and querydict.has_key('users')\
-           and len(querydict['users']) > 0:        
-            try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
-                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
-                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
-                if existone:
-                    if not existone.has_key('members'):
-                        existone['members'] = []
-                    userlist = user_query(session, {'_id':querydict['users']})
-                    for i in userlist:
-                        existone['members'].append(i['_id'])
-                    collection.save(existone)
-                    grouplist = group_query(session, {'_id': querydict['_id']})
-                    ret = json.dumps(db_util.remove_mongo_id(grouplist), ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'group_add_user_fail_group_not_exist'}, ensure_ascii=True, indent=4)
-            except:
-                if hasattr(sys.exc_info()[1], 'message'):
-                    ret = json.dumps({'result':u'group_add_user_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'group_add_user_fail' }, ensure_ascii=True, indent=4)
-        else:
-            if not querydict.has_key('_id') or len(querydict['_id']) == 0:
-                ret = json.dumps({'result':u'group_add_user_fail_group_id_required'}, ensure_ascii=True, indent=4)
-            if not querydict.has_key('users') or len(querydict['users']) == 0:
-                ret = json.dumps({'result':u'group_add_user_fail_users_required'}, ensure_ascii=True, indent=4)
-        return ret
-
-
     
     def check_contact_exist(_id, alist):
         ret = None
@@ -3047,143 +3203,94 @@ def handle_chat_platform(environ, session):
                 break
         return ret
     
-    def contact_add(session, querydict):
-        ret = ''
-        if querydict.has_key('_id') \
-           and len(querydict['_id'])>0 \
-           and querydict.has_key('contacts') \
-           and len(querydict['contacts'])>0:
-            try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
-                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
-                userlist = user_query(session, {'_id':querydict['_id']})
-                if len(userlist) > 0:
-                    userone = userlist[0]
-                    contactlist = user_query(session, {'_id':querydict['contacts']})
-                    if len(contactlist)>0:
-                        for obj in contactlist:
-                            _id = obj['_id']
-                            if not userone.has_key('contacts'):
-                                userone['contacts'] = []
-                            exist = check_contact_exist(_id , userone['contacts'])
-                            if exist is None:
-                                avatar = None
-                                if obj.has_key('avatar'):
-                                    avatar = obj['avatar']
-                                person_info = None
-                                if obj.has_key('person_info'):
-                                    person_info = obj['person_info']
-                                userone['contacts'].append({'_id':_id, 'username':obj['username'], 'display_name':obj['username'], 'avatar':avatar, 'person_info':person_info})
-                        collection.save(userone)
-                        ret = json.dumps(db_util.remove_mongo_id(userone), ensure_ascii=True, indent=4)
-                    else:
-                        ret = json.dumps({'result':u'contact_add_no_contact_found' }, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_add_fail_user_not_exist' }, ensure_ascii=True, indent=4)
-            except:
-                if hasattr(sys.exc_info()[1], 'message'):
-                    ret = json.dumps({'result':u'contact_add_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_add_fail' }, ensure_ascii=True, indent=4)
-            
-        else:
-            if not querydict.has_key('_id'):
-                ret = json.dumps({'result':u'contact_add_fail_user_id_required'}, ensure_ascii=True, indent=4)
-            if not querydict.has_key('contacts') or len(querydict['contacts']) == 0:
-                ret = json.dumps({'result':u'contact_add_fail_contacts_required'}, ensure_ascii=True, indent=4)
+
+    def online(user_id, websocket):
+        if user_id and websocket and not websocket.closed:
+            if not gWebSocketsMap.has_key(user_id):
+                gWebSocketsMap[user_id] = websocket
+    def offline(user_id):
+        if user_id and gWebSocketsMap.has_key(user_id):
+            del gWebSocketsMap[user_id]
+
+    def get_destination(session, _id):
+        ret = []
+        if isinstance(_id, str) or isinstance(_id, unicode):
+            ret.append(_id)
+        elif isinstance(_id, list):
+            for id in _id:
+                ret.append(id)
         return ret
-    
-    def contact_update(session, querydict):
-        ret = ''
-        if querydict.has_key('_id') \
-           and len(querydict['_id'])>0 \
-           and querydict.has_key('contact_id') \
-           and len(querydict['contact_id']) > 0:
-            try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
-                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
-                userlist = user_query(session, {'_id':querydict['_id']})
-                if len(userlist) > 0:
-                    userone = userlist[0]
-                    contactlist = user_query(session, {'_id':querydict['contact_id']})
-                    if len(contactlist) > 0:
-                        obj = contactlist[0]
-                        _id = obj['_id']
-                        if not userone.has_key('contacts'):
-                            userone['contacts'] = []
-                        exist = check_contact_exist(_id , userone['contacts'])
-                        if exist:
-                            idx = userone['contacts'].index(exist)
-                            if querydict.has_key('avatar') and len(querydict['avatar']) > 0:
-                                exist['avatar'] = querydict['avatar']
-                            if querydict.has_key('contact_display_name') and len(querydict['contact_display_name']) > 0:
-                                exist['display_name'] = querydict['contact_display_name']
-                            userone['contacts'][idx] = exist
-                            collection.save(userone)
-                            ret = json.dumps(db_util.remove_mongo_id(userone), ensure_ascii=True, indent=4)
-                        else:
-                            ret = json.dumps({'result':u'contact_update_no_contact_found_with_this_user' }, ensure_ascii=True, indent=4)
-                    else:
-                        ret = json.dumps({'result':u'contact_update_no_contact_found' }, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_update_fail_user_not_exist' }, ensure_ascii=True, indent=4)
-            except:
-                if hasattr(sys.exc_info()[1], 'message'):
-                    ret = json.dumps({'result':u'contact_update_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_update_fail' }, ensure_ascii=True, indent=4)
-            
-        else:
-            if not querydict.has_key('_id'):
-                ret = json.dumps({'result':u'contact_update_fail_user_id_required'}, ensure_ascii=True, indent=4)
-            if not querydict.has_key('contact_id') or len(querydict['contact_id']) == 0:
-                ret = json.dumps({'result':u'contact_update_fail_contact_id_required'}, ensure_ascii=True, indent=4)
+    def get_destination_group(session, _id):
+        ret = []
+        userset = set()
+        grps = group_query(session, {'_id':_id})
+        for grp in grps:
+            if grp.has_key('members') and len(grp['members'])>0:
+                userset = userset.union(set(grp['members']))
+        userlist = list(userset)
+        for id in userlist:
+            ret.append(id)
         return ret
+                
+                
+            
+    def chat(session, obj={}):
+        tolist = []
+        if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('msg') and len(obj['msg'])>0:
+            if obj.has_key('to') and len(obj['to'])>0:
+                tolist = get_destination(session, obj['to'])
+            if obj.has_key('to_group') and len(obj['to_group'])>0:
+                tolist = get_destination_group(session, obj['to_group'])
+            _id = obj['from']
+            for k in tolist:
+                if gWebSocketsMap.has_key(k) and not gWebSocketsMap[k].closed:
+                    gWebSocketsMap[k].send(json.dumps({'msg':qsize}, ensure_ascii=True, indent=4))
+                if gWebSocketsMap[k].closed:
+                    del gWebSocketsMap[k]
         
-    def contact_remove(session, querydict):
-        ret = ''
-        if querydict.has_key('_id') \
-           and len(querydict['_id'])>0 \
-           and querydict.has_key('contacts') \
-           and len(querydict['contacts'])>0:
-            try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
-                collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
-                userlist = user_query(session, {'_id':querydict['_id']})
-                if len(userlist) > 0:
-                    userone = userlist[0]
-                    contactlist = user_query(session, {'_id':querydict['contacts']})
-                    if len(contactlist)>0:
-                        for obj in contactlist:
-                            _id = obj['_id']
-                            if not userone.has_key('contacts'):
-                                userone['contacts'] = []
-                                break
-                            exist = check_contact_exist(_id , userone['contacts'])    
-                            if exist:
-                                userone['contacts'].remove(exist)
-                            #else:
-                                #ret = json.dumps({'result':u'contact_remove_no_contact_found_with_this_user' }, ensure_ascii=True, indent=4)
-                        collection.save(userone)
-                        ret = json.dumps(db_util.remove_mongo_id(userone), ensure_ascii=True, indent=4)
-                    else:
-                        ret = json.dumps({'result':u'contact_remove_no_contact_found' }, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_remove_fail_user_not_exist' }, ensure_ascii=True, indent=4)
-            except:
-                if hasattr(sys.exc_info()[1], 'message'):
-                    ret = json.dumps({'result':u'contact_remove_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'contact_remove_fail' }, ensure_ascii=True, indent=4)
-        else:
-            if not querydict.has_key('_id'):
-                ret = json.dumps({'result':u'contact_remove_fail_user_id_required'}, ensure_ascii=True, indent=4)
-            if not querydict.has_key('contacts') or len(querydict['contacts']) == 0:
-                ret = json.dumps({'result':u'contact_remove_fail_contacts_required'}, ensure_ascii=True, indent=4)
-        return ret
+        
+        
+        
+    def handle_websocket(environ):
+        ws = get_websocket(environ)
+        app = gConfig['wsgi']['application']
+        #session_id = None
+        #channel = ''
+        #if environ.has_key('HTTP_COOKIE'):
+            #arr = environ['HTTP_COOKIE'].split('=')
+            #if len(arr)>1:
+                #session_id = arr[1]
+        interval = 1.0
+        try:
+            interval = float(gConfig[app]['websocket']['interval_poll'])
+        except:
+            interval = 1.0
+        while ws and not ws.closed:
+            obj = ws_recv(environ)
+            if obj and isinstance(obj, dict) and obj.has_key('op'):
+                if obj['op'] == 'queue_size':
+                    qsize = 0
+                    if gJoinableQueue:
+                        qsize = gJoinableQueue.qsize()
+                    ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
+                elif obj['op'] == 'chat/online':
+                    if obj.has_key('_id'):
+                        online(obj['_id'], ws)
+                elif obj['op'] == 'chat/offline':
+                    if obj.has_key('_id'):
+                        offline(obj['_id'])
+                elif obj['op'] == 'chat/chat':
+                    chat(obj)
+            else:
+                ws_send()
+            gevent.sleep(interval)
+        if ws and ws.closed:
+            for k in gWebSocketsMap.keys():
+                if gWebSocketsMap[k] is ws:
+                    print('websocket[%s] is closed' % k)
+                    del gWebSocketsMap[k]
+                    break
+
         
     
     headers = {}
@@ -3196,60 +3303,28 @@ def handle_chat_platform(environ, session):
     endpoint = ''
     try:
         endpoint, args = urls.match()
-        if args.has_key('username'):
-            querydict['username'] = args['username']
-        if args.has_key('password'):
-            querydict['password'] = args['password']
-        if endpoint == 'auth_check':
-            body = auth_check(session, querydict, False)
-        elif endpoint == 'get_salt':
-            if len(gSecurityConfig.keys())>0:
-                body = json.dumps({'result':'get_salt_ok','salt':gSecurityConfig['password_salt']}, ensure_ascii=True, indent=4)
-            else:
-                body = json.dumps({'result':'get_salt_fail'}, ensure_ascii=True, indent=4)
-        elif endpoint == 'user_add':
+        if endpoint == 'user_add':
             body = user_add(session, querydict)
-        elif endpoint == 'user_check':
-            body = check_user_has_function(session, querydict)
-        elif endpoint == 'user_delete':
+        elif endpoint == 'user_remove':
             body = user_delete(session, querydict)
-        elif endpoint == 'user_query':
-            body = user_query(session, querydict)
+        elif endpoint == 'user_get':
+            body = user_get(session, querydict)
         elif endpoint == 'user_update':
             body = user_update(session, querydict)
-        elif endpoint == 'reset_password':
-            body = reset_password(session, querydict)
-        elif endpoint == 'login':
-            body, loginok = login(session, querydict)
-            if loginok:
-                if querydict.has_key('username') and len(querydict['username'])>0:
-                    session['username'] = querydict['username']
-        elif endpoint == 'logout':
-            if gSessionStore and session:
-                gSessionStore.delete(session)
-                session = None
-            body = json.dumps({'result':u'logout_ok'}, ensure_ascii=True, indent=4)
-        
-        elif endpoint == 'function_add':
-            body = function_add(session, querydict)
-        elif endpoint == 'function_query':
-            body = function_query(session, querydict)
-        elif endpoint == 'function_update':
-            body = function_update(session, querydict)
-        elif endpoint == 'function_delete':
-            body = function_delete(session, querydict)
-        elif endpoint == 'role_add':
-            body = role_add(session, querydict)
-        elif endpoint == 'role_update':
-            body = role_update(session, querydict)
-        elif endpoint == 'role_query':
-            body = role_query(session, querydict)
-        elif endpoint == 'role_delete':
-            body = role_delete(session, querydict)
-        elif endpoint == 'role_template_save':
-            body = role_template_save(session, querydict)
-        elif endpoint == 'role_template_get':
-            body = role_template_get(session, querydict)
+        elif endpoint == 'group_add':
+            body = group_add(session, querydict)
+        elif endpoint == 'group_get':
+            body = group_get(session, querydict)
+        elif endpoint == 'user_group_get':
+            body = user_group_get(session, querydict)
+        elif endpoint == 'user_contact_get':
+            body = user_contact_get(session, querydict)
+        elif endpoint == 'group_update':
+            body = group_update(session, querydict)
+        elif endpoint == 'group_remove':
+            body = group_remove(session, querydict)
+        elif endpoint == 'handle_websocket':
+            handle_websocket(environ)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
         
@@ -3264,7 +3339,7 @@ def handle_chat_platform(environ, session):
     
 def handle_authorize_platform(environ, session):
     global ENCODING
-    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap
+    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap,  gJoinableQueue
         
     def get_collection(collection):
         ret = None
@@ -3718,6 +3793,67 @@ def handle_authorize_platform(environ, session):
         else:
             ret = json.dumps({'result':u'auth_check_fail_session_expired'}, ensure_ascii=True, indent=4)
         return ret
+    
+
+    def sub(uid, channel, websocket):
+        if uid and websocket and not websocket.closed:
+            if not gWebSocketsMap.has_key(uid + '|' + channel):
+                gWebSocketsMap[uid + '|' + channel] = websocket
+    def unsub(uid, channels):
+        keys = channels
+        while len(keys)>0:
+            key = keys[0]
+            if uid and gWebSocketsMap.has_key(uid + '|' + key):
+                del gWebSocketsMap[uid + '|' + key]
+                del keys[0]
+    
+    def handle_websocket(environ):
+        ws = get_websocket(environ)
+        app = gConfig['wsgi']['application']
+        session_id = None
+        channel = ''
+        if environ.has_key('HTTP_COOKIE'):
+            arr = environ['HTTP_COOKIE'].split('=')
+            if len(arr)>1:
+                session_id = arr[1]
+        interval = 1.0
+        try:
+            interval = float(gConfig[app]['websocket']['interval_poll'])
+        except:
+            interval = 1.0
+        while ws and not ws.closed:
+            obj = ws_recv(environ)
+            if obj and isinstance(obj, dict) and obj.has_key('op'):
+                #print(obj)
+                if obj['op'] == 'session_list':
+                    ws.send(ws_session_query())
+                elif obj['op'] == 'subscribe/session_list':
+                    sub(session_id, 'session_list', ws)
+                elif obj['op'] == 'unsubscribe/session_list':
+                    unsub(session_id, ['session_list',])
+                elif obj['op'] == 'session_remove':
+                    if obj.has_key('id') and len(obj['id'])>0:
+                        print('remove session from client:')
+                        print(obj['id'])
+                        gSessionStore.delete_by_id(obj['id'])
+                elif obj['op'] == 'queue_size':
+                    qsize = 0
+                    if gJoinableQueue:
+                        qsize = gJoinableQueue.qsize()
+                    ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
+            else:
+                ws_send()
+            gevent.sleep(interval)
+        if ws and ws.closed:
+            for k in gWebSocketsMap.keys():
+                if gWebSocketsMap[k] is ws:
+                    print('websocket[%s] is closed' % k)
+                    del gWebSocketsMap[k]
+                    break
+    
+    
+    
+    
      
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
@@ -3735,6 +3871,8 @@ def handle_authorize_platform(environ, session):
             querydict['password'] = args['password']
         if endpoint == 'auth_check':
             body = auth_check(session, querydict, False)
+        elif endpoint == 'handle_websocket':
+            handle_websocket(environ)
         elif endpoint == 'get_salt':
             if len(gSecurityConfig.keys())>0:
                 body = json.dumps({'result':'get_salt_ok','salt':gSecurityConfig['password_salt']}, ensure_ascii=True, indent=4)
@@ -3793,51 +3931,6 @@ def handle_authorize_platform(environ, session):
         gSessionStore.save(session)
     return statuscode, headers, body
 
-
-gUrlMap = Map([
-    Rule('/', endpoint='firstaccess'),
-    #Rule('/auth_check/<username>/isnew/<bool:isnew>', endpoint='saveuser'),
-    Rule('/get_salt', endpoint='get_salt'),
-    Rule('/auth_check/<username>', endpoint='auth_check'),
-    Rule('/auth_check', endpoint='auth_check'),
-    Rule('/register/<username>/<password>', endpoint='user_add'),
-    Rule('/register/<username>', endpoint='user_add'),
-    Rule('/register', endpoint='user_add'),
-    Rule('/unregister/<username>', endpoint='user_delete'),
-    Rule('/unregister', endpoint='user_delete'),
-    Rule('/login/<username>/<password>', endpoint='login'),
-    Rule('/login/<username>', endpoint='login'),
-    Rule('/login', endpoint='login'),
-    Rule('/logout', endpoint='logout'),
-    Rule('/reset_password/<username>/<password>', endpoint='reset_password'),
-    Rule('/reset_password/<username>', endpoint='reset_password'),
-    Rule('/reset_password', endpoint='reset_password'),
-    Rule('/user_check', endpoint='user_check'),
-    Rule('/user_query', endpoint='user_query'),
-    Rule('/user_update', endpoint='user_update'),
-    Rule('/function_add', endpoint='function_add'),
-    Rule('/function_query', endpoint='function_query'),
-    Rule('/function_update', endpoint='function_update'),
-    Rule('/function_delete', endpoint='function_delete'),
-    Rule('/role_add', endpoint='role_add'),
-    Rule('/role_update', endpoint='role_update'),
-    Rule('/role_query', endpoint='role_query'),
-    Rule('/role_delete', endpoint='role_delete'),
-    Rule('/role_template_save', endpoint='role_template_save'),
-    Rule('/role_template_get', endpoint='role_template_get'),
-    Rule('/workflow_add', endpoint='workflow_add'),
-    Rule('/workflow_query', endpoint='workflow_query'),
-    Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
-    Rule('/workflow_update', endpoint='workflow_update'),
-    Rule('/workflow_delete', endpoint='workflow_delete'),
-    Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
-    Rule('/workflow_template_add', endpoint='workflow_template_add'),
-    Rule('/workflow_template_query', endpoint='workflow_template_query'),
-    Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
-    Rule('/workflow_template_update', endpoint='workflow_template_update'),
-    Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
-    Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
-], converters={'bool': BooleanConverter})
 
 
 
@@ -4045,57 +4138,73 @@ def ws_recv(environ):
     
     
     
-def handle_websocket(environ):
-    global gConfig, gWebSocketsMap, gJoinableQueue
-    def sub(uid, channel, websocket):
-        if uid and websocket and not websocket.closed:
-            if not gWebSocketsMap.has_key(uid + '|' + channel):
-                gWebSocketsMap[uid + '|' + channel] = websocket
-    def unsub(uid, channels):
-        keys = channels
-        while len(keys)>0:
-            key = keys[0]
-            if uid and gWebSocketsMap.has_key(uid + '|' + key):
-                del gWebSocketsMap[uid + '|' + key]
-                del keys[0]
-            
-    ws = get_websocket(environ)
-    app = gConfig['wsgi']['application']
-    session_id = None
-    channel = ''
-    if environ.has_key('HTTP_COOKIE'):
-        arr = environ['HTTP_COOKIE'].split('=')
-        if len(arr)>1:
-            session_id = arr[1]
-    interval = 1.0
-    try:
-        interval = float(gConfig[app]['websocket']['update_interval'])
-    except:
-        interval = 1.0
-    while ws and not ws.closed:
-        #gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
-        obj = ws_recv(environ)
-        if obj and isinstance(obj, dict) and obj.has_key('op'):
-            #print(obj)
-            if obj['op'] == 'session_list':
-                ws.send(ws_session_query())
-            elif obj['op'] == 'subscribe/session_list':
-                sub(session_id, 'session_list', ws)
-            elif obj['op'] == 'unsubscribe/session_list':
-                unsub(session_id, ['session_list',])
-            elif obj['op'] == 'session_remove':
-                if obj.has_key('id') and len(obj['id'])>0:
-                    print('remove session from client:')
-                    print(obj['id'])
-                    gSessionStore.delete_by_id(obj['id'])
-            elif obj['op'] == 'queue_size':
-                qsize = 0
-                if gJoinableQueue:
-                    qsize = gJoinableQueue.qsize()
-                ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
-        else:
-            ws_send()
-        gevent.sleep(interval)
+#def handle_websocket(environ):
+    #global gConfig, gWebSocketsMap, gJoinableQueue
+    #def sub(uid, channel, websocket):
+        #if uid and websocket and not websocket.closed:
+            #if not gWebSocketsMap.has_key(uid + '|' + channel):
+                #gWebSocketsMap[uid + '|' + channel] = websocket
+    #def unsub(uid, channels):
+        #keys = channels
+        #while len(keys)>0:
+            #key = keys[0]
+            #if uid and gWebSocketsMap.has_key(uid + '|' + key):
+                #del gWebSocketsMap[uid + '|' + key]
+                #del keys[0]
+    #def online(user_id, websocket):
+        #if user_id and websocket and not websocket.closed:
+            #if not gWebSocketsMap.has_key(user_id):
+                #gWebSocketsMap[user_id] = websocket
+    #def offline(user_id):
+        #if user_id and gWebSocketsMap.has_key(user_id):
+            #del gWebSocketsMap[user_id]
+        
+        
+    #ws = get_websocket(environ)
+    #app = gConfig['wsgi']['application']
+    #session_id = None
+    #channel = ''
+    #if environ.has_key('HTTP_COOKIE'):
+        #arr = environ['HTTP_COOKIE'].split('=')
+        #if len(arr)>1:
+            #session_id = arr[1]
+    #interval = 1.0
+    #try:
+        #interval = float(gConfig[app]['websocket']['interval_poll'])
+    #except:
+        #interval = 1.0
+    #while ws and not ws.closed:
+        ##gWebSocketsMap[str(gevent.getcurrent().__hash__())] = ws
+        #obj = ws_recv(environ)
+        #if obj and isinstance(obj, dict) and obj.has_key('op'):
+            ##print(obj)
+            #if obj['op'] == 'session_list':
+                #ws.send(ws_session_query())
+            #elif obj['op'] == 'subscribe/session_list':
+                #sub(session_id, 'session_list', ws)
+            #elif obj['op'] == 'unsubscribe/session_list':
+                #unsub(session_id, ['session_list',])
+            #elif obj['op'] == 'session_remove':
+                #if obj.has_key('id') and len(obj['id'])>0:
+                    #print('remove session from client:')
+                    #print(obj['id'])
+                    #gSessionStore.delete_by_id(obj['id'])
+            #elif obj['op'] == 'queue_size':
+                #qsize = 0
+                #if gJoinableQueue:
+                    #qsize = gJoinableQueue.qsize()
+                #ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
+            #elif obj['op'] == 'chat/online':
+                #if obj.has_key('_id'):
+                    #online(obj['_id'], ws)
+            #elif obj['op'] == 'chat/offline':
+                #if obj.has_key('_id'):
+                    #offline(obj['_id'])
+            #elif obj['op'] == 'chat/chat':
+                #chat(obj)
+        #else:
+            #ws_send()
+        #gevent.sleep(interval)
 
 
 
@@ -4132,8 +4241,6 @@ def application_combiz_platform(environ, start_response):
         headerslist.append((k, headers[k]))
     #print(headerslist)
     start_response(statuscode, headerslist)
-    #if path_info == '/websocket':
-        #handle_websocket(environ)
     return [body]
 
 def application_authorize_platform(environ, start_response):
@@ -4192,10 +4299,6 @@ def application_authorize_platform(environ, start_response):
         headerslist.append((k, headers[k]))
     #print(headerslist)
     start_response(statuscode, headerslist)
-    if path_info == '/websocket':
-        handle_websocket(environ)
-    #if gConfig['authorize_platform'].has_key('wamp') and len(gConfig['authorize_platform']['wamp']['url'])>0 and path_info == gConfig['authorize_platform']['wamp']['url']:
-        #handle_wamp(environ)
     return [body]
 
 def application_chat_platform(environ, start_response):
@@ -4250,8 +4353,6 @@ def application_chat_platform(environ, start_response):
         headerslist.append((k, headers[k]))
     #print(headerslist)
     start_response(statuscode, headerslist)
-    if path_info == '/websocket':
-        handle_websocket(environ)
     return [body]
 
 def sign_and_send(thirdpay, method, href, data, need_sign=True):
@@ -4537,7 +4638,7 @@ def application_fake_gateway_alipay(environ, start_response):
     
 def application_pay_platform(environ, start_response):
     global STATICRESOURCE_DIR
-    global gConfig
+    global gConfig, gWebSocketsMap, gJoinableQueue
     
     def check_is_static(aUrl):
         ret = False
@@ -4556,6 +4657,36 @@ def application_pay_platform(environ, start_response):
         if len(ext)>0 and  gConfig['mime_type'].has_key(ext):
             ret = True
         return ret
+    
+    
+    def handle_websocket(environ):
+        ws = get_websocket(environ)
+        app = gConfig['wsgi']['application']
+        interval = 1.0
+        try:
+            interval = float(gConfig[app]['websocket']['interval_poll'])
+        except:
+            interval = 1.0
+        while ws and not ws.closed:
+            obj = ws_recv(environ)
+            if obj and isinstance(obj, dict) and obj.has_key('op'):
+                if obj['op'] == 'queue_size':
+                    qsize = 0
+                    if gJoinableQueue:
+                        qsize = gJoinableQueue.qsize()
+                    ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
+            else:
+                ws_send()
+            gevent.sleep(interval)
+        if ws and ws.closed:
+            for k in gWebSocketsMap.keys():
+                if gWebSocketsMap[k] is ws:
+                    print('websocket[%s] is closed' % k)
+                    del gWebSocketsMap[k]
+                    break
+            
+            
+    
     headers = CORS_header()
     headerslist = []
     body = ''
