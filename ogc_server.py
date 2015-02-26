@@ -5139,6 +5139,7 @@ def joinedqueue_consumer_chat():
         return ret
     def save_log(obj):
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
+        obj['timestamp'] = datetime.datetime.fromtimestamp(obj['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
         collection.save(obj)
         
     interval = float(gConfig['chat_platform']['queue']['queue_consume_interval'])
