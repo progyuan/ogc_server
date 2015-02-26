@@ -234,6 +234,8 @@ def init_global():
             gSecurityConfig[key] = i[key]
         if len(l) == 0:
             gSecurityConfig = {}
+    if gConfig['wsgi']['application'].lower() == 'chat_platform':
+        gJoinableQueue = gevent.queue.JoinableQueue(maxsize=int(gConfig['pay_platform']['queue']['max_queue_size']))
 
 
 def handle_static(environ, aUrl):
@@ -2875,7 +2877,7 @@ def handle_combiz_platform(environ):
 
 def handle_chat_platform(environ, session):
     global ENCODING
-    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap,   gJoinableQueue
+    global gConfig, gRequest, gSessionStore, gUrlMap, gSecurityConfig, gWebSocketsMap,  gJoinableQueue
     def get_collection(collection):
         ret = None
         db_util.mongo_init_client('chat_platform')
@@ -3025,8 +3027,6 @@ def handle_chat_platform(environ, session):
         ret = ''
         if querydict.has_key('username') and querydict.has_key('password') and len(querydict['username'])>0 and len(querydict['password'])>0:        
             try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
                 existone = collection.find_one({'username':querydict['username']})
                 if existone:
@@ -3066,8 +3066,6 @@ def handle_chat_platform(environ, session):
         if querydict.has_key('_id') and len(querydict['_id'])>0:
             try:
                 _id = db_util.add_mongo_id(querydict['_id'])
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
                 existone = collection.find_one({'_id':_id})
                 if existone:
@@ -3090,8 +3088,6 @@ def handle_chat_platform(environ, session):
         ret = ''
         if querydict.has_key('_id') and len(querydict['_id'])>0:
             try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
                 existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                 if existone:
@@ -3116,8 +3112,6 @@ def handle_chat_platform(environ, session):
            and querydict.has_key('group_name')\
            and len(querydict['group_name']) > 0:        
             try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
                 existone = collection.find_one({'group_name':querydict['group_name']})
                 if existone:
@@ -3152,8 +3146,6 @@ def handle_chat_platform(environ, session):
         if querydict.has_key('_id') and len(querydict['_id'])>0:
             try:
                 _id = db_util.add_mongo_id(querydict['_id'])
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
                 existone = collection.find_one({'_id':_id})
                 if existone:
@@ -3176,8 +3168,6 @@ def handle_chat_platform(environ, session):
         ret = ''
         if querydict.has_key('_id') and len(querydict['_id']) > 0:
             try:
-                db_util.mongo_init_client('chat_platform')
-                db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
                 collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
                 existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                 if existone:
@@ -3241,15 +3231,12 @@ def handle_chat_platform(environ, session):
                 tolist = get_destination(session, obj['to'])
             if obj.has_key('to_group') and len(obj['to_group'])>0:
                 tolist = get_destination_group(session, obj['to_group'])
-            _id = obj['from']
             for k in tolist:
-                if gWebSocketsMap.has_key(k) and not gWebSocketsMap[k].closed:
-                    gWebSocketsMap[k].send(json.dumps({'msg':qsize}, ensure_ascii=True, indent=4))
-                if gWebSocketsMap[k].closed:
-                    del gWebSocketsMap[k]
-        
-        
-        
+                try:
+                    gJoinableQueue.put({'from':obj['from'],'to':k, 'timestamp':time.time()*1000, 'msg':obj['msg']})
+                except gevent.queue.Full:
+                    print('chat queue is full')
+                
         
     def handle_websocket(environ):
         ws = get_websocket(environ)
@@ -3653,9 +3640,7 @@ def handle_authorize_platform(environ, session):
         ret = ''
         if querydict.has_key('username') and querydict.has_key('password') and len(querydict['username'])>0 and len(querydict['password'])>0:        
             try:
-                db_util.mongo_init_client('authorize_platform')
-                db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
-                collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
                 existone = collection.find_one({'username':querydict['username']})
                 if existone:
                     ret = json.dumps({'result':u'register_fail_username_already_exist'}, ensure_ascii=True, indent=4)
@@ -3676,9 +3661,7 @@ def handle_authorize_platform(environ, session):
         ret = ''
         if querydict.has_key('username') and len(querydict['username'])>0:
             try:
-                db_util.mongo_init_client('authorize_platform')
-                db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
-                collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
                 existone = collection.find_one({'username':querydict['username']})
                 if existone:
                     collection.remove({'_id':existone['_id']})
@@ -3698,9 +3681,7 @@ def handle_authorize_platform(environ, session):
         ret = ''
         if querydict.has_key('username')  and len(querydict['username'])>0 and querydict.has_key('password')  and len(querydict['password'])>0:        
             try:
-                db_util.mongo_init_client('authorize_platform')
-                db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
-                collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
                 one = collection.find_one({'username':querydict['username']})
                 if one:
                     collection.update({'username':querydict['username']}, {'$set':{'password':querydict['password']}},  multi=False, upsert=False)
@@ -3720,9 +3701,7 @@ def handle_authorize_platform(environ, session):
         ret = ''
         if querydict.has_key('username')  and len(querydict['username'])>0 :        
             try:
-                db_util.mongo_init_client('authorize_platform')
-                db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
-                collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
                 one = collection.find_one({'username':querydict['username']})
                 if one:
                     collection.update({'username':querydict['username']}, db_util.add_mongo_id(querydict),  multi=False, upsert=False)
@@ -3750,9 +3729,7 @@ def handle_authorize_platform(environ, session):
                     return ret, ok
                 
                 if gSessionStore and session:
-                    db_util.mongo_init_client('authorize_platform')
-                    db = db_util.gClientMongo['authorize_platform'][gConfig['authorize_platform']['mongodb']['database']]
-                    collection = db[gConfig['authorize_platform']['mongodb']['collection_user_account']]
+                    collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
                     one = collection.find_one({'username':querydict['username'], 'password':querydict['password']})
                     if one:
                         ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
@@ -4112,26 +4089,6 @@ def ws_recv(environ):
         
     return ret
 
-#def handle_wamp(environ):
-    #global gConfig, gSessionStore
-    #wamp = WampProtocol()
-    #ws = get_websocket(environ)
-    #def on_open():
-        #wamp.register_pubsub(str(gConfig['authorize_platform']['wamp']['channel_session_list']))
-        #wamp.on_open()
-    #def on_message(message, *args, **kwargs):
-        #if ws and not ws.closed:
-            #ws.send(message, **kwargs)
-    #on_open()
-    #while ws and not ws.closed:
-        #try:
-            #message = ws.receive()
-        #except geventwebsocket.WebSocketError:
-            #wamp.on_close()
-            #break
-        #wamp.on_message(message)
-        #gevent.sleep(1.0)
-    
     
     
     
@@ -5155,8 +5112,9 @@ def delete_expired_session(interval):
     
 def joinedqueue_consumer_pay():
     global gConfig, gJoinableQueue
+    interval = float(gConfig['pay_platform']['queue']['queue_consume_interval'])
     while 1:
-        gevent.sleep(float(gConfig['pay_platform']['queue']['queue_consume_interval']))
+        gevent.sleep(interval)
         item = None
         try:
             item = gJoinableQueue.get()
@@ -5166,6 +5124,42 @@ def joinedqueue_consumer_pay():
             try:
                 sign_and_send(item['thirdpay'], item['method'], item['url'], item['data'])
             finally:
+                gJoinableQueue.task_done() 
+                
+def joinedqueue_consumer_chat():
+    global gConfig, gJoinableQueue, gWebSocketsMap
+    def get_collection(collection):
+        ret = None
+        db_util.mongo_init_client('chat_platform')
+        db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
+        if not collection in db.collection_names(False):
+            ret = db.create_collection(collection)
+        else:
+            ret = db[collection]
+        return ret
+    def save_log(obj):
+        collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
+        collection.save(obj)
+        
+    interval = float(gConfig['chat_platform']['queue']['queue_consume_interval'])
+    while 1:
+        gevent.sleep(interval)
+        item = None
+        try:
+            item = gJoinableQueue.get()
+        except:
+            item = None
+        if item:
+            try:
+                g = gevent.spawn(save_log, item)
+                g.join()
+                k = item['to']
+                if gWebSocketsMap.has_key(k) and not gWebSocketsMap[k].closed:
+                    gWebSocketsMap[k].send(json.dumps(item, ensure_ascii=True, indent=4))
+                if gWebSocketsMap.has_key(k) and gWebSocketsMap[k].closed:
+                    del gWebSocketsMap[k]
+                    
+            finally:
                 gJoinableQueue.task_done()    
     
     
@@ -5173,8 +5167,10 @@ def cycles_task():
     global gConfig, gJoinableQueue
     if gConfig['wsgi']['application'].lower() == 'authorize_platform':
         gevent.spawn(delete_expired_session, int(gConfig['authorize_platform']['session']['session_cycle_check_interval']))
-    if gConfig['wsgi']['application'].lower() == 'pay_platform' and gJoinableQueue:
+    elif gConfig['wsgi']['application'].lower() == 'pay_platform' and gJoinableQueue:
         gevent.spawn(joinedqueue_consumer_pay)
+    elif gConfig['wsgi']['application'].lower() == 'chat_platform' and gJoinableQueue:
+        gevent.spawn(joinedqueue_consumer_chat)
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
