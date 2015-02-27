@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1"> 
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta name="description" content="Use the Viewer Widget to start building new applications or easily embed Cesium into existing applications.">
+    <meta name="cesium-sandcastle-labels" content="Beginner, Showcases">
+    <title>chat平台测试</title>
+    <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
+    <script type="text/javascript" src="js/jquery/jquery.flot.js"></script>
+    <script type="text/javascript" src="js/jquery/jquery.flot.time.js"></script>
+    <script type="text/javascript" src="js/json3.js"></script>
+    <script type="text/javascript" src="js/webapi_chat_platform.js"></script>
+</head>
+<body>
+<div style="width:3000px;">    
+    <span style="width:200px;float:left;">
+        <fieldset>
+            <legend>user add/remove</legend>
+                所有用户:<br/>
+                <select  size="20" id="user_list_1" style="width:150px;">
+                </select>
+                <br/>
+                用户名:<input style="width:100px;" type='text' id="username" value=''/><br/>
+                密码:<input style="width:100px;" type='password' id="password" value='password'/><br/>
+                <button id='btn_user_add'>添加</button><button id='btn_user_remove'>删除</button><br/>
+        </fieldset>
+    </span>
+    <span  style="width:200px;float:left;">
+        <fieldset>
+            <legend>contact update</legend>
+                当前用户:<br/>
+                <select  id="current_user_2" style="width:150px;">
+                </select>
+                所有用户:<br/>
+                <select  size="9" id="user_list_2" style="width:150px;">
+                </select>
+                <br/>
+                <button id='btn_contact_add'>添加</button><button id='btn_contact_remove'>删除</button><button id='btn_contact_save'>保存</button><br/>
+                当前用户好友列表:<br/>
+                <select  size="9" id="current_contact_2" style="width:150px;">
+                </select>
+                <br/>
+        </fieldset>
+    </span>
+    <span style="width:200px;float:left;">
+        <fieldset>
+            <legend>group add/remove</legend>
+                所有组:<br/>
+                <select  size="19" id="group_list_3" style="width:150px;">
+                </select>
+                <br/>
+                组名:<input style="width:100px;" type='text' id="group_name" value=''/><br/>
+                描述:<input style="width:100px;" type='text' id="group_description" value=''/><br/>
+                创始人:<br/>
+                <select  id="current_user_3" style="width:150px;">
+                </select>
+                <button id='btn_group_add'>添加</button><button id='btn_group_remove'>删除</button><br/>
+        </fieldset>
+    </span>
+    <span  style="width:200px;float:left;">
+        <fieldset>
+            <legend>user group update</legend>
+                当前组:<br/>
+                <select  id="current_group_4" style="width:150px;">
+                </select>
+                所有用户:<br/>
+                <select  size="9" id="user_list_4" style="width:150px;">
+                </select>
+                <br/>
+                <button id='btn_user_group_add'>添加</button><button id='btn_user_group_remove'>删除</button><button id='btn_user_group_save'>保存</button><br/>
+                当前组用户列表:<br/>
+                <select  size="10" id="user_group_4" style="width:150px;">
+                </select>
+                <br/>
+        </fieldset>
+    </span>
+</div>
+
+</body>
+</html>
+
+
