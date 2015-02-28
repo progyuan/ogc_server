@@ -39,7 +39,7 @@
                 <br/>
                 <button id='btn_contact_add'>添加</button><button id='btn_contact_remove'>删除</button><button id='btn_contact_save'>保存</button><br/>
                 当前用户好友列表:<br/>
-                <select  size="9" id="current_contact_2" style="width:150px;">
+                <select  size="10" id="current_contact_2" style="width:150px;">
                 </select>
                 <br/>
         </fieldset>
@@ -48,7 +48,7 @@
         <fieldset>
             <legend>group add/remove</legend>
                 所有组:<br/>
-                <select  size="19" id="group_list_3" style="width:150px;">
+                <select  size="18" id="group_list_3" style="width:150px;">
                 </select>
                 <br/>
                 组名:<input style="width:100px;" type='text' id="group_name" value=''/><br/>
@@ -74,6 +74,35 @@
                 <select  size="10" id="user_group_4" style="width:150px;">
                 </select>
                 <br/>
+        </fieldset>
+    </span>
+    <span  style="width:200px;float:left;">
+        <fieldset>
+            <legend>online/offline</legend>
+                所有用户:<br/>
+                <select  id="user_list_5" style="width:150px;">
+                </select>
+                <br/>
+                <button id='btn_user_online'>上线</button><button id='btn_user_offline'>下线</button><br/>
+                在线用户列表:<br/>
+                <select  size="20" id="online_list_5" style="width:150px;">
+                </select>
+                <br/>
+                <button id='btn_request_contact_add'>请求加好友</button><button id='btn_request_contact_remove'>移除好友</button><br/>
+        </fieldset>
+    </span>
+    <span  style="width:200px;float:left;">
+        <fieldset>
+            <legend>chat</legend>
+                好友列表:<br/>
+                <select  size="11" id="current_contact_6" style="width:150px;">
+                </select>
+                <br/>
+                接收到的信息:<button id='btn_clear_recv'>清空</button><br/>
+                <textarea id="recv_msg" style="width:150px;height:150px"></textarea><br/>
+                发送的信息:<br/>
+                <input id="send_msg" value=''/><br/>
+                <button id='btn_send'>发送</button><br/>
         </fieldset>
     </span>
 </div>

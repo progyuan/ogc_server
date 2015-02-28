@@ -1,9 +1,11 @@
 $.chat_platform = {};
 $.chat_platform.HOST = 'yncaiyun1.com';
 $.chat_platform.PROTOCOL = 'http';
+$.chat_platform.WS_PROTOCOL = 'ws';
 $.chat_platform.PORT = '8091';
 $.chat_platform.DEBUG = true;
-$.chat_platform.test_user = 'aaa';
+$.chat_platform.ME_PREFIX = '我';
+$.chat_platform.SYSTEM_PREFIX = '[系统]';
 
 
 $.chat_platform.post_cors = function(action, data, callback)
@@ -74,7 +76,7 @@ $.chat_platform.user_contact_get = function(data, callback)
     {
         throw "user_id_required";
     }
-	data['user_detail'] = true;
+	//data['user_detail'] = true;
     $.chat_platform.post_cors('user_contact_get', data, callback)
 };
 
@@ -139,15 +141,25 @@ $.chat_platform.offline = function(data,  offline_callback)
 		{
 			$.chat_platform.websocket.send(JSON.stringify({op:'chat/offline',_id:data._id}));
 		}
-		$.chat_platform.websocket.close();
-		$.chat_platform.websocket = undefined;
-		offline_callback();
+		if(data.username || data._id)
+		{
+			$.chat_platform.websocket.close();
+			$.chat_platform.websocket = undefined;
+			offline_callback();
+		}
 	}
 };
 
-$.chat_platform.init_websocket = function(username, online_callback,  offline_callback, error_callback, message_callback)
+$.chat_platform.init_websocket = function(data, message_callback, error_callback)
 {
-	var wsurl =  "ws://" + $.chat_platform.HOST + ":" + $.chat_platform.PORT + "/websocket";
+	if(data.username === undefined && data._id === undefined)
+	{
+		console.log('username or id required');
+		return;
+	}
+	data['op'] = 'chat/online';
+	data['inform_contact'] = true;
+	var wsurl =  $.chat_platform.WS_PROTOCOL + "://" + $.chat_platform.HOST + ":" + $.chat_platform.PORT + "/websocket";
 	if($.chat_platform.websocket === undefined)
 	{
 		$.chat_platform.websocket = new WebSocket(wsurl);
@@ -156,12 +168,11 @@ $.chat_platform.init_websocket = function(username, online_callback,  offline_ca
 	{
 		$.chat_platform.websocket.onopen = function() 
 		{
-			$.chat_platform.websocket.send(JSON.stringify({op:'chat/online',username:username}));
+			$.chat_platform.websocket.send(JSON.stringify(data));
 		};
 		$.chat_platform.websocket.onclose = function(e) 
 		{
 			console.log("websocket close");
-			offline_callback();
 		};
 		$.chat_platform.websocket.onerror = function(e) 
 		{
@@ -183,19 +194,17 @@ $.chat_platform.init_websocket = function(username, online_callback,  offline_ca
 					{
 						error_callback(obj.result);
 					}
-					if(obj.op === 'chat/online')
-					{
-						online_callback(obj);
-					}
-					if(obj.op === 'chat/chat')
+					else
 					{
 						message_callback(obj);
 					}
-					
 				}
 				
+			}else
+			{
+			//$.chat_platform.websocket.send(JSON.stringify({}));
+				$.chat_platform.websocket.send('');
 			}
-			$.chat_platform.websocket.send(JSON.stringify({}));
 		};
 	}		
 };
@@ -219,7 +228,7 @@ if($.chat_platform.DEBUG)
 		
         $('#current_user_2').off();
         $('#current_user_2').on('change', function(){
-			$.chat_platform.user_contact_get({_id:$(this).val()}, function(data1){
+			$.chat_platform.user_contact_get({_id:$(this).val(), user_detail:true}, function(data1){
 				//console.log(data1);
 				$('#current_contact_2').empty();
 				var s = '';
@@ -270,6 +279,72 @@ if($.chat_platform.DEBUG)
 		
 	}
 	
+	function update_online_list()
+	{
+		$.chat_platform.post_cors('user_get', {user_detail:true}, function(data1){
+			if(data1.result)
+			{
+				alert(data1.result);
+			}else
+			{
+				$('#online_list_5').empty();
+				var s = '';
+				for(var i in data1)
+				{
+					if(data1[i].online_status === 'online')
+					{
+						s += '<option value="' + data1[i]._id + '">' + data1[i].display_name + '</option>';
+					}
+				}
+				$('#online_list_5').append(s);
+			}
+		});
+	}
+	
+	function update_contact_list(data)
+	{
+		
+		if(data.result)
+		{
+			alert(data.result);
+			return;
+		}
+		if((data.op === 'chat/online' || data.op === 'chat/response/contact/add/accept' || data.op === 'chat/request/contact/remove') && data.contacts)
+		{
+			$('#current_contact_6').empty();
+			var s = '';
+			for(var i in data.contacts)
+			{
+				var status = '';
+				if(data['contacts'][i]['online_status'] === 'online')
+				{
+					status = '(在线)';
+				}
+				s += '<option value="' + data['contacts'][i]['_id'] + '">' + data['contacts'][i]['display_name'] + status + '</option>';
+			}
+			$('#current_contact_6').append(s);
+		}
+		if(data.op === 'chat/info/online' && data['from'])
+		{
+			var id = data['from'];
+			var text = $('#current_contact_6 option[value="' + id + '"]').text();
+			if(text && text.indexOf('(在线)') < 0)
+			{
+				$('#current_contact_6 option[value="' + id + '"]').text(text + '(在线)');
+			}
+		}
+		if(data.op === 'chat/info/offline' && data['from'])
+		{
+			var id = data['from'];
+			var text = $('#current_contact_6 option[value="' + id + '"]').text();
+			if(text && text.indexOf('(在线)') > -1)
+			{
+				text = text.replace('(在线)', '');
+				$('#current_contact_6 option[value="' + id + '"]').text(text);
+			}
+		}
+	}
+	
     $(function() {
 	
 	
@@ -291,24 +366,6 @@ if($.chat_platform.DEBUG)
 				update_group_list(data1);
 			}
 		});
-		
-		//$.chat_platform.init_websocket($.chat_platform.test_user, function(data1){
-				//console.log('online_callback');
-				//console.log(data1);
-			//},
-			//function(data1){
-				//console.log('offline_callback');
-				//console.log(data1);
-			//},
-			//function(data1){
-				//console.log('error_callback');
-				//console.log(data1);
-			//},
-			//function(data1){
-				//console.log('message_callback');
-				//console.log(data1);
-			//}
-		//);
 		
 		
     
@@ -404,6 +461,142 @@ if($.chat_platform.DEBUG)
 					$.chat_platform.group_update({_id:sel,members:members}, function(data1){
 						console.log(data1);
 					});
+				}
+			}
+        });
+        $('#btn_user_online').on('click', function(){
+			$(this).attr('disabled', 'disabled');
+			$('#btn_user_offline').removeAttr('disabled');
+			$('#btn_send').removeAttr('disabled');
+			var sel = $('#user_list_5').val();
+			$('#user_list_5').attr('disabled', 'disabled');
+			if(sel)
+			{
+				$.chat_platform.init_websocket({_id:sel}, 
+					function(data1){
+						//console.log('message_callback');
+						console.log(data1);
+						if(data1.op === 'chat/online' || data1.op === 'chat/info/online' || data1.op === 'chat/info/offline')
+						{
+							update_online_list();
+							update_contact_list(data1);
+						}
+						if(data1.op === 'chat/chat')
+						{
+							var from_user = $('#current_contact_6 option[value="' + data1.from + '"]').text();
+							if(from_user)
+							{
+								from_user = from_user.replace('(在线)', '');
+							}
+							else
+							{
+								from_user = '';
+							}
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + from_user + ':' + data1.msg);
+						}
+						if(data1.op === 'chat/request/contact/add')
+						{
+							if(confirm('[' + data1.display_name + ']请求你加他(她)为好友,是否同意?'))
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:$('#user_list_5').val(), to:data1.from}));
+								}
+							}else
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:$('#user_list_5').val(), to:data1.from}));
+								}
+							}
+						}
+						if(data1.op === 'chat/response/contact/add/reject')
+						{
+							var reason = '';
+							if(data1.reason)
+							{
+								reason = ',原因是:[' + data1.reason + ']';
+							}
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝' + reason);
+						}
+						if(data1.op === 'chat/response/contact/add/accept')
+						{
+							update_contact_list(data1);
+							var id = data1.from;
+							var text = $('#current_contact_6 option[value="' + id + '"]').text();
+							if(text && text.indexOf('(在线)') > -1)
+							{
+								text = text.replace('(在线)', '');
+								$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你添加为好友');
+							}
+						}
+						if(data1.op === 'chat/request/contact/remove')
+						{
+							var id = data1.from;
+							var text = $('#current_contact_6 option[value="' + id + '"]').text();
+							if(text && text.indexOf('(在线)') > -1)
+							{
+								text = text.replace('(在线)', '');
+								$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你从好友列表中移除');
+							}
+							update_contact_list(data1);
+						}
+						
+					},
+					function(data1){
+						//console.log('error_callback');
+						console.log(data1);
+				});
+			
+			}
+			
+        });
+		$('#btn_user_offline').attr('disabled', 'disabled');
+		$('#btn_send').attr('disabled', 'disabled');
+		
+        $('#btn_user_offline').on('click', function(){
+			$('#btn_user_online').removeAttr('disabled');
+			$(this).attr('disabled', 'disabled');
+			$('#btn_send').attr('disabled', 'disabled');
+			$('#user_list_5').removeAttr('disabled');
+			if($.chat_platform.websocket)
+			{
+				$.chat_platform.websocket.send(JSON.stringify({op:'chat/offline',_id:$('#user_list_5').val(), inform_contact:true}));
+			}
+        });
+        $('#btn_clear_recv').on('click', function(){
+			$('#recv_msg').text('');
+        });
+        $('#btn_send').on('click', function(){
+			var sel = $('#current_contact_6').val();
+			var v = $('#send_msg').val();
+			if(sel && v && v.length>0 && $.chat_platform.websocket)
+			{
+				$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + v);
+				$.chat_platform.websocket.send(JSON.stringify({op:'chat/chat',from:$('#user_list_5').val(),to:sel, msg:v}));
+			}
+			$('#send_msg').val('');
+        });
+        $('#btn_request_contact_add').on('click', function(){
+			var to = $('#online_list_5').val();
+			var from = $('#user_list_5').val();
+			var text = $('#online_list_5 option:selected').text();
+			if(from && to && from.length>0 && to.length>0 && $.chat_platform.websocket)
+			{
+				$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + '请求添加[' + text + ']为好友,等待对方回复...');
+				$.chat_platform.websocket.send(JSON.stringify({op:'chat/request/contact/add',from:from,to:to}));
+			}
+        });
+        $('#btn_request_contact_remove').on('click', function(){
+			var from = $('#user_list_5').val();
+			var to = $('#current_contact_6').val();
+			var text = $('#current_contact_6 option:selected').text();
+			if(from && to && from.length>0 && to.length>0 && $.chat_platform.websocket)
+			{
+				if(confirm('你确定要从好友列表移除[' + text + ']吗?'))
+				{
+					$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + '从好友列表移除[' + text + ']');
+					$.chat_platform.websocket.send(JSON.stringify({op:'chat/request/contact/remove',from:from,to:to}));
 				}
 			}
         });
