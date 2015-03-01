@@ -3218,10 +3218,13 @@ def handle_chat_platform(environ, session):
     def online(user_id, websocket):
         if user_id and websocket and not websocket.closed:
             if not gWebSocketsMap.has_key(user_id):
-                gWebSocketsMap[user_id] = websocket
+                gWebSocketsMap[user_id] = []
+            if not websocket in gWebSocketsMap[user_id]:
+                gWebSocketsMap[user_id].append(websocket)
     def offline(user_id):
         if user_id and gWebSocketsMap.has_key(user_id):
-            gWebSocketsMap[user_id].close()
+            for i in gWebSocketsMap[user_id]:
+                i.close()
             del gWebSocketsMap[user_id]
 
     def get_destination(session, _id):
@@ -3341,26 +3344,18 @@ def handle_chat_platform(environ, session):
                 except gevent.queue.Full:
                     print('chat queue is full')
                     
-    def broadcast(op, _id,  alist, is_use_queue=True):
+    def broadcast(op, _id,  alist):
         for i in alist:
             if isinstance(i, str) or isinstance(i, unicode):
                 obj = {'op':op, 'from':_id, 'to':i, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-                if is_use_queue:
-                    gJoinableQueue.put(obj)
-                else:
-                    if gWebSocketsMap.has_key(i) and gWebSocketsMap[i] and not gWebSocketsMap[i].closed:
-                        gWebSocketsMap[i].send(json.dumps(obj, ensure_ascii=True, indent=4))
+                gJoinableQueue.put(obj)
             elif isinstance(i, dict):
                 if i.has_key('_id'):
                     obj = {'op':op, 'from':_id, 'to':i['_id'], 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-                    if is_use_queue:
-                        try:
-                            gJoinableQueue.put(obj)
-                        except:
-                            pass
-                    else:
-                        if gWebSocketsMap.has_key(i['_id']) and gWebSocketsMap[i['_id']] and not gWebSocketsMap[i['_id']].closed:
-                            gWebSocketsMap[i['_id']].send(json.dumps(obj, ensure_ascii=True, indent=4))
+                    try:
+                        gJoinableQueue.put(obj)
+                    except:
+                        pass
         
         
     def handle_websocket(environ):
@@ -3443,22 +3438,17 @@ def handle_chat_platform(environ, session):
                 except:
                     _id = None
                     for k in gWebSocketsMap.keys():
-                        if gWebSocketsMap[k] is ws:
+                        if ws in gWebSocketsMap[k] or gWebSocketsMap[k] is ws:
                             _id = k
-                            ws.close()
+                            #ws.close()
                             print('websocket[%s] is closed' % k)
-                            del gWebSocketsMap[k]
+                            #del gWebSocketsMap[k]
                             break
                     if _id:
+                        offline(_id)
                         broadcast('chat/info/offline', _id, gWebSocketsMap.keys())
                         
             gevent.sleep(interval)
-        if ws and ws.closed:
-            for k in gWebSocketsMap.keys():
-                if gWebSocketsMap[k] is ws:
-                    print('websocket[%s] is closed' % k)
-                    del gWebSocketsMap[k]
-                    break
 
         
     
@@ -5255,6 +5245,11 @@ def chat_save_log(obj):
                
 def joinedqueue_consumer_chat():
     global gConfig, gJoinableQueue, gWebSocketsMap
+    #def offline(user_id):
+        #if user_id and gWebSocketsMap.has_key(user_id):
+            #for i in gWebSocketsMap[user_id]:
+                #i.close()
+            #del gWebSocketsMap[user_id]
         
     interval = float(gConfig['chat_platform']['queue']['queue_consume_interval'])
     while 1:
@@ -5265,15 +5260,14 @@ def joinedqueue_consumer_chat():
         except:
             item = None
         if item:
-            #print('qsize=%d,gWebSocketsMap.keys=%s' % (gJoinableQueue.qsize(), str(gWebSocketsMap.keys())))
             try:
                 g = gevent.spawn(chat_save_log, item)
                 #g.join()
                 k = item['to']
-                if gWebSocketsMap.has_key(k) and not gWebSocketsMap[k].closed:
-                    gWebSocketsMap[k].send(json.dumps(item, ensure_ascii=True, indent=4))
-                if gWebSocketsMap.has_key(k) and gWebSocketsMap[k].closed:
-                    del gWebSocketsMap[k]
+                if gWebSocketsMap.has_key(k):
+                    for ws in gWebSocketsMap[k]:
+                        if not ws.closed:
+                            ws.send(json.dumps(item, ensure_ascii=True, indent=4))
             finally:
                 gJoinableQueue.task_done()    
     
