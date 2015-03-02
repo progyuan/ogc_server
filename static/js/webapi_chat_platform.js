@@ -157,13 +157,16 @@ $.chat_platform.offline = function(data,  offline_callback)
 		{
 			$.chat_platform.websocket.close();
 			$.chat_platform.websocket = undefined;
-			offline_callback();
+			if(offline_callback)
+			{
+				offline_callback();
+			}
 		}
 	}
 };
 
 
-$.chat_platform.chat = function(options){
+$.chat_platform.online = function(options){
 	if($.chat_platform.current_user === undefined)
 	{
 		var s =  "$.chat_platform.current_user must be set.\n";
@@ -173,7 +176,7 @@ $.chat_platform.chat = function(options){
 	}
 	if(! options.on_online instanceof Function)
 	{
-		var s = "options.on_online must be defined.\n ";
+		var s = "options.on_online must be defined as function.\n ";
 		s += "options.on_online = function(data){\n";
 		s += "	data._id //current user's id(string)\n";
 		s += "	data.username //current user's unique username(string)\n";
@@ -181,7 +184,7 @@ $.chat_platform.chat = function(options){
 		s += "	data.person_info //current user's personal info(object)\n";
 		s += "	data.avatar //current user's head icon(string)\n";
 		s += "	data.contacts //current user's contacts list(list)\n";
-		s += "	data.groups //current user's groups list(list) if it has\n";
+		s += "	data.groups //current user's groups list(list) which contains it\n";
 		s += "	data.op //it is 'chat/online' in this case\n";
 		s += "};\n";
 		throw s;
@@ -197,7 +200,7 @@ $.chat_platform.chat = function(options){
 	//}
 	if(! options.on_info_online instanceof Function)
 	{
-		var s = "options.on_info_online must be defined.\n ";
+		var s = "options.on_info_online must be defined as function.\n ";
 		s += "options.on_info_online = function(data){\n";
 		s += "	data.from //user's id who inform this online event(string)\n";
 		s += "	data.op //it is 'chat/info/online' in this case\n";
@@ -206,13 +209,304 @@ $.chat_platform.chat = function(options){
 	}
 	if(! options.on_info_offline instanceof Function)
 	{
-		var s = "options.on_info_offline must be defined.\n ";
+		var s = "options.on_info_offline must be defined as function.\n ";
 		s += "options.on_info_offline = function(data){\n";
 		s += "	data.from //user's id who inform this offline event(string)\n";
 		s += "	data.op //it is 'chat/info/offline' in this case\n";
 		s += "};\n";
 		throw s;
 	}
+	if(! options.on_chat instanceof Function)
+	{
+		var s = "options.on_chat must be defined as function.\n ";
+		s += "options.on_chat = function(data){\n";
+		s += "	data.from //user's id who send this message(string).\n";
+		s += "	data.to //user's id who recv this message(string).\n";
+		s += "	data.timestamp //message timestamp(datetime).\n";
+		s += "	data.msg //message body(string).\n";
+		s += "	data.op //it is 'chat/chat' in this case.\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_request_contact_add instanceof Function)
+	{
+		var s = "options.on_request_contact_add must be defined as function.\n ";
+		s += "options.on_request_contact_add = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who recv this request(string).\n";
+		s += "	data._id //sender's id(string)\n";
+		s += "	data.username //sender's unique username(string)\n";
+		s += "	data.display_name //sender's display name(string)\n";
+		s += "	data.person_info //sender's personal info(object)\n";
+		s += "	data.avatar //sender's head icon(string)\n";
+		s += "	data.op //it is 'chat/request/contact/add' in this case.\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.check_contact_add instanceof Function)
+	{
+		var s = "options.check_contact_add must be defined as function which return boolean value.\n ";
+		s += "options.check_contact_add = function(){\n";
+		s += "	if(...)//this should block UI mainloop.\n";
+		s += "		return true;\n";
+		s += "	else\n";
+		s += "		return false;\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_response_contact_add_accept instanceof Function)
+	{
+		var s = "options.on_response_contact_add_accept must be defined as function .\n ";
+		s += "Both receiver and sender will trigger this event.\n";
+		s += "options.on_response_contact_add_accept = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who recv this request(string).\n";
+		s += "	data._id //sender's id(string)\n";
+		s += "	data.op //it is 'chat/response/contact/add/accept' in this case.\n";
+		s += "	data.contacts //receiver(or sender)'s contacts list(list).\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_response_contact_add_reject instanceof Function)
+	{
+		var s = "options.on_response_contact_add_reject must be defined as function .\n ";
+		s += "Only  sender will trigger this event.\n";
+		s += "options.on_response_contact_add_reject = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who recv this request(string).\n";
+		s += "	data._id //sender's id(string)\n";
+		s += "	data.username //sender's unique username(string)\n";
+		s += "	data.display_name //sender's display name(string)\n";
+		s += "	data.person_info //sender's personal info(object)\n";
+		s += "	data.avatar //sender's head icon(string)\n";
+		s += "	data.op //it is 'chat/response/contact/add/reject' in this case.\n";
+		s += "	data.reject_reason //receiver's reject reason(string).\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_request_contact_remove instanceof Function)
+	{
+		var s = "options.on_request_contact_remove must be defined as function.\n ";
+		s += "Both receiver and sender will trigger this event.\n";
+		s += "options.on_request_contact_remove = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who recv this request(string).\n";
+		s += "	data._id //sender's id(string)\n";
+		s += "	data.op //it is 'chat/request/contact/remove' in this case.\n";
+		s += "	data.contacts //receiver(or sender)'s contacts list(list).\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_request_group_join instanceof Function)
+	{
+		var s = "options.on_request_group_join must be defined as function.\n ";
+		s += "options.on_request_group_join = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who own this group(string).\n";
+		s += "	data._id //user's id who own this group(string)\n";
+		s += "	data.username //owner's unique username(string)\n";
+		s += "	data.display_name //owner's display name(string)\n";
+		s += "	data.person_info //owner's personal info(object)\n";
+		s += "	data.avatar //sender's head icon(string)\n";
+		s += "	data.op //it is 'chat/request/group/join' in this case.\n";
+		s += "	data.request_src //user's id who send this request(string).\n";
+		s += "	data.to_group //group's id sender want join(string).\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.check_group_join instanceof Function)
+	{
+		var s = "options.check_group_join must be defined as function which return boolean value.\n ";
+		s += "options.check_group_join = function(){\n";
+		s += "	if(...)//this should block UI mainloop.\n";
+		s += "		return true;\n";
+		s += "	else\n";
+		s += "		return false;\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_response_group_join_accept instanceof Function)
+	{
+		var s = "options.on_response_group_join_accept must be defined as function .\n ";
+		s += "All the group members will trigger this event.\n";
+		s += "options.on_response_group_join_accept = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.request_src //user's id who send this request(string).\n";
+		s += "	data.to_group //group's id sender want join(string).\n";
+		s += "	data.op //it is 'chat/response/group/join/accept' in this case.\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_response_group_join_reject instanceof Function)
+	{
+		var s = "options.on_response_group_join_reject must be defined as function .\n ";
+		s += "Only  sender will trigger this event.\n";
+		s += "options.on_response_group_join_reject = function(data){\n";
+		s += "	data.from //group owner's id(string).\n";
+		s += "	data.to //sender's id(string).\n";
+		s += "	data._id //group owner's id(string)\n";
+		s += "	data.username //group owner's unique username(string)\n";
+		s += "	data.display_name //group owner's display name(string)\n";
+		s += "	data.person_info //group owner's personal info(object)\n";
+		s += "	data.avatar //group owner's head icon(string)\n";
+		s += "	data.op //it is 'chat/response/group/join/reject' in this case.\n";
+		s += "	data.to_group //group's id sender want join(string).\n";
+		s += "	data.reject_reason //group owner's reject reason(string).\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_request_group_quit instanceof Function)
+	{
+		var s = "options.on_request_group_quit must be defined as function.\n ";
+		s += "All the group members will trigger this event.\n";
+		s += "options.on_request_group_quit = function(data){\n";
+		s += "	data.from //user's id who send this request(string).\n";
+		s += "	data.to //user's id who recv this request(string).\n";
+		s += "	data.op //it is 'chat/request/group/quit' in this case.\n";
+		s += "};\n";
+		throw s;
+	}
+	data = {};
+	data.username = $.chat_platform.current_user;
+	data['op'] = 'chat/online';
+	data['inform_contact'] = true;
+	var wsurl =  $.chat_platform.WS_PROTOCOL + "://" + $.chat_platform.HOST + ":" + $.chat_platform.PORT + "/websocket";
+	if($.chat_platform.websocket === undefined)
+	{
+		$.chat_platform.websocket = new WebSocket(wsurl);
+	}
+	if($.chat_platform.websocket)
+	{
+		$.chat_platform.websocket.onopen = function() 
+		{
+			$.chat_platform.websocket.send(JSON.stringify(data));
+		};
+		$.chat_platform.websocket.onclose = function(e) 
+		{
+			console.log("websocket close");
+		};
+		$.chat_platform.websocket.onerror = function(e) 
+		{
+			console.log("websocket error:" + e);
+			$.chat_platform.websocket.close();
+			error_callback(e);
+		};
+		$.chat_platform.websocket.onmessage = function(e) 
+		{
+			if(e.data.length>0)
+			{
+				var data1 = JSON.parse(e.data);
+				if(data1 instanceof Array)
+				{
+				}
+				if(data1 instanceof Object)
+				{
+					if(data1.result)
+					{
+						error_callback(data1.result);
+					}
+					else
+					{
+						if(data1.op === 'chat/online')
+						{
+							var callback = options.on_online;
+							callback(data1);
+						}
+						
+						if(data1.op === 'chat/info/online')
+						{
+							var callback = options.on_info_online;
+							callback(data1);
+						}
+						
+						if( data1.op === 'chat/info/offline')
+						{
+							var callback = options.on_info_offline;
+							callback(data1);
+						}
+						if(data1.op === 'chat/chat')
+						{
+							var callback = options.on_chat;
+							callback(data1);
+						}
+						if(data1.op === 'chat/request/contact/add')
+						{
+							var callback = options.on_request_contact_add;
+							callback(data1);
+							var check_contact_add = options.check_contact_add;
+							if(check_contact_add())
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:data1.to, to:data1.from}));
+								}
+							}else
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:data1.to, to:data1.from}));
+								}
+							}
+						}
+						if(data1.op === 'chat/response/contact/add/reject')
+						{
+							var callback = options.on_response_contact_add_reject;
+							callback(data1);
+						}
+						if(data1.op === 'chat/response/contact/add/accept')
+						{
+							var callback = options.on_response_contact_add_accept;
+							callback(data1);
+						}
+						if(data1.op === 'chat/request/contact/remove')
+						{
+							var callback = options.on_request_contact_remove;
+							callback(data1);
+						}
+						if(data1.op === 'chat/request/group/join')
+						{
+							var callback = options.on_request_group_join;
+							callback(data1);
+							var check_group_join = options.check_group_join;
+							if(check_group_join())
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/accept',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
+								}
+							}else
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/reject',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
+								}
+							}
+						}
+						if(data1.op === 'chat/response/group/join/accept')
+						{
+							var callback = options.on_response_group_join_accept;
+							callback(data1);
+						}
+						if(data1.op === 'chat/response/group/join/reject')
+						{
+							var callback = options.on_response_group_join_reject;
+							callback(data1);
+						}
+						if(data1.op === 'chat/request/group/quit')
+						{
+							var callback = options.on_request_group_quit;
+							callback(data1);
+						}
+					}
+				}
+				
+			}else
+			{
+				$.chat_platform.websocket.send('');
+			}
+		};
+	}		
+	
 };
 
 

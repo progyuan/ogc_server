@@ -3321,6 +3321,10 @@ def handle_chat_platform(environ, session):
                         user0['op'] = obj['op']
                         user0['from'] = obj['from']
                         user0['to'] = obj['to']
+                        if user0.has_key('password'):
+                            del user0['password']
+                        if user0.has_key('contacts'):
+                            del user0['contacts']
                         if obj.has_key('reject_reason') and len(obj['reject_reason'])>0:
                             user0['reject_reason'] = obj['reject_reason']
                         gJoinableQueue.put(db_util.remove_mongo_id(user0))
@@ -3332,6 +3336,10 @@ def handle_chat_platform(environ, session):
                         user0['op'] = obj['op']
                         user0['from'] = obj['from']
                         user0['to'] = obj['to']
+                        if user0.has_key('password'):
+                            del user0['password']
+                        if user0.has_key('contacts'):
+                            del user0['contacts']
                         gJoinableQueue.put(db_util.remove_mongo_id(user0))
                 
             elif obj['op'] == 'chat/request/contact/remove':
@@ -3375,6 +3383,10 @@ def handle_chat_platform(environ, session):
                             user0['request_src'] = obj['from']
                             user0['to_group'] = obj['to_group']
                             user0['to'] = grp0['owner_id']
+                            if user0.has_key('password'):
+                                del user0['password']
+                            if user0.has_key('contacts'):
+                                del user0['contacts']
                             gJoinableQueue.put(db_util.remove_mongo_id(user0))
             elif obj['op'] == 'chat/request/group/quit':
                 if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to_group') and len(obj['to_group'])>0:
@@ -3408,12 +3420,16 @@ def handle_chat_platform(environ, session):
                         user0['from'] = obj['from']
                         user0['to'] = obj['to']
                         user0['to_group'] = obj['to_group']
+                        if user0.has_key('password'):
+                            del user0['password']
+                        if user0.has_key('contacts'):
+                            del user0['contacts']
                         if obj.has_key('reject_reason') and len(obj['reject_reason'])>0:
                             user0['reject_reason'] = obj['reject_reason']
                         gJoinableQueue.put(db_util.remove_mongo_id(user0))
-            else:        
-                d  = {'op': obj['op'], 'from':obj['from'], 'to':k, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),}
-                gJoinableQueue.put(d)
+            #else:        
+                #d  = {'op': obj['op'], 'from':obj['from'], 'to':k, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),}
+                #gJoinableQueue.put(d)
         except gevent.queue.Full:
             print('chat queue is full')
                     
