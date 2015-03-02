@@ -3125,8 +3125,8 @@ def handle_chat_platform(environ, session):
 
     def group_add(session, querydict):
         ret = ''
-        if querydict.has_key('found_user_id')\
-           and len(querydict['found_user_id']) > 0\
+        if querydict.has_key('owner_id')\
+           and len(querydict['owner_id']) > 0\
            and querydict.has_key('group_name')\
            and len(querydict['group_name']) > 0:        
             try:
@@ -3136,12 +3136,12 @@ def handle_chat_platform(environ, session):
                     ret = json.dumps({'result':u'group_add_fail_group_name_already_exist'}, ensure_ascii=True, indent=4)
                 else:
                     obj = {}
-                    obj['found_user_id'] = querydict['found_user_id']
+                    obj['owner_id'] = querydict['owner_id']
                     obj['group_name'] = querydict['group_name']
                     ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     obj['found_date'] = ts
                     obj['update_date'] = ts
-                    obj['members'] = []
+                    obj['members'] = [db_util.add_mongo_id(obj['owner_id']), ]
                     if querydict.has_key('avatar') and len(querydict['avatar']) > 0:
                         obj['avatar'] = querydict['avatar']
                     if querydict.has_key('description') and len(querydict['description']) > 0:
@@ -3155,8 +3155,8 @@ def handle_chat_platform(environ, session):
                 else:
                     ret = json.dumps({'result':u'group_add_fail' }, ensure_ascii=True, indent=4)
         else:
-            if not querydict.has_key('found_user_id') or len(querydict['found_user_id']) == 0:
-                ret = json.dumps({'result':u'group_add_fail_found_user_id_required'}, ensure_ascii=True, indent=4)
+            if not querydict.has_key('owner_id') or len(querydict['owner_id']) == 0:
+                ret = json.dumps({'result':u'group_add_fail_owner_id_required'}, ensure_ascii=True, indent=4)
             if not querydict.has_key('group_name') or len(querydict['group_name']) == 0:
                 ret = json.dumps({'result':u'group_add_fail_group_name_required'}, ensure_ascii=True, indent=4)
         return ret
@@ -3227,13 +3227,23 @@ def handle_chat_platform(environ, session):
                 i.close()
             del gWebSocketsMap[user_id]
 
-    def get_destination(session, _id):
+    def get_destination(session, from_id, _id):
         ret = []
         if isinstance(_id, str) or isinstance(_id, unicode):
-            ret.append(_id)
+            userlist = user_query(session, {'_id':from_id})
+            if len(userlist)>0:
+                user0 = userlist[0]
+                if user0.has_key('contacts'):
+                    if db_util.add_mongo_id(_id) in user0['contacts']:
+                        ret.append(_id)
         elif isinstance(_id, list):
-            for id in _id:
-                ret.append(id)
+            userlist = user_query(session, {'_id':from_id})
+            if len(userlist)>0:
+                user0 = userlist[0]
+                if user0.has_key('contacts'):
+                    for id in _id:
+                        if db_util.add_mongo_id(id) in user0['contacts']:
+                            ret.append(id)
         return ret
     def get_destination_group(session, _id):
         ret = []
@@ -3249,11 +3259,11 @@ def handle_chat_platform(environ, session):
                 
                 
             
-    def chat(session, obj={}):
+    def chat(session, websocket, obj={}):
         tolist = []
         if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('msg') and len(obj['msg'])>0:
             if obj.has_key('to') and len(obj['to'])>0:
-                tolist = get_destination(session, obj['to'])
+                tolist = get_destination(session,  obj['from'], obj['to'])
             if obj.has_key('to_group') and len(obj['to_group'])>0:
                 tolist = get_destination_group(session, obj['to_group'])
             for k in tolist:
@@ -3264,98 +3274,164 @@ def handle_chat_platform(environ, session):
                 except gevent.queue.Full:
                     print('chat queue is full')
                     
-    def request_response(session, obj={}):
+    def request_response(session, websocket, obj={}):
         #'chat/request/contact/add', 
         #'chat/request/contact/remove', 
         #'chat/response/contact/add/accept', 
         #'chat/response/contact/add/reject'
+        #'chat/request/group/join'
+        #'chat/request/group/quit'
+        #'chat/response/group/join/accept', 
+        #'chat/response/group/join/reject', 
         tolist = []
-        if obj.has_key('from') and len(obj['from'])>0:
-            if obj.has_key('to') and len(obj['to'])>0:
-                tolist = get_destination(session, obj['to'])
-            if obj.has_key('to_group') and len(obj['to_group'])>0:
-                tolist.extend(get_destination_group(session, obj['to_group']))
-            for k in tolist:
-                try:
-                    if obj['op'] == 'chat/response/contact/add/accept':
-                        collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
-                        userlist = user_query(session, {'_id':[obj['from'], k]})
-                        for user in userlist:
-                            if str(user['_id']) == obj['from'] and not db_util.add_mongo_id(k) in user['contacts']:
-                                user['contacts'].append(db_util.add_mongo_id(k))
-                            if str(user['_id']) == k and not db_util.add_mongo_id(obj['from']) in user['contacts']:
-                                user['contacts'].append(db_util.add_mongo_id(obj['from']))
-                            user['update_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                            collection.save(user)
-                        userlist1 = user_query(session, {'_id':[obj['from'], k], 'user_detail':True})
-                        for user in userlist1:
-                            if str(user['_id']) == obj['from']:
-                                user['op'] = obj['op']
-                                user['from'] = k
-                                user['to'] = obj['from']
-                            elif str(user['_id']) == k:
-                                user['op'] = obj['op']
-                                user['from'] = obj['from']
-                                user['to'] = k
-                            gJoinableQueue.put(db_util.remove_mongo_id(user))
-                    elif obj['op'] == 'chat/response/contact/add/reject':
-                        userlist = user_query(session, {'_id':obj['from']})
-                        if len(userlist)>0:
-                            user0 = userlist[0]
-                            user0['op'] = obj['op']
-                            user0['from'] = obj['from']
-                            user0['to'] = k
-                            gJoinableQueue.put(db_util.remove_mongo_id(user0))
-                        
-                        
-                    elif obj['op'] == 'chat/request/contact/add':
-                        userlist = user_query(session, {'_id':obj['from']})
-                        if len(userlist)>0:
-                            user0 = userlist[0]
-                            user0['op'] = obj['op']
-                            user0['from'] = obj['from']
-                            user0['to'] = k
-                            gJoinableQueue.put(db_util.remove_mongo_id(user0))
-                        
-                    elif obj['op'] == 'chat/request/contact/remove':
-                        collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
-                        userlist = user_query(session, {'_id':[obj['from'], k]})
-                        for user in userlist:
-                            if str(user['_id']) == obj['from'] and db_util.add_mongo_id(k) in user['contacts']:
-                                user['contacts'].remove(db_util.add_mongo_id(k))
-                            if str(user['_id']) == k and db_util.add_mongo_id(obj['from']) in user['contacts']:
-                                user['contacts'].remove(db_util.add_mongo_id(obj['from']))
-                            user['update_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                            collection.save(user)
-                        userlist1 = user_query(session, {'_id':[obj['from'], k], 'user_detail':True})
-                        for user in userlist1:
-                            if str(user['_id']) == obj['from']:
-                                user['op'] = obj['op']
-                                user['from'] = k
-                                user['to'] = obj['from']
-                            elif str(user['_id']) == k:
-                                user['op'] = obj['op']
-                                user['from'] = obj['from']
-                                user['to'] = k
-                            gJoinableQueue.put(db_util.remove_mongo_id(user))
-                    else:        
-                        d  = {'op': obj['op'], 'from':obj['from'], 'to':k, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),}
-                        gJoinableQueue.put(d)
-                except gevent.queue.Full:
-                    print('chat queue is full')
+        try:
+            if obj['op'] == 'chat/response/contact/add/accept':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0:
+                    collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
+                    userlist = user_query(session, {'_id':[obj['from'],  obj['to']]})
+                    for user in userlist:
+                        if str(user['_id']) == obj['from'] and not db_util.add_mongo_id(obj['to']) in user['contacts']:
+                            user['contacts'].append(db_util.add_mongo_id(obj['to']))
+                        if str(user['_id']) == obj['to'] and not db_util.add_mongo_id(obj['from']) in user['contacts']:
+                            user['contacts'].append(db_util.add_mongo_id(obj['from']))
+                        user['update_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        collection.save(user)
                     
-    def broadcast(op, _id,  alist):
+                    fromuser = {}
+                    fromuser['op'] = obj['op']
+                    fromuser['_id'] = obj['from']
+                    fromuser['from'] = obj['to']
+                    fromuser['to'] = obj['from']
+                    fromuser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['from'],'user_detail':True}))
+                    gJoinableQueue.put(db_util.remove_mongo_id(fromuser))
+                    
+                    touser = {}
+                    touser['op'] = obj['op']
+                    touser['_id'] = obj['to']
+                    touser['from'] = obj['from']
+                    touser['to'] = obj['to']
+                    touser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['to'],'user_detail':True}))
+                    gJoinableQueue.put(db_util.remove_mongo_id(touser))
+                        
+            elif obj['op'] == 'chat/response/contact/add/reject':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0:
+                    userlist = user_query(session, {'_id':obj['from']})
+                    if len(userlist)>0:
+                        user0 = userlist[0]
+                        user0['op'] = obj['op']
+                        user0['from'] = obj['from']
+                        user0['to'] = obj['to']
+                        if obj.has_key('reject_reason') and len(obj['reject_reason'])>0:
+                            user0['reject_reason'] = obj['reject_reason']
+                        gJoinableQueue.put(db_util.remove_mongo_id(user0))
+            elif obj['op'] == 'chat/request/contact/add':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0:
+                    userlist = user_query(session, {'_id':obj['from']})
+                    if len(userlist)>0:
+                        user0 = userlist[0]
+                        user0['op'] = obj['op']
+                        user0['from'] = obj['from']
+                        user0['to'] = obj['to']
+                        gJoinableQueue.put(db_util.remove_mongo_id(user0))
+                
+            elif obj['op'] == 'chat/request/contact/remove':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0:
+                    collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
+                    userlist = user_query(session, {'_id':[obj['from'],  obj['to']]})
+                    for user in userlist:
+                        if str(user['_id']) == obj['from'] and db_util.add_mongo_id(obj['to']) in user['contacts']:
+                            user['contacts'].remove(db_util.add_mongo_id(obj['to']))
+                        if str(user['_id']) == obj['to'] and db_util.add_mongo_id(obj['from']) in user['contacts']:
+                            user['contacts'].remove(db_util.add_mongo_id(obj['from']))
+                        user['update_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                        collection.save(user)
+                        
+                    fromuser = {}
+                    fromuser['op'] = obj['op']
+                    fromuser['_id'] = obj['from']
+                    fromuser['from'] = obj['to']
+                    fromuser['to'] = obj['from']
+                    fromuser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['from'], 'user_detail':True}))
+                    gJoinableQueue.put(db_util.remove_mongo_id(fromuser))
+                    
+                    touser = {}
+                    touser['op'] = obj['op']
+                    touser['_id'] = obj['to']
+                    touser['from'] = obj['from']
+                    touser['to'] = obj['to']
+                    touser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['to'], 'user_detail':True}))
+                    gJoinableQueue.put(db_util.remove_mongo_id(touser))
+                    
+            elif obj['op'] == 'chat/request/group/join':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to_group') and len(obj['to_group'])>0:
+                    grps = group_query(session, {'_id':obj['to_group']})
+                    if len(grps)>0:
+                        grp0 = grps[0]
+                        userlist = user_query(session, {'_id':obj['from']})
+                        if len(userlist)>0:
+                            user0 = userlist[0]
+                            user0['op'] = obj['op']
+                            user0['from'] = obj['from']
+                            user0['request_src'] = obj['from']
+                            user0['to_group'] = obj['to_group']
+                            user0['to'] = grp0['owner_id']
+                            gJoinableQueue.put(db_util.remove_mongo_id(user0))
+            elif obj['op'] == 'chat/request/group/quit':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to_group') and len(obj['to_group'])>0:
+                    grps = group_query(session, {'_id':obj['to_group']})
+                    if len(grps)>0:
+                        grp0 = grps[0]
+                        members = []
+                        if db_util.add_mongo_id(obj['from']) in grp0['members']:
+                            grp0['members'].remove(db_util.add_mongo_id(obj['from']))
+                            members = [str(i) for i in grp0['members']]
+                            collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
+                            collection.save(grp0)
+                            broadcast(session, websocket, members, {'op':obj['op'], 'from':obj['from']}  )
+            elif obj['op'] == 'chat/response/group/join/accept':
+                if obj.has_key('to_group') and len(obj['to_group'])>0 and obj.has_key('request_src') and len(obj['request_src'])>0:
+                    grps = group_query(session, {'_id': obj['to_group']})
+                    if len(grps)>0:
+                        grp0 = grps[0]
+                        if not db_util.add_mongo_id(obj['request_src']) in grp0['members']:
+                            grp0['members'].append(db_util.add_mongo_id(obj['request_src']))
+                            collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
+                            collection.save(grp0)
+                            members = [str(i) for i in grp0['members']]
+                            broadcast(session, websocket, members, obj)
+            elif obj['op'] == 'chat/response/group/join/reject':
+                if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0 and obj.has_key('to_group') and len(obj['to_group'])>0:
+                    userlist = user_query(session, {'_id':obj['from']})
+                    if len(userlist)>0:
+                        user0 = userlist[0]
+                        user0['op'] = obj['op']
+                        user0['from'] = obj['from']
+                        user0['to'] = obj['to']
+                        user0['to_group'] = obj['to_group']
+                        if obj.has_key('reject_reason') and len(obj['reject_reason'])>0:
+                            user0['reject_reason'] = obj['reject_reason']
+                        gJoinableQueue.put(db_util.remove_mongo_id(user0))
+            else:        
+                d  = {'op': obj['op'], 'from':obj['from'], 'to':k, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),}
+                gJoinableQueue.put(d)
+        except gevent.queue.Full:
+            print('chat queue is full')
+                    
+    def broadcast(session, websocket, alist, obj={}):
         for i in alist:
+            d = {}
+            d['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            for k in obj.keys():
+                d[k] = obj[k]
             if isinstance(i, str) or isinstance(i, unicode):
-                obj = {'op':op, 'from':_id, 'to':i, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-                gJoinableQueue.put(obj)
+                d['to'] = i
             elif isinstance(i, dict):
                 if i.has_key('_id'):
-                    obj = {'op':op, 'from':_id, 'to':i['_id'], 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-                    try:
-                        gJoinableQueue.put(obj)
-                    except:
-                        pass
+                    d['to'] = i['_id']
+            try:
+                gJoinableQueue.put(obj)
+            except:
+                pass
         
         
     def handle_websocket(environ):
@@ -3402,7 +3478,7 @@ def handle_chat_platform(environ, session):
                             other_contacts = gWebSocketsMap.keys()[:]
                             if _id in other_contacts:
                                 other_contacts.remove(_id)
-                            broadcast('chat/info/online', _id, other_contacts)
+                            broadcast(session, ws, other_contacts, {'op':'chat/info/online','from':_id})
                     else:
                         ws.send(json.dumps({'result':'chat_online_user_not_exist'}, ensure_ascii=True, indent=4))
                 elif obj['op'] == 'chat/offline':
@@ -3412,7 +3488,7 @@ def handle_chat_platform(environ, session):
                             other_contacts = gWebSocketsMap.keys()[:]
                             if _id in other_contacts:
                                 other_contacts.remove(_id)
-                            broadcast('chat/info/offline', _id, other_contacts)
+                            broadcast(session, ws, other_contacts,  {'op':'chat/info/offline','from':_id})
                         offline(_id)
                     elif obj.has_key('username'):
                         rec = user_query(session, {'username':obj['username']})
@@ -3422,16 +3498,16 @@ def handle_chat_platform(environ, session):
                                 other_contacts = gWebSocketsMap.keys()[:]
                                 if _id in other_contacts:
                                     other_contacts.remove(_id)
-                                broadcast('chat/info/offline', _id, other_contacts)
+                                broadcast(session, ws, other_contacts, {'op':'chat/info/offline','from':_id})
                             offline(_id)
                         else:
                             ws.send(json.dumps({'result':'chat_offline_user_not_exist'}, ensure_ascii=True, indent=4))
                     else:
                         ws.send(json.dumps({'result':'chat_offline_username_or_id_required'}, ensure_ascii=True, indent=4))
                 elif obj['op'] == 'chat/chat':
-                    chat(session, obj)
+                    chat(session, ws, obj)
                 elif 'chat/request' in obj['op'] or 'chat/response' in obj['op']:
-                    request_response(session, obj)
+                    request_response(session, ws, obj)
             else:
                 try:
                     ws.send('')
@@ -3440,13 +3516,11 @@ def handle_chat_platform(environ, session):
                     for k in gWebSocketsMap.keys():
                         if ws in gWebSocketsMap[k] or gWebSocketsMap[k] is ws:
                             _id = k
-                            #ws.close()
-                            print('websocket[%s] is closed' % k)
-                            #del gWebSocketsMap[k]
                             break
                     if _id:
+                        print('websocket[%s] is closed' % _id)
                         offline(_id)
-                        broadcast('chat/info/offline', _id, gWebSocketsMap.keys())
+                        broadcast(session, ws, gWebSocketsMap.keys(), {'op':'chat/info/offline', 'from':_id})
                         
             gevent.sleep(interval)
 

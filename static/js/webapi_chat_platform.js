@@ -6,6 +6,7 @@ $.chat_platform.PORT = '8091';
 $.chat_platform.DEBUG = true;
 $.chat_platform.ME_PREFIX = '我';
 $.chat_platform.SYSTEM_PREFIX = '[系统]';
+$.chat_platform.chat_options = {};
 
 
 $.chat_platform.post_cors = function(action, data, callback)
@@ -29,6 +30,17 @@ $.chat_platform.post_cors = function(action, data, callback)
         }
     });
 };
+
+$.chat_platform.user_get = function(data, callback)
+{
+	$.chat_platform.post_cors('user_get', data, callback);
+};
+
+$.chat_platform.group_get = function(data, callback)
+{
+	$.chat_platform.post_cors('group_get', data, callback);
+};
+
 
 $.chat_platform.user_add = function(data, callback)
 {
@@ -99,9 +111,9 @@ $.chat_platform.group_get = function(data, callback)
 };
 $.chat_platform.group_add = function(data, callback)
 {
-    if(data['found_user_id'] === undefined)
+    if(data['owner_id'] === undefined)
     {
-        throw "found_user_id_required";
+        throw "owner_id_required";
     }
     if(data['group_name'] === undefined)
     {
@@ -149,6 +161,60 @@ $.chat_platform.offline = function(data,  offline_callback)
 		}
 	}
 };
+
+
+$.chat_platform.chat = function(options){
+	if($.chat_platform.current_user === undefined)
+	{
+		var s =  "$.chat_platform.current_user must be set.\n";
+		s += "For example:\n";
+		s += "$.chat_platform.current_user = 'user1';";
+		throw s;
+	}
+	if(! options.on_online instanceof Function)
+	{
+		var s = "options.on_online must be defined.\n ";
+		s += "options.on_online = function(data){\n";
+		s += "	data._id //current user's id(string)\n";
+		s += "	data.username //current user's unique username(string)\n";
+		s += "	data.display_name //current user's display name(string)\n";
+		s += "	data.person_info //current user's personal info(object)\n";
+		s += "	data.avatar //current user's head icon(string)\n";
+		s += "	data.contacts //current user's contacts list(list)\n";
+		s += "	data.groups //current user's groups list(list) if it has\n";
+		s += "	data.op //it is 'chat/online' in this case\n";
+		s += "};\n";
+		throw s;
+	}
+	//if(! options.on_offline instanceof Function)
+	//{
+		//var s = "options.on_online must be defined.\n ";
+		//s += "options.on_online = function(data){\n";
+		//s += "	data._id //current user's id(string)\n";
+		//s += "	data.op //it is 'chat/online' in this case\n";
+		//s += "};\n";
+		//throw s;
+	//}
+	if(! options.on_info_online instanceof Function)
+	{
+		var s = "options.on_info_online must be defined.\n ";
+		s += "options.on_info_online = function(data){\n";
+		s += "	data.from //user's id who inform this online event(string)\n";
+		s += "	data.op //it is 'chat/info/online' in this case\n";
+		s += "};\n";
+		throw s;
+	}
+	if(! options.on_info_offline instanceof Function)
+	{
+		var s = "options.on_info_offline must be defined.\n ";
+		s += "options.on_info_offline = function(data){\n";
+		s += "	data.from //user's id who inform this offline event(string)\n";
+		s += "	data.op //it is 'chat/info/offline' in this case\n";
+		s += "};\n";
+		throw s;
+	}
+};
+
 
 $.chat_platform.init_websocket = function(data, message_callback, error_callback)
 {
@@ -276,7 +342,26 @@ if($.chat_platform.DEBUG)
 			});
         });
 		$('#current_group_4').trigger('change');
-		
+		$('#group_list_7').off();
+        $('#group_list_7').on('change', function(){
+			$.chat_platform.group_get({_id:$(this).val(),user_detail:true}, function(data1){
+				if(data1.result)
+				{
+					alert(data1.result);
+				}
+				else if(data1.length>0)
+				{
+					members = data1[0]['members'];
+					$('#user_group_7').empty();
+					var s = '';
+					for(var i in members)
+					{
+						s += '<option value="' + members[i]['_id'] + '">' + members[i]['display_name'] + '</option>';
+					}
+					$('#user_group_7').append(s);
+				}
+			});
+		});
 	}
 	
 	function update_online_list()
@@ -345,7 +430,33 @@ if($.chat_platform.DEBUG)
 		}
 	}
 	
+	function get_select_text(sel_id, value)
+	{
+		var ret = value;
+		var text = $('#' + sel_id + ' option[value="' + value + '"]').text();
+		if(text)
+		{
+			if(text.indexOf('(在线)') > -1)
+			{
+				text = text.replace('(在线)', '');
+			}
+			ret = text;
+		}
+		return ret;
+	}
+	
     $(function() {
+	
+	
+		
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 		$.chat_platform.post_cors('user_get', {}, function(data1){
@@ -422,7 +533,7 @@ if($.chat_platform.DEBUG)
         $('#btn_group_add').on('click', function(){
 			if($('#group_name').val().length>0 && $('#current_user_3').val() && $('#current_user_3').val().length>0)
 			{
-				$.chat_platform.group_add({group_name:$('#group_name').val(), found_user_id:$('#current_user_3').val(),description:$('#group_description').val()}, function(data1){
+				$.chat_platform.group_add({group_name:$('#group_name').val(), owner_id:$('#current_user_3').val(),description:$('#group_description').val()}, function(data1){
 					console.log(data1);
 				});
 			}
@@ -474,7 +585,6 @@ if($.chat_platform.DEBUG)
 			{
 				$.chat_platform.init_websocket({_id:sel}, 
 					function(data1){
-						//console.log('message_callback');
 						console.log(data1);
 						if(data1.op === 'chat/online' || data1.op === 'chat/info/online' || data1.op === 'chat/info/offline')
 						{
@@ -483,15 +593,7 @@ if($.chat_platform.DEBUG)
 						}
 						if(data1.op === 'chat/chat')
 						{
-							var from_user = $('#current_contact_6 option[value="' + data1.from + '"]').text();
-							if(from_user)
-							{
-								from_user = from_user.replace('(在线)', '');
-							}
-							else
-							{
-								from_user = '';
-							}
+							var from_user = get_select_text('current_contact_6', data1.from);
 							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + from_user + ':' + data1.msg);
 						}
 						if(data1.op === 'chat/request/contact/add')
@@ -500,46 +602,73 @@ if($.chat_platform.DEBUG)
 							{
 								if($.chat_platform.websocket)
 								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:$('#user_list_5').val(), to:data1.from}));
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:data1.to, to:data1.from}));
 								}
 							}else
 							{
 								if($.chat_platform.websocket)
 								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:$('#user_list_5').val(), to:data1.from}));
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:data1.to, to:data1.from}));
 								}
 							}
 						}
 						if(data1.op === 'chat/response/contact/add/reject')
 						{
 							var reason = '';
-							if(data1.reason)
+							if(data1.reject_reason)
 							{
-								reason = ',原因是:[' + data1.reason + ']';
+								reason = ',原因是:[' + data1.reject_reason + ']';
 							}
 							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝' + reason);
 						}
 						if(data1.op === 'chat/response/contact/add/accept')
 						{
+							//console.log(data1);
 							update_contact_list(data1);
 							var id = data1.from;
-							var text = $('#current_contact_6 option[value="' + id + '"]').text();
-							if(text && text.indexOf('(在线)') > -1)
-							{
-								text = text.replace('(在线)', '');
-								$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你添加为好友');
-							}
+							var text = get_select_text('current_contact_6', id);
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你添加为好友');
 						}
 						if(data1.op === 'chat/request/contact/remove')
 						{
 							var id = data1.from;
-							var text = $('#current_contact_6 option[value="' + id + '"]').text();
-							if(text && text.indexOf('(在线)') > -1)
-							{
-								text = text.replace('(在线)', '');
-								$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你从好友列表中移除');
-							}
+							var text = get_select_text('current_contact_6', id);
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你从好友列表中移除');
 							update_contact_list(data1);
+						}
+						if(data1.op === 'chat/request/group/join')
+						{
+							var group_name = get_select_text('group_list_7', data1.to_group);
+							if(confirm('[' + data1.display_name + ']请求你加他(她)进组[' + group_name + '],是否同意?'))
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/accept',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
+								}
+							}else
+							{
+								if($.chat_platform.websocket)
+								{
+									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/reject',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
+								}
+							}
+						}
+						if(data1.op === 'chat/response/group/join/accept')
+						{
+							var group_name = get_select_text('group_list_7', data1.to_group);
+							var new_name = get_select_text('user_list_5', data1.request_src);
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + new_name + ']已成功加入组[' + group_name + ']' );
+						
+						}
+						if(data1.op === 'chat/response/group/join/reject')
+						{
+							var reason = '';
+							if(data1.reject_reason)
+							{
+								reason = ',原因是:[' + data1.reject_reason + ']';
+							}
+							var group_name = get_select_text('group_list_7', data1.to_group);
+							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝加入组[' + group_name + ']' + reason);
 						}
 						
 					},
@@ -600,6 +729,34 @@ if($.chat_platform.DEBUG)
 				}
 			}
         });
+        $('#btn_group_add_request').on('click', function(){
+			var from = $('#user_list_5').val();
+			var to_group = $('#group_list_7').val();
+			var text = $('#group_list_7 option:selected').text();
+			if(from && to_group && from.length>0 && to_group.length>0 && $.chat_platform.websocket)
+			{
+				if(confirm('你确定要加入组[' + text + ']吗?'))
+				{
+					$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + '请求加入组[' + text + '],等待确认中...');
+					$.chat_platform.websocket.send(JSON.stringify({op:'chat/request/group/join',from:from,to_group:to_group}));
+				}
+			}
+        });
+        $('#btn_group_quit').on('click', function(){
+			var from = $('#user_list_5').val();
+			var to_group = $('#group_list_7').val();
+			var text = $('#group_list_7 option:selected').text();
+			if(from && to_group && from.length>0 && to_group.length>0 && $.chat_platform.websocket)
+			{
+				if(confirm('你确定要退出组[' + text + ']吗?'))
+				{
+					$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + '退出组[' + text + ']');
+					$.chat_platform.websocket.send(JSON.stringify({op:'chat/request/group/quit',from:from, to_group:to_group}));
+				}
+			}
+        });
+		
+		
 		
 	});
 }
