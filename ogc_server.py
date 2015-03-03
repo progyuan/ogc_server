@@ -3245,13 +3245,14 @@ def handle_chat_platform(environ, session):
                         if db_util.add_mongo_id(id) in user0['contacts']:
                             ret.append(id)
         return ret
-    def get_destination_group(session, _id):
+    def get_destination_group(session, from_id, _id):
         ret = []
         userset = set()
         grps = group_query(session, {'_id':_id})
         for grp in grps:
             if grp.has_key('members') and len(grp['members'])>0:
-                userset = userset.union(set(grp['members']))
+                if db_util.add_mongo_id(from_id) in grp['members']:
+                    userset = userset.union(set(grp['members']))
         userlist = list(userset)
         for id in userlist:
             ret.append(id)
@@ -3265,7 +3266,7 @@ def handle_chat_platform(environ, session):
             if obj.has_key('to') and len(obj['to'])>0:
                 tolist = get_destination(session,  obj['from'], obj['to'])
             if obj.has_key('to_group') and len(obj['to_group'])>0:
-                tolist = get_destination_group(session, obj['to_group'])
+                tolist = get_destination_group(session, obj['from'], obj['to_group'])
             for k in tolist:
                 try:
                     #d  = {'op': 'chat/chat', 'from':obj['from'],'to':k, 'timestamp':time.time()*1000, 'msg':obj['msg']}
