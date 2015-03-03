@@ -3399,7 +3399,7 @@ def handle_chat_platform(environ, session):
                             members = [str(i) for i in grp0['members']]
                             collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
                             collection.save(grp0)
-                            broadcast(session, websocket, members, {'op':obj['op'], 'from':obj['from']}  )
+                            broadcast(session, websocket, members, {'op':obj['op'], 'from':obj['from'], 'to_group':obj['to_group']}  )
             elif obj['op'] == 'chat/response/group/join/accept':
                 if obj.has_key('to_group') and len(obj['to_group'])>0 and obj.has_key('request_src') and len(obj['request_src'])>0:
                     grps = group_query(session, {'_id': obj['to_group']})
@@ -3436,7 +3436,7 @@ def handle_chat_platform(environ, session):
     def broadcast(session, websocket, alist, obj={}):
         for i in alist:
             d = {}
-            d['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            #d['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             for k in obj.keys():
                 d[k] = obj[k]
             if isinstance(i, str) or isinstance(i, unicode):
@@ -3445,7 +3445,7 @@ def handle_chat_platform(environ, session):
                 if i.has_key('_id'):
                     d['to'] = i['_id']
             try:
-                gJoinableQueue.put(obj)
+                gJoinableQueue.put(d)
             except:
                 pass
         
@@ -3530,16 +3530,17 @@ def handle_chat_platform(environ, session):
                 except:
                     _id = None
                     for k in gWebSocketsMap.keys():
-                        if ws in gWebSocketsMap[k] or gWebSocketsMap[k] is ws:
+                        if ws in gWebSocketsMap[k] :
                             _id = k
                             break
                     if _id:
-                        print('websocket[%s] is closed' % _id)
+                        print('websocket[%s] is closed2' % _id)
                         offline(_id)
-                        broadcast(session, ws, gWebSocketsMap.keys(), {'op':'chat/info/offline', 'from':_id})
-                        
+                        broadcast(session, None, gWebSocketsMap.keys(), {'op':'chat/info/offline', 'from':_id})
             gevent.sleep(interval)
-
+        if ws and ws.closed:
+            del ws
+            
         
     
     headers = {}

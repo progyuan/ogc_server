@@ -73,14 +73,6 @@ $.chat_platform.user_remove = function(data, callback)
 	$.chat_platform.post_cors('user_remove', data, callback);
 };
 
-//$.chat_platform.offline = function(data, callback)
-//{
-    //if(data['_id'] === undefined)
-    //{
-        //throw "user_id_required";
-    //}
-    //$.chat_platform.post_cors('offline', data, callback)
-//};
 
 $.chat_platform.user_contact_get = function(data, callback)
 {
@@ -141,40 +133,35 @@ $.chat_platform.group_update = function(data, callback)
 };
 
 
-$.chat_platform.offline = function(data,  offline_callback)
+$.chat_platform.offline = function()
 {
 	if($.chat_platform.websocket)
 	{
-		if(data.username)
-		{
-			$.chat_platform.websocket.send(JSON.stringify({op:'chat/offline',username:data.username}));
-		}
-		else if(data._id)
-		{
-			$.chat_platform.websocket.send(JSON.stringify({op:'chat/offline',_id:data._id}));
-		}
-		if(data.username || data._id)
-		{
-			$.chat_platform.websocket.close();
-			$.chat_platform.websocket = undefined;
-			if(offline_callback)
-			{
-				offline_callback();
-			}
-		}
+		$.chat_platform.websocket.close();
+		$.chat_platform.websocket = undefined;
 	}
 };
 
 
 $.chat_platform.online = function(options){
-	if($.chat_platform.current_user === undefined)
+	if($.chat_platform.current_username === undefined && $.chat_platform.current_user_id === undefined )
 	{
-		var s =  "$.chat_platform.current_user must be set.\n";
+		var s =  "$.chat_platform.current_username or $.chat_platform.current_user_id must be set.\n";
 		s += "For example:\n";
-		s += "$.chat_platform.current_user = 'user1';";
+		s += "$.chat_platform.current_username = 'user1';\n";
+		s += "Or:\n";
+		s += "$.chat_platform.current_user_id = '1234567890';\n";
 		throw s;
 	}
-	if(! options.on_online instanceof Function)
+	if(! (options.on_error instanceof Function))
+	{
+		var s = "options.on_error must be defined as function.\n ";
+		s += "options.on_error = function(data){\n";
+		s += "	data//error message. \n";
+		s += "};\n";
+		throw s;
+	}
+	if(! (options.on_online instanceof Function))
 	{
 		var s = "options.on_online must be defined as function.\n ";
 		s += "options.on_online = function(data){\n";
@@ -198,7 +185,7 @@ $.chat_platform.online = function(options){
 		//s += "};\n";
 		//throw s;
 	//}
-	if(! options.on_info_online instanceof Function)
+	if(! (options.on_info_online instanceof Function))
 	{
 		var s = "options.on_info_online must be defined as function.\n ";
 		s += "options.on_info_online = function(data){\n";
@@ -207,7 +194,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_info_offline instanceof Function)
+	if(! (options.on_info_offline instanceof Function))
 	{
 		var s = "options.on_info_offline must be defined as function.\n ";
 		s += "options.on_info_offline = function(data){\n";
@@ -216,7 +203,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_chat instanceof Function)
+	if(! (options.on_chat instanceof Function))
 	{
 		var s = "options.on_chat must be defined as function.\n ";
 		s += "options.on_chat = function(data){\n";
@@ -228,7 +215,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_request_contact_add instanceof Function)
+	if(! (options.on_request_contact_add instanceof Function))
 	{
 		var s = "options.on_request_contact_add must be defined as function.\n ";
 		s += "options.on_request_contact_add = function(data){\n";
@@ -243,10 +230,10 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.check_contact_add instanceof Function)
+	if(! (options.check_contact_add instanceof Function))
 	{
 		var s = "options.check_contact_add must be defined as function which return boolean value.\n ";
-		s += "options.check_contact_add = function(){\n";
+		s += "options.check_contact_add = function(data){\n";
 		s += "	if(...)//this should block UI mainloop.\n";
 		s += "		return true;\n";
 		s += "	else\n";
@@ -254,7 +241,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_response_contact_add_accept instanceof Function)
+	if(! (options.on_response_contact_add_accept instanceof Function))
 	{
 		var s = "options.on_response_contact_add_accept must be defined as function .\n ";
 		s += "Both receiver and sender will trigger this event.\n";
@@ -267,7 +254,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_response_contact_add_reject instanceof Function)
+	if(! (options.on_response_contact_add_reject instanceof Function))
 	{
 		var s = "options.on_response_contact_add_reject must be defined as function .\n ";
 		s += "Only  sender will trigger this event.\n";
@@ -284,7 +271,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_request_contact_remove instanceof Function)
+	if(! (options.on_request_contact_remove instanceof Function))
 	{
 		var s = "options.on_request_contact_remove must be defined as function.\n ";
 		s += "Both receiver and sender will trigger this event.\n";
@@ -297,7 +284,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_request_group_join instanceof Function)
+	if(! (options.on_request_group_join instanceof Function))
 	{
 		var s = "options.on_request_group_join must be defined as function.\n ";
 		s += "options.on_request_group_join = function(data){\n";
@@ -314,10 +301,10 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.check_group_join instanceof Function)
+	if(! (options.check_group_join instanceof Function))
 	{
 		var s = "options.check_group_join must be defined as function which return boolean value.\n ";
-		s += "options.check_group_join = function(){\n";
+		s += "options.check_group_join = function(data){\n";
 		s += "	if(...)//this should block UI mainloop.\n";
 		s += "		return true;\n";
 		s += "	else\n";
@@ -325,7 +312,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_response_group_join_accept instanceof Function)
+	if(! (options.on_response_group_join_accept instanceof Function))
 	{
 		var s = "options.on_response_group_join_accept must be defined as function .\n ";
 		s += "All the group members will trigger this event.\n";
@@ -337,7 +324,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_response_group_join_reject instanceof Function)
+	if(! (options.on_response_group_join_reject instanceof Function))
 	{
 		var s = "options.on_response_group_join_reject must be defined as function .\n ";
 		s += "Only  sender will trigger this event.\n";
@@ -355,7 +342,7 @@ $.chat_platform.online = function(options){
 		s += "};\n";
 		throw s;
 	}
-	if(! options.on_request_group_quit instanceof Function)
+	if(! (options.on_request_group_quit instanceof Function))
 	{
 		var s = "options.on_request_group_quit must be defined as function.\n ";
 		s += "All the group members will trigger this event.\n";
@@ -367,7 +354,14 @@ $.chat_platform.online = function(options){
 		throw s;
 	}
 	data = {};
-	data.username = $.chat_platform.current_user;
+	if($.chat_platform.current_username)
+	{
+		data.username = $.chat_platform.current_user;
+	}
+	else if($.chat_platform.current_user_id)
+	{
+		data._id = $.chat_platform.current_user_id;
+	}
 	data['op'] = 'chat/online';
 	data['inform_contact'] = true;
 	var wsurl =  $.chat_platform.WS_PROTOCOL + "://" + $.chat_platform.HOST + ":" + $.chat_platform.PORT + "/websocket";
@@ -388,14 +382,14 @@ $.chat_platform.online = function(options){
 		$.chat_platform.websocket.onerror = function(e) 
 		{
 			console.log("websocket error:" + e);
-			$.chat_platform.websocket.close();
-			error_callback(e);
+			$.chat_platform.offline();
 		};
 		$.chat_platform.websocket.onmessage = function(e) 
 		{
 			if(e.data.length>0)
 			{
 				var data1 = JSON.parse(e.data);
+				
 				if(data1 instanceof Array)
 				{
 				}
@@ -403,7 +397,8 @@ $.chat_platform.online = function(options){
 				{
 					if(data1.result)
 					{
-						error_callback(data1.result);
+						var callback = options.on_error;
+						callback(data1.result);
 					}
 					else
 					{
@@ -434,7 +429,7 @@ $.chat_platform.online = function(options){
 							var callback = options.on_request_contact_add;
 							callback(data1);
 							var check_contact_add = options.check_contact_add;
-							if(check_contact_add())
+							if(check_contact_add(data1))
 							{
 								if($.chat_platform.websocket)
 								{
@@ -468,7 +463,7 @@ $.chat_platform.online = function(options){
 							var callback = options.on_request_group_join;
 							callback(data1);
 							var check_group_join = options.check_group_join;
-							if(check_group_join())
+							if(check_group_join(data1))
 							{
 								if($.chat_platform.websocket)
 								{
@@ -509,65 +504,6 @@ $.chat_platform.online = function(options){
 	
 };
 
-
-$.chat_platform.init_websocket = function(data, message_callback, error_callback)
-{
-	if(data.username === undefined && data._id === undefined)
-	{
-		console.log('username or id required');
-		return;
-	}
-	data['op'] = 'chat/online';
-	data['inform_contact'] = true;
-	var wsurl =  $.chat_platform.WS_PROTOCOL + "://" + $.chat_platform.HOST + ":" + $.chat_platform.PORT + "/websocket";
-	if($.chat_platform.websocket === undefined)
-	{
-		$.chat_platform.websocket = new WebSocket(wsurl);
-	}
-	if($.chat_platform.websocket)
-	{
-		$.chat_platform.websocket.onopen = function() 
-		{
-			$.chat_platform.websocket.send(JSON.stringify(data));
-		};
-		$.chat_platform.websocket.onclose = function(e) 
-		{
-			console.log("websocket close");
-		};
-		$.chat_platform.websocket.onerror = function(e) 
-		{
-			console.log("websocket error:" + e);
-			$.chat_platform.websocket.close();
-			error_callback(e);
-		};
-		$.chat_platform.websocket.onmessage = function(e) 
-		{
-			if(e.data.length>0)
-			{
-				var obj = JSON.parse(e.data);
-				if(obj instanceof Array)
-				{
-				}
-				if(obj instanceof Object)
-				{
-					if(obj.result)
-					{
-						error_callback(obj.result);
-					}
-					else
-					{
-						message_callback(obj);
-					}
-				}
-				
-			}else
-			{
-			//$.chat_platform.websocket.send(JSON.stringify({}));
-				$.chat_platform.websocket.send('');
-			}
-		};
-	}		
-};
 
 
 
@@ -739,21 +675,12 @@ if($.chat_platform.DEBUG)
 		return ret;
 	}
 	
+	
+	
+	
     $(function() {
 	
-	
-		
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-		$.chat_platform.post_cors('user_get', {}, function(data1){
+		$.chat_platform.user_get( {}, function(data1){
 			if(data1.result)
 			{
 				alert(data1.result);
@@ -762,7 +689,7 @@ if($.chat_platform.DEBUG)
 				update_user_list(data1);
 			}
 		});
-		$.chat_platform.post_cors('group_get', {}, function(data1){
+		$.chat_platform.group_get( {}, function(data1){
 			if(data1.result)
 			{
 				alert(data1.result);
@@ -771,8 +698,6 @@ if($.chat_platform.DEBUG)
 				update_group_list(data1);
 			}
 		});
-		
-		
     
         $('#btn_user_add').on('click', function(){
 			var username = $('#username').val();
@@ -875,102 +800,90 @@ if($.chat_platform.DEBUG)
 			$('#btn_send').removeAttr('disabled');
 			var sel = $('#user_list_5').val();
 			$('#user_list_5').attr('disabled', 'disabled');
+			
 			if(sel)
 			{
-				$.chat_platform.init_websocket({_id:sel}, 
-					function(data1){
+				$.chat_platform.current_user_id = sel;
+				var options = {
+					on_error:function(data1){
 						console.log(data1);
-						if(data1.op === 'chat/online' || data1.op === 'chat/info/online' || data1.op === 'chat/info/offline')
-						{
-							update_online_list();
-							update_contact_list(data1);
-						}
-						if(data1.op === 'chat/chat')
-						{
-							var from_user = get_select_text('current_contact_6', data1.from);
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + from_user + ':' + data1.msg);
-						}
-						if(data1.op === 'chat/request/contact/add')
-						{
-							if(confirm('[' + data1.display_name + ']请求你加他(她)为好友,是否同意?'))
-							{
-								if($.chat_platform.websocket)
-								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:data1.to, to:data1.from}));
-								}
-							}else
-							{
-								if($.chat_platform.websocket)
-								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:data1.to, to:data1.from}));
-								}
-							}
-						}
-						if(data1.op === 'chat/response/contact/add/reject')
-						{
-							var reason = '';
-							if(data1.reject_reason)
-							{
-								reason = ',原因是:[' + data1.reject_reason + ']';
-							}
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝' + reason);
-						}
-						if(data1.op === 'chat/response/contact/add/accept')
-						{
-							//console.log(data1);
-							update_contact_list(data1);
-							var id = data1.from;
-							var text = get_select_text('current_contact_6', id);
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你添加为好友');
-						}
-						if(data1.op === 'chat/request/contact/remove')
-						{
-							var id = data1.from;
-							var text = get_select_text('current_contact_6', id);
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你从好友列表中移除');
-							update_contact_list(data1);
-						}
-						if(data1.op === 'chat/request/group/join')
-						{
-							var group_name = get_select_text('group_list_7', data1.to_group);
-							if(confirm('[' + data1.display_name + ']请求你加他(她)进组[' + group_name + '],是否同意?'))
-							{
-								if($.chat_platform.websocket)
-								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/accept',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
-								}
-							}else
-							{
-								if($.chat_platform.websocket)
-								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/group/join/reject',from:data1.to, to:data1.from, to_group:data1.to_group, request_src:data1.request_src}));
-								}
-							}
-						}
-						if(data1.op === 'chat/response/group/join/accept')
-						{
-							var group_name = get_select_text('group_list_7', data1.to_group);
-							var new_name = get_select_text('user_list_5', data1.request_src);
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + new_name + ']已成功加入组[' + group_name + ']' );
-						
-						}
-						if(data1.op === 'chat/response/group/join/reject')
-						{
-							var reason = '';
-							if(data1.reject_reason)
-							{
-								reason = ',原因是:[' + data1.reject_reason + ']';
-							}
-							var group_name = get_select_text('group_list_7', data1.to_group);
-							$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝加入组[' + group_name + ']' + reason);
-						}
-						
 					},
-					function(data1){
-						//console.log('error_callback');
-						console.log(data1);
-				});
-			
+					on_online: function(data1){
+						
+						update_online_list();
+						update_contact_list(data1);
+					},
+					on_info_online: function(data1){
+						
+						update_online_list();
+						update_contact_list(data1);
+					},
+					on_info_offline: function(data1){
+						update_online_list();
+						update_contact_list(data1);
+					},
+					on_chat: function(data1){
+						var from_user = get_select_text('current_contact_6', data1.from);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + from_user + ':' + data1.msg);
+					},
+					check_contact_add: function(data1){
+						return confirm('[' + data1.display_name + ']请求你加他(她)为好友,是否同意?');
+					},
+					on_request_contact_add: function(data1){
+						console.log('[' + data1.display_name + ']请求你加他(她)为好友');
+					},
+					on_response_contact_add_accept: function(data1){
+						update_contact_list(data1);
+						var id = data1.from;
+						var text = get_select_text('current_contact_6', id);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你添加为好友');
+					},
+					on_response_contact_add_reject: function(data1){
+						var reason = '';
+						if(data1.reject_reason)
+						{
+							reason = ',原因是:[' + data1.reject_reason + ']';
+						}
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝' + reason);
+					},
+					on_request_contact_remove: function(data1){
+						var id = data1.from;
+						var text = get_select_text('current_contact_6', id);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已将你从好友列表中移除');
+						update_contact_list(data1);
+					},
+					on_request_group_join: function(data1){
+						var group_name = get_select_text('group_list_7', data1.to_group);
+						console.log('[' + data1.display_name + ']请求你加他(她)进组[' + group_name + ']');
+					},
+					check_group_join: function(data1){
+						var group_name = get_select_text('group_list_7', data1.to_group);
+						return confirm('[' + data1.display_name + ']请求你加他(她)进组[' + group_name + '],是否同意?');
+					},
+					on_response_group_join_accept: function(data1){
+						var group_name = get_select_text('group_list_7', data1.to_group);
+						var new_name = get_select_text('user_list_5', data1.request_src);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + new_name + ']已成功加入组[' + group_name + ']' );
+					},
+					on_response_group_join_reject: function(data1){
+						var reason = '';
+						if(data1.reject_reason)
+						{
+							reason = ',原因是:[' + data1.reject_reason + ']';
+						}
+						var group_name = get_select_text('group_list_7', data1.to_group);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + data1.display_name + ']已将你拒绝加入组[' + group_name + ']' + reason);
+					},
+					on_request_group_quit: function(data1){
+						var id = data1.from;
+						var gid = data1.to_group;
+						var text = get_select_text('user_group_7', id);
+						var gtext = get_select_text('group_list_7', gid);
+						$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.SYSTEM_PREFIX + ':' + '[' + text + ']已退出组[' + gtext + ']');
+						$('#user_group_7 option:selected').remove();
+					}
+				};
+				$.chat_platform.online(options);
 			}
 			
         });
@@ -982,10 +895,9 @@ if($.chat_platform.DEBUG)
 			$(this).attr('disabled', 'disabled');
 			$('#btn_send').attr('disabled', 'disabled');
 			$('#user_list_5').removeAttr('disabled');
-			if($.chat_platform.websocket)
-			{
-				$.chat_platform.websocket.send(JSON.stringify({op:'chat/offline',_id:$('#user_list_5').val(), inform_contact:true}));
-			}
+			$.chat_platform.offline();
+			update_online_list();
+			$('#current_contact_6').empty();
         });
         $('#btn_clear_recv').on('click', function(){
 			$('#recv_msg').text('');
