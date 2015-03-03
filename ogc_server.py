@@ -4083,14 +4083,17 @@ def handle_authorize_platform(environ, session):
                         qsize = gJoinableQueue.qsize()
                     ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
             else:
-                ws.send('')
+                try:
+                    ws.send('')
+                except:
+                    for k in gWebSocketsMap.keys():
+                        if gWebSocketsMap[k] is ws:
+                            gWebSocketsMap[k].close()
+                            del gWebSocketsMap[k]
+                            break
             gevent.sleep(interval)
         if ws and ws.closed:
-            for k in gWebSocketsMap.keys():
-                if gWebSocketsMap[k] is ws:
-                    print('websocket[%s] is closed' % k)
-                    del gWebSocketsMap[k]
-                    break
+            del ws
     
     
     
@@ -4824,14 +4827,17 @@ def application_pay_platform(environ, start_response):
                         qsize = gJoinableQueue.qsize()
                     ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
             else:
-                ws.send('')
+                try:
+                    ws.send('')
+                except:
+                    for k in gWebSocketsMap.keys():
+                        if gWebSocketsMap[k] is ws:
+                            gWebSocketsMap[k].close()
+                            del gWebSocketsMap[k]
+                            break
             gevent.sleep(interval)
         if ws and ws.closed:
-            for k in gWebSocketsMap.keys():
-                if gWebSocketsMap[k] is ws:
-                    print('websocket[%s] is closed' % k)
-                    del gWebSocketsMap[k]
-                    break
+            del ws
             
             
     
