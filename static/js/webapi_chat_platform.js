@@ -142,6 +142,49 @@ $.chat_platform.offline = function()
 	}
 };
 
+$.chat_platform.chat = function(data){
+	if($.chat_platform.websocket)
+	{
+		var d = {};
+		d.op = 'chat/chat';
+		d.msg = data.msg;
+		if (data.to)
+		{
+			d.to = data.to;
+		}
+		if (data.to_group)
+		{
+			d.to_group = data.to_group;
+		}
+		if($.chat_platform.current_user_id)
+		{
+			d.from = $.chat_platform.current_user_id;
+		}else if($.chat_platform.current_username)
+		{
+			d.from = $.chat_platform.current_username;
+		}else
+		{
+			throw "$.chat_platform.current_user_id or $.chat_platform.current_username must be set";
+		}
+		
+		if(d.to || d.to_group)
+		{
+			if(data.msg && data.msg.length>0)
+			{
+				$.chat_platform.websocket.send(JSON.stringify(d));
+			}else
+			{
+				throw "data.msg must be a non-blank string";
+			}
+		}else
+		{
+			throw "data.to or data.to_group must be set";
+		}
+	}else
+	{
+		throw "you must call $.chat_platform.online first.";
+	}
+};
 
 $.chat_platform.online = function(options){
 	if($.chat_platform.current_username === undefined && $.chat_platform.current_user_id === undefined )
@@ -902,13 +945,14 @@ if($.chat_platform.DEBUG)
         $('#btn_clear_recv').on('click', function(){
 			$('#recv_msg').text('');
         });
+		
         $('#btn_send').on('click', function(){
 			var sel = $('#current_contact_6').val();
 			var v = $('#send_msg').val();
 			if(sel && v && v.length>0 && $.chat_platform.websocket)
 			{
 				$('#recv_msg').text(  $('#recv_msg').text() + '\n' + $.chat_platform.ME_PREFIX + ':' + v);
-				$.chat_platform.websocket.send(JSON.stringify({op:'chat/chat',from:$('#user_list_5').val(),to:sel, msg:v}));
+				$.chat_platform.chat({to:sel, msg:v});
 			}
 			$('#send_msg').val('');
         });

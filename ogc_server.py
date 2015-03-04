@@ -3231,13 +3231,24 @@ def handle_chat_platform(environ, session):
         ret = []
         if isinstance(_id, str) or isinstance(_id, unicode):
             userlist = user_query(session, {'_id':from_id})
+            if len(userlist)==0:
+                userlist = user_query(session, {'username':from_id})
             if len(userlist)>0:
                 user0 = userlist[0]
                 if user0.has_key('contacts'):
-                    if db_util.add_mongo_id(_id) in user0['contacts']:
-                        ret.append(_id)
+                    toid = _id
+                    try:
+                        toid = ObjectId(_id)
+                    except:
+                        ul = user_query(session, {'username':_id})
+                        if len(ul)>0:
+                            toid = ul[0]['_id']
+                    if db_util.add_mongo_id(str(toid)) in user0['contacts']:
+                        ret.append(str(toid))
         elif isinstance(_id, list):
             userlist = user_query(session, {'_id':from_id})
+            if len(userlist)==0:
+                userlist = user_query(session, {'username':from_id})
             if len(userlist)>0:
                 user0 = userlist[0]
                 if user0.has_key('contacts'):
