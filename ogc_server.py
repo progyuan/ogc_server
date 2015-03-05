@@ -4397,8 +4397,6 @@ def application_combiz_platform(environ, start_response):
         statuscode, headers, body =  handle_static(environ, path_info)
     else:    
         statuscode, headers, body = handle_combiz_platform(environ)
-                    
-                
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
