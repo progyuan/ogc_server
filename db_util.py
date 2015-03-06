@@ -7570,7 +7570,7 @@ def extract_one_altitude(lng, lat):
     global gConfig
     ret = None
     exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
-    dem_path = gConfig['terrain']['dem_file']
+    dem_path = gConfig['webgis']['terrain']['dem_file']
     out = subprocess.check_output([exe_path, '-wgs84', "%s" % dem_path, "%f" % lng, "%f" % lat])
     t = 'Value:'
     if t in out:
@@ -7643,11 +7643,11 @@ def mongo_geowithin(dbname, geojsonobj, webgis_type_list, intersect=False, limit
             if 'polygon_' in i and intersect:
                 l_polygon.append(i)
     if len(l_point)>0:
-        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_point, 'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+        ret.extend( mongo_find(gConfig['webgis']['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_point, 'geometry2d':{'$geoWithin':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
     if len(l_polyline)>0:
-        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polyline, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+        ret.extend( mongo_find(gConfig['webgis']['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polyline, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
     if len(l_polygon)>0:
-        ret.extend( mongo_find(gConfig['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polygon, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
+        ret.extend( mongo_find(gConfig['webgis']['geofeature']['mongodb']['database'], 'features', {'properties.webgis_type':l_polygon, 'geometry2d':{'$geoIntersects':{'$geometry':geojsonobj}}}, limit, clienttype='geofeature'))
         
     return ret
 
@@ -8830,11 +8830,11 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 gClientMongo[clienttype] = None
             if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
                 if host is None:
-                    host = gConfig['mongodb']['host']
+                    host = gConfig['webgis']['mongodb']['host']
                 if port is None:
-                    port = int(gConfig['mongodb']['port'])
+                    port = int(gConfig['webgis']['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig['mongodb']['replicaset']
+                    replicaset = gConfig['webgis']['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
@@ -8845,11 +8845,11 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 gClientMongo[clienttype] = None
             if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
                 if host is None:
-                    host = gConfig['geofeature']['mongodb']['host']
+                    host = gConfig['webgis']['geofeature']['mongodb']['host']
                 if port is None:
-                    port = int(gConfig['geofeature']['mongodb']['port'])
+                    port = int(gConfig['webgis']['geofeature']['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig['geofeature']['mongodb']['replicaset']
+                    replicaset = gConfig['webgis']['geofeature']['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
@@ -8929,8 +8929,9 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True)
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        else:
-            tiletype = clienttype
+        elif  'webgis/' in  clienttype:
+            arr = clienttype.split('/')
+            tiletype = arr[1]
             if not gClientMongoTiles.has_key(tiletype):
                 gClientMongoTiles[tiletype] = {}
             if not gClientMongoTiles[tiletype].has_key(subtype):
@@ -8940,15 +8941,15 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 gClientMongoTiles[tiletype][subtype] = None
             if gClientMongoTiles[tiletype][subtype] is None:
                 if host is None:
-                    host = gConfig[tiletype][subtype]['host']
+                    host = gConfig['webgis'][tiletype][subtype]['mongodb']['host']
                 if port is None:
-                    port = int(gConfig[tiletype][subtype]['port'])
+                    port = int(gConfig['webgis'][tiletype][subtype]['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig[tiletype][subtype]['replicaset']
+                    replicaset = gConfig['webgis'][tiletype][subtype]['mongodb']['replicaset']
                 if len(replicaset) == 0:
-                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True)
+                    gClientMongoTiles[clienttype][subtype] = MongoClient(host, port, slave_okay=True)
                 else:
-                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+                    gClientMongoTiles[clienttype][subtype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
     except:
         raise
 
@@ -9183,11 +9184,12 @@ def command_batch_tile_download(options):
     
 def gridfs_tile_find(tiletype, subtype, tilepath, params):
     global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB
-    dbname = gConfig[tiletype][subtype]['database']
-    collection = gConfig[tiletype][subtype]['gridfs_collection']
+    arr = tiletype.split('/')
+    dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
+    collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
     
     
-    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
+    host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     mimetype, ret = None, None
     
     
@@ -9215,9 +9217,9 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
             href = ''
             url_list = []
             #connection_timeout, network_timeout = 3.0, 10.0
-            connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
+            connection_timeout, network_timeout = float(gConfig['webgis'][arr[1]]['www_connection_timeout']), float(gConfig['webgis'][arr[1]]['www_network_timeout'])
             if tiletype == 'terrain':
-                s = gConfig[tiletype][subtype]['url_template']
+                s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 if s[-1] != '/':
                     s += '/'
                 href = s + tilepath
@@ -9242,9 +9244,9 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'][0], params['y'][0], params['level'][0]
-                s = gConfig[tiletype][subtype]['url_template']
+                s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 href = None
-                mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
+                mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
                 if isinstance(s, str) or isinstance(s, unicode):
                     s = s.replace(u'{x}', x).replace(u'{y}', y).replace(u'{level}', level)
                     href = str(s)
@@ -9296,33 +9298,33 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
         raise
     return mimetype, ret
 
-def arcgis_tile1(tiletype, subtype, tilepath, x, y, level):
-    global gConfig
-    mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
-    ret = None
-    tileroot = gConfig[tiletype][subtype]['file_root']
-    lvl = 'L%02d' % level
-    row = 'R%08x' % int(hex(y), 16)
-    col = 'C%08x' % int(hex(x), 16)
-    p = os.path.join(tileroot, lvl, row, col+'.jpg')
-    print(p)
-    if os.path.exists(p):
-        with open(p, 'rb') as f:
-            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-            ret = f1.read()
-    else:
-        STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
-        if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
-            if os.path.exists(gConfig['web']['webroot']):
-                STATICRESOURCE_DIR = gConfig['web']['webroot']
-        STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
-        picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles'][image_type]['missing'])
-        with open(picpath, 'rb') as f:
-            f1 = gevent.fileobject.FileObjectThread(f, 'rb')
-            ret = f1.read()
-        mimetype = 'image/png'
+#def arcgis_tile1(tiletype, subtype, tilepath, x, y, level):
+    #global gConfig
+    #mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
+    #ret = None
+    #tileroot = gConfig[tiletype][subtype]['file_root']
+    #lvl = 'L%02d' % level
+    #row = 'R%08x' % int(hex(y), 16)
+    #col = 'C%08x' % int(hex(x), 16)
+    #p = os.path.join(tileroot, lvl, row, col+'.jpg')
+    #print(p)
+    #if os.path.exists(p):
+        #with open(p, 'rb') as f:
+            #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+            #ret = f1.read()
+    #else:
+        #STATICRESOURCE_DIR = os.path.join(module_path(), 'static')
+        #if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
+            #if os.path.exists(gConfig['web']['webroot']):
+                #STATICRESOURCE_DIR = gConfig['web']['webroot']
+        #STATICRESOURCE_IMG_DIR = os.path.join(STATICRESOURCE_DIR, 'img')
+        #picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles'][image_type]['missing'])
+        #with open(picpath, 'rb') as f:
+            #f1 = gevent.fileobject.FileObjectThread(f, 'rb')
+            #ret = f1.read()
+        #mimetype = 'image/png'
     
-    return mimetype, ret
+    #return mimetype, ret
     
     
     
@@ -9360,9 +9362,10 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
             'y' : y,
             'level' : level
         }
-    connection_timeout, network_timeout = float(gConfig[tiletype]['www_connection_timeout']), float(gConfig[tiletype]['www_network_timeout'])
+    arr = tiletype.split('/')
+    connection_timeout, network_timeout = float(gConfig['webgis'][arr[1]]['www_connection_timeout']), float(gConfig['webgis'][arr[1]]['www_network_timeout'])
     #tilepath = '%s/%s/%s%s' % (level, x, y, gConfig[tiletype][subtype]['mimetype'])
-    mimetype = str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']])
+    mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
     ret = None
     if not gClientMetadata.has_key(tiletype):
         gClientMetadata[tiletype] = {}
@@ -9372,8 +9375,8 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
         size, content = get_missing_file(tiletype,  subtype)
         gClientMetadata[tiletype][subtype]['missing_file_size'] = size
         gClientMetadata[tiletype][subtype]['missing_file_content'] = content
-        url_metadata_template = gConfig[tiletype][subtype]['url_template']
-        href = url_metadata_template.replace('{key}', gConfig[tiletype][subtype]['key'])
+        url_metadata_template = gConfig['webgis'][arr[1]][subtype]['url_template']
+        href = url_metadata_template.replace('{key}', gConfig['webgis'][arr[1]][subtype]['key'])
         url = URL(href) 
         http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
         response = http.get(url.request_uri)
@@ -9411,9 +9414,10 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
 
 def gridfs_tile_save(tiletype, subtype, tilepath, mimetype, data):
     global gClientMongoTiles, gConfig
-    dbname = gConfig[tiletype][subtype]['database']
-    collection = gConfig[tiletype][subtype]['gridfs_collection']
-    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
+    arr = tiletype.split('/')
+    dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
+    collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
+    host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
         db = gClientMongoTiles[tiletype][subtype][dbname]
@@ -9426,9 +9430,11 @@ def gridfs_tile_save(tiletype, subtype, tilepath, mimetype, data):
 
 def gridfs_tile_delete(tiletype, subtype, tilepath=None):
     global gClientMongoTiles, gConfig
-    dbname = gConfig[tiletype][subtype]['database']
-    collection = gConfig[tiletype][subtype]['gridfs_collection']
-    host, port, replicaset = gConfig[tiletype][subtype]['host'], int(gConfig[tiletype][subtype]['port']), gConfig[tiletype][subtype]['replicaset']
+    arr = tiletype.split('/')
+    
+    dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
+    collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
+    host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
         db = gClientMongoTiles[tiletype][subtype][dbname]
@@ -9775,12 +9781,13 @@ def test_edge_ring():
 
 def get_missing_file(tiletype, subtype):
     global gConfig
+    arr = tiletype.split('/')
     staticresource_dir = os.path.join(module_path(), 'static')
     if gConfig['web'].has_key('webroot') and len(gConfig['web']['webroot'])>0:
         if os.path.exists(gConfig['web']['webroot']):
             staticresource_dir = gConfig['web']['webroot']
     staticresource_img_dir = os.path.join(staticresource_dir, 'img')
-    miss_file_path = os.path.join(staticresource_img_dir,   gConfig[tiletype][subtype]['missing'])
+    miss_file_path = os.path.join(staticresource_img_dir,   gConfig['webgis'][arr[1]][subtype]['missing'])
     miss_file_size = 0
     miss_file_content = None
     if os.path.exists(miss_file_path):

@@ -161,16 +161,16 @@ gUrlMap = Map([
     Rule('/role_template_get', endpoint='role_template_get'),
     Rule('/workflow_add', endpoint='workflow_add'),
     Rule('/workflow_query', endpoint='workflow_query'),
-    Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
+    Rule('/workflow_query/<_id>', endpoint='workflow_query'),
     Rule('/workflow_update', endpoint='workflow_update'),
     Rule('/workflow_delete', endpoint='workflow_delete'),
-    Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
+    Rule('/workflow_delete/<_id>', endpoint='workflow_delete'),
     Rule('/workflow_template_add', endpoint='workflow_template_add'),
     Rule('/workflow_template_query', endpoint='workflow_template_query'),
-    Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
+    Rule('/workflow_template_query/<_id>', endpoint='workflow_template_query'),
     Rule('/workflow_template_update', endpoint='workflow_template_update'),
     Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
-    Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
+    Rule('/workflow_template_delete/<_id>', endpoint='workflow_template_delete'),
     Rule('/user_add', endpoint='user_add'),
     Rule('/user_get', endpoint='user_get'),
     Rule('/user_remove', endpoint='user_remove'),
@@ -2789,52 +2789,192 @@ def handle_combiz_platform(environ):
         return ret
     #Rule('/workflow_add', endpoint='workflow_add'),
     #Rule('/workflow_query', endpoint='workflow_query'),
-    #Rule('/workflow_query/<wf_id>', endpoint='workflow_query'),
+    #Rule('/workflow_query/<_id>', endpoint='workflow_query'),
     #Rule('/workflow_update', endpoint='workflow_update'),
     #Rule('/workflow_delete', endpoint='workflow_delete'),
-    #Rule('/workflow_delete/<wf_id>', endpoint='workflow_delete'),
+    #Rule('/workflow_delete/<_id>', endpoint='workflow_delete'),
     #Rule('/workflow_template_add', endpoint='workflow_template_add'),
     #Rule('/workflow_template_query', endpoint='workflow_template_query'),
-    #Rule('/workflow_template_query/<wf_id>', endpoint='workflow_template_query'),
+    #Rule('/workflow_template_query/<_id>', endpoint='workflow_template_query'),
     #Rule('/workflow_template_update', endpoint='workflow_template_update'),
     #Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
-    #Rule('/workflow_template_delete/<wf_tpl_id>', endpoint='workflow_template_delete'),
+    #Rule('/workflow_template_delete/<_id>', endpoint='workflow_template_delete'),
     
     def workflow_add(querydict):
         ret = ''
-        if querydict.has_key('data') \
-           and querydict['data'].has_key('order_id')\
-           and querydict['data'].has_key('nodes')\
-           and querydict['data'].has_key('edges')\
-           :
-            workflow = get_collection('workflow')
-            _id = workflow.save(querydict['data'])
-            o = workflow.find_one({'_id':_id})
-            ret = json.dumps([o,], ensure_ascii=True, indent=4)
+        if  querydict.has_key('order_id'):
+            try:
+                collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+                existone = collection.find_one({'order_id':querydict['order_id']})
+                if existone:
+                    ret = json.dumps({'result':u'workflow_add_order_id_already_exist' }, ensure_ascii=True, indent=4)
+                else:    
+                    _id = collection.save(querydict)
+                    o = collection.find_one({'_id':_id})
+                    ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
+            except:
+                if hasattr(sys.exc_info()[1], 'message'):
+                    ret = json.dumps({'result':u'workflow_add_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_add_fail' }, ensure_ascii=True, indent=4)
         else:
-            ret = 'workflow_wrong_format'
+            ret = json.dumps({'result':u'workflow_add_order_id_required' }, ensure_ascii=True, indent=4)
+            
         return ret
         
         
     def workflow_query(querydict):
         ret = ''
-        if querydict.has_key('order_id'):
-            pass
-            
+        o = None
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+            if querydict.has_key('_id'):
+                o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            elif querydict.has_key('order_id'):
+                o = collection.find_one({'order_id':querydict['order_id']})
+            if o:
+                ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            if not querydict.has_key('_id') and not querydict.has_key('order_id'):
+                ret = json.dumps({'result':u'workflow_query_id_or_order_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_query_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_query_fail' }, ensure_ascii=True, indent=4)
         return ret
             
     def workflow_update(querydict):
-        pass
+        ret = ''
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+            if querydict.has_key('_id'):
+                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                if existone:
+                    collection.update({'_id':existone['_id']}, {'$set': db_util.add_mongo_id(querydict)}, multi=False, upsert=False)
+                    one = collection.find_one({'_id':existone['_id']})
+                    ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_update_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_update_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_update_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_update_fail' }, ensure_ascii=True, indent=4)
+        return ret
+            
     def workflow_delete(querydict):
-        pass
+        ret = ''
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+            if querydict.has_key('_id'):
+                existone = collection.find_one({'_id':querydict['_id']})
+                if existone:
+                    collection.remove({'_id':existone['_id']})
+                    ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_delete_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_delete_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_delete_fail' }, ensure_ascii=True, indent=4)
+        return ret
+    
     def workflow_template_add(querydict):
-        pass
+        ret = ''
+        if  querydict.has_key('name') \
+            and querydict.has_key('display_name') \
+            and querydict.has_key('nodes') \
+            and querydict.has_key('edges'):
+            try:
+                collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow_template'])
+                existone = collection.find_one({'name':querydict['name']})
+                if existone:
+                    ret = json.dumps({'result':u'workflow_template_add_name_already_exist' }, ensure_ascii=True, indent=4)
+                else:    
+                    _id = collection.save(db_util.add_mongo_id(querydict))
+                    o = collection.find_one({'_id':_id})
+                    ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
+            except:
+                if hasattr(sys.exc_info()[1], 'message'):
+                    ret = json.dumps({'result':u'workflow_template_add_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_template_add_fail' }, ensure_ascii=True, indent=4)
+        else:
+            if not querydict.has_key('name'):
+                ret = json.dumps({'result':u'workflow_template_add_name_required' }, ensure_ascii=True, indent=4)
+            if not querydict.has_key('display_name'):
+                ret = json.dumps({'result':u'workflow_template_add_display_name_required' }, ensure_ascii=True, indent=4)
+            if not querydict.has_key('nodes'):
+                ret = json.dumps({'result':u'workflow_template_add_nodes_required' }, ensure_ascii=True, indent=4)
+            if not querydict.has_key('edges'):
+                ret = json.dumps({'result':u'workflow_template_add_edges_required' }, ensure_ascii=True, indent=4)
+            
+        return ret
     def workflow_template_query(querydict):
-        pass
+        ret = ''
+        o = None
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow_template'])
+            if querydict.has_key('_id'):
+                o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                if o:
+                    ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_template_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_query_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_template_query_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_query_fail' }, ensure_ascii=True, indent=4)
+        return ret
     def workflow_template_update(querydict):
-        pass
+        ret = ''
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow_template'])
+            if querydict.has_key('_id'):
+                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                if existone:
+                    collection.update({'_id':existone['_id']}, {'$set': db_util.add_mongo_id(querydict)}, multi=False, upsert=False)
+                    one = collection.find_one({'_id':existone['_id']})
+                    ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_template_update_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_update_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_template_update_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_update_fail' }, ensure_ascii=True, indent=4)
+        return ret
     def workflow_template_delete(querydict):
-        pass
+        ret = ''
+        try:
+            collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+            if querydict.has_key('_id'):
+                existone = collection.find_one({'_id':querydict['_id']})
+                if existone:
+                    collection.remove({'_id':existone['_id']})
+                    ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'workflow_template_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_delete_id_required' }, ensure_ascii=True, indent=4)
+        except:
+            if hasattr(sys.exc_info()[1], 'message'):
+                ret = json.dumps({'result':u'workflow_template_delete_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'workflow_template_delete_fail' }, ensure_ascii=True, indent=4)
+        return ret
     
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
@@ -2846,10 +2986,8 @@ def handle_combiz_platform(environ):
     endpoint = ''
     try:
         endpoint, args = urls.match()
-        if args.has_key('wf_id'):
-            querydict['wf_id'] = args['wf_id']
-        if args.has_key('wf_tpl_id'):
-            querydict['wf_tpl_id'] = args['wf_tpl_id']
+        if args.has_key('_id'):
+            querydict['_id'] = args['_id']
             
         if endpoint == 'workflow_add':
             body = workflow_add(querydict)
