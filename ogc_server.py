@@ -618,7 +618,7 @@ def create_wmts_GetCapabilities(tiletype, subtype):
     #root = etree.Element("Capabilities", xmlns="http://www.opengis.net/wmts/1.0", nsmap=namespace, version="1.0.0")
     ##ServiceIdentification
     #ServiceIdentification = etree.SubElement(root, ows + "ServiceIdentification")
-    #Title = etree.SubElement(ServiceIdentification, ows + "Title").text = gConfig['wmts']['ServiceIdentification_Title']
+    #Title = etree.SubElement(ServiceIdentification, ows + "Title").text = gConfig['webgis']['wmts']['ServiceIdentification_Title']
     #ServiceType = etree.SubElement(ServiceIdentification, ows + "ServiceType").text = 'OGC WMTS'
     #ServiceTypeVersion = etree.SubElement(ServiceIdentification, ows + "ServiceTypeVersion").text = '1.0.0'
     
@@ -628,53 +628,53 @@ def create_wmts_GetCapabilities(tiletype, subtype):
     #DCP= etree.SubElement(Operation, ows + "DCP")
     #HTTP= etree.SubElement(DCP, ows + "HTTP")
     #href = xlink + 'href'
-    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
+    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['webgis']['wmts']['url'] + '?'})
     #Constraint= etree.SubElement(Get, ows + "Constraint", name="GetEncoding")
     #AllowedValues= etree.SubElement(Constraint, ows + "AllowedValues")
     #Value= etree.SubElement(AllowedValues, ows + "Value").text = 'KVP'
     #Operation= etree.SubElement(OperationsMetadata, ows + "Operation", name="GetTile")
     #DCP= etree.SubElement(Operation, ows + "DCP")
     #HTTP= etree.SubElement(DCP, ows + "HTTP")
-    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['wmts']['url'] + '?'})
+    #Get= etree.SubElement(HTTP, ows + "Get", {href:gConfig['webgis']['wmts']['url'] + '?'})
     
     ##Contents
     #Contents = etree.SubElement(root, "Contents")
     #Layer = etree.SubElement(Contents, "Layer")
-    #Title = etree.SubElement(Layer, ows + "Title").text = gConfig['wmts']['Layer_Title']
+    #Title = etree.SubElement(Layer, ows + "Title").text = gConfig['webgis']['wmts']['Layer_Title']
     #WGS84BoundingBox = etree.SubElement(Layer, ows + "WGS84BoundingBox")
-    #LowerCorner = etree.SubElement(WGS84BoundingBox, ows + "LowerCorner").text = gConfig['wmts']['WGS84BoundingBox']['LowerCorner']
-    #UpperCorner = etree.SubElement(WGS84BoundingBox, ows + "UpperCorner").text = gConfig['wmts']['WGS84BoundingBox']['UpperCorner']
-    #Identifier = etree.SubElement(Layer, ows + "Identifier").text = gConfig['wmts']['Layer_Identifier']
+    #LowerCorner = etree.SubElement(WGS84BoundingBox, ows + "LowerCorner").text = gConfig['webgis']['wmts']['WGS84BoundingBox']['LowerCorner']
+    #UpperCorner = etree.SubElement(WGS84BoundingBox, ows + "UpperCorner").text = gConfig['webgis']['wmts']['WGS84BoundingBox']['UpperCorner']
+    #Identifier = etree.SubElement(Layer, ows + "Identifier").text = gConfig['webgis']['wmts']['Layer_Identifier']
     #Style = etree.SubElement(Layer, "Style", isDefault="true")
     #Title = etree.SubElement(Style, ows + "Title" ).text = 'Default'
     #Identifier = etree.SubElement(Style, ows + "Identifier" ).text = 'default'
     #Format = etree.SubElement(Layer, "Format" ).text = gConfig['mime_type'][gConfig['wmts']['format']]
     #TileMatrixSetLink = etree.SubElement(Layer, "TileMatrixSetLink" )
-    #TileMatrixSet = etree.SubElement(TileMatrixSetLink, "TileMatrixSet" ).text = gConfig['wmts']['TileMatrixSet']
+    #TileMatrixSet = etree.SubElement(TileMatrixSetLink, "TileMatrixSet" ).text = gConfig['webgis']['wmts']['TileMatrixSet']
         
     #TileMatrixSet = etree.SubElement(Contents, "TileMatrixSet")
-    #Identifier = etree.SubElement(TileMatrixSet, ows + "Identifier" ).text = gConfig['wmts']['TileMatrixSet']
-    #SupportedCRS = etree.SubElement(TileMatrixSet, ows + "SupportedCRS" ).text = gConfig['wmts']['SupportedCRS']
-    #WellKnownScaleSet = etree.SubElement(TileMatrixSet, "WellKnownScaleSet" ).text = gConfig['wmts']['WellKnownScaleSet']
+    #Identifier = etree.SubElement(TileMatrixSet, ows + "Identifier" ).text = gConfig['webgis']['wmts']['TileMatrixSet']
+    #SupportedCRS = etree.SubElement(TileMatrixSet, ows + "SupportedCRS" ).text = gConfig['webgis']['wmts']['SupportedCRS']
+    #WellKnownScaleSet = etree.SubElement(TileMatrixSet, "WellKnownScaleSet" ).text = gConfig['webgis']['wmts']['WellKnownScaleSet']
     
-    #max_zoom_level, min_zoom_level = int(gConfig['wmts']['max_zoom_level']), int(gConfig['wmts']['min_zoom_level'])
+    #max_zoom_level, min_zoom_level = int(gConfig['wmts']['max_zoom_level']), int(gConfig['webgis']['wmts']['min_zoom_level'])
     #if max_zoom_level < min_zoom_level:
         #max_zoom_level, min_zoom_level =  min_zoom_level, max_zoom_level  
     ##zoomlist = range(max_zoom_level,min_zoom_level, -1)
     #zoomlist = range(min_zoom_level, max_zoom_level+1, 1)
     
     
-    #pixelSize = float(gConfig['wmts']['pixelSize'])
-    #tileWidth,tileHeight = int(gConfig['wmts']['TileWidth']), int(gConfig['wmts']['TileHeight'])
-    #minLonLat,maxLonLat  = (float(gConfig['wmts']['minLonLat'][0]), float(gConfig['wmts']['minLonLat'][1])), (float(gConfig['wmts']['maxLonLat'][0]), float(gConfig['wmts']['maxLonLat'][1]))
+    #pixelSize = float(gConfig['webgis']['wmts']['pixelSize'])
+    #tileWidth,tileHeight = int(gConfig['webgis']['wmts']['TileWidth']), int(gConfig['webgis']['wmts']['TileHeight'])
+    #minLonLat,maxLonLat  = (float(gConfig['webgis']['wmts']['minLonLat'][0]), float(gConfig['webgis']['wmts']['minLonLat'][1])), (float(gConfig['webgis']['wmts']['maxLonLat'][0]), float(gConfig['webgis']['wmts']['maxLonLat'][1]))
     ##tileMatrixMinX, tileMatrixMaxX = (26.0, 102.0), (26.0, 104.0)
     ##tileMatrixMinY, tileMatrixMaxY = (24.0, 102.0), (26.0, 102.0)
     #tileMatrixMinX, tileMatrixMaxX = (maxLonLat[1], minLonLat[0]), (maxLonLat[1], maxLonLat[0])
     #tileMatrixMinY, tileMatrixMaxY = (minLonLat[1], minLonLat[0]), (maxLonLat[1], minLonLat[0])
     
     #metersPerUnit = 0.0
-    #if gConfig['wmts'].has_key('metersPerUnit'):
-        #metersPerUnit = float(gConfig['wmts']['metersPerUnit'])
+    #if gConfig['webgis']['wmts'].has_key('metersPerUnit'):
+        #metersPerUnit = float(gConfig['webgis']['wmts']['metersPerUnit'])
     #else:
         #metersPerUnitX = mapUtils.countDistanceFromLatLon(tileMatrixMaxX , tileMatrixMinX)/2*1000
         ##print('metersPerUnitX=%f' % metersPerUnitX)
@@ -695,7 +695,7 @@ def create_wmts_GetCapabilities(tiletype, subtype):
         ##Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = "ynsat_" + str(i)
         #Identifier = etree.SubElement(TileMatrix, ows + "Identifier" ).text = str(i)
         #ScaleDenominator = etree.SubElement(TileMatrix, "ScaleDenominator" ).text = '%.8f' % scaleDenominator
-        #TopLeftCorner = etree.SubElement(TileMatrix, "TopLeftCorner" ).text = gConfig['wmts']['TopLeftCorner']
+        #TopLeftCorner = etree.SubElement(TileMatrix, "TopLeftCorner" ).text = ['webgis']['wmts']['TopLeftCorner']
         #TileWidth = etree.SubElement(TileMatrix, "TileWidth" ).text = str(tileWidth)
         #TileHeight = etree.SubElement(TileMatrix, "TileHeight" ).text = str(tileHeight)
         #MatrixWidth = etree.SubElement(TileMatrix, "MatrixWidth" ).text = str(matrixWidth)
@@ -1048,13 +1048,13 @@ version="1.0.0">
 </Contents>
 </Capabilities>''' % (
             str(tiletype),
-            str(gConfig['wmts']['host']), 
-            str(gConfig['wmts']['port']),
-            str(gConfig['wmts']['host']), 
-            str(gConfig['wmts']['port']),
+            str(gConfig['webgis']['wmts']['host']), 
+            str(gConfig['webgis']['wmts']['port']),
+            str(gConfig['webgis']['wmts']['host']), 
+            str(gConfig['webgis']['wmts']['port']),
             str(subtype),
             str(subtype),
-            str(gConfig['mime_type'][gConfig[tiletype][subtype]['mimetype']]),
+            str(gConfig['mime_type'][gConfig['webgis'][tiletype][subtype]['mimetype']]),
             str(subtype),
             str(subtype),
                    )
@@ -1093,7 +1093,8 @@ def download_callback(*args, **kwargs):
 def handle_wmts_GetTile(params):
     global gConfig
     mimetype, ret = None, None
-    tiletype = 'tiles'
+    tiletype = 'webgis/tiles'
+    arr = tiletype.split('/')
     subtype = None
     if params.has_key('TILEMATRIXSET'):
         subtype = params['TILEMATRIXSET']
@@ -1105,7 +1106,7 @@ def handle_wmts_GetTile(params):
     if params.has_key('TILECOL'):
         x = int(params['TILECOL'])
     if subtype is not None and level is not None and y is not None and x is not None:
-        tilepath = '%d/%d/%d%s' % (level, x, y, str(gConfig[tiletype][subtype]))
+        tilepath = '%d/%d/%d%s' % (level, x, y, str(gConfig['webgis'][arr[1]][subtype]))
         d = {}
         d['x'] = [str(x)]
         d['y'] = [str(y)]
@@ -1117,7 +1118,7 @@ def handle_tiles(environ):
     global gConfig, gTileCache
     def get_blank_tile(image_type):
         blank_tile = ''
-        picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['tiles'][image_type]['missing'])
+        picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['webgis']['tiles'][image_type]['missing'])
         with open(picpath, 'rb') as f:
             f1 = gevent.fileobject.FileObjectThread(f, 'rb')
             blank_tile = f1.read()
@@ -1132,7 +1133,7 @@ def handle_tiles(environ):
     if d.has_key('image_type') and d.has_key('x') and d.has_key('y') and d.has_key('level'):
         image_type = d['image_type'][0]
         x, y, level = d['x'][0], d['y'][0], d['level'][0]
-        tilepath = '%s/%s/%s%s' % (level, x, y, gConfig['tiles'][image_type]['mimetype'])
+        tilepath = '%s/%s/%s%s' % (level, x, y, gConfig['webgis']['tiles'][image_type]['mimetype'])
         if not gTileCache.has_key(image_type):
             gTileCache[image_type] = {}
         if not gTileCache[image_type].has_key('missing'):
@@ -1141,7 +1142,7 @@ def handle_tiles(environ):
             ret = gTileCache[image_type][tilepath]
         else:
             try:
-                mimetype, ret = db_util.gridfs_tile_find('tiles', image_type, tilepath, d)
+                mimetype, ret = db_util.gridfs_tile_find('webgis/tiles', image_type, tilepath, d)
                 gTileCache[image_type][tilepath] = ret
             except:
                 ret = gTileCache[image_type]['missing']
@@ -1178,13 +1179,13 @@ def handle_terrain(environ):
     else:
         tilepath = key
         if tilepath == 'layer.json':
-            mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
+            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
             gTileCache[terrain_type][key] = ret
             headers['Content-Type'] = mimetype
             return '200 OK', headers, ret
         else:
             print('tilepath:%s' % tilepath)
-            mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
+            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
             if ret:
                 gTileCache[terrain_type][key] = ret
                 headers['Content-Type'] = mimetype
@@ -1192,8 +1193,8 @@ def handle_terrain(environ):
             else:
                 if not gTileCache[terrain_type].has_key('missing'):
                     print('reading mongo blank_terrain...')
-                    tilepath = gConfig['terrain'][terrain_type]['missing'] #'0/0/0.terrain'
-                    mimetype, ret = db_util.gridfs_tile_find('terrain', terrain_type, tilepath, d)
+                    tilepath = gConfig['webgis']['terrain'][terrain_type]['missing'] #'0/0/0.terrain'
+                    mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
                     gTileCache[terrain_type]['missing'] = ret
                 ret = gTileCache[terrain_type]['missing']
                 
@@ -1212,7 +1213,7 @@ def handle_terrain1(environ):
         ret = gTerrainCache[key]
     else:
         arr = key.split('/')
-        tilepath = gConfig['terrain']['tiles_dir']
+        tilepath = gConfig['webgis']['terrain']['tiles_dir']
         for i in arr:
             tilepath = os.path.join(tilepath, i)
         tilepath = os.path.abspath(tilepath)
@@ -1228,7 +1229,7 @@ def handle_terrain1(environ):
                 ret = gTerrainCache['missing']
             else:
                 print('reading blank_terrain...')
-                with open(gConfig['terrain']['blank_terrain'], 'rb') as f:
+                with open(gConfig['webgis']['terrain']['blank_terrain'], 'rb') as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                     ret = f1.read()
                 gTerrainCache['missing'] = ret
@@ -1253,7 +1254,7 @@ def handle_arcgistile(environ):
         if not gSatTileCache.has_key(key):
             try:
                 #picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['wmts']['format']))
-                picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'],   '%d' % zoom, '%d' % col, '%d%s' % (row, gConfig['wmts']['format']))
+                picpath = os.path.join(gConfig['webgis']['wmts']['arcgis_tiles_root'],   '%d' % zoom, '%d' % col, '%d%s' % (row, gConfig['webgis']['wmts']['format']))
                 print('%s, %s' % (key, picpath))
                 with open(picpath, 'rb') as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
@@ -1264,7 +1265,7 @@ def handle_arcgistile(environ):
                 if not foundit:
                     key = 'missing'
                 if not gSatTileCache.has_key(key):
-                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['webgis']['wmts']['missing'])
                     with open(picpath, 'rb') as f:
                         f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                         gSatTileCache[key] = f1.read()
@@ -1274,8 +1275,8 @@ def handle_arcgistile(environ):
         key = environ['PATH_INFO'].replace('/arcgistile/','')
         if not gSatTileCache.has_key(key):
             try:
-                #picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['wmts']['format']))
-                picpath = os.path.join(gConfig['wmts']['arcgis_tiles_root'],   key)
+                #picpath = os.path.join(gConfig['webgis']['wmts']['arcgis_tiles_root'], '_alllayers', 'L%02d' % zoom, 'R%08x' % row, 'C%08x%s' % (col, gConfig['webgis']['wmts']['format']))
+                picpath = os.path.join(gConfig['webgis']['wmts']['arcgis_tiles_root'],   key)
                 print('%s, %s' % (key, picpath))
                 with open(picpath, 'rb') as f:
                     f1 = gevent.fileobject.FileObjectThread(f, 'rb')
@@ -1286,7 +1287,7 @@ def handle_arcgistile(environ):
                 if not foundit:
                     key = 'missing'
                 if not gSatTileCache.has_key(key):
-                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+                    picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['webgis']['wmts']['missing'])
                     with open(picpath, 'rb') as f:
                         f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                         gSatTileCache[key] = f1.read()
@@ -1294,13 +1295,13 @@ def handle_arcgistile(environ):
         ret = gSatTileCache[key]
     else:
         if not gSatTileCache.has_key('missing'):
-            picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['wmts']['missing'])
+            picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['webgis']['wmts']['missing'])
             with open(picpath, 'rb') as f:
                 f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                 gSatTileCache['missing'] = f1.read()
         ret = gSatTileCache['missing']
         
-    headers['Content-Type'] = str(gConfig['mime_type'][gConfig['wmts']['format']])
+    headers['Content-Type'] = str(gConfig['mime_type'][gConfig['webgis']['wmts']['format']])
     return '200 OK', headers, ret   
         
     
@@ -2929,7 +2930,12 @@ def handle_combiz_platform(environ):
                 else:
                     ret = json.dumps({'result':u'workflow_template_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
             else:
-                ret = json.dumps({'result':u'workflow_template_query_id_required' }, ensure_ascii=True, indent=4)
+                #ret = json.dumps({'result':u'workflow_template_query_id_required' }, ensure_ascii=True, indent=4)
+                cur = collection.find(querydict)
+                l = []
+                for i in cur:
+                    l.append(i)
+                ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)
         except:
             if hasattr(sys.exc_info()[1], 'message'):
                 ret = json.dumps({'result':u'workflow_template_query_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)

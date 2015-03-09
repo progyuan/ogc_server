@@ -242,7 +242,7 @@ def init_global():
                     ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
     gFeatureslist = []
     if gConfig.has_key('analyze'):
-        for i in gConfig['analyze']['feature_list']:
+        for i in gConfig['webgis']['analyze']['feature_list']:
             gFeatureslist.append(str(i)) 
     return options
 
@@ -7324,8 +7324,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     if unicode(i) in tyarr: 
                         tyarr.remove(unicode(i))   
                 if len(tyarr)>0:
-                    #ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
-                    ret.extend(mongo_find(gConfig['geofeature']['mongodb']['database'], gConfig['geofeature']['mongodb']['collection'], {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                    #ret.extend(mongo_find(gConfig['webgis']['geofeature']['mongodb']['database'], gConfig['webgis']['geofeature']['mongodb']['collection'], {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
+                    ret.extend(mongo_find(gConfig['webgis']['geofeature']['mongodb']['database'], gConfig['webgis']['geofeature']['mongodb']['collection'], {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit=limit, clienttype='geofeature'))
                 if 'heatmap_tile' in tyarr : 
                     ret.extend(get_heatmap_tile_service_list(conditions['py']))
                 if 'heatmap_heatmap' in tyarr : 
@@ -7437,9 +7437,9 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
 def get_heatmap_tile_service_list(name):
     global gConfig
     ret = []
-    h = gConfig['heatmap']['arcgis']['protocal'] + '://' + gConfig['heatmap']['arcgis']['host'] + ':' + gConfig['heatmap']['arcgis']['port'] + '/'
-    href = h +  gConfig['heatmap']['arcgis']['catalog']
-    connection_timeout, network_timeout = float(gConfig['heatmap']['arcgis']['www_connection_timeout']), float(gConfig['heatmap']['arcgis']['www_network_timeout'])
+    h = gConfig['webgis']['heatmap']['arcgis']['protocal'] + '://' + gConfig['webgis']['heatmap']['arcgis']['host'] + ':' + gConfig['webgis']['heatmap']['arcgis']['port'] + '/'
+    href = h +  gConfig['webgis']['heatmap']['arcgis']['catalog']
+    connection_timeout, network_timeout = float(gConfig['webgis']['heatmap']['arcgis']['www_connection_timeout']), float(gConfig['webgis']['heatmap']['arcgis']['www_network_timeout'])
     url = URL(href)    
     http = HTTPClient.from_url(url, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
     response = None
@@ -9083,6 +9083,7 @@ def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
         xtile = int((lon_deg + 180.0) / 360.0 * n)
         ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
         return (xtile, ytile)
+    arr = tiletype.split('/')
     pathlist = []
     for zoom in zoomrange:
         startx, starty = deg2num(westsouth[0], westsouth[1], zoom)
@@ -9093,7 +9094,7 @@ def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
             starty, endy = endy, starty
         for i in range(startx, endx+1):
             for j in range(starty, endy+1):
-                path = '%d/%d/%d%s' % (zoom, i, j, gConfig[tiletype][subtype]['mimetype'])
+                path = '%d/%d/%d%s' % (zoom, i, j, gConfig['webgis'][arr[1]][subtype]['mimetype'])
                 param = {}
                 param['x'] = ['%d' % i]
                 param['y'] = ['%d' % j]
@@ -9104,7 +9105,7 @@ def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
 def test_batch_tile_download():
     global gIsSaveTileToDB
     gIsSaveTileToDB = False
-    tiletype='tiles'
+    tiletype='webgis/tiles'
     subtype = 'arcgis_sat'
     #tiletype='terrain'
     #subtype = 'quantized_mesh'
@@ -9128,12 +9129,16 @@ def command_batch_tile_download(options):
         print('please specify tiletype and subtype, now exit.')
         return
     
-    if not gConfig.has_key(options.tiletype):
+    if not gConfig.has_key('webgis'):
+        print('Wrong webgis config file, now exit.')
+        return
+    
+    if not gConfig['webgis'].has_key(options.tiletype):
         print('please use correct tiletype in config file, now exit.')
         return
         
-    if not gConfig[options.tiletype].has_key(options.subtype):
-        print('please use correct subtype in config file section[%s], now exit.' % options.tiletype)
+    if not gConfig['webgis'][options.tiletype].has_key(options.subtype):
+        print('please use correct subtype in config file section[webgis][%s], now exit.' % options.tiletype)
         return
     
     if options.num_cocurrent < 1 or options.num_cocurrent > 10:
