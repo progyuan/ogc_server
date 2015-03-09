@@ -2890,7 +2890,6 @@ def handle_combiz_platform(environ):
     def workflow_template_add(querydict):
         ret = ''
         if  querydict.has_key('name') \
-            and querydict.has_key('display_name') \
             and querydict.has_key('nodes') \
             and querydict.has_key('edges'):
             try:
@@ -2910,8 +2909,6 @@ def handle_combiz_platform(environ):
         else:
             if not querydict.has_key('name'):
                 ret = json.dumps({'result':u'workflow_template_add_name_required' }, ensure_ascii=True, indent=4)
-            if not querydict.has_key('display_name'):
-                ret = json.dumps({'result':u'workflow_template_add_display_name_required' }, ensure_ascii=True, indent=4)
             if not querydict.has_key('nodes'):
                 ret = json.dumps({'result':u'workflow_template_add_nodes_required' }, ensure_ascii=True, indent=4)
             if not querydict.has_key('edges'):
@@ -4333,10 +4330,12 @@ def handle_authorize_platform(environ, session):
 
 
 
-def CORS_header():
+def CORS_header(h={}):
     global gConfig
-    def default_header():
+    def default_header(h={}):
         ret = {};
+        for k in h.keys():
+            ret[k] = h[k]
         ret['Access-Control-Allow-Origin'] = '*'
         ret['Access-Control-Allow-Credentials'] = 'true'
         ret['Access-Control-Expose-Headers'] = 'true'
@@ -4344,6 +4343,8 @@ def CORS_header():
         ret['Access-Control-Allow-Methods'] = 'POST,GET,OPTIONS'
         return ret
     headers = {}
+    for k in h.keys():
+        headers[k] = h[k]
     if gConfig['web']['cors']['enable_cors'].lower() == 'true':
         app = gConfig['wsgi']['application']
         if gConfig.has_key(app) and gConfig[app].has_key('cors'):
@@ -4362,7 +4363,7 @@ def CORS_header():
                         s = ','.join(s)
                     headers['Access-Control-Allow-Methods'] = str(s)
             except:
-                headers = default_header()
+                headers = default_header(h)
         else:
             try:
                 if gConfig['web']['cors'].has_key('Access-Control-Allow-Origin'):
@@ -4379,7 +4380,7 @@ def CORS_header():
                         s = ','.join(s)
                     headers['Access-Control-Allow-Methods'] = str(s)
             except:
-                headers = default_header()
+                headers = default_header(h)
     return headers
     
 def check_is_static(aUrl):
@@ -4520,7 +4521,7 @@ def application_combiz_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
         
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     cookie_header = None
     body = ''
@@ -4541,6 +4542,7 @@ def application_combiz_platform(environ, start_response):
         statuscode, headers, body =  handle_static(environ, path_info)
     else:    
         statuscode, headers, body = handle_combiz_platform(environ)
+    headers = CORS_header(headers)
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
@@ -4552,7 +4554,7 @@ def application_authorize_platform(environ, start_response):
     global gConfig, gRequest, gSessionStore
 
         
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     cookie_header = None
     body = ''
@@ -4596,7 +4598,7 @@ def application_authorize_platform(environ, start_response):
             else:
                 statuscode, headers, body = handle_authorize_platform(environ, sess)
                     
-                
+    headers = CORS_header(headers)
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
@@ -4608,7 +4610,7 @@ def application_authorize_platform(environ, start_response):
 def application_chat_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     cookie_header = None
     body = ''
@@ -4650,7 +4652,7 @@ def application_chat_platform(environ, start_response):
             #else:
         statuscode, headers, body = handle_chat_platform(environ, None)
                     
-                
+    headers = CORS_header(headers)            
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
@@ -4908,7 +4910,7 @@ def application_fake_gateway_alipay(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gSecurityConfig
     
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     body = ''
     statuscode = '200 OK'
@@ -4932,7 +4934,8 @@ def application_fake_gateway_alipay(environ, start_response):
         if error_code_refund and not gSecurityConfig['alipay']['error_code'].has_key(error_code_refund):
             error_code_refund = None
         statuscode, headers, body = handle_fake_gateway_alipay(environ, error_code_pay, error_code_refund)
-                
+    
+    headers = CORS_header(headers)            
     for k in headers:
         headerslist.append((k, headers[k]))
     
@@ -4994,7 +4997,7 @@ def application_pay_platform(environ, start_response):
             
             
     
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     body = ''
     statuscode = '200 OK'
@@ -5034,7 +5037,8 @@ def application_pay_platform(environ, start_response):
     elif path_info == '/alipay_error_notify_url':   
         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
         handle_alipay_error_notify_url(environ)
-                
+    
+    headers = CORS_header(headers)            
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
@@ -5046,7 +5050,7 @@ def application_pay_platform(environ, start_response):
     
 def application_webgis(environ, start_response):
     global gConfig, gRequest, gSessionStore
-    headers = CORS_header()
+    headers = {}
     headerslist = []
     cookie_header = None
         
@@ -5142,6 +5146,7 @@ def application_webgis(environ, start_response):
         statuscode, headers, body =  handle_static(environ, path_info)
         
     #headkeys = set([i[0] for i in headerslist])
+    headers = CORS_header(headers)
     if cookie_header:
         headerslist.append(cookie_header)
     for k in headers:
@@ -5153,7 +5158,7 @@ def application_webgis(environ, start_response):
 
 def application_markdown(environ, start_response):
     global gConfig, gRequest, gSessionStore
-    headers = CORS_header()
+    headers = {}
     headerslist = []
         
     path_info = environ['PATH_INFO']
@@ -5165,7 +5170,7 @@ def application_markdown(environ, start_response):
         if path_info[-1:] == '/':
             path_info += gConfig['web']['indexpage']
         statuscode, headers, body =  handle_static(environ, path_info)
-        
+    headers = CORS_header(headers)    
     for k in headers:
         headerslist.append((k, headers[k]))
     start_response(statuscode, headerslist)
