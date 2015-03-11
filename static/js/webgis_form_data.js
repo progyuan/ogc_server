@@ -85,7 +85,7 @@ var g_tower_baseinfo_fields = [
 		change:function( event, ui ) {
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get', 'id').val();
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var lng = $('#form_tower_info_base').webgisform('get','lng').val(),
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
@@ -114,7 +114,7 @@ var g_tower_baseinfo_fields = [
 			event.preventDefault();
 		},
 		spin:function( event, ui ) {
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -136,7 +136,7 @@ var g_tower_baseinfo_fields = [
 	},
 	{ display: "纬度", id: "lat", newline: false, type: "geographic",  group:'地理信息', width:110 , validate:{required:true, number: true},
 		change:function( event, ui ) {
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -167,7 +167,7 @@ var g_tower_baseinfo_fields = [
 			event.preventDefault();
 		},
 		spin:function( event, ui ) {
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -191,7 +191,7 @@ var g_tower_baseinfo_fields = [
 		change:function( event, ui ) {
 			if(event.currentTarget)
 			{
-				var viewer = $.viewer;
+				var viewer = $.webgis.viewer;
 				var ellipsoid = viewer.scene.globe.ellipsoid;
 				var fid = $(event.target).attr('id');
 				var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -220,7 +220,7 @@ var g_tower_baseinfo_fields = [
 			event.preventDefault();
 		},
 		spin:function( event, ui ) {
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -246,7 +246,7 @@ var g_tower_baseinfo_fields = [
 		change:function( event, ui ) {
 			if(event.currentTarget)
 			{
-				var viewer = $.viewer;
+				var viewer = $.webgis.viewer;
 				var ellipsoid = viewer.scene.globe.ellipsoid;
 				var fid = $(event.target).attr('id');
 				var id = $('#form_tower_info_base').webgisform('get','id').val();
@@ -275,7 +275,7 @@ var g_tower_baseinfo_fields = [
 			event.preventDefault();
 		},
 		spin:function( event, ui ) {
-			var viewer = $.viewer;
+			var viewer = $.webgis.viewer;
 			var ellipsoid = viewer.scene.globe.ellipsoid;
 			var fid = $(event.target).attr('id');
 			var id = $('#form_tower_info_base').webgisform('get','id').val();
