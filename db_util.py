@@ -8947,9 +8947,9 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 if replicaset is None:
                     replicaset = gConfig['webgis'][tiletype][subtype]['mongodb']['replicaset']
                 if len(replicaset) == 0:
-                    gClientMongoTiles[clienttype][subtype] = MongoClient(host, port, slave_okay=True)
+                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True)
                 else:
-                    gClientMongoTiles[clienttype][subtype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+                    gClientMongoTiles[tiletype][subtype] = MongoClient(host, port, slave_okay=True, replicaset=str(replicaset),  read_preference = ReadPreference.PRIMARY)
     except:
         raise
 
@@ -9198,19 +9198,19 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
     mimetype, ret = None, None
     
     
-    if not gClientMetadata.has_key(tiletype):
-        gClientMetadata[tiletype] = {}
-    if not gClientMetadata[tiletype].has_key(subtype):
-        gClientMetadata[tiletype][subtype] = {}
-    if len(gClientMetadata[tiletype][subtype].keys()) == 0:
+    if not gClientMetadata.has_key(arr[1]):
+        gClientMetadata[arr[1]] = {}
+    if not gClientMetadata[arr[1]].has_key(subtype):
+        gClientMetadata[arr[1]][subtype] = {}
+    if len(gClientMetadata[arr[1]][subtype].keys()) == 0:
         size, content = get_missing_file(tiletype,  subtype)
-        gClientMetadata[tiletype][subtype]['missing_file_size'] = size
-        gClientMetadata[tiletype][subtype]['missing_file_content'] = content
+        gClientMetadata[arr[1]][subtype]['missing_file_size'] = size
+        gClientMetadata[arr[1]][subtype]['missing_file_content'] = content
     
     
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][subtype][dbname]
+        db = gClientMongoTiles[arr[1]][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         #if fs.exists({'filename':tilepath}):
         for i in fs.find({'filename':tilepath}):
@@ -9221,9 +9221,8 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
         if ret is None:
             href = ''
             url_list = []
-            #connection_timeout, network_timeout = 3.0, 10.0
             connection_timeout, network_timeout = float(gConfig['webgis'][arr[1]]['www_connection_timeout']), float(gConfig['webgis'][arr[1]]['www_network_timeout'])
-            if tiletype == 'terrain':
+            if tiletype == 'webgis/terrain':
                 s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 if s[-1] != '/':
                     s += '/'
@@ -9232,23 +9231,23 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                     mimetype = 'application/json'
                     href += '?'
                     for k in params.keys():
-                        href += k + '=' + params[k][0] + '&'
+                        href += k + '=' + params[k] + '&'
                     href += 'f=JSON'
                 elif '.terrain' in tilepath:
                     mimetype = 'application/octet-stream'
                     href += '?'
                     for k in params.keys():
-                        href += k + '=' + params[k][0] + '&'
+                        href += k + '=' + params[k] + '&'
                     href += 'f=TerrainTile'
                 
-            elif tiletype == 'tiles' and 'bing_' in subtype:
-                x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
+            elif tiletype == 'webgis/tiles' and 'bing_' in subtype:
+                x, y, level = int(params['x']), int(params['y']), int(params['level'])
                 mimetype, ret = bing_tile(tiletype, subtype, tilepath, x, y, level)
             #elif tiletype == 'tiles' and 'arcgis_' in subtype:
                 #x, y, level = int(params['x'][0]), int(params['y'][0]), int(params['level'][0])
                 #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
-                x, y, level = params['x'][0], params['y'][0], params['level'][0]
+                x, y, level = params['x'], params['y'], params['level']
                 s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 href = None
                 mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
@@ -9280,8 +9279,8 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                                     gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
                             else:
                                 ret1 = response.read()
-                                if len(ret1) == gClientMetadata[tiletype][subtype]['missing_file_size']:
-                                    ret1 = gClientMetadata[tiletype][subtype]['missing_file_content']
+                                if len(ret1) == gClientMetadata[arr[1]][subtype]['missing_file_size']:
+                                    ret1 = gClientMetadata[arr[1]][subtype]['missing_file_content']
                                     #print('get blank tile size=%d' % len(ret1))
                                 else:
                                     if gIsSaveTileToDB:
@@ -9297,7 +9296,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                     for i in url_list:
                         print('downloading tile from %s' % i)
                         ret = fetch_and_save_by_urlstr(i)
-                        if ret and len(ret) != gClientMetadata[tiletype][subtype]['missing_file_size']:
+                        if ret and len(ret) != gClientMetadata[arr[1]][subtype]['missing_file_size']:
                             break
     except:
         raise
@@ -9425,7 +9424,7 @@ def gridfs_tile_save(tiletype, subtype, tilepath, mimetype, data):
     host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][subtype][dbname]
+        db = gClientMongoTiles[arr[1]][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         fs.put(data, mimetype=mimetype, filename=tilepath)
     except:
@@ -9442,7 +9441,7 @@ def gridfs_tile_delete(tiletype, subtype, tilepath=None):
     host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     try:
         mongo_init_client(tiletype, subtype, host, port, replicaset)
-        db = gClientMongoTiles[tiletype][subtype][dbname]
+        db = gClientMongoTiles[arr[1]][subtype][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         if tilepath:
             if fs.exists({'filename':tilepath}):
@@ -9805,10 +9804,11 @@ def get_missing_file(tiletype, subtype):
 
 def remove_blank_tiles(tiletype, subtype, dbname, collection):
     global  gClientMongoTiles
+    arr = tiletype.split('/')
     miss_file_size, content = get_missing_file(tiletype, subtype)
     print('miss_file_size = %d' % miss_file_size)
     mongo_init_client(tiletype, subtype)
-    db = gClientMongoTiles[tiletype][subtype][dbname]
+    db = gClientMongoTiles[arr[1]][subtype][dbname]
     fs = gridfs.GridFS(db, collection=collection)
     for i in fs.find():
         #if i.filename[:3] in ['17/','18/', '19/', '20/']:
@@ -9827,9 +9827,9 @@ def remove_blank_tiles(tiletype, subtype, dbname, collection):
     
 def test_remove_blank_tile():
     global gClientMongoTiles
-    tiletype, subtype, dbname, collection = 'tiles', 'arcgis_sat', 'tiles_arcgis_sat', 'arcgis_sat'
-    tiletype, subtype, dbname, collection = 'tiles', 'bing_sat', 'tiles_bing_sat', 'bing_sat'
-    tiletype, subtype, dbname, collection = 'tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
+    tiletype, subtype, dbname, collection = 'webgis/tiles', 'arcgis_sat', 'tiles_arcgis_sat', 'arcgis_sat'
+    tiletype, subtype, dbname, collection = 'webgis/tiles', 'bing_sat', 'tiles_bing_sat', 'bing_sat'
+    tiletype, subtype, dbname, collection = 'webgis/tiles', 'amap_map', 'tiles_amap_map', 'amap_map'
     remove_blank_tiles(tiletype, subtype, dbname, collection)
 
 def test_import_userinfo():

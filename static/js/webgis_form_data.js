@@ -1,5 +1,5 @@
-var g_zaware = false;
-var g_selected_geojson;
+
+
 
 //绝缘子串
 var g_insulator_type_list = [
@@ -95,7 +95,7 @@ var g_tower_baseinfo_fields = [
 			{
 				if(g_gltf_models[id])
 				{
-					if(!g_zaware) height = 0;
+					if(!$.webgis.zaware) height = 0;
 					lng = event.currentTarget.value;
 					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
@@ -106,9 +106,9 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
-				if(g_selected_geojson)
+				if($.webgis.selected_geojson)
 				{
-					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 				}
 			}
 			event.preventDefault();
@@ -124,13 +124,13 @@ var g_tower_baseinfo_fields = [
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(g_gltf_models[id])
 			{
-				if(!g_zaware) height = 0;
+				if(!$.webgis.zaware) height = 0;
 				lng = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 			}
-			if(g_selected_geojson)
+			if($.webgis.selected_geojson)
 			{
-				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},
@@ -148,7 +148,7 @@ var g_tower_baseinfo_fields = [
 			{
 				if( g_gltf_models[id])
 				{
-					if(!g_zaware) height = 0;
+					if(!$.webgis.zaware) height = 0;
 					lat = event.currentTarget.value;
 					PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
@@ -159,9 +159,9 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
-				if(g_selected_geojson)
+				if($.webgis.selected_geojson)
 				{
-					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 				}
 			}
 			event.preventDefault();
@@ -177,13 +177,13 @@ var g_tower_baseinfo_fields = [
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(g_gltf_models[id])
 			{
-				if(!g_zaware) height = 0;
+				if(!$.webgis.zaware) height = 0;
 				lat = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);
 			}
-			if(g_selected_geojson)
+			if($.webgis.selected_geojson)
 			{
-				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},
@@ -199,7 +199,7 @@ var g_tower_baseinfo_fields = [
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
-				if(!g_zaware) height = 0;
+				if(!$.webgis.zaware) height = 0;
 				if(g_gltf_models[id])
 				{
 					height = event.currentTarget.value;
@@ -212,9 +212,9 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
-				if(g_selected_geojson)
+				if($.webgis.selected_geojson)
 				{
-					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 				}
 			}
 			event.preventDefault();
@@ -228,15 +228,15 @@ var g_tower_baseinfo_fields = [
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
-			if(!g_zaware) height = 0;
+			if(!$.webgis.zaware) height = 0;
 			if(g_gltf_models[id]) 
 			{
 				height = ui.value;
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
 			}
-			if(g_selected_geojson)
+			if($.webgis.selected_geojson)
 			{
-				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 			}
 		},
 		attach:'<img src=""/>',
@@ -254,7 +254,7 @@ var g_tower_baseinfo_fields = [
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
-				if(!g_zaware) height = 0;
+				if(!$.webgis.zaware) height = 0;
 				if(g_gltf_models[id])
 				{
 					rotate = event.currentTarget.value;
@@ -267,9 +267,9 @@ var g_tower_baseinfo_fields = [
 						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
-				if(g_selected_geojson)
+				if($.webgis.selected_geojson)
 				{
-					g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 				}
 			}
 			event.preventDefault();
@@ -283,16 +283,16 @@ var g_tower_baseinfo_fields = [
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
-			if(!g_zaware) height = 0;
+			if(!$.webgis.zaware) height = 0;
 			if(g_gltf_models[id]) 
 			{
 				rotate = ui.value;
 				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, g_gltf_models[id], lng, lat, height, rotate);	
 			}
-			if(g_selected_geojson)
+			if($.webgis.selected_geojson)
 			{
-				g_selected_geojson = UpdateGeojsonPos(g_selected_geojson, lng, lat, height, rotate);
+				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
 			}
 		}
 	},

@@ -1,13 +1,13 @@
-var g_camera_move_around_int;
-var g_elapsedTime = 0.0;
-var g_mode;
-var g_is_add_seg = false;
-var g_cp_pair = [];
-var g_cpdata, g_cpdata_next, g_next_ids;
-var g_segments = [];
-var g_segments_editting = [];
-var g_off_x = 15, g_off_z = 30;
-var g_contact_points = [];
+$.webgis.editor = {};
+$.webgis.editor.elapsed_time = 0.0;
+$.webgis.editor.is_add_seg = false;
+$.webgis.editor.cp_pair = [];
+
+$.webgis.editor.segments = [];
+$.webgis.editor.segments_editting = [];
+$.webgis.editor.off_x = 15;
+$.webgis.editor.off_z = 30;
+$.webgis.editor.contact_points = [];
 
 
 $(function() {
@@ -16,17 +16,17 @@ $(function() {
 	var param = GetParamsFromUrl();
 	if(param['url_next'])
 	{
-		g_mode = 'segs';
-		g_next_ids = param['next_ids'];
-		g_segments = param['segments'];
-		for(var i in g_segments)
+		$.webgis.editor.mode = 'segs';
+		$.webgis.editor.next_ids = param['next_ids'];
+		$.webgis.editor.segments = param['segments'];
+		for(var i in $.webgis.editor.segments)
 		{
-			g_segments_editting.push( $.extend(true, {}, g_segments[i]));
+			$.webgis.editor.segments_editting.push( $.extend(true, {}, $.webgis.editor.segments[i]));
 		}
 		
 	}else
 	{
-		g_mode = 'tower';
+		$.webgis.editor.mode = 'tower';
 	}
 
 	window.URL = window.URL || window.webkitURL;
@@ -109,7 +109,7 @@ $(function() {
 	var OnSelected = function(obj)
 	{
 		ShowLabelBySelected(editor);
-		if(g_mode == 'tower')
+		if($.webgis.editor.mode == 'tower')
 		{
 			$('[id^="button_"]').css('display','none');
 			if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
@@ -124,21 +124,21 @@ $(function() {
 				$('#button_cp_side').css('display','block');
 			}
 		}
-		if(g_mode == 'segs')
+		if($.webgis.editor.mode == 'segs')
 		{
-			if(g_is_add_seg)
+			if($.webgis.editor.is_add_seg)
 			{
 				if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 				{
-					g_cp_pair.push({'tower_id':obj['userData']['tower_id'],'data':obj['userData']['data']});
-					if(g_cp_pair.length == 2)
+					$.webgis.editor.cp_pair.push({'tower_id':obj['userData']['tower_id'],'data':obj['userData']['data']});
+					if($.webgis.editor.cp_pair.length == 2)
 					{
-						var side1 = g_cp_pair[0].data.side,
-							side2 = g_cp_pair[1].data.side;
-						var t1 = g_cp_pair[0].tower_id,
-							t2 = g_cp_pair[1].tower_id;
-						var i1 = g_cp_pair[0].data.contact_index,
-							i2 = g_cp_pair[1].data.contact_index;
+						var side1 = $.webgis.editor.cp_pair[0].data.side,
+							side2 = $.webgis.editor.cp_pair[1].data.side;
+						var t1 = $.webgis.editor.cp_pair[0].tower_id,
+							t2 = $.webgis.editor.cp_pair[1].tower_id;
+						var i1 = $.webgis.editor.cp_pair[0].data.contact_index,
+							i2 = $.webgis.editor.cp_pair[1].data.contact_index;
 						if(side1 != side2 && t1 != t2)
 						{
 							var b = CheckSegExist(t1, t2, side1, side2, i1, i2);
@@ -148,26 +148,26 @@ $(function() {
 								var phase = $('#button_phase :radio:checked').attr('id');
 								phase = phase.substr(phase.indexOf('_') + 1);
 								console.log(t1 + ':side(' + side1 + '):index(' + i1 + '):phase(' + phase + ')<--->' + t2 + ':side(' + side2 + '):index(' + i2 + '):phase(' + phase + ')');
-								var color = parseInt(tinycolor(g_phase_color_mapping[phase]).toHex(), 16);
+								var color = parseInt(tinycolor($.webgis.phase_color_mapping[phase]).toHex(), 16);
 								var seg = {start_tower:t1, end_tower:t2, start_side:side1, end_side:side2},
 									cp = {start:i1, end:i2, phase:phase};
 								var start,  end, end1, end2;
-								var offset_x = g_off_x, offset_z = g_off_z;
+								var offset_x = $.webgis.editor.off_x, offset_z = $.webgis.editor.off_z;
 								if(side1 === 1)
 								{
-									start = GetDrawInfoFromContactPoint(1, i1, g_cpdata, 0, offset_z);
-									if(g_cpdata_next.length==1)
+									start = GetDrawInfoFromContactPoint(1, i1, $.webgis.editor.cpdata, 0, offset_z);
+									if($.webgis.editor.cpdata_next.length==1)
 									{
-										end = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[0], 0, -offset_z);
+										end = GetDrawInfoFromContactPoint(0, i2, $.webgis.editor.cpdata_next[0], 0, -offset_z);
 									}
-									if(g_cpdata_next.length==2)
+									if($.webgis.editor.cpdata_next.length==2)
 									{
-										for(var j in g_next_ids)
+										for(var j in $.webgis.editor.next_ids)
 										{
-											if(t2 == g_next_ids[j])
+											if(t2 == $.webgis.editor.next_ids[j])
 											{
-												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[0], -offset_x, -offset_z);
-												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i2, g_cpdata_next[1], offset_x, -offset_z);
+												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i2, $.webgis.editor.cpdata_next[0], -offset_x, -offset_z);
+												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i2, $.webgis.editor.cpdata_next[1], offset_x, -offset_z);
 											}
 										}
 									}
@@ -176,19 +176,19 @@ $(function() {
 								{
 									seg = {start_tower:t2, end_tower:t1, start_side:side2, end_side:side1};
 									cp = {start:i2, end:i1, phase:phase};
-									start = GetDrawInfoFromContactPoint(1,  i2,  g_cpdata, 0, offset_z);
-									if(g_cpdata_next.length==1)
+									start = GetDrawInfoFromContactPoint(1,  i2,  $.webgis.editor.cpdata, 0, offset_z);
+									if($.webgis.editor.cpdata_next.length==1)
 									{
-										end = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[0], 0, -offset_z);
+										end = GetDrawInfoFromContactPoint(0, i1, $.webgis.editor.cpdata_next[0], 0, -offset_z);
 									}
-									if(g_cpdata_next.length==2)
+									if($.webgis.editor.cpdata_next.length==2)
 									{
-										for(var j in g_next_ids)
+										for(var j in $.webgis.editor.next_ids)
 										{
-											if(t1 == g_next_ids[j])
+											if(t1 == $.webgis.editor.next_ids[j])
 											{
-												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[0], -offset_x, -offset_z);
-												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i1, g_cpdata_next[1], offset_x, -offset_z);
+												if(j==0) end1 = GetDrawInfoFromContactPoint(0, i1, $.webgis.editor.cpdata_next[0], -offset_x, -offset_z);
+												if(j==1) end2 = GetDrawInfoFromContactPoint(0, i1, $.webgis.editor.cpdata_next[1], offset_x, -offset_z);
 											}
 										}
 									}
@@ -205,7 +205,7 @@ $(function() {
 								ShowMessage(null, 400, 150, '已存在','所连接的线段已经存在');
 							}
 						}
-						g_cp_pair.length = 0;
+						$.webgis.editor.cp_pair.length = 0;
 					}
 				}
 			}
@@ -229,7 +229,7 @@ $(function() {
 	});
 	//$(window).on('message',function(e) {
 		//console.log('recv:' + e.originalEvent.data);
-		//console.log(g_camera_move_around_int);
+		//console.log($.webgis.editor.camera_move_around_int);
 		//ClearRoundCamera();
 	//});
 	
@@ -269,16 +269,16 @@ $(function() {
 	onWindowResize();
 	
 	AddHemisphereLight(editor);
-	var off_x = g_off_x, off_z = g_off_z;
+	var off_x = $.webgis.editor.off_x, off_z = $.webgis.editor.off_z;
 
-	if(g_mode == 'segs')
+	if($.webgis.editor.mode == 'segs')
 	{
 		//console.log(param['url_next']);
 		param['data_next'] = [];
 		var ids = [];
 		ids.push(param['tower_id']);
 		for(var i in param['next_ids']) ids.push(param['next_ids'][i]);
-		var cond = {'db':g_db_name, 'collection':'features','_id':ids};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'features','_id':ids};
 		MongoFind(cond, function(data){
 			
 			for(var i in data)
@@ -300,8 +300,8 @@ $(function() {
 			}
 			
 			
-			g_cpdata = param['data'];
-			g_cpdata_next = param['data_next'];
+			$.webgis.editor.cpdata = param['data'];
+			$.webgis.editor.cpdata_next = param['data_next'];
 			if(param['data_next'].length==1)
 			{
 				LoadContactPoint(editor, param['next_ids'][0], param['data_next'][0]['contact_points'], [0, 0, -off_z], param['data_next'][0]['model_code_height']);
@@ -346,7 +346,7 @@ $(function() {
 				});
 			}
 		}, '../../');
-	}else if(g_mode == 'tower')
+	}else if($.webgis.editor.mode == 'tower')
 	{
 		if(param['url'])
 		{
@@ -358,7 +358,7 @@ $(function() {
 		}
 		if(param['data'])
 		{
-			g_contact_points =  param['data']['contact_points'];
+			$.webgis.editor.contact_points =  param['data']['contact_points'];
 			LoadContactPoint(editor, param['tower_id'], param['data']['contact_points'], [0, 0, 0]);
 		}
 		if(!param['url'])
@@ -369,7 +369,7 @@ $(function() {
 	
 	$('[id^="button_"]').css('display','none');
 	$('#div_contact_point_coords').css('display','none');
-	if(g_mode == 'tower')
+	if($.webgis.editor.mode == 'tower')
 	{
 		$('#button_cp_add').css('display','block');
 		$('#button_cp_save').css('display','block');
@@ -458,7 +458,7 @@ $(function() {
 			}
 		});
 	}
-	if(g_mode == 'segs')
+	if($.webgis.editor.mode == 'segs')
 	{
 		$('#button_del_seg').css('display','block');
 		$('#button_add_seg').css('display','block');
@@ -471,8 +471,8 @@ $(function() {
 		
 		$('#checkbox_add_segment').button();
 		$('#checkbox_add_segment').on('click', function() {
-			g_is_add_seg = !g_is_add_seg;
-			if(g_is_add_seg)
+			$.webgis.editor.is_add_seg = !$.webgis.editor.is_add_seg;
+			if($.webgis.editor.is_add_seg)
 			{
 				$('#button_phase').css('display', 'block');
 				$('#button_save_seg').css('display', 'none');
@@ -509,18 +509,18 @@ function UpdateContactPoint(obj, pos)
 {
 	if(obj && obj['userData'] && obj['userData']['type'] && obj['userData']['type'] == 'contact_point')
 	{
-		for(var i in g_contact_points)
+		for(var i in $.webgis.editor.contact_points)
 		{
-			var cp = g_contact_points[i];
+			var cp = $.webgis.editor.contact_points[i];
 			var txt = '';
 			if(cp.side === 1 ) txt = '小号端';
 			if(cp.side === 0 ) txt = '大号端';
 			txt += '#' + cp.contact_index;
 			if(obj.name === txt)
 			{
-				g_contact_points[i].x = pos.x;
-				g_contact_points[i].y = pos.y;
-				g_contact_points[i].z = pos.z;
+				$.webgis.editor.contact_points[i].x = pos.x;
+				$.webgis.editor.contact_points[i].y = pos.y;
+				$.webgis.editor.contact_points[i].z = pos.z;
 				break;
 			}
 		}
@@ -529,9 +529,9 @@ function UpdateContactPoint(obj, pos)
 
 function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 {
-	for(var i in g_segments_editting)
+	for(var i in $.webgis.editor.segments_editting)
 	{
-		var seg = g_segments_editting[i];
+		var seg = $.webgis.editor.segments_editting[i];
 		if(	(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 && seg['start_side'] == 1 && seg['end_side'] == 0)
 		//||	(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
 		){
@@ -539,12 +539,12 @@ function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 				seg['contact_points'].push({start:index0, end:index1, phase:phase});
 			//if(seg['start_tower'] == tower_id1 && seg['end_tower'] == tower_id0 && seg['start_side'] == 0 && seg['end_side'] == 1)
 				//seg['contact_points'].push({start:index1, end:index0, phase:phase});
-			g_segments_editting[i] = seg;
+			$.webgis.editor.segments_editting[i] = seg;
 			break;
 		}
 	}
 	//console.log('--add--tower_id0=' + tower_id0 + ',tower_id1=' + tower_id1 + ',side0=' + side0 + ',side1=' + side1 + ',index0=' + index0 + ',index1=' + index1 );
-	if(g_segments_editting.length == 0)
+	if($.webgis.editor.segments_editting.length == 0)
 	{
 		if(tower_id0 != tower_id1 && side0 != side1)
 		{
@@ -558,15 +558,15 @@ function AddSeg(tower_id0, tower_id1, side0, side1, index0, index1, phase)
 			seg['contact_points'].push({start:index0, end:index1, phase:phase});
 			seg['t0'] = 0.9;
 			seg['w'] = 0.001;
-			g_segments_editting.push(seg);
+			$.webgis.editor.segments_editting.push(seg);
 		}
 	}
 }
 function DelSeg(data)
 {
-	for(var i in g_segments_editting)
+	for(var i in $.webgis.editor.segments_editting)
 	{
-		var seg = g_segments_editting[i];
+		var seg = $.webgis.editor.segments_editting[i];
 		var tower_id0 = data['start_tower'],
 			tower_id1 = data['end_tower'],
 			side0 = data['start_side'],
@@ -585,7 +585,7 @@ function DelSeg(data)
 					if(cp['start'] == index0 && cp['end'] == index1)
 					{
 						seg['contact_points'].splice(j, 1);
-						g_segments_editting[i] = seg;
+						$.webgis.editor.segments_editting[i] = seg;
 						break;
 					}
 				}
@@ -598,7 +598,7 @@ function DelSeg(data)
 					if(cp['start'] == index1 && cp['end'] == index0)
 					{
 						seg['contact_points'].splice(j, 1);
-						g_segments_editting[i] = seg;
+						$.webgis.editor.segments_editting[i] = seg;
 						break;
 					}
 				}
@@ -611,9 +611,9 @@ function DelSeg(data)
 function CheckSegExist(tower_id0, tower_id1, side0, side1, index0, index1)
 {
 	var ret = false;
-	for(var i in g_segments_editting)
+	for(var i in $.webgis.editor.segments_editting)
 	{
-		var seg = g_segments_editting[i];
+		var seg = $.webgis.editor.segments_editting[i];
 		if(seg['start_tower'] == tower_id0 && seg['end_tower'] == tower_id1 
 			&& seg['start_side'] == side0 && seg['end_side'] == side1
 		){
@@ -653,10 +653,10 @@ function GetObjectPos()
 
 function SaveContactPoint(editor, tower_id, data)
 {
-	//console.log(g_contact_points);
+	//console.log($.webgis.editor.contact_points);
 	//if(true) return;
-	data['contact_points'] = g_contact_points;
-	var cond = {'db':g_db_name, 'collection':'features', 'action':'update', 'data':{'properties.model':data}, '_id':tower_id};
+	data['contact_points'] = $.webgis.editor.contact_points;
+	var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'update', 'data':{'properties.model':data}, '_id':tower_id};
 	ShowProgressBar(true, 400, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -665,7 +665,7 @@ function SaveContactPoint(editor, tower_id, data)
 			'保存模板', 
 			'你希望保存为该塔型的挂线点模板吗？保存为模板将影响所有使用该塔型的杆塔.', 
 			function(){
-				var cond = {'db':g_db_name, 'collection':'models', 'action':'update', 'data':{'contact_points':data['contact_points']}, 'model_code_height':data['model_code_height']};
+				var cond = {'db':$.webgis.db.db_name, 'collection':'models', 'action':'update', 'data':{'contact_points':data['contact_points']}, 'model_code_height':data['model_code_height']};
 				ShowProgressBar(true, 400, 200, '保存中', '正在保存数据，请稍候...');
 				MongoFind(cond, function(data2){
 					ShowProgressBar(false);
@@ -685,9 +685,9 @@ function AddContactPoint(editor, tower_id, data)
 	}
 	var side = parseInt($("#button_cp_side :radio:checked").attr('id').replace('side', ''));
 	var side0_index = 0, side1_index = 0;
-	for(var i in g_contact_points)
+	for(var i in $.webgis.editor.contact_points)
 	{
-		var cp = g_contact_points[i];
+		var cp = $.webgis.editor.contact_points[i];
 		if(cp.side === 0)
 		{
 			side0_index += 1;
@@ -701,7 +701,7 @@ function AddContactPoint(editor, tower_id, data)
 	var contact_index = side0_index;
 	if(side === 1) contact_index = side1_index;
 	
-	g_contact_points.push({
+	$.webgis.editor.contact_points.push({
 		side:side,
 		contact_index:contact_index,
 		position:'',
@@ -709,7 +709,7 @@ function AddContactPoint(editor, tower_id, data)
 		y:30,
 		z:0
 	});
-	var last = g_contact_points.slice(-1);
+	var last = $.webgis.editor.contact_points.slice(-1);
 	LoadContactPoint(editor, tower_id, last, [0,0,0]);
 }
 
@@ -722,18 +722,18 @@ function DelContactPoint(editor, tower_id, data)
 			'你确定要删除此挂线点吗?', 
 			'删除挂线点后，你可以重新创建挂线点，方法是选择该挂线点的类型(大号端,小号端),然后点击"添加挂线点"按钮，即可完成添加.', 
 			function(){
-				if(g_contact_points && g_contact_points.length>0)
+				if($.webgis.editor.contact_points && $.webgis.editor.contact_points.length>0)
 				{
-					for(var i in g_contact_points)
+					for(var i in $.webgis.editor.contact_points)
 					{
-						var cp = g_contact_points[i];
+						var cp = $.webgis.editor.contact_points[i];
 						var txt = '';
 						if(cp.side === 1 ) txt = '小号端';
 						if(cp.side === 0 ) txt = '大号端';
 						txt += '#' + cp.contact_index;
 						if(obj.name === txt)
 						{
-							g_contact_points.splice(i,1);
+							$.webgis.editor.contact_points.splice(i,1);
 							editor.removeObject(obj);
 							editor.select( null );
 							break;
@@ -776,29 +776,29 @@ function CheckSegsModified()
 {
 	var ret = false;
 	
-	if(g_segments.length != g_segments_editting.length)
+	if($.webgis.editor.segments.length != $.webgis.editor.segments_editting.length)
 	{
 		return true;
 	}
 	
-	for(var i in g_segments)
+	for(var i in $.webgis.editor.segments)
 	{
-		if(g_segments[i]['t0'] != g_segments_editting[i]['t0'])
+		if($.webgis.editor.segments[i]['t0'] != $.webgis.editor.segments_editting[i]['t0'])
 		{
 			return true;
 		}
-		if(g_segments[i]['w'] != g_segments_editting[i]['w'])
+		if($.webgis.editor.segments[i]['w'] != $.webgis.editor.segments_editting[i]['w'])
 		{
 			return true;
 		}
-		if(g_segments[i].contact_points.length != g_segments_editting[i].contact_points.length)
+		if($.webgis.editor.segments[i].contact_points.length != $.webgis.editor.segments_editting[i].contact_points.length)
 		{
 			return true;
 		}
-		for(var j in g_segments[i].contact_points)
+		for(var j in $.webgis.editor.segments[i].contact_points)
 		{
-			var cp1 = g_segments[i].contact_points[j];
-			var cp2 = g_segments_editting[i].contact_points[j];
+			var cp1 = $.webgis.editor.segments[i].contact_points[j];
+			var cp2 = $.webgis.editor.segments_editting[i].contact_points[j];
 			for(var k in cp1)
 			{
 				//console.log(cp1[k] + '<==>' + cp2[k]);
@@ -813,7 +813,7 @@ function CheckSegsModified()
 }
 function SaveSeg()
 {
-	var data = {'db':g_db_name, 'collection':'segments','action':'save', 'data':g_segments_editting};
+	var data = {'db':$.webgis.db.db_name, 'collection':'segments','action':'save', 'data':$.webgis.editor.segments_editting};
 	//console.log(data);
 	ShowProgressBar(true, 400, 150, '保存中', '正在保存, 请稍候...');
 	MongoFind(data, function(data1){
@@ -879,7 +879,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 	var seg;
 	if(next_ids.length === 1)
 	{
-		seg = get_seg(g_segments, tower_id, next_ids[0]);
+		seg = get_seg($.webgis.editor.segments, tower_id, next_ids[0]);
 		if(seg)
 		{
 			for(var k in seg['contact_points'])
@@ -889,7 +889,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
 				if(end )
 				{
-					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 				
@@ -898,7 +898,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 	}
 	if(next_ids.length === 2)
 	{
-		seg = get_seg(g_segments, tower_id, next_ids[0]);
+		seg = get_seg($.webgis.editor.segments, tower_id, next_ids[0]);
 		if(seg)
 		{
 			for(var k in seg['contact_points'])
@@ -908,12 +908,12 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
 				if(end)
 				{
-					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 			}
 		}
-		seg = get_seg(g_segments, tower_id, next_ids[1]);
+		seg = get_seg($.webgis.editor.segments, tower_id, next_ids[1]);
 		if(seg)
 		{
 			for(var k in seg['contact_points'])
@@ -923,7 +923,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 				if(end)
 				{
-					var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 			}
@@ -944,7 +944,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				//end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
 				//end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 			//}
-			//var color = parseInt(tinycolor(g_phase_color_mapping[cp['phase']]).toHex(), 16);
+			//var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
 			//if(end )
 			//{
 				//DrawLine(editor, start, end, color, seg, cp);
@@ -1008,11 +1008,11 @@ function LoadContactPoint(editor, tower_id, contact_points, offset, model_code_h
 			color = '#0000FF';
 			size = 0.5;
 		}
-		if(g_mode=='tower')
+		if($.webgis.editor.mode=='tower')
 		{
 			title = title + '#' + cp['contact_index'];
 		}
-		if(g_mode=='segs')
+		if($.webgis.editor.mode=='segs')
 		{
 			if(model_code_height === undefined) model_code_height = '未知塔型';
 			title = model_code_height + '#' + title + '#' + cp['contact_index'];
@@ -1036,11 +1036,11 @@ function SetSelectObjectPosition(editor, pos)
 function ClearRoundCamera(viewport)
 {
 	//console.log(viewport);
-	if(g_camera_move_around_int)
+	if($.webgis.editor.camera_move_around_int)
 	{
-		clearInterval(g_camera_move_around_int);
-		g_camera_move_around_int = undefined;
-		g_elapsedTime = 0.0;
+		clearInterval($.webgis.editor.camera_move_around_int);
+		$.webgis.editor.camera_move_around_int = undefined;
+		$.webgis.editor.elapsed_time = 0.0;
 		viewport.camera.position.set( 120, 120, 120 );
 		//camera.up = new THREE.Vector3(0,1,0);
 		viewport.camera.lookAt(new THREE.Vector3(0,0,0));
@@ -1051,21 +1051,21 @@ function SetupRoundCamera(scene, renderer, camera, radius, target)
 	var constant = 0.5;
 	var inteval = 0.05;
 	var height = 60.0;
-	g_camera_move_around_int  = setInterval(function(){
+	$.webgis.editor.camera_move_around_int  = setInterval(function(){
 		if(target)
 		{
 			camera.position.y = height;
-			camera.position.x = target.position.x + radius * Math.cos( constant * g_elapsedTime );         
-			camera.position.z = target.position.z + radius * Math.sin( constant * g_elapsedTime );
+			camera.position.x = target.position.x + radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
+			camera.position.z = target.position.z + radius * Math.sin( constant * $.webgis.editor.elapsed_time );
 			camera.lookAt( target.position );
 		}else{
 			camera.position.y = height;
-			camera.position.x = radius * Math.cos( constant * g_elapsedTime );         
-			camera.position.z = radius * Math.sin( constant * g_elapsedTime );
+			camera.position.x = radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
+			camera.position.z = radius * Math.sin( constant * $.webgis.editor.elapsed_time );
 			camera.lookAt( new THREE.Vector3(0, 0, 0) );
 		}
 		renderer.render( scene, camera );
-		g_elapsedTime += inteval;
+		$.webgis.editor.elapsed_time += inteval;
 	}, 1000 * inteval);
 }
 
@@ -1340,7 +1340,7 @@ function GetParamsFromUrl() {
 function ShowSegDialog()
 {
 	var height = 270;
-	if(g_segments_editting.length === 2) height = 420;
+	if($.webgis.editor.segments_editting.length === 2) height = 420;
 	$('#dlg_seg_info').dialog({
 		width: 400,
 		height: height,
@@ -1366,11 +1366,11 @@ function ShowSegDialog()
 				text: "保存", 
 				click: function(){
 					var i;
-					for(i=0; i < g_segments_editting.length; i++)
+					for(i=0; i < $.webgis.editor.segments_editting.length; i++)
 					{
 						var data = $('#form_seg_info_' + i).webgisform('getdata');
-						g_segments_editting[i]['t0'] = data['t0'];
-						g_segments_editting[i]['w'] = data['w'];
+						$.webgis.editor.segments_editting[i]['t0'] = data['t0'];
+						$.webgis.editor.segments_editting[i]['w'] = data['w'];
 					}
 					$( this ).dialog( "close" );
 				}
@@ -1384,7 +1384,7 @@ function ShowSegDialog()
 	
 	
 	var i;
-	for(i=0; i < g_segments_editting.length; i++)
+	for(i=0; i < $.webgis.editor.segments_editting.length; i++)
 	{
 		$('#dlg_seg_info').append('<form id="form_seg_info_' + i + '"></form>');
 		$('#form_seg_info_' + i).webgisform( field,{
@@ -1392,7 +1392,7 @@ function ShowSegDialog()
 			maxwidth:300
 		});
 		var data = {t0:0.9, w:0.001};
-		var seg = g_segments_editting[i];
+		var seg = $.webgis.editor.segments_editting[i];
 		if(seg['t0']) data['t0'] = seg['t0'];
 		if(seg['w']) data['w'] = seg['w'];
 		$('#form_seg_info_' + i).webgisform('setdata', data);

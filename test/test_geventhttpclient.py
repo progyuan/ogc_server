@@ -32,13 +32,14 @@ def make_random_card():
     length = random.randint(14, 17)
     for i in range(length):
         s += str(random.randint(0, 9))
-    ret = ''
-    idx = 0
-    for i in s:
-        if idx>0 and idx % 4 == 0:
-            ret += ' '
-        ret += i
-        idx += 1
+    ret = s
+    #ret = ''
+    #idx = 0
+    #for i in s:
+        #if idx>0 and idx % 4 == 0:
+            #ret += ' '
+        #ret += i
+        #idx += 1
     return ret
 
 
@@ -85,8 +86,9 @@ def build_random_param():
     d = {
         'iden' : make_random_id(),
         #'name' : make_random_name().encode('utf-8'),
+        'name' : make_random_name(),
         #'name' : urllib.quote(make_random_name().encode('utf-8')),
-        'name' : urllib.quote(make_random_name().encode('utf-8')),
+        #'name' : urllib.quote(make_random_name().encode('gb2312')),
         'card' : make_random_card(),
         'withdrawpass' : make_random_password(),
         'networkloginpass' : make_random_password(),
@@ -97,23 +99,37 @@ def build_random_param():
     #ret = 'action=account&iden=%s&name=%s&card=%s&drawpassword=%s&loginpass=%s&mobile=%s' % (iden, urllib.quote(name.encode('utf-8')), urllib.quote(card), drawpassword, loginpass, mobile)
     #ret = 'action=account&iden=%s&name=%s&card=%s&drawpassword=%s&loginpass=%s&mobile=%s' % (iden, name, card, drawpassword, loginpass, mobile)
     idx = random.randint(0, len(l)-1)
-    ret = {}
-    ret['action'] = 'account'
-    ret['name'] = l[idx]
-    ret['value'] = d[l[idx]]
-    return ret
+    dd = {}
+    dd['action'] = 'account'
+    dd['name'] = l[idx]
+    dd['value'] = d[l[idx]]
+    ret = '?'
+    keys = dd.keys()
+    for k in keys:
+        ret += '%s=%s' % (k, dd[k])
+        if keys.index(k) < 2:
+            ret += '&'
+    return HREF + ret
     
 
 def one_request():
+    h = {
+        'User-Agent':'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2272.76 Safari/537.36',
+        'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Encoding':'gzip, deflate, sdch',
+        'Accept-Language':'zh-CN,zh;q=0.8',
+        'Cookie':'SESSIONID=474906595',
+        'Host':'afgrtbb.tk',
+        'Connection':'keep-alive'
+    }
     try:
-        body = build_random_param()
-        print(body)
+        href = build_random_param()
+        print(href)
         #if body['name'] == 'name':
-        url = URL(HREF)    
-        http = HTTPClient.from_url(url, concurrency=1, connection_timeout=50, network_timeout=60, )
-        response = None
-        g = gevent.spawn(http.get, url.request_uri, body)
-        return g
+        url = URL(href, 'utf-8')    
+        http = HTTPClient.from_url(url, concurrency=1, connection_timeout=60, network_timeout=80, )
+        #response = None
+        return gevent.spawn(http.get, url.request_uri, h)
         #g.join()
         #response = g.value
         #if response and response.status_code == 200:
@@ -126,12 +142,15 @@ def run():
     l = []
     while 1:
         try:
-            g = one_request()
-            l.append(g)
-            if len(l)>100:
+            l.append(one_request())
+            if len(l)>200:
                 gevent.joinall(l)
+                l = []
         except:
-            pass
+            if hasattr(sys.exc_info()[1], 'message'):
+                print(sys.exc_info()[1].message)
+            if hasattr(sys.exc_info()[1], 'reason'):
+                print(str(sys.exc_info()[1].reason))
         gevent.sleep(0.01)
 
 

@@ -1108,14 +1108,15 @@ def handle_wmts_GetTile(params):
     if subtype is not None and level is not None and y is not None and x is not None:
         tilepath = '%d/%d/%d%s' % (level, x, y, str(gConfig['webgis'][arr[1]][subtype]))
         d = {}
-        d['x'] = [str(x)]
-        d['y'] = [str(y)]
-        d['level'] = [str(level)]
+        d['x'] = str(x)
+        d['y'] = str(y)
+        d['level'] = str(level)
         mimetype, ret = db_util.gridfs_tile_find(tiletype, subtype, tilepath, d)
     return mimetype, ret
 
 def handle_tiles(environ):
     global gConfig, gTileCache
+    global STATICRESOURCE_IMG_DIR
     def get_blank_tile(image_type):
         blank_tile = ''
         picpath = os.path.join(STATICRESOURCE_IMG_DIR,  gConfig['webgis']['tiles'][image_type]['missing'])
@@ -1124,15 +1125,16 @@ def handle_tiles(environ):
             blank_tile = f1.read()
         return blank_tile
     headers = {}    
-    path_info = environ['PATH_INFO']
-    d = cgi.parse(None, environ)
+    #path_info = environ['PATH_INFO']
+    #d = cgi.parse(None, environ)
+    querydict = get_querydict_by_GET_POST(environ)
     ret = None
     mimetype = 'image/png'
     image_type = None
     #key = path_info.replace('/tiles/','')
-    if d.has_key('image_type') and d.has_key('x') and d.has_key('y') and d.has_key('level'):
-        image_type = d['image_type'][0]
-        x, y, level = d['x'][0], d['y'][0], d['level'][0]
+    if querydict.has_key('image_type') and querydict.has_key('x') and querydict.has_key('y') and querydict.has_key('level'):
+        image_type = querydict['image_type']
+        x, y, level = querydict['x'], querydict['y'], querydict['level']
         tilepath = '%s/%s/%s%s' % (level, x, y, gConfig['webgis']['tiles'][image_type]['mimetype'])
         if not gTileCache.has_key(image_type):
             gTileCache[image_type] = {}
@@ -1142,9 +1144,10 @@ def handle_tiles(environ):
             ret = gTileCache[image_type][tilepath]
         else:
             try:
-                mimetype, ret = db_util.gridfs_tile_find('webgis/tiles', image_type, tilepath, d)
+                mimetype, ret = db_util.gridfs_tile_find('webgis/tiles', image_type, tilepath, querydict)
                 gTileCache[image_type][tilepath] = ret
             except:
+                print(sys.exc_info())
                 ret = gTileCache[image_type]['missing']
     else:
         if image_type:
@@ -1153,6 +1156,8 @@ def handle_tiles(environ):
             if not gTileCache[image_type].has_key('missing'):
                 gTileCache[image_type]['missing'] = get_blank_tile(image_type)
             ret = gTileCache[image_type]['missing']
+        else:
+            ret = get_blank_tile('arcgis_sat')
     if ret is None:
         ret = gTileCache[image_type]['missing']
     headers['Content-Type'] = mimetype
@@ -1163,14 +1168,15 @@ def handle_tiles(environ):
 def handle_terrain(environ):
     global gConfig, gTileCache
     path_info = environ['PATH_INFO']
-    d = cgi.parse(None, environ)
+    #d = cgi.parse(None, environ)
+    querydict = get_querydict_by_GET_POST(environ)
     ret = None
     headers = {}
     mimetype = str('application/octet-stream')
     key = path_info.replace('/terrain/','')
     terrain_type = 'quantized_mesh'
-    if d.has_key('terrain_type'):
-        terrain_type = d['terrain_type'][0]
+    if querydict.has_key('terrain_type'):
+        terrain_type = querydict['terrain_type']
     
     if not gTileCache.has_key(terrain_type):
         gTileCache[terrain_type] = {}
@@ -1179,13 +1185,13 @@ def handle_terrain(environ):
     else:
         tilepath = key
         if tilepath == 'layer.json':
-            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
+            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, querydict)
             gTileCache[terrain_type][key] = ret
             headers['Content-Type'] = mimetype
             return '200 OK', headers, ret
         else:
             print('tilepath:%s' % tilepath)
-            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
+            mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, querydict)
             if ret:
                 gTileCache[terrain_type][key] = ret
                 headers['Content-Type'] = mimetype
@@ -1194,7 +1200,7 @@ def handle_terrain(environ):
                 if not gTileCache[terrain_type].has_key('missing'):
                     print('reading mongo blank_terrain...')
                     tilepath = gConfig['webgis']['terrain'][terrain_type]['missing'] #'0/0/0.terrain'
-                    mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, d)
+                    mimetype, ret = db_util.gridfs_tile_find('webgis/terrain', terrain_type, tilepath, querydict)
                     gTileCache[terrain_type]['missing'] = ret
                 ret = gTileCache[terrain_type]['missing']
                 

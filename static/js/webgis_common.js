@@ -1,15 +1,19 @@
-var g_arcserver_host = 'xiejun-desktop';//10.181.160.72
-var g_host = 'xiejun-desktop';//10.181.160.72
-//var g_arcserver_host = '192.168.1.107';//10.181.160.72
-//var g_host = '192.168.1.107';//10.181.160.72
-var g_port = 8088;
-var g_tile_port = 8088;
-//var g_db_name = 'kmgd';
-var g_db_name = 'ztgd';
-var g_progress_interval;
-var g_progress_value;
-var g_encrypt_key = 'kmgd111';
-var g_phase_color_mapping = {
+$.webgis = {};
+$.webgis.arcserver_host = 'yncaiyun1.com';//10.181.160.72
+$.webgis.host = 'yncaiyun1.com';//10.181.160.72
+//$.webgis.arcserver_host = '192.168.1.107';//10.181.160.72
+//$.webgis.host = '192.168.1.107';//10.181.160.72
+$.webgis.port = 8088;
+$.webgis.tiles_host = 'yncaiyun1.com';
+$.webgis.tiles_port = 8088;
+//var $.webgis.db.db_name = 'kmgd';
+$.webgis.db = {};
+$.webgis.db.db_name = 'kmgd';
+//$.webgis.db.db_name = 'ztgd';
+$.webgis.zaware = false;
+
+$.webgis.encrypt_key = 'kmgd111';
+$.webgis.phase_color_mapping = {
 	'A':'#FFFF00',
 	'B':'#FF0000',
 	'C':'#00FF00',
@@ -18,7 +22,7 @@ var g_phase_color_mapping = {
 	'L':'#000000',
 	'R':'#000000'
 };
-var g_style_mapping = {
+$.webgis.style_mapping = {
 	'point_tower' :		{icon_img:'img/features/powerlinepole.png', color:[255, 255, 0, 255],outlineColor:[0, 0, 0, 255], outlineWidth:1, pixelSize:10, labelFillColor:[128, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_hazard' :	{icon_img:'img/features/radiation.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_marker' :	{icon_img:'img/marker30x48.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
@@ -60,7 +64,7 @@ var g_style_mapping = {
 	'polygon_buffer':{color:[255, 0, 0, 50], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 0, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 
-var g_role_functions = [
+$.webgis.role_functions = [
 	{value:'line_edit', label:'线路工程查看'},
 	{value:'line_save', label:'线路工程创建与保存'},
 	{value:'line_delete', label:'线路工程删除'},
@@ -828,7 +832,7 @@ function ColorArrayToRgba(array)
 
 function GetDefaultStyleValue(type, stylename)
 {
-	var mapping = g_style_mapping[type];
+	var mapping = $.webgis.style_mapping[type];
 	//if(type.indexOf('point_')>-1) mapping = g_style_point_mapping[type];
 	//if(type.indexOf('polyline_')>-1) mapping = g_style_polyline_mapping[type];
 	//if(type.indexOf('polygon_')>-1) mapping = g_style_polygon_mapping[type];
@@ -923,27 +927,27 @@ function ShowProgressBar(show, width, height, title, msg)
 			modal: true,
 			title:title
 		});
-		g_progress_value = 0;
+		$.webgis.progress_value = 0;
 		$('#div_progress_bar').progressbar({
 			max:100,
 			value:0
 		});
-		g_progress_interval = setInterval(function(){
-			g_progress_value += 1;
-			if(g_progress_value > 100) g_progress_value = 100;
+		$.webgis.progress_interval = setInterval(function(){
+			$.webgis.progress_value += 1;
+			if($.webgis.progress_value > 100) $.webgis.progress_value = 100;
 			try
 			{
-				$('#div_progress_bar').progressbar('value', g_progress_value);
-				$("#div_progress_bar span.progressbartext").text(g_progress_value + "%");
+				$('#div_progress_bar').progressbar('value', $.webgis.progress_value);
+				$("#div_progress_bar span.progressbartext").text($.webgis.progress_value + "%");
 			}catch(e)
 			{
-				clearInterval(g_progress_interval);
+				clearInterval($.webgis.progress_interval);
 			}
 		}, 100);
 	}
 	else{
 		//document.body.className = document.body.className.replace(/(?:\s|^)loading(?:\s|$)/, ' ');
-		clearInterval(g_progress_interval);
+		clearInterval($.webgis.progress_interval);
 		try
 		{
 			$('#div_progress_bar').progressbar('destroy');
@@ -1178,7 +1182,7 @@ function CheckInternetConnection()
 }
 function CheckIntranetConnection()
 {
-	return CheckUrlExist('http://' + g_host + ':' + g_port);
+	return CheckUrlExist('http://' + $.webgis.host + ':' + $.webgis.port);
 }
 
 

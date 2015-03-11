@@ -8,7 +8,6 @@ var g_lines = {};
 var g_codes = {};
 var g_segments = [];
 var g_gltf_models = {};
-var g_dlg_tower_info;
 var g_contextmenu_metal;
 var g_selected_metal_item;
 var g_geometry_segments = [];
@@ -27,10 +26,10 @@ var g_node_connect_mode = false;
 var g_leaflet_geojson_layer;
 var g_leaflet_old_style = {};
 //var g_leaflet_markercluster_layer;
-$.g_heatmap_layers = {};
-$.g_userinfo = {};
-$.g_sysrole = [];
-$.g_map_backend = 'cesium';
+$.webgis.heatmap_layers = {};
+$.webgis.current_userinfo = {};
+$.webgis.sysrole = [];
+$.webgis.map_backend = 'cesium';
 
 
 
@@ -51,7 +50,7 @@ g_max_file_size = 5000000;
 
 $(function() {
 
-	$.g_userinfo = GetParamsFromUrl();
+	$.webgis.current_userinfo = GetParamsFromUrl();
 
 	$.jGrowl.defaults.closerTemplate = '<div class="bubblestylesuccess">关闭所有提示信息</div>';
 	
@@ -60,25 +59,25 @@ $(function() {
 	var load_init_data = function()
 	{
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入南网编码规范，请稍候...');
-		LoadCodeData(g_db_name, function(){
+		LoadCodeData($.webgis.db.db_name, function(){
 			ShowProgressBar(true, 670, 200, '载入中', '正在载入线路信息，请稍候...');
-			LoadLineData(g_db_name, function(){
+			LoadLineData($.webgis.db.db_name, function(){
 				ShowProgressBar(true, 670, 200, '载入中', '正在载入架空线路信息，请稍候...');
-				LoadSegments(g_db_name, function(){
+				LoadSegments($.webgis.db.db_name, function(){
 					ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-					LoadModelsList(g_db_name, function(){
+					LoadModelsList($.webgis.db.db_name, function(){
 						ShowProgressBar(true, 670, 200, '载入中', '正在载入3D模型信息，请稍候...');
-						LoadModelsMapping(g_db_name, function(){
-							if(g_db_name === 'ztgd') name = '永发I回线';
-							var extent = GetDefaultExtent(g_db_name);
+						LoadModelsMapping($.webgis.db.db_name, function(){
+							if($.webgis.db.db_name === 'ztgd') name = '永发I回线';
+							var extent = GetDefaultExtent($.webgis.db.db_name);
 							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							LoadSysRole(g_db_name, function(){
-								$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+							LoadSysRole($.webgis.db.db_name, function(){
+								$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] );
 							});
 						});
 						//g_zaware = true;
-						//LoadAllDNNode(viewer, g_db_name, function(){
-							//LoadAllDNEdge(viewer, g_db_name, function(){
+						//LoadAllDNNode(viewer, $.webgis.db.db_name, function(){
+							//LoadAllDNEdge(viewer, $.webgis.db.db_name, function(){
 								//var extent = GetExtentByCzml();
 								//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 								//ReloadCzmlDataSource(viewer, g_zaware);
@@ -119,7 +118,7 @@ $(function() {
 		$('#control_toolpanel_kmgd_left').css('display','none');
 		ShowProgressBar(false);
 		ShowMessage(null, 400, 300, '提示', '系统检测到该浏览器不支持最新HTML5标准WEBGL部分，因此将禁用3D视图。请使用Chrome浏览器或内置Chrome内核的浏览器以获得最佳浏览体验。', function(){
-			$.g_map_backend = 'leaflet';
+			$.webgis.map_backend = 'leaflet';
 			viewer = InitLeafletViewer();
 			$.viewer = viewer;
 			
@@ -147,11 +146,11 @@ $(function() {
 	
 	
 	
-	//LoadBorder(viewer, g_db_name, {'properties.name':'云南省'});
-	//LoadBorder(viewer, g_db_name, {'properties.type':'cityborder'});
-	//LoadBorder(viewer, g_db_name, {'properties.type':'countyborder'});
+	//LoadBorder(viewer, $.webgis.db.db_name, {'properties.name':'云南省'});
+	//LoadBorder(viewer, $.webgis.db.db_name, {'properties.type':'cityborder'});
+	//LoadBorder(viewer, $.webgis.db.db_name, {'properties.type':'countyborder'});
 	
-	//$.g_heatmap_layers['testheatmap'] = {
+	//$.webgis.heatmap_layers['testheatmap'] = {
 		//layer: new HeatMapImageryProvider({
 					//name:'testheatmap',
 					//viewer:viewer,
@@ -159,7 +158,7 @@ $(function() {
 				//}),
 		//type: 'heatmap'
 	//};
-	//$.g_heatmap_layers['yn_ice_100'] = {
+	//$.webgis.heatmap_layers['yn_ice_100'] = {
 		//layer: CreateTileHeatMap(viewer, {
 					//url:'http://xiejun-desktop:6080/arcgis/rest/services/YN_HEATMAP/yn_ice_100/ImageServer',
 					//maximumLevel: 11,
@@ -202,10 +201,10 @@ function IFrameUpdateTower(tower_id, data)
 			g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
 		}
 	}
-	var selected_id = g_selected_geojson['_id'];
+	var selected_id = $.webgis.selected_geojson['_id'];
 	if(g_geojsons[selected_id])
 	{
-		g_selected_geojson['properties']['model'] = g_geojsons[selected_id]['properties']['model'];
+		$.webgis.selected_geojson['properties']['model'] = g_geojsons[selected_id]['properties']['model'];
 	}
 }
 function IFrameUpdateModel(tower_id, data)
@@ -317,14 +316,14 @@ function InitLeafletViewer()
 	$("#cesiumContainer").height($(window).height()).width($(window).width());
 	$("#cesiumContainer").append('<div class="cesium-viewer-toolbar"></div>');
 	$('.cesium-viewer-toolbar').css('z-index', '9');
-	var center = GetDefaultCenter(g_db_name);
+	var center = GetDefaultCenter($.webgis.db.db_name);
 	var c = L.latLng(center[1], center[0]);
 	//console.log(c);
 	var layers = [];
 	var url_temlate, lyr;
 	var baseMaps = {};
 	
-	url_temlate = 'http://' + g_host + ':' + g_tile_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
+	url_temlate = 'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
 	
 	
 	lyr = L.tileLayer(url_temlate, {
@@ -374,11 +373,11 @@ function InitLeafletViewer()
 	
 	
 	//var prefix = '';
-	//if(g_arcserver_host == '10.181.160.72')
+	//if($.webgis.arcserver_host == '10.181.160.72')
 	//{
 		//prefix = 'ztgdgis/';
 	//}
-	//var url_arcgis = 'http://' + g_arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer';
+	//var url_arcgis = 'http://' + $.webgis.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer';
 	//lyr = L.esri.imageMapLayer(url_arcgis, {
 		////image_type:'arcserver_imagery',
 		////imagery_url:url_arcgis,
@@ -416,20 +415,20 @@ function InitLeafletViewer()
 			var o = {};
 			if(feature.geometry)
 			{
-				o.color = ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].color);
+				o.color = ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].color);
 				var weight = 5;
-				if(g_style_mapping[feature.properties.webgis_type].pixelWidth)
+				if($.webgis.style_mapping[feature.properties.webgis_type].pixelWidth)
 				{
-					o.weight = g_style_mapping[feature.properties.webgis_type].pixelWidth * 5;
+					o.weight = $.webgis.style_mapping[feature.properties.webgis_type].pixelWidth * 5;
 				}
 			}
 			return o;
 		},
 		pointToLayer:function (feature, latlng) {
 			var m = L.circleMarker(latlng, {
-				radius: g_style_mapping[feature.properties.webgis_type].pixelSize,
-				fillColor: ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].color),
-				color: ColorArrayToHTMLColor(g_style_mapping[feature.properties.webgis_type].outlineColor),
+				radius: $.webgis.style_mapping[feature.properties.webgis_type].pixelSize,
+				fillColor: ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].color),
+				color: ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].outlineColor),
 				weight: 1,
 				opacity: 1,
 				fillOpacity: 0.7
@@ -535,7 +534,7 @@ function InitCesiumViewer()
 {
 	var providerViewModels = [];
 	var prefix = '';
-	if(g_arcserver_host == '10.181.160.72')
+	if($.webgis.arcserver_host == '10.181.160.72')
 	{
 		prefix = 'ztgdgis/';
 	}
@@ -548,7 +547,7 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
+				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
 				imageType: 'arcgis_sat',
 				queryType: 'server'
 			});
@@ -560,7 +559,7 @@ function InitCesiumViewer()
 		tooltip : 'YN_SAT',
 		creationFunction : function() {
 			return new ArcGisMapServerImageryProvider({
-				url : 'http://' + g_arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer',
+				url : 'http://' + $.webgis.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer',
 				name: 'YN_SAT'
 				//usePreCachedTilesIfAvailable:false
 			});
@@ -575,7 +574,7 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
+				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
 				imageType: 'bing_sat',
 				queryType: 'server'
 			});
@@ -587,7 +586,7 @@ function InitCesiumViewer()
 		tooltip : '高德地图',
 		creationFunction : function() {
 			return new AMapTileImageryProvider({
-				url :  'http://' + g_host + ':' + g_tile_port + '/tiles',
+				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
 				imageType: 'amap_map',
 				queryType: 'server'
 			});
@@ -626,7 +625,7 @@ function InitCesiumViewer()
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
 				//url : "terrain",
-				url :  'http://' + g_host + ':' + g_tile_port + '/terrain',
+				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/terrain',
 				terrain_type : 'quantized_mesh',
 				credit : ''
 			});
@@ -717,7 +716,7 @@ function InitKeyboardEvent(viewer)
 	};
 	var change_color = function(webgis_type, id)
 	{
-		if($.g_map_backend === 'cesium')
+		if($.webgis.map_backend === 'cesium')
 		{
 			var c = Cesium.Color.fromCssColorString("rgba(200,200,0,1)");
 			var edge = get_current_edge(g_prev_selected_obj.id, g_selected_obj.id);
@@ -730,7 +729,7 @@ function InitKeyboardEvent(viewer)
 				p.material = m;
 			}
 		}
-		if($.g_map_backend === 'leaflet' && webgis_type && id)
+		if($.webgis.map_backend === 'leaflet' && webgis_type && id)
 		{
 			var color = ColorArrayToHTMLColor([200,200,0,1]);
 			var lyr_polylinegroup;
@@ -755,7 +754,7 @@ function InitKeyboardEvent(viewer)
 		}
 	};
 	
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		viewer.on('click', function(e){
 			//console.log('mapclick');
@@ -824,13 +823,13 @@ function InitKeyboardEvent(viewer)
 											if(!g_geojsons[g['_id']]) 
 											{
 												g_geojsons[g['_id']] = g;
-												if($.g_map_backend === 'leaflet')
+												if($.webgis.map_backend === 'leaflet')
 												{
 													change_color(webgis_type, g['_id']);
 												}
 											}
 										}
-										if($.g_map_backend === 'cesium')
+										if($.webgis.map_backend === 'cesium')
 										{
 											change_color();
 										}
@@ -911,7 +910,7 @@ function InitKeyboardEvent(viewer)
 					//console.log(id);
 					if(id)
 					{
-						var cond = {'db':g_db_name, 'collection':'edges', 'action':'remove', '_id':id};
+						var cond = {'db':$.webgis.db.db_name, 'collection':'edges', 'action':'remove', '_id':id};
 						MongoFind( cond, 
 							function(data){
 								if(data.length>0)
@@ -924,7 +923,7 @@ function InitKeyboardEvent(viewer)
 											theme: 'bubblestylesuccess',
 											glue:'before'
 										});
-										if($.g_map_backend === 'leaflet')
+										if($.webgis.map_backend === 'leaflet')
 										{
 											viewer.eachLayer(function(layer){
 												if(layer.eachLayer)
@@ -978,7 +977,7 @@ function InitKeyboardEvent(viewer)
 					//{
 						//return;
 					//}
-					var cond = {'db':g_db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj.id};
+					var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj.id};
 					MongoFind( cond, 
 						function(data){
 							if(data.length>0)
@@ -999,7 +998,7 @@ function InitKeyboardEvent(viewer)
 										g_geojsons[g_selected_obj.id] = undefined;
 										//console.log(g_geojsons[g_selected_obj.id]);
 									}
-									if($.g_map_backend === 'cesium')
+									if($.webgis.map_backend === 'cesium')
 									{
 										if(g_czmls[g_selected_obj.id])
 										{
@@ -1014,7 +1013,7 @@ function InitKeyboardEvent(viewer)
 									g_selected_obj = undefined;
 									viewer.selectedEntity = undefined;
 									viewer.trackedEntity = undefined;
-									if($.g_map_backend === 'cesium')
+									if($.webgis.map_backend === 'cesium')
 									{
 										ReloadCzmlDataSource(viewer, g_zaware, true);
 									}
@@ -1040,7 +1039,7 @@ function InitKeyboardEvent(viewer)
 
 function Logout(callback)
 {
-	var cond = {'db':g_db_name, 'collection':'userinfo', 'url':'/logout'};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'userinfo', 'url':'/logout'};
 	MongoFind(cond, function(data){
 		if(callback) callback(data);
 	});
@@ -1328,7 +1327,7 @@ click: function($data) { $parent.selectedImagery = $data; }');
 function InitHomeButton2D(viewer)
 {
     var viewHome = function() {
-		var center = GetDefaultCenter(g_db_name);
+		var center = GetDefaultCenter($.webgis.db.db_name);
 		var c = L.latLng(center[1], center[0]);
 		viewer.setView(c, 10);
     }
@@ -1957,7 +1956,7 @@ function InitDrawHelper(viewer)
 function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 {
 	var ellipsoid;
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -1965,16 +1964,16 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 	g['geometry'] = {}
 	g['geometry']['type'] = 'Point';
 	//console.log(center);
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		var carto = ellipsoid.cartesianToCartographic(center);
 		g['geometry']['coordinates'] = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)];
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		g['geometry']['coordinates'] = [center.lng, center.lat];
 	}
-	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':radius, 'res':8};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':radius, 'res':8};
 	//ShowProgressBar(true, 670, 200, '生成缓冲区', '正在生成缓冲区，请稍候...');
 	MongoFind(cond, function(data){
 		//ShowProgressBar(false);
@@ -1985,13 +1984,13 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 			for(var i in geometry['coordinates'][0])
 			{
 				var coord = geometry['coordinates'][0][i];
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					var carto = Cesium.Cartographic.fromDegrees(coord[0], coord[1], 0);
 					var cart3 = ellipsoid.cartographicToCartesian(carto);
 					positions.push(cart3);
 				}
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					positions.push(L.latLng(coord[1], coord[0]));
 				}
@@ -2066,7 +2065,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 			}
 			if(category.length == 0) category = 'other';
 			$(this).fileupload('option', 'url', 'post' + '?' 
-				+ 'db=' + g_db_name 
+				+ 'db=' + $.webgis.db.db_name 
 				//+ '&collection=fs'
 				+ '&bindcollection=' + bindcollection
 				+ '&key=' + key 
@@ -2221,7 +2220,7 @@ function InitToolPanel(viewer)
 		{
 			console.log('turn off label:' + webgis_type);
 		}
-		if($.g_map_backend === 'cesium')
+		if($.webgis.map_backend === 'cesium')
 		{
 			ReloadCzmlDataSource(viewer, g_zaware);
 		}
@@ -2233,25 +2232,25 @@ function InitToolPanel(viewer)
 			if($(this).is(':checked'))
 			{
 				console.log('turn on edge:' + webgis_type);
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					for(var k in g_geojsons)
 					{
 						DrawEdgeBetweenTwoNode(viewer, 'edge_tower', g_geojsons[k]['properties']['start'], g_geojsons[k]['properties']['end'], false);
 					}
 				}
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					UpdateEdges2D(viewer, webgis_type);
 				}
 			}else
 			{
 				console.log('turn off edge:' + webgis_type);
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					RemoveSegmentsByType(viewer, 'edge_tower');
 				}
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					ClearEdges2D(viewer, webgis_type);
 				}
@@ -2265,12 +2264,12 @@ function InitToolPanel(viewer)
 			}else
 			{
 				console.log('turn off geometry:' + webgis_type);
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					ClearEdges2D(viewer, webgis_type);
 				}
 			}
-			if($.g_map_backend === 'cesium')
+			if($.webgis.map_backend === 'cesium')
 			{
 				ReloadCzmlDataSource(viewer, g_zaware);
 			}
@@ -2284,7 +2283,7 @@ function InitToolPanel(viewer)
 		{
 			console.log('turn off icon:' + 'point');
 		}
-		if($.g_map_backend === 'cesium')
+		if($.webgis.map_backend === 'cesium')
 		{
 			ReloadCzmlDataSource(viewer, g_zaware);
 		}
@@ -2299,21 +2298,21 @@ function InitToolPanel(viewer)
 		change: function( event, ui ) {
 			//console.log(ui.value);
 			$('#slider_heatmap_alpha').parent().find('label').html('透明度:' + Math.floor(ui.value*100) + '%');
-			for(var k in $.g_heatmap_layers)
+			for(var k in $.webgis.heatmap_layers)
 			{
-				var hm = $.g_heatmap_layers[k];
+				var hm = $.webgis.heatmap_layers[k];
 				hm.layer.alpha = ui.value;
 			}
 		}
 	});
 	$('#but_heatmap_clear').button({label:'清除'});
 	$('#but_heatmap_clear').on('click', function(){
-		//for(var k in $.g_heatmap_layers)
-		while(Object.keys($.g_heatmap_layers).length>0)
+		//for(var k in $.webgis.heatmap_layers)
+		while(Object.keys($.webgis.heatmap_layers).length>0)
 		{
-			k = Object.keys($.g_heatmap_layers)[0];
+			k = Object.keys($.webgis.heatmap_layers)[0];
 			//console.log(k);
-			var hm = $.g_heatmap_layers[k];
+			var hm = $.webgis.heatmap_layers[k];
 			//console.log(hm.type);
 			if(hm.type === 'heatmap')
 			{
@@ -2324,9 +2323,9 @@ function InitToolPanel(viewer)
 				viewer.scene.imageryLayers.remove(hm.layer, true);
 			}
 			//delete hm;
-			delete $.g_heatmap_layers[k];
+			delete $.webgis.heatmap_layers[k];
 		}
-		//console.log($.g_heatmap_layers);
+		//console.log($.webgis.heatmap_layers);
 	});
 	
 	
@@ -2377,7 +2376,7 @@ function InitToolPanel(viewer)
 				'确认删除[' + textarr[0] + ']并保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 				function () {
 					DeleteLine(viewer, arr[0], function(){
-						LoadLineData(g_db_name, function(){
+						LoadLineData($.webgis.db.db_name, function(){
 							$('#line_choose').empty();
 							for(var k in g_lines)
 							{
@@ -2404,11 +2403,11 @@ function InitToolPanel(viewer)
 	});
 	$('#but_dn_remove').button({label:'清空配电网络'});
 	$('#but_dn_remove').on('click', function(){
-		if($.g_map_backend === 'cesium')
+		if($.webgis.map_backend === 'cesium')
 		{
 			RemoveSegmentsByType(viewer, 'edge_dn');
 		}
-		if($.g_map_backend === 'leaflet')
+		if($.webgis.map_backend === 'leaflet')
 		{
 			ClearEdges2D(viewer, 'edge_dn');
 		}
@@ -2419,7 +2418,7 @@ function InitToolPanel(viewer)
 		ShowChangePassword(viewer);
 	});
 	
-	if($.g_userinfo['username'] === 'admin')
+	if($.webgis.current_userinfo['username'] === 'admin')
 	{
 		$('#but_sys_role').button({label:'权限控制'});
 		$('#but_sys_role').on('click', function(){
@@ -2638,14 +2637,14 @@ function ShowChangePassword(viewer)
 						}
 						var that = this;
 						var username;
-						if($.g_userinfo['username'] === 'admin')
+						if($.webgis.current_userinfo['username'] === 'admin')
 						{
 							username = data['username'];
 						}
 						else
 						{
-							username = $.g_userinfo['username'];
-							if(data['password_old'] != $.g_userinfo['password'])
+							username = $.webgis.current_userinfo['username'];
+							if(data['password_old'] != $.webgis.current_userinfo['password'])
 							{
 								$.jGrowl("旧密码不正确,请检查", { 
 									life: 2000,
@@ -2663,7 +2662,7 @@ function ShowChangePassword(viewer)
 								'保存确认',
 								'确认保存新修改的密码吗? ',
 								function(){
-									var cond = {'db':g_db_name, 'collection':'userinfo', 'action':'update','data':{'password':data['password_new']}, 'username':username};
+									var cond = {'db':$.webgis.db.db_name, 'collection':'userinfo', 'action':'update','data':{'password':data['password_new']}, 'username':username};
 									ShowProgressBar(true, 670, 200, '保存用户信息', '正在保存用户信息，请稍候...');
 									MongoFind(cond, function(data1){
 										ShowProgressBar(false);
@@ -2699,9 +2698,9 @@ function ShowChangePassword(viewer)
 		]
 	});
 	var flds;
-	if($.g_userinfo['username'] === 'admin')
+	if($.webgis.current_userinfo['username'] === 'admin')
 	{
-		var cond = {'db':g_db_name, 'collection':'userinfo'};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'userinfo'};
 		ShowProgressBar(true, 670, 200, '获取用户信息', '正在获取用户信息，请稍候...');
 		MongoFind(cond, function(data1){
 			ShowProgressBar(false);
@@ -2796,7 +2795,7 @@ function ShowRoleControl(viewer)
 								var data = $('#form_change_role').webgisform('getdata');
 								if(data['roleid'] && data['roleid'].length>0)
 								{
-									var cond = {'db':g_db_name, 'collection':'sysrole', 'action':'update','data':{'users':data['users'], 'permission':get_permission()}, '_id':data['roleid']};
+									var cond = {'db':$.webgis.db.db_name, 'collection':'sysrole', 'action':'update','data':{'users':data['users'], 'permission':get_permission()}, '_id':data['roleid']};
 									//console.log(cond);
 									ShowProgressBar(true, 670, 200, '保存权限信息', '正在保存权限信息，请稍候...');
 									MongoFind(cond, function(data1){
@@ -2845,7 +2844,7 @@ function ShowRoleControl(viewer)
 	{
 		var userlist = [];
 		var rolelist = [];
-		var cond = {'db':g_db_name, 'collection':'userinfo'};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'userinfo'};
 		ShowProgressBar(true, 670, 200, '获取用户信息', '正在获取用户信息，请稍候...');
 		MongoFind(cond, function(data1){
 			ShowProgressBar(false);
@@ -2856,7 +2855,7 @@ function ShowRoleControl(viewer)
 					userlist.push({'value':data1[i]['_id'], 'label':data1[i]['displayname']});
 				}
 			}
-			cond = {'db':g_db_name, 'collection':'sysrole'};
+			cond = {'db':$.webgis.db.db_name, 'collection':'sysrole'};
 			ShowProgressBar(true, 670, 200, '获取权限信息', '正在获取权限信息，请稍候...');
 			MongoFind(cond, function(data2){
 				ShowProgressBar(false);
@@ -2893,9 +2892,9 @@ function ShowRoleControl(viewer)
 				];
 				
 				
-				for(var i in g_role_functions)
+				for(var i in $.webgis.role_functions)
 				{
-					flds.push({display: g_role_functions[i]['label'], id: "role_functions_" + g_role_functions[i]['value'], newline: true,  type: "checkbox", defaultvalue:false,  group:'允许功能', labelwidth:270});
+					flds.push({display: $.webgis.role_functions[i]['label'], id: "role_functions_" + $.webgis.role_functions[i]['value'], newline: true,  type: "checkbox", defaultvalue:false,  group:'允许功能', labelwidth:270});
 				}
 				
 				
@@ -3064,7 +3063,7 @@ function InitSearchBox(viewer)
 		source:function(request,  response)
 		{
 			var tylist = GetCheckedBoxList('chb_search_webgis_type_');
-			var py_cond = {'db':g_db_name, 'collection':'features;network', 'action':'pinyin_search', 'py':request.term, 'type':tylist};
+			var py_cond = {'db':$.webgis.db.db_name, 'collection':'features;network', 'action':'pinyin_search', 'py':request.term, 'type':tylist};
 			$('#text_search_waiting').css('display','block');
 			$('#text_search_waiting').html('正在查询，请稍候...');
 			MongoFind( py_cond, 
@@ -3090,11 +3089,11 @@ function InitSearchBox(viewer)
 				var name = ui.item.geojson.properties.name;
 				if(name)
 				{
-					LoadTowerByLineName(viewer, g_db_name, name, function(data){
-						LoadLineByLineName(viewer, g_db_name, name, function(data1){
+					LoadTowerByLineName(viewer, $.webgis.db.db_name, name, function(data){
+						LoadLineByLineName(viewer, $.webgis.db.db_name, name, function(data1){
 							var extent = GetExtentByCzml();
 							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							if($.g_map_backend === 'cesium')
+							if($.webgis.map_backend === 'cesium')
 							{
 								ReloadCzmlDataSource(viewer, g_zaware);
 							}
@@ -3107,7 +3106,7 @@ function InitSearchBox(viewer)
 				//console.log(ui.item.type + ',' + ui.item.name + ',' + ui.item.url);
 				if(ui.item.geojson.type === 'heatmap_tile')
 				{
-					$.g_heatmap_layers[ui.item.geojson.name] = {
+					$.webgis.heatmap_layers[ui.item.geojson.name] = {
 						layer: CreateTileHeatMap(viewer, {
 									url: ui.item.geojson.url,
 									maximumLevel: 11,
@@ -3211,7 +3210,7 @@ function ShowSearchResult(viewer, geojson)
 			{
 				g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 			}
-			if($.g_map_backend === 'cesium')
+			if($.webgis.map_backend === 'cesium')
 			{
 				if(!g_czmls[_id])
 				{
@@ -3224,7 +3223,7 @@ function ShowSearchResult(viewer, geojson)
 					ReloadCzmlDataSource(viewer, g_zaware);
 				}
 			}
-			if($.g_map_backend === 'leaflet')
+			if($.webgis.map_backend === 'leaflet')
 			{
 				if(geojson.type === undefined)
 				{
@@ -3462,7 +3461,7 @@ function CreatePointCzmlFromGeojson(geojson)
 		subtype = 'point_dn_transformarea'
 	}
 	//console.log(subtype);
-	var style = g_style_mapping[subtype];
+	var style = $.webgis.style_mapping[subtype];
 	var v;
 	var icon_img = 'img/marker30x48.png';
 	if(subtype === 'point_tower')
@@ -3564,7 +3563,7 @@ function FilterModelList(str)
 				{
 					obj['tower_id'] = g_selected_obj.id;
 				}
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					var json = encodeURIComponent(JSON.stringify(obj));
 					iframe.attr('src', 'threejs/editor/index.html?' + json);
@@ -3584,27 +3583,27 @@ function FilterModelList(str)
 				};
 				var arr = get_code_height(model_code_height);
 				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
-				if(g_selected_geojson )
+				if($.webgis.selected_geojson )
 				{
 					if(g_models_mapping[model_code_height])
 					{
-						g_selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
+						$.webgis.selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
 					}
 					else
 					{
-						g_selected_geojson['properties']['model'] = {contact_points:[],model_code:arr[0], model_code_height:model_code_height};
+						$.webgis.selected_geojson['properties']['model'] = {contact_points:[],model_code:arr[0], model_code_height:model_code_height};
 					}
 				}
 			}else
 			{
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					iframe.attr('src', 'threejs/editor/index.html' );
 				}
-				if(g_selected_geojson)
+				if($.webgis.selected_geojson)
 				{
-					delete g_selected_geojson['properties']['model'];
-					g_selected_geojson['properties']['model'] = undefined;
+					delete $.webgis.selected_geojson['properties']['model'];
+					$.webgis.selected_geojson['properties']['model'] = undefined;
 				}
 			}
 			//console.log(g_geojsons[g_selected_obj.id]);
@@ -3804,7 +3803,7 @@ function GetExtentByCzml()
 {
 	var ret;
 	ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
-	//if($.g_map_backend === 'cesium')
+	//if($.webgis.map_backend === 'cesium')
 	//{
 		//if(g_czmls)
 		//{
@@ -3846,7 +3845,7 @@ function GetExtentByCzml()
 			//}
 		//}
 	//}
-	//if($.g_map_backend === 'leaflet')
+	//if($.webgis.map_backend === 'leaflet')
 	//{
 	var gj = {type: "FeatureCollection",features:[]};
 	for(var k in g_geojsons)
@@ -3895,12 +3894,12 @@ function LoadLineData(db_name, callback)
 
 function LoadSysRole(db_name, callback)
 {
-	var cond = {'db':db_name, 'collection':'-', action:'getsysrole', 'userid':$.g_userinfo['_id']};
+	var cond = {'db':db_name, 'collection':'-', action:'getsysrole', 'userid':$.webgis.current_userinfo['_id']};
 	MongoFind( cond, 
 		function(data){
 			ShowProgressBar(false);
-			$.g_sysrole = data;
-			//console.log($.g_sysrole);
+			$.webgis.sysrole = data;
+			//console.log($.webgis.sysrole);
 			if (callback) callback();
 	});
 }
@@ -3998,14 +3997,14 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 				{
 					g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 				}
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					if(!g_czmls[_id])
 					{
 						g_czmls[_id] = CreateCzmlFromGeojson(g_geojsons[_id]);
 					}
 				}
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					//console.log(geojson);
 					g_leaflet_geojson_layer.addData(geojson);
@@ -4160,7 +4159,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		return r;
 	};
 	
-	//if($.g_map_backend === 'leaflet')
+	//if($.webgis.map_backend === 'leaflet')
 	//{
 		//for(var id in g_geojsons)
 		//{
@@ -4421,7 +4420,7 @@ function ViewExtentByPos(viewer, lng, lat,  dx, dy)
 
 function FlyToPoint(viewer, x, y, z, factor, duration)
 {
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var ellipsoid = scene.globe.ellipsoid;
@@ -4437,7 +4436,7 @@ function FlyToPoint(viewer, x, y, z, factor, duration)
 			duration	:duration/1000.0
 		});
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		var c = L.latLng(y, x);
 		viewer.setView(c, 10);
@@ -4464,16 +4463,19 @@ function FlyToPointCart3(viewer, cartopos, duration)
 
 function FlyToExtent(viewer, west, south, east, north)
 {
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var extent = Cesium.Rectangle.fromDegrees(west, south, east, north);
 		//console.log(extent);
-		scene.camera.flyToRectangle({
+		//scene.camera.flyToRectangle({
+			//destination : extent
+		//});
+		scene.camera.flyTo({
 			destination : extent
 		});
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		var southWest = L.latLng(south, west);
 		var	northEast = L.latLng(north, east);		
@@ -5224,9 +5226,9 @@ function GetSegmentPairsByTowTowerId(id0, id1)
 function GetPhaseColor(phase)
 {
 	var ret = '#000000';
-	if(g_phase_color_mapping[phase])
+	if($.webgis.phase_color_mapping[phase])
 	{
-		ret = g_phase_color_mapping[phase];
+		ret = $.webgis.phase_color_mapping[phase];
 	}
 	return ret;
 }
@@ -5400,7 +5402,7 @@ function CheckSegmentsExist(node0, node1, webgis_type, callback)
 	}
 	else
 	{
-		var cond = {'db':g_db_name, 'collection':'-', 'action':'check_edge_exist', 'id0':id0, 'id1':id1};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'check_edge_exist', 'id0':id0, 'id1':id1};
 		MongoFind(cond, function(data){
 			ret = false;
 			if(data.length>0) ret = true;
@@ -5440,7 +5442,7 @@ function RemoveSegmentsBetweenTwoNode(viewer, node0, node1, webgis_type)
 		var seg = RemoveSegmentsFromArray(node0, node1);
 		if(seg)
 		{
-			if($.g_map_backend === 'cesium')
+			if($.webgis.map_backend === 'cesium')
 			{
 				while(!seg.primitive.isDestroyed())
 				{
@@ -5470,7 +5472,7 @@ function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha, cal
 		//var array = SortTowersByTowersPair(line['properties']['towers_pair']);
 		//g = GetTowerGeojsonByTowerIdArray(array);
 		
-		var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g_geojsons[line['_id']], 'distance':width};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':g_geojsons[line['_id']], 'distance':width};
 		MongoFind(cond, function(data){
 			array = data[0]['coordinates'];
 			
@@ -5570,7 +5572,7 @@ function DrawBufferOfLine2(viewer, buf_id, line, width, height, color, alpha, ca
 	g = GetTowerGeojsonByTowerIdArray(st);
 	//console.log(g);
 		
-	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':width};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':g, 'distance':width};
 	MongoFind(cond, function(data){
 		array = data[0]['coordinates'];
 		console.log(array[0]);
@@ -5776,7 +5778,7 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 	{
 		return;
 	}
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -5815,7 +5817,7 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 		scene.primitives.add(polylines);
 		g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:webgis_type, properties:{'start':previd, 'end':nextid, webgis_type:webgis_type}});
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		if(g_geojsons[previd] && g_geojsons[nextid])
 		{
@@ -6126,7 +6128,7 @@ function CheckTowerInfoModified()
 
 function DeleteLine(viewer, id, callback)
 {
-	var cond = {'db':g_db_name, 'collection':'network', 'action':'remove', '_id':id};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'network', 'action':'remove', '_id':id};
 	ShowProgressBar(true, 670, 200, '删除保存中', '正在删除数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -6182,7 +6184,7 @@ function SaveLine(viewer, id)
 	{
 		data['properties']['nodes'] = [];
 	}
-	var cond = {'db':g_db_name, 'collection':'network', 'action':'save', 'data':data};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'network', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -6218,7 +6220,7 @@ function SaveLine(viewer, id)
 }
 function SaveTower(viewer)
 {
-	if(g_selected_geojson)
+	if($.webgis.selected_geojson)
 	{
 		var data = $('#form_tower_info_base').webgisform('getdata');
 		for(var k in data)
@@ -6231,15 +6233,15 @@ function SaveTower(viewer)
 			){
 				continue;
 			}
-			g_selected_geojson['properties'][k] = data[k];
+			$.webgis.selected_geojson['properties'][k] = data[k];
 		}
-		//if(g_selected_geojson['properties']['model'])
+		//if($.webgis.selected_geojson['properties']['model'])
 		//{
-			//g_selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode(g_selected_geojson['properties']['model']['model_code_height']);
+			//$.webgis.selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode($.webgis.selected_geojson['properties']['model']['model_code_height']);
 		//}
-		//console.log(g_selected_geojson);
+		//console.log($.webgis.selected_geojson);
 		//if(true) return;
-		SavePoi(g_selected_geojson, function(data1){
+		SavePoi($.webgis.selected_geojson, function(data1){
 			//console.log(data1);
 			if(data1 && data1.length>0)
 			{
@@ -6255,7 +6257,7 @@ function SaveTower(viewer)
 					var id = geojson['_id'];
 					g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 					
-					if($.g_map_backend === 'cesium')
+					if($.webgis.map_backend === 'cesium')
 					{
 						g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
 						if(geojson['properties'] && geojson['properties']['model'])
@@ -6266,7 +6268,7 @@ function SaveTower(viewer)
 						}
 					}
 				}
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					ReloadCzmlDataSource(viewer, g_zaware);
 				}
@@ -6299,7 +6301,7 @@ function SavePoi(data, callback)
 	{
 		data.type = 'Feature';
 	}
-	var cond = {'db':g_db_name, 'collection':'features', 'action':'save', 'data':data};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'save', 'data':data};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存数据，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -6336,19 +6338,19 @@ function ShowTowerInfo(viewer, id)
 	var tower = GetTowerInfoByTowerId(id);
 	if(tower)
 	{
-		g_selected_geojson = $.extend(true, {}, tower);
+		$.webgis.selected_geojson = $.extend(true, {}, tower);
 		FilterModelList('');
-		ShowTowerInfoDialog(viewer, g_selected_geojson);
-		if($.g_map_backend === 'cesium')
+		ShowTowerInfoDialog(viewer, $.webgis.selected_geojson);
+		if($.webgis.map_backend === 'cesium')
 		{
-			LoadTowerModelByTower(viewer, g_selected_geojson);
-			DrawSegmentsByTower(viewer, g_selected_geojson);
+			LoadTowerModelByTower(viewer, $.webgis.selected_geojson);
+			DrawSegmentsByTower(viewer, $.webgis.selected_geojson);
 		}
 	}
 	else
 	{
-		delete g_selected_geojson;
-		g_selected_geojson = undefined;
+		delete $.webgis.selected_geojson;
+		$.webgis.selected_geojson = undefined;
 	}
 
 }
@@ -6360,7 +6362,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 	//console.log('width:' + width + ',height:' + height);
 	var container_id = div_id + '_container';
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
-	var data = {op:'gridfs', db:g_db_name, width:64, height:64, bindcollection:bindcollection, key:key};
+	var data = {op:'gridfs', db:$.webgis.db.db_name, width:64, height:64, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
 		if(g_image_slider_tower_info)
 		{
@@ -6375,8 +6377,8 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			var item = { 
 				id: data1[i]._id, 
 				_id: data1[i]._id, 
-				img:'/get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id , 
-				full:'/get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id , 
+				img:'/get?op=gridfs&db=' + $.webgis.db.db_name + '&_id=' + data1[i]._id , 
+				full:'/get?op=gridfs&db=' + $.webgis.db.db_name + '&_id=' + data1[i]._id , 
 				thumb:'data:' + data1[i].mimetype + ';base64,' + data1[i].data, 
 				caption: data1[i].filename,
 				filename:data1[i].filename,
@@ -6442,7 +6444,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
 	var container_id = div_id + '_container';
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
-	var data = {op:'gridfs', db:g_db_name, width:150, height:150, bindcollection:bindcollection, key:key};
+	var data = {op:'gridfs', db:$.webgis.db.db_name, width:150, height:150, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
 		if(g_image_slider_tower_info)
 		{
@@ -6471,7 +6473,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		{
 			s += '\
 			<div >\
-				<img u="image" style="width: ' + (width-20) + 'px; height: ' + (height-80) + 'px;" id="' + data1[i]._id + '" src="get?op=gridfs&db=' + g_db_name + '&_id=' + data1[i]._id + '" >\
+				<img u="image" style="width: ' + (width-20) + 'px; height: ' + (height-80) + 'px;" id="' + data1[i]._id + '" src="get?op=gridfs&db=' + $.webgis.db.db_name + '&_id=' + data1[i]._id + '" >\
 				<img u="thumb" src="data:' + data1[i].mimetype + ';base64,' + data1[i].data + '" >\
 			</div>\
 			';
@@ -6640,8 +6642,8 @@ function DestroyFileUploader(div_id)
 		$('#' + div_id + '_container').empty();
 		g_image_thumbnail_tower_info.length = 0;
 	}
-	delete g_selected_geojson;
-	g_selected_geojson = undefined;
+	delete $.webgis.selected_geojson;
+	$.webgis.selected_geojson = undefined;
 }
 
 function ShowTowerInfoDialog(viewer, tower)
@@ -6650,7 +6652,7 @@ function ShowTowerInfoDialog(viewer, tower)
 	var title = '';
 	title = tower['properties']['name'];
 	var buttons = [];
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		buttons.push({
 			text: "锁定视角", 
@@ -6781,12 +6783,12 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['denomi_height'] = tower['properties']['denomi_height'];
 					$('#tower_info_title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + GetDenomiHeightByModelCode(tower['properties']['model']['model_code_height']) + '米');
 				}
-				if($.g_map_backend === 'cesium')
+				if($.webgis.map_backend === 'cesium')
 				{
 					var json = encodeURIComponent(JSON.stringify(obj));
 					iframe.attr('src', 'threejs/editor/index.html?' + json);
 				}
-				if($.g_map_backend === 'leaflet')
+				if($.webgis.map_backend === 'leaflet')
 				{
 					iframe.css('display', 'none');
 					$('#tower_info_model_blank').html('<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>你的浏览器不支持HTML5的WEBGL标准，因此无法显示3D模型。请使用最新的Chrome浏览器或Chrome内核的浏览器');
@@ -6823,11 +6825,11 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['next_ids'] = next_ids;
 					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], next_ids);
 					var json = encodeURIComponent(JSON.stringify(obj));
-					if($.g_map_backend === 'cesium')
+					if($.webgis.map_backend === 'cesium')
 					{
 						iframe.attr('src', 'threejs/editor/index.html?' + json);
 					}
-					if($.g_map_backend === 'leaflet')
+					if($.webgis.map_backend === 'leaflet')
 					{
 						iframe.css('display', 'none');
 						$('#tower_info_segment_blank').html('<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>你的浏览器不支持HTML5的WEBGL标准，因此无法显示3D模型。请使用最新的Chrome浏览器或Chrome内核的浏览器');
@@ -7104,7 +7106,7 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 			//var img = g_image_thumbnail_tower_info[idx];
 			var img = g_image_slider_tower_info.activeFrame;
 			
-			var url = '/get?' + 'op=gridfs' + '&db=' + g_db_name + '&_id=' + img._id +  '&attachmentdownload=true';
+			var url = '/get?' + 'op=gridfs' + '&db=' + $.webgis.db.db_name + '&_id=' + img._id +  '&attachmentdownload=true';
 			//console.log(url);
 			window.open(url, '_blank');
 			//GridFsFind(data, function(data1){
@@ -7123,7 +7125,7 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 				'删除确认',
 				'确认要删除文件[' + img.filename + ']吗?',
 				function(){
-					var data = {op:'gridfs_delete','db':g_db_name,_id:img._id};
+					var data = {op:'gridfs_delete','db':$.webgis.db.db_name,_id:img._id};
 					GridFsFind(data, function(){
 						//UpdateJssorSlider(div_id, collection, id);
 						UpdateFotoramaSlider(div_id, collection, id);
@@ -7189,7 +7191,7 @@ function BufferCreate(viewer, type, position, distance, style, resolution, callb
 	var res = 4;
 	if(resolution) res = resolution;
 	var geojson = {type:'Feature',geometry:{type:t, coordinates: coordinates}};
-	var cond = {'db':g_db_name, 'collection':'-', 'action':'buffer', 'data':geojson, 'distance':distance, 'res':res};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':geojson, 'distance':distance, 'res':res};
 	ShowProgressBar(true, 670, 200, '生成缓冲区', '正在生成缓冲区，请稍候...');
 	MongoFind(cond, function(data){
 		ShowProgressBar(false);
@@ -7217,7 +7219,7 @@ function BufferCreate(viewer, type, position, distance, style, resolution, callb
 
 function BufferAnalyze(viewer, geojson, webgis_type, callback)
 {
-	var cond = {'db':g_db_name, 'collection':'features', 'action':'within', 'data':geojson, 'webgis_type':webgis_type, 'limit':0};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'within', 'data':geojson, 'webgis_type':webgis_type, 'limit':0};
 	ShowProgressBar(true, 670, 200, '缓冲区分析中', '正在生成缓冲区分析，请稍候...');
 	MongoFind(cond, function(data){
 		ShowProgressBar(false);
@@ -7228,7 +7230,7 @@ function BufferAnalyze(viewer, geojson, webgis_type, callback)
 function ShowBufferAnalyzeDialog(viewer, type, position)
 {
 	var ellipsoid;
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -7376,8 +7378,8 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 		position:{at: "right center"},
 		title:'缓冲区分析',
 		close:function(event, ui){
-			//delete g_selected_geojson;
-			//g_selected_geojson = undefined;
+			//delete $.webgis.selected_geojson;
+			//$.webgis.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -7439,8 +7441,8 @@ function ShowDNAddDialog(viewer)
 		position:{at: "right center"},
 		title:'创建配电网络',
 		close:function(event, ui){
-			delete g_selected_geojson;
-			g_selected_geojson = undefined;
+			delete $.webgis.selected_geojson;
+			$.webgis.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -7512,7 +7514,7 @@ function GetPropertiesByTwoNodes(viewer, id0, id1)
 function SaveEdge(viewer, id, callback)
 {
 	
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		if(g_node_connect_mode 
 		&& g_selected_obj 
@@ -7527,7 +7529,7 @@ function SaveEdge(viewer, id, callback)
 			geojson['_id'] = id;
 			geojson['type'] = 'Feature';
 			geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
-			var cond = {'db':g_db_name, 'collection':'edges', 'action':'save', 'data':geojson};
+			var cond = {'db':$.webgis.db.db_name, 'collection':'edges', 'action':'save', 'data':geojson};
 			ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 			MongoFind(cond, function(data1){
 				ShowProgressBar(false);
@@ -7535,7 +7537,7 @@ function SaveEdge(viewer, id, callback)
 			});
 		}
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
 		if(g_node_connect_mode 
 		&& g_selected_obj 
@@ -7553,7 +7555,7 @@ function SaveEdge(viewer, id, callback)
 			geojson['_id'] = id;
 			geojson['type'] = 'Feature';
 			geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
-			var cond = {'db':g_db_name, 'collection':'edges', 'action':'save', 'data':geojson};
+			var cond = {'db':$.webgis.db.db_name, 'collection':'edges', 'action':'save', 'data':geojson};
 			ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 			MongoFind(cond, function(data1){
 				ShowProgressBar(false);
@@ -7575,7 +7577,7 @@ function SaveDN(viewer, callback)
 	{
 		geojson['properties'][k] = data[k];
 	}
-	var cond = {'db':g_db_name, 'collection':'network', 'action':'save', 'data':geojson};
+	var cond = {'db':$.webgis.db.db_name, 'collection':'network', 'action':'save', 'data':geojson};
 	ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 	MongoFind(cond, function(data1){
 		ShowProgressBar(false);
@@ -7603,7 +7605,7 @@ function SaveDN(viewer, callback)
 function ShowPoiInfoDialog(viewer, title, type, position, id)
 {
 	var ellipsoid;
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -7618,8 +7620,8 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		position:{at: "right center"},
 		title:title,
 		close:function(event, ui){
-			delete g_selected_geojson;
-			g_selected_geojson = undefined;
+			delete $.webgis.selected_geojson;
+			$.webgis.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -7643,7 +7645,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 					if(id && g_geojsons[id])
 					{
 						
-						if($.g_map_backend === 'cesium')
+						if($.webgis.map_backend === 'cesium')
 						{
 							if(type === 'point')
 							{
@@ -7672,7 +7674,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								}
 							}
 						}
-						if($.g_map_backend === 'leaflet')
+						if($.webgis.map_backend === 'leaflet')
 						{
 							if(type === 'point')
 							{
@@ -7764,19 +7766,19 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 												{
 													g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 												}
-												if($.g_map_backend === 'cesium')
+												if($.webgis.map_backend === 'cesium')
 												{
 													if(!g_czmls[id])
 													{
 														g_czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
 													}
 												}
-												if($.g_map_backend === 'leaflet')
+												if($.webgis.map_backend === 'leaflet')
 												{
 													g_leaflet_geojson_layer.addData(geojson);
 												}
 											}
-											if($.g_map_backend === 'cesium')
+											if($.webgis.map_backend === 'cesium')
 											{
 												ReloadCzmlDataSource(viewer, g_zaware);
 											}
@@ -7821,7 +7823,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
 		if(id === undefined)
 		{
-			if($.g_map_backend === 'cesium')
+			if($.webgis.map_backend === 'cesium')
 			{
 				AddToCzml(ellipsoid, type, position);
 			}
@@ -7926,7 +7928,7 @@ function AddToCzml(ellipsoid, type, positions)
 		for(var i in positions)
 		{
 			var cart3 = positions[i];
-			if($.g_map_backend === 'cesium')
+			if($.webgis.map_backend === 'cesium')
 			{
 				var carto = ellipsoid.cartesianToCartographic(cart3);
 				if(i == 0)
@@ -7935,7 +7937,7 @@ function AddToCzml(ellipsoid, type, positions)
 				}
 				g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
 			}
-			if($.g_map_backend === 'leaflet')
+			if($.webgis.map_backend === 'leaflet')
 			{
 				if(i == 0)
 				{
@@ -7944,11 +7946,11 @@ function AddToCzml(ellipsoid, type, positions)
 				g['geometry']['coordinates'][0].push([cart3.lng, cart3.lat]);
 			}
 		}
-		if($.g_map_backend === 'cesium')
+		if($.webgis.map_backend === 'cesium')
 		{
 			g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto_0.longitude), Cesium.Math.toDegrees(carto_0.latitude)]);
 		}
-		if($.g_map_backend === 'leaflet')
+		if($.webgis.map_backend === 'leaflet')
 		{
 			g['geometry']['coordinates'][0].push([carto_0.lng, carto_0.lat]);
 		}
@@ -8233,7 +8235,7 @@ function GetLineNamesListByTowerId(id)
 
 function AddMetal(e)
 {
-	if(g_selected_geojson)
+	if($.webgis.selected_geojson)
 	{
 		var o = {};
 		o['type'] = e.text;
@@ -8273,19 +8275,19 @@ function AddMetal(e)
 			o['anchor_model'] = '';
 			o['depth'] = 0;
 		}
-		if(g_selected_geojson['properties']['metals'] === undefined)
+		if($.webgis.selected_geojson['properties']['metals'] === undefined)
 		{
-			g_selected_geojson['properties']['metals'] = [];
+			$.webgis.selected_geojson['properties']['metals'] = [];
 		}
-		g_selected_geojson['properties']['metals'].push(o);
+		$.webgis.selected_geojson['properties']['metals'].push(o);
 		var data = [];
 		var idx = 1;
-		for(var i in g_selected_geojson['properties']['metals'])
+		for(var i in $.webgis.selected_geojson['properties']['metals'])
 		{
 			data.push({
 				'idx':idx, 
-				'type':g_selected_geojson['properties']['metals'][i]['type'],
-				'model':g_selected_geojson['properties']['metals'][i]['model']
+				'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
+				'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
 				});
 			idx += 1;
 		}
@@ -8297,23 +8299,23 @@ function AddMetal(e)
 
 function DeleteMetal()
 {
-	if(g_selected_geojson)
+	if($.webgis.selected_geojson)
 	{
-		if(g_selected_geojson['properties']['metals'] && g_selected_geojson['properties']['metals'].length>0)
+		if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
 		{
 			if(g_selected_metal_item )
 			{
 				var o = g_selected_metal_item;
-				g_selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+				$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
 			}
 			var data = [];
 			var idx = 1;
-			for(var i in g_selected_geojson['properties']['metals'])
+			for(var i in $.webgis.selected_geojson['properties']['metals'])
 			{
 				data.push({
 					'idx':idx, 
-					'type':g_selected_geojson['properties']['metals'][i]['type'],
-					'model':g_selected_geojson['properties']['metals'][i]['model']
+					'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
+					'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
 					});
 				idx += 1;
 			}
@@ -8351,9 +8353,9 @@ function OnSelect(viewer, e)
 	};
 	clearselcolor();
 	$('#btn_edge_save').attr('disabled','disabled');
-	if($.g_map_backend === 'cesium')
+	if($.webgis.map_backend === 'cesium')
 	{
-		$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + PickLngLatFromScreen(viewer, e.position));
+		$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + PickLngLatFromScreen(viewer, e.position));
 		if (Cesium.defined(viewer.selectedEntity)) 
 		{
 			g_prev_selected_obj = g_selected_obj;
@@ -8507,9 +8509,9 @@ function OnSelect(viewer, e)
 			g_selected_obj = undefined;
 		}
 	}
-	if($.g_map_backend === 'leaflet')
+	if($.webgis.map_backend === 'leaflet')
 	{
-		$('#lnglat_indicator').html( '当前用户:' + $.g_userinfo['displayname'] );
+		$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] );
 		if(g_selected_obj && g_selected_obj.id)
 		{
 			if(typeof g_selected_obj.id === 'string')
@@ -8583,10 +8585,10 @@ function OnSelect(viewer, e)
 			}
 			else
 			{
-				g_selected_geojson = g_selected_obj.id;
-				//if(g_selected_geojson._id === 'tmp_edge')
+				$.webgis.selected_geojson = g_selected_obj.id;
+				//if($.webgis.selected_geojson._id === 'tmp_edge')
 				//{
-					//g_selected_geojson._id = null;
+					//$.webgis.selected_geojson._id = null;
 				//}
 			}
 		}
@@ -8806,7 +8808,7 @@ function GetParamsFromUrl() {
 	var ret = {};
 	if(location.search.length>0)
 	{
-		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  g_encrypt_key);
+		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  $.webgis.encrypt_key);
 		var s = decrypted.toString(CryptoJS.enc.Utf8);
 		s = decodeURIComponent(s);
 		ret = JSON.parse(s);
@@ -8817,31 +8819,31 @@ function GetParamsFromUrl() {
 
 function CheckPermission(funcname)
 {
-	if($.g_userinfo['username'] === undefined)
+	if($.webgis.current_userinfo['username'] === undefined)
 	{
 		return true;
 	}
-	if($.g_userinfo['username'] === 'admin')
+	if($.webgis.current_userinfo['username'] === 'admin')
 	{
 		return true;
 	}
 	var ret = false;
-	if($.g_sysrole.indexOf(funcname)>-1)
+	if($.webgis.sysrole.indexOf(funcname)>-1)
 	{
 		ret = true;
 	}
 	if(ret === false)
 	{
 		var s = '';
-		for(var i in g_role_functions)
+		for(var i in $.webgis.role_functions)
 		{
-			if(g_role_functions[i]['value'] === funcname)
+			if($.webgis.role_functions[i]['value'] === funcname)
 			{
-				s = g_role_functions[i]['label'];
+				s = $.webgis.role_functions[i]['label'];
 				break;
 			}
 		}
-		ShowMessage(null, 400, 200, '权限检查', '当前登录用户[' + $.g_userinfo['displayname'] + ']无此操作权限:[' + s + ']');
+		ShowMessage(null, 400, 200, '权限检查', '当前登录用户[' + $.webgis.current_userinfo['displayname'] + ']无此操作权限:[' + s + ']');
 	}
 	return ret;
 }
