@@ -148,7 +148,7 @@ $(function() {
 								var phase = $('#button_phase :radio:checked').attr('id');
 								phase = phase.substr(phase.indexOf('_') + 1);
 								console.log(t1 + ':side(' + side1 + '):index(' + i1 + '):phase(' + phase + ')<--->' + t2 + ':side(' + side2 + '):index(' + i2 + '):phase(' + phase + ')');
-								var color = parseInt(tinycolor($.webgis.phase_color_mapping[phase]).toHex(), 16);
+								var color = parseInt(tinycolor($.webgis.mapping.phase_color_mapping[phase]).toHex(), 16);
 								var seg = {start_tower:t1, end_tower:t2, start_side:side1, end_side:side2},
 									cp = {start:i1, end:i2, phase:phase};
 								var start,  end, end1, end2;
@@ -889,7 +889,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], 0, -offset_z);
 				if(end )
 				{
-					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.mapping.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 				
@@ -908,7 +908,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
 				if(end)
 				{
-					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.mapping.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 			}
@@ -923,7 +923,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				var end = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 				if(end)
 				{
-					var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
+					var color = parseInt(tinycolor($.webgis.mapping.phase_color_mapping[cp['phase']]).toHex(), 16);
 					DrawLine(editor, start, end, color, seg, cp);
 				}
 			}
@@ -944,7 +944,7 @@ function DrawSegments(editor, tower_id, next_ids, data, data_next, offset_x, off
 				//end1 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[0], -offset_x, -offset_z);
 				//end2 = GetDrawInfoFromContactPoint(0, cp['end'], data_next[1], offset_x, -offset_z);
 			//}
-			//var color = parseInt(tinycolor($.webgis.phase_color_mapping[cp['phase']]).toHex(), 16);
+			//var color = parseInt(tinycolor($.webgis.mapping.phase_color_mapping[cp['phase']]).toHex(), 16);
 			//if(end )
 			//{
 				//DrawLine(editor, start, end, color, seg, cp);

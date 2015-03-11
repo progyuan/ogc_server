@@ -1,45 +1,35 @@
-$.webgis.data = {};
-$.webgis.config = {};
-$.webgis.select = {};
-$.webgis.control = {};
-var g_drawhelper;
-var g_selected_obj;
-var g_prev_selected_obj;
+
 $.webgis.data.czmls = {};
-//var g_geojson_towers = {"type": "FeatureCollection","features": []};
-var g_geojsons = {};
-var g_lines = {};
-var g_codes = {};
-var g_segments = [];
-var g_gltf_models = {};
-var g_contextmenu_metal;
-var g_selected_metal_item;
-var g_geometry_segments = [];
-var g_geometry_lines = {};
+$.webgis.data.geojsons = {};
+$.webgis.data.lines = {};
+$.webgis.data.codes = {};
+$.webgis.data.segments = [];
+$.webgis.data.gltf_models = {};
+$.webgis.data.models_gltf_files = [];
+$.webgis.mapping.models_mapping = {};
+$.webgis.geometry.segments = [];
+$.webgis.geometry.lines = {};
 
-var g_models_gltf_files = [];
-var g_models_mapping = {};
-var g_is_tower_focus = false;
-var g_primitive_material_unselect, g_polyline_material_unselect, g_polygon_material_unselect;
-var g_buffers = {};
-var g_borders = {};
-var g_image_slider_tower_info;
-var g_image_thumbnail_tower_info = [];
-var g_terrain_z_offset = -40;
-var g_node_connect_mode = false;
-var g_leaflet_geojson_layer;
-var g_leaflet_old_style = {};
-//var g_leaflet_markercluster_layer;
+$.webgis.config.is_tower_focus = false;
 
-$.webgis.config.use_catenary = true;
+$.webgis.data.buffers = {};
+$.webgis.data.borders = {};
+
+$.webgis.data.image_thumbnail_tower_info = [];
+$.webgis.config.terrain_z_offset = -40;
+$.webgis.config.node_connect_mode = false;
+
+$.webgis.mapping.leaflet_old_style = {};
+
 $.webgis.data.heatmap_layers = {};
 $.webgis.current_userinfo = {};
-$.webgis.sysrole = [];
-$.webgis.map_backend = 'cesium';
+$.webgis.data.sysrole = [];
+$.webgis.config.map_backend = 'cesium';
+$.webgis.config.use_catenary = true;
 
 
 
-g_max_file_size = 5000000;
+$.webgis.config.max_file_size = 5000000;
 
 
 /*
@@ -108,7 +98,7 @@ $(function() {
 	
 		InitWebGISFormDefinition();
 		InitDrawHelper(viewer);
-		g_drawhelper.show(false);
+		$.webgis.control.drawhelper.show(false);
 		InitPoiInfoDialog();
 		InitTowerInfoDialog();
 		
@@ -124,7 +114,7 @@ $(function() {
 		$('#control_toolpanel_kmgd_left').css('display','none');
 		ShowProgressBar(false);
 		ShowMessage(null, 400, 300, '提示', '系统检测到该浏览器不支持最新HTML5标准WEBGL部分，因此将禁用3D视图。请使用Chrome浏览器或内置Chrome内核的浏览器以获得最佳浏览体验。', function(){
-			$.webgis.map_backend = 'leaflet';
+			$.webgis.config.map_backend = 'leaflet';
 			viewer = InitLeafletViewer();
 			$.webgis.viewer = viewer;
 			
@@ -136,7 +126,7 @@ $(function() {
 		
 			InitWebGISFormDefinition();
 			InitDrawHelper2D(viewer);
-			g_drawhelper.show(false);
+			$.webgis.control.drawhelper.show(false);
 			
 			InitPoiInfoDialog();
 			InitTowerInfoDialog();
@@ -201,16 +191,16 @@ function IFrameUpdateTower(tower_id, data)
 	{
 		var geojson = data[i];
 		var id = geojson['_id'];
-		if(g_geojsons[id])
+		if($.webgis.data.geojsons[id])
 		{
-			g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
-			$.webgis.data.czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+			$.webgis.data.geojsons[id] = geojson; //AddTerrainZOffset(geojson);
+			$.webgis.data.czmls[id] = CreateCzmlFromGeojson($.webgis.data.geojsons[id]);
 		}
 	}
 	var selected_id = $.webgis.selected_geojson['_id'];
-	if(g_geojsons[selected_id])
+	if($.webgis.data.geojsons[selected_id])
 	{
-		$.webgis.selected_geojson['properties']['model'] = g_geojsons[selected_id]['properties']['model'];
+		$.webgis.selected_geojson['properties']['model'] = $.webgis.data.geojsons[selected_id]['properties']['model'];
 	}
 }
 function IFrameUpdateModel(tower_id, data)
@@ -220,7 +210,7 @@ function IFrameUpdateModel(tower_id, data)
 		var obj = data[i];
 		var model_code_height = obj['model_code_height'];
 		delete obj['_id'];
-		g_models_mapping[model_code_height] = obj;
+		$.webgis.mapping.models_mapping[model_code_height] = obj;
 	}
 }
 function IFrameUpdateSegments(data)
@@ -230,23 +220,23 @@ function IFrameUpdateSegments(data)
 		var obj = data[i];
 		var id = obj['_id'];
 		var find = false;
-		for(var j in g_segments)
+		for(var j in $.webgis.data.segments)
 		{
-			if(g_segments[j]['_id'] === id)
+			if($.webgis.data.segments[j]['_id'] === id)
 			{
-				g_segments[j] = obj;
+				$.webgis.data.segments[j] = obj;
 				find = true;
 				break;
 			}
 		}
 		if(!find)
 		{
-			g_segments.push(obj);
+			$.webgis.data.segments.push(obj);
 		}
-		if(g_selected_obj && g_selected_obj.id)
+		if($.webgis.select.selected_obj && $.webgis.select.selected_obj.id)
 		{
-			RemoveSegmentsTower($.webgis.viewer, g_geojsons[g_selected_obj.id]);
-			DrawSegmentsByTower($.webgis.viewer, g_geojsons[g_selected_obj.id]);
+			RemoveSegmentsTower($.webgis.viewer, $.webgis.data.geojsons[$.webgis.select.selected_obj.id]);
+			DrawSegmentsByTower($.webgis.viewer, $.webgis.data.geojsons[$.webgis.select.selected_obj.id]);
 		}
 	}
 }
@@ -262,8 +252,8 @@ function LoadAllDNEdge(viewer, db_name, callback)
 			for(var i in data)
 			{
 				var id = data[i]['_id'];
-				if(!g_geojsons[id]) g_geojsons[id] = data[i];
-				DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[id]['properties']['start'],g_geojsons[id]['properties']['end'], false);
+				if(!$.webgis.data.geojsons[id]) $.webgis.data.geojsons[id] = data[i];
+				DrawEdgeBetweenTwoNode(viewer, 'edge_dn', $.webgis.data.geojsons[id]['properties']['start'],$.webgis.data.geojsons[id]['properties']['end'], false);
 			}
 		}
 		if(callback) callback(data);
@@ -280,10 +270,10 @@ function LoadEdgeByLineId(viewer, db_name, lineid, callback)
 			for(var i in data)
 			{
 				var id = data[i]['_id'];
-				if(!g_geojsons[id]) 
+				if(!$.webgis.data.geojsons[id]) 
 				{
 					//console.log(data[i]);
-					g_geojsons[id] = data[i];
+					$.webgis.data.geojsons[id] = data[i];
 				}
 			}
 		}
@@ -304,9 +294,9 @@ function LoadAllDNNode(viewer, db_name, callback)
 			for(var i in data)
 			{
 				var id = data[i]['_id'];
-				if(!g_geojsons[id]) g_geojsons[id] = data[i]; //AddTerrainZOffset(data[i]);
-				if(!$.webgis.data.czmls[id]) $.webgis.data.czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
-				//$.webgis.data.czmls[id]['position']['cartographicDegrees'][2] = g_geojsons[id]['geometry']['coordinates'][2];
+				if(!$.webgis.data.geojsons[id]) $.webgis.data.geojsons[id] = data[i]; //AddTerrainZOffset(data[i]);
+				if(!$.webgis.data.czmls[id]) $.webgis.data.czmls[id] = CreateCzmlFromGeojson($.webgis.data.geojsons[id]);
+				//$.webgis.data.czmls[id]['position']['cartographicDegrees'][2] = $.webgis.data.geojsons[id]['geometry']['coordinates'][2];
 				//console.log($.webgis.data.czmls[id]['position']['cartographicDegrees'][2]);
 			}
 			if(callback) callback(data);
@@ -329,7 +319,7 @@ function InitLeafletViewer()
 	var url_temlate, lyr;
 	var baseMaps = {};
 	
-	url_temlate = 'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
+	url_temlate = 'http://' + $.webgis.remote.tiles_host + ':' + $.webgis.remote.tiles_port + '/tiles?image_type={image_type}&x={x}&y={y}&level={z}';
 	
 	
 	lyr = L.tileLayer(url_temlate, {
@@ -379,11 +369,11 @@ function InitLeafletViewer()
 	
 	
 	//var prefix = '';
-	//if($.webgis.arcserver_host == '10.181.160.72')
+	//if($.webgis.remote.arcserver_host == '10.181.160.72')
 	//{
 		//prefix = 'ztgdgis/';
 	//}
-	//var url_arcgis = 'http://' + $.webgis.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer';
+	//var url_arcgis = 'http://' + $.webgis.remote.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer';
 	//lyr = L.esri.imageMapLayer(url_arcgis, {
 		////image_type:'arcserver_imagery',
 		////imagery_url:url_arcgis,
@@ -414,27 +404,27 @@ function InitLeafletViewer()
 	
 	//var markers = L.markerClusterGroup({
 	//});
-	g_leaflet_geojson_layer = L.geoJson({type: "FeatureCollection",features:[]}, {
+	$.webgis.control.leaflet_geojson_layer = L.geoJson({type: "FeatureCollection",features:[]}, {
 		style: function (feature) {
 			//if(feature.properties.webgis_type.indexOf('point_')>-1)
 			//{
 			var o = {};
 			if(feature.geometry)
 			{
-				o.color = ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].color);
+				o.color = ColorArrayToHTMLColor($.webgis.mapping.style_mapping[feature.properties.webgis_type].color);
 				var weight = 5;
-				if($.webgis.style_mapping[feature.properties.webgis_type].pixelWidth)
+				if($.webgis.mapping.style_mapping[feature.properties.webgis_type].pixelWidth)
 				{
-					o.weight = $.webgis.style_mapping[feature.properties.webgis_type].pixelWidth * 5;
+					o.weight = $.webgis.mapping.style_mapping[feature.properties.webgis_type].pixelWidth * 5;
 				}
 			}
 			return o;
 		},
 		pointToLayer:function (feature, latlng) {
 			var m = L.circleMarker(latlng, {
-				radius: $.webgis.style_mapping[feature.properties.webgis_type].pixelSize,
-				fillColor: ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].color),
-				color: ColorArrayToHTMLColor($.webgis.style_mapping[feature.properties.webgis_type].outlineColor),
+				radius: $.webgis.mapping.style_mapping[feature.properties.webgis_type].pixelSize,
+				fillColor: ColorArrayToHTMLColor($.webgis.mapping.style_mapping[feature.properties.webgis_type].color),
+				color: ColorArrayToHTMLColor($.webgis.mapping.style_mapping[feature.properties.webgis_type].outlineColor),
 				weight: 1,
 				opacity: 1,
 				fillOpacity: 0.7
@@ -450,50 +440,50 @@ function InitLeafletViewer()
 			layer.on('mouseover', function (e) {
 				if(e.target.feature.properties.name && $('#chb_show_label_' + e.target.feature.properties.webgis_type).is(':checked'))
 				{
-					g_drawhelper._tooltip.setVisible(true);
+					$.webgis.control.drawhelper._tooltip.setVisible(true);
 				}
 			});
 			layer.on('mousemove', function (e) {
 				if(e.target.feature.properties.name && $('#chb_show_label_' + e.target.feature.properties.webgis_type).is(':checked'))
 				{
-					if(g_drawhelper._tooltip.getVisible())
+					if($.webgis.control.drawhelper._tooltip.getVisible())
 					{
-						g_drawhelper._tooltip.showAt(e.containerPoint, e.target.feature.properties.name);
+						$.webgis.control.drawhelper._tooltip.showAt(e.containerPoint, e.target.feature.properties.name);
 					}
 				}
 			});
 			layer.on('mouseout', function (e) {
-				g_drawhelper._tooltip.setVisible(false);
+				$.webgis.control.drawhelper._tooltip.setVisible(false);
 			});
 			layer.on('click', function (e) {
 				console.log(e.target.feature._id);
 				ClearSelectColor2D(map);
-				if(g_selected_obj)
+				if($.webgis.select.selected_obj)
 				{
-					g_prev_selected_obj = g_selected_obj;
+					$.webgis.select.prev_selected_obj = $.webgis.select.selected_obj;
 				}
-				g_selected_obj = e.target.feature;
-				g_selected_obj.id = e.target.feature._id;
+				$.webgis.select.selected_obj = e.target.feature;
+				$.webgis.select.selected_obj.id = e.target.feature._id;
 				if(e.target.feature && e.target.feature.properties && e.target.feature.properties.webgis_type)
 				{
 					if(e.target.feature.properties.webgis_type.indexOf('point_'))
 					{
-						g_selected_obj.point = true;
+						$.webgis.select.selected_obj.point = true;
 					}
 					else if(e.target.feature.properties.webgis_type.indexOf('polyline_'))
 					{
-						g_selected_obj.polyline = true;
+						$.webgis.select.selected_obj.polyline = true;
 					}
 					else if(e.target.feature.properties.webgis_type.indexOf('polygon_'))
 					{
-						g_selected_obj.polygon = true;
+						$.webgis.select.selected_obj.polygon = true;
 					}
 				}
 				
 				
-				if(!g_leaflet_old_style[e.target.feature._id])
+				if(!$.webgis.mapping.leaflet_old_style[e.target.feature._id])
 				{
-					g_leaflet_old_style[e.target.feature._id] = {color:e.target.options.color, weight:e.target.options.weight};
+					$.webgis.mapping.leaflet_old_style[e.target.feature._id] = {color:e.target.options.color, weight:e.target.options.weight};
 				}
 				e.target.setStyle({color:'green', weight: 10});
 				OnSelect(map, null);
@@ -506,26 +496,26 @@ function InitLeafletViewer()
 	//markers.on('mouseover', function (e) {
 		//if(e.layer.feature.properties.name && $('#chb_show_label_' + e.layer.feature.properties.webgis_type).is(':checked'))
 		//{
-			//g_drawhelper._tooltip.setVisible(true);
+			//$.webgis.control.drawhelper._tooltip.setVisible(true);
 		//}
 	//});
 	//markers.on('mousemove', function (e) {
 		//if(e.layer.feature.properties.name && $('#chb_show_label_' + e.layer.feature.properties.webgis_type).is(':checked'))
 		//{
-			//if(g_drawhelper._tooltip.getVisible())
+			//if($.webgis.control.drawhelper._tooltip.getVisible())
 			//{
-				//g_drawhelper._tooltip.showAt(e.containerPoint, e.layer.feature.properties.name);
+				//$.webgis.control.drawhelper._tooltip.showAt(e.containerPoint, e.layer.feature.properties.name);
 			//}
 		//}
 	//});
 	//markers.on('mouseout', function (e) {
-		//g_drawhelper._tooltip.setVisible(false);
+		//$.webgis.control.drawhelper._tooltip.setVisible(false);
 	//});
 	//markers.on('click', function (e) {
 		////console.log(e.layer.feature._id);
 	//});
 	//map.addLayer(markers, false);
-	map.addLayer(g_leaflet_geojson_layer);
+	map.addLayer($.webgis.control.leaflet_geojson_layer);
 	
 	
 	//L.control.layers(baseMaps, {}).addTo(map);
@@ -540,7 +530,7 @@ function InitCesiumViewer()
 {
 	var providerViewModels = [];
 	var prefix = '';
-	if($.webgis.arcserver_host == '10.181.160.72')
+	if($.webgis.remote.arcserver_host == '10.181.160.72')
 	{
 		prefix = 'ztgdgis/';
 	}
@@ -553,7 +543,7 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
+				url :  'http://' + $.webgis.remote.tiles_host + ':' + $.webgis.remote.tiles_port + '/tiles',
 				imageType: 'arcgis_sat',
 				queryType: 'server'
 			});
@@ -565,7 +555,7 @@ function InitCesiumViewer()
 		tooltip : 'YN_SAT',
 		creationFunction : function() {
 			return new ArcGisMapServerImageryProvider({
-				url : 'http://' + $.webgis.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer',
+				url : 'http://' + $.webgis.remote.arcserver_host + ':6080/arcgis/rest/services/' + prefix + 'YN_SAT/ImageServer',
 				name: 'YN_SAT'
 				//usePreCachedTilesIfAvailable:false
 			});
@@ -580,7 +570,7 @@ function InitCesiumViewer()
 				//url : 'http://dev.virtualearth.net',
 				//mapStyle : Cesium.BingMapsStyle.AERIAL
 				////proxy : proxyIfNeeded
-				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
+				url :  'http://' + $.webgis.remote.tiles_host + ':' + $.webgis.remote.tiles_port + '/tiles',
 				imageType: 'bing_sat',
 				queryType: 'server'
 			});
@@ -592,7 +582,7 @@ function InitCesiumViewer()
 		tooltip : '高德地图',
 		creationFunction : function() {
 			return new AMapTileImageryProvider({
-				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/tiles',
+				url :  'http://' + $.webgis.remote.tiles_host + ':' + $.webgis.remote.tiles_port + '/tiles',
 				imageType: 'amap_map',
 				queryType: 'server'
 			});
@@ -631,7 +621,7 @@ function InitCesiumViewer()
 		creationFunction : function() {
 			return new HeightmapAndQuantizedMeshTerrainProvider({
 				//url : "terrain",
-				url :  'http://' + $.webgis.tiles_host + ':' + $.webgis.tiles_port + '/terrain',
+				url :  'http://' + $.webgis.remote.tiles_host + ':' + $.webgis.remote.tiles_port + '/terrain',
 				terrain_type : 'quantized_mesh',
 				credit : ''
 			});
@@ -673,16 +663,16 @@ function InitCesiumViewer()
 
 function ClearSelectColor2D(viewer)
 {
-	if(g_leaflet_geojson_layer)
+	if($.webgis.control.leaflet_geojson_layer)
 	{
-		g_leaflet_geojson_layer.eachLayer(function(layer){
+		$.webgis.control.leaflet_geojson_layer.eachLayer(function(layer){
 			if(layer.feature && layer.feature._id)
 			{
-				if(g_leaflet_old_style[layer.feature._id])
+				if($.webgis.mapping.leaflet_old_style[layer.feature._id])
 				{
-					var opt = g_leaflet_old_style[layer.feature._id];
+					var opt = $.webgis.mapping.leaflet_old_style[layer.feature._id];
 					layer.setStyle({color:opt.color, weight:opt.weight});
-					delete g_leaflet_old_style[layer.feature._id];
+					delete $.webgis.mapping.leaflet_old_style[layer.feature._id];
 				}
 			}
 		});
@@ -691,11 +681,11 @@ function ClearSelectColor2D(viewer)
 		if(layer.eachLayer)
 		{
 			layer.eachLayer(function(lyr){
-				if(lyr.geojson && lyr.geojson._id && g_leaflet_old_style[lyr.geojson._id])
+				if(lyr.geojson && lyr.geojson._id && $.webgis.mapping.leaflet_old_style[lyr.geojson._id])
 				{
-					var opt = g_leaflet_old_style[lyr.geojson._id];
+					var opt = $.webgis.mapping.leaflet_old_style[lyr.geojson._id];
 					lyr.setStyle({color:opt.color, weight:opt.weight});
-					delete g_leaflet_old_style[lyr.geojson._id];
+					delete $.webgis.mapping.leaflet_old_style[lyr.geojson._id];
 				}
 				
 			});
@@ -709,9 +699,9 @@ function InitKeyboardEvent(viewer)
 	var get_current_edge = function(id0, id1)
 	{
 		var ret;
-		for(var i in g_geometry_segments)
+		for(var i in $.webgis.geometry.segments)
 		{
-			var seg = g_geometry_segments[i];
+			var seg = $.webgis.geometry.segments[i];
 			if(  (seg['webgis_type'] == 'edge_dn' || seg['webgis_type'] == 'edge_tower') && seg['start'] == id0 && seg['end'] == id1)
 			{
 				ret = seg['primitive'];
@@ -722,10 +712,10 @@ function InitKeyboardEvent(viewer)
 	};
 	var change_color = function(webgis_type, id)
 	{
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			var c = Cesium.Color.fromCssColorString("rgba(200,200,0,1)");
-			var edge = get_current_edge(g_prev_selected_obj.id, g_selected_obj.id);
+			var edge = get_current_edge($.webgis.select.prev_selected_obj.id, $.webgis.select.selected_obj.id);
 			var m =	Cesium.Material.fromType('PolylineArrow', {
 							color : c
 					});
@@ -735,7 +725,7 @@ function InitKeyboardEvent(viewer)
 				p.material = m;
 			}
 		}
-		if($.webgis.map_backend === 'leaflet' && webgis_type && id)
+		if($.webgis.config.map_backend === 'leaflet' && webgis_type && id)
 		{
 			var color = ColorArrayToHTMLColor([200,200,0,1]);
 			var lyr_polylinegroup;
@@ -749,7 +739,7 @@ function InitKeyboardEvent(viewer)
 			if(lyr_polylinegroup)
 			{
 				lyr_polylinegroup.eachLayer(function(layer){
-					if(layer.geojson && layer.geojson.properties && layer.geojson.properties.start === g_prev_selected_obj.id && layer.geojson.properties.end === g_selected_obj.id)
+					if(layer.geojson && layer.geojson.properties && layer.geojson.properties.start === $.webgis.select.prev_selected_obj.id && layer.geojson.properties.end === $.webgis.select.selected_obj.id)
 					{
 						layer.geojson._id = id;
 						layer.setStyle({color:color, weight:5});
@@ -760,20 +750,20 @@ function InitKeyboardEvent(viewer)
 		}
 	};
 	
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
 		viewer.on('click', function(e){
 			//console.log('mapclick');
-			if(g_selected_obj)
+			if($.webgis.select.selected_obj)
 			{
-				//g_prev_selected_obj = $.extend(true, {}, g_selected_obj);
-				delete g_selected_obj;
-				g_selected_obj = undefined;
+				//$.webgis.select.prev_selected_obj = $.extend(true, {}, $.webgis.select.selected_obj);
+				delete $.webgis.select.selected_obj;
+				$.webgis.select.selected_obj = undefined;
 			}
-			if(g_prev_selected_obj)
+			if($.webgis.select.prev_selected_obj)
 			{
-				delete g_prev_selected_obj;
-				g_prev_selected_obj = undefined;
+				delete $.webgis.select.prev_selected_obj;
+				$.webgis.select.prev_selected_obj = undefined;
 			}
 			ClearSelectColor2D(viewer);
 			
@@ -793,8 +783,8 @@ function InitKeyboardEvent(viewer)
 				//});
 				//return;
 			//}
-			g_node_connect_mode = !g_node_connect_mode;
-			if(g_node_connect_mode)
+			$.webgis.config.node_connect_mode = !$.webgis.config.node_connect_mode;
+			if($.webgis.config.node_connect_mode)
 			{
 				//$(".jGrowl-notification:last-child").remove();
 				$.jGrowl('<div>连接模式开启(L键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
@@ -826,16 +816,16 @@ function InitKeyboardEvent(viewer)
 										{
 											var g = data[i];
 											webgis_type = g['properties']['webgis_type'];
-											if(!g_geojsons[g['_id']]) 
+											if(!$.webgis.data.geojsons[g['_id']]) 
 											{
-												g_geojsons[g['_id']] = g;
-												if($.webgis.map_backend === 'leaflet')
+												$.webgis.data.geojsons[g['_id']] = g;
+												if($.webgis.config.map_backend === 'leaflet')
 												{
 													change_color(webgis_type, g['_id']);
 												}
 											}
 										}
-										if($.webgis.map_backend === 'cesium')
+										if($.webgis.config.map_backend === 'cesium')
 										{
 											change_color();
 										}
@@ -878,8 +868,8 @@ function InitKeyboardEvent(viewer)
 			{
 				//console.log(e);
 			}
-			console.log(g_selected_obj);
-			if(g_selected_obj && g_selected_obj.id && g_selected_obj.id.properties && g_selected_obj.id.properties.webgis_type.indexOf('edge_')>-1)
+			console.log($.webgis.select.selected_obj);
+			if($.webgis.select.selected_obj && $.webgis.select.selected_obj.id && $.webgis.select.selected_obj.id.properties && $.webgis.select.selected_obj.id.properties.webgis_type.indexOf('edge_')>-1)
 			{
 				if(!CheckPermission('edge_delete'))
 				{
@@ -888,19 +878,19 @@ function InitKeyboardEvent(viewer)
 				var get_name = function()
 				{
 					var s0 = '', s1 = '';
-					var id0 = g_selected_obj.id.properties.start;
-					var id1 = g_selected_obj.id.properties.end;
-					if(g_geojsons[id0]) s0 = g_geojsons[id0].properties.name;
-					if(g_geojsons[id1]) s1 = g_geojsons[id1].properties.name;
+					var id0 = $.webgis.select.selected_obj.id.properties.start;
+					var id1 = $.webgis.select.selected_obj.id.properties.end;
+					if($.webgis.data.geojsons[id0]) s0 = $.webgis.data.geojsons[id0].properties.name;
+					if($.webgis.data.geojsons[id1]) s1 = $.webgis.data.geojsons[id1].properties.name;
 					return s0 + '-' + s1;
 				};
 				var get_id = function()
 				{
 					var ret;
-					for(var k in g_geojsons)
+					for(var k in $.webgis.data.geojsons)
 					{
-						var g = g_geojsons[k];
-						if(g.properties.start == g_selected_obj.id.properties.start && g.properties.end == g_selected_obj.id.properties.end)
+						var g = $.webgis.data.geojsons[k];
+						if(g.properties.start == $.webgis.select.selected_obj.id.properties.start && g.properties.end == $.webgis.select.selected_obj.id.properties.end)
 						{
 							ret = g['_id'];
 							break;
@@ -911,7 +901,7 @@ function InitKeyboardEvent(viewer)
 				var name = get_name();
 				
 				ShowConfirm(null, 400, 280, '删除确认', '你确认要删除[' + name + ']之间的联系吗?', function(){
-					//console.log(g_selected_obj.id);
+					//console.log($.webgis.select.selected_obj.id);
 					var id = get_id();
 					//console.log(id);
 					if(id)
@@ -929,7 +919,7 @@ function InitKeyboardEvent(viewer)
 											theme: 'bubblestylesuccess',
 											glue:'before'
 										});
-										if($.webgis.map_backend === 'leaflet')
+										if($.webgis.config.map_backend === 'leaflet')
 										{
 											viewer.eachLayer(function(layer){
 												if(layer.eachLayer)
@@ -950,23 +940,23 @@ function InitKeyboardEvent(viewer)
 								}
 						});
 					}
-					RemoveSegmentsBetweenTwoNode(viewer, {id:g_selected_obj.id.properties.start},{id:g_selected_obj.id.properties.end});
+					RemoveSegmentsBetweenTwoNode(viewer, {id:$.webgis.select.selected_obj.id.properties.start},{id:$.webgis.select.selected_obj.id.properties.end});
 					
 				});
 			}
-			if(g_selected_obj && g_selected_obj.id && (g_selected_obj.point || g_selected_obj.polyline || g_selected_obj.polygon) && g_geojsons[g_selected_obj.id]  && 
-			(  g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_marker'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_hazard'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_dn'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_marker'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polyline_hazard'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polygon_marker'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polygon_hazard'
-			|| g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'polygon_buffer'
+			if($.webgis.select.selected_obj && $.webgis.select.selected_obj.id && ($.webgis.select.selected_obj.point || $.webgis.select.selected_obj.polyline || $.webgis.select.selected_obj.polygon) && $.webgis.data.geojsons[$.webgis.select.selected_obj.id]  && 
+			(  $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_marker'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_hazard'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_tower'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_dn'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'polyline_marker'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'polyline_hazard'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'polygon_marker'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'polygon_hazard'
+			|| $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'polygon_buffer'
 			))
 			{
-				if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
+				if($.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_tower')
 				{
 					if(!CheckPermission('tower_delete'))
 					{
@@ -978,12 +968,12 @@ function InitKeyboardEvent(viewer)
 					return;
 				}
 				
-				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + g_geojsons[g_selected_obj.id]['properties']['name'] + ']吗?', function(){
-					//if(g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === 'point_tower')
+				ShowConfirm(null, 400, 180, '删除确认', '你确认要删除对象[' + $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['name'] + ']吗?', function(){
+					//if($.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === 'point_tower')
 					//{
 						//return;
 					//}
-					var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'remove', '_id':g_selected_obj.id};
+					var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'remove', '_id':$.webgis.select.selected_obj.id};
 					MongoFind( cond, 
 						function(data){
 							if(data.length>0)
@@ -998,28 +988,28 @@ function InitKeyboardEvent(viewer)
 										glue:'before'
 									});
 
-									if(g_geojsons[g_selected_obj.id])
+									if($.webgis.data.geojsons[$.webgis.select.selected_obj.id])
 									{
-										delete g_geojsons[g_selected_obj.id];
-										g_geojsons[g_selected_obj.id] = undefined;
-										//console.log(g_geojsons[g_selected_obj.id]);
+										delete $.webgis.data.geojsons[$.webgis.select.selected_obj.id];
+										$.webgis.data.geojsons[$.webgis.select.selected_obj.id] = undefined;
+										//console.log($.webgis.data.geojsons[$.webgis.select.selected_obj.id]);
 									}
-									if($.webgis.map_backend === 'cesium')
+									if($.webgis.config.map_backend === 'cesium')
 									{
-										if($.webgis.data.czmls[g_selected_obj.id])
+										if($.webgis.data.czmls[$.webgis.select.selected_obj.id])
 										{
-											delete $.webgis.data.czmls[g_selected_obj.id];
-											$.webgis.data.czmls[g_selected_obj.id] = undefined;
-											//console.log($.webgis.data.czmls[g_selected_obj.id]);
+											delete $.webgis.data.czmls[$.webgis.select.selected_obj.id];
+											$.webgis.data.czmls[$.webgis.select.selected_obj.id] = undefined;
+											//console.log($.webgis.data.czmls[$.webgis.select.selected_obj.id]);
 										}
 									}
-									delete g_prev_selected_obj;
-									g_prev_selected_obj = undefined;
-									delete g_selected_obj;
-									g_selected_obj = undefined;
+									delete $.webgis.select.prev_selected_obj;
+									$.webgis.select.prev_selected_obj = undefined;
+									delete $.webgis.select.selected_obj;
+									$.webgis.select.selected_obj = undefined;
 									viewer.selectedEntity = undefined;
 									viewer.trackedEntity = undefined;
-									if($.webgis.map_backend === 'cesium')
+									if($.webgis.config.map_backend === 'cesium')
 									{
 										ReloadCzmlDataSource(viewer, g_zaware, true);
 									}
@@ -1662,24 +1652,24 @@ function InitRuler(viewer)
     var RulerButtonViewModel = function() {
         var that = this;
         this._command = Cesium.createCommand(function() {
-			if(g_drawhelper_mode === undefined)
+			if($.webgis.control.drawhelper_mode === undefined)
 			{
-				g_drawhelper_mode = 'ruler';
+				$.webgis.control.drawhelper_mode = 'ruler';
 				$(that.button).css('background-color', 'rgba(0, 255, 0, 0.5)');
-				if(!g_drawhelper.isVisible())
+				if(!$.webgis.control.drawhelper.isVisible())
 				{
-					g_drawhelper.show(true);
+					$.webgis.control.drawhelper.show(true);
 				}
 				
 			}
 			else
 			{
-				g_drawhelper_mode = undefined;
+				$.webgis.control.drawhelper_mode = undefined;
 				$(that.button).css('background-color', 'rgba(38, 38, 38, 0.75)');
-				if(g_drawhelper.isVisible())
+				if($.webgis.control.drawhelper.isVisible())
 				{
-					g_drawhelper.clearPrimitive();
-					g_drawhelper.show(false);
+					$.webgis.control.drawhelper.clearPrimitive();
+					$.webgis.control.drawhelper.show(false);
 				}
 			}
         });
@@ -1761,14 +1751,14 @@ function InitBird(viewer)
 
 function InitDrawHelper2D(viewer)
 {
-	g_drawhelper = new DrawHelper2D(viewer, 'drawhelpertoolbar');
-	var toolbar = g_drawhelper.addToolbar($('#' + g_drawhelper.toolbar_container_id)[0], {
+	$.webgis.control.drawhelper = new DrawHelper2D(viewer, 'drawhelpertoolbar');
+	var toolbar = $.webgis.control.drawhelper.addToolbar($('#' + $.webgis.control.drawhelper.toolbar_container_id)[0], {
 		buttons: ['marker', 'polyline', 'polygon', 'circle', 'extent']
 	});
 	
 	toolbar.addListener('markerCreated', function(event) {
 		console.log('Marker created at ' + GetDisplayLatLngString2D(event.position, 7));
-		if(g_drawhelper_mode != 'ruler')
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			var m = L.marker(event.position,{
 				icon:L.icon({
@@ -1786,7 +1776,7 @@ function InitDrawHelper2D(viewer)
 		//event.positions.pop();
 		event.positions.pop();
 		console.log('Polyline created with ' + event.positions.length + ' points');
-		if(g_drawhelper_mode != 'ruler')
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoDialog(viewer, '添加线段或道路', 'polyline', event.positions);
 		}
@@ -1795,7 +1785,7 @@ function InitDrawHelper2D(viewer)
 		//event.positions.pop();
 		event.positions.pop();
 		console.log('Polygon created with ' + event.positions.length + ' points');
-		if(g_drawhelper_mode != 'ruler')
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
 		}
@@ -1808,8 +1798,8 @@ function InitDrawHelper2D(viewer)
 			//material: drawHelperCoverAreaMaterial
 		//});
 		//viewer.scene.primitives.add(circle);
-		//g_drawhelper.addPrimitive(circle);
-		if(g_drawhelper_mode != 'ruler')
+		//$.webgis.control.drawhelper.addPrimitive(circle);
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
 		}
@@ -1817,7 +1807,7 @@ function InitDrawHelper2D(viewer)
 	toolbar.addListener('extentCreated', function(event) {
 		var positions = event.positions;
 		console.log('Extent created (N: ' + positions[0].lat.toFixed(3) + ', E: ' + positions[2].lng.toFixed(3) + ', S: ' + positions[1].lat.toFixed(3) + ', W: ' + positions[0].lng.toFixed(3) + ')');
-		if(g_drawhelper_mode != 'ruler')
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoDialog(viewer, '添加矩形区域', 'polygon', positions);
 		}
@@ -1829,8 +1819,8 @@ function InitDrawHelper2D(viewer)
 function InitDrawHelper(viewer)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
-	g_drawhelper = new DrawHelper(viewer, 'drawhelpertoolbar');
-	var toolbar = g_drawhelper.addToolbar($('#' + g_drawhelper.toolbar_container_id)[0], {
+	$.webgis.control.drawhelper = new DrawHelper(viewer, 'drawhelpertoolbar');
+	var toolbar = $.webgis.control.drawhelper.addToolbar($('#' + $.webgis.control.drawhelper.toolbar_container_id)[0], {
 		buttons: ['marker', 'polyline', 'polygon', 'circle', 'extent']
 	});
 	
@@ -1843,11 +1833,11 @@ function InitDrawHelper(viewer)
 	toolbar.addListener('markerCreated', function(event) {
 		console.log('Marker created at ' + GetDisplayLatLngString(ellipsoid, event.position, 7));
 		// create one common billboard collection for all billboards
-		if(g_drawhelper_mode != 'ruler')
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			var b = new Cesium.BillboardCollection();
 			viewer.scene.primitives.add(b);
-			g_drawhelper.addPrimitive(b);
+			$.webgis.control.drawhelper.addPrimitive(b);
 			var billboard = b.add({
 				show : true,
 				position : event.position,
@@ -1875,8 +1865,8 @@ function InitDrawHelper(viewer)
 			geodesic: true
 		});
 		viewer.scene.primitives.add(polyline);
-		g_drawhelper.addPrimitive(polyline);
-		if(g_drawhelper_mode != 'ruler')
+		$.webgis.control.drawhelper.addPrimitive(polyline);
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoDialog(viewer, '添加线段或道路', 'polyline', event.positions);
 		}
@@ -1894,8 +1884,8 @@ function InitDrawHelper(viewer)
 			material : drawHelperCoverAreaMaterial
 		});
 		viewer.scene.primitives.add(polygon);
-		g_drawhelper.addPrimitive(polygon);
-		if(g_drawhelper_mode != 'ruler')
+		$.webgis.control.drawhelper.addPrimitive(polygon);
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoDialog(viewer, '添加多边形区域', 'polygon', event.positions);
 		}
@@ -1913,8 +1903,8 @@ function InitDrawHelper(viewer)
 			material: drawHelperCoverAreaMaterial
 		});
 		viewer.scene.primitives.add(circle);
-		g_drawhelper.addPrimitive(circle);
-		if(g_drawhelper_mode != 'ruler')
+		$.webgis.control.drawhelper.addPrimitive(circle);
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			ShowPoiInfoCircleDialog(viewer, '添加圆形区域', event.center, event.radius);
 		}
@@ -1932,8 +1922,8 @@ function InitDrawHelper(viewer)
 			material: drawHelperCoverAreaMaterial
 		});
 		viewer.scene.primitives.add(extentPrimitive);
-		g_drawhelper.addPrimitive(extentPrimitive);
-		if(g_drawhelper_mode != 'ruler')
+		$.webgis.control.drawhelper.addPrimitive(extentPrimitive);
+		if($.webgis.control.drawhelper_mode != 'ruler')
 		{
 			var positions = [];
 			//console.log(extent);
@@ -1962,7 +1952,7 @@ function InitDrawHelper(viewer)
 function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 {
 	var ellipsoid;
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -1970,12 +1960,12 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 	g['geometry'] = {}
 	g['geometry']['type'] = 'Point';
 	//console.log(center);
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		var carto = ellipsoid.cartesianToCartographic(center);
 		g['geometry']['coordinates'] = [Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)];
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
 		g['geometry']['coordinates'] = [center.lng, center.lat];
 	}
@@ -1990,13 +1980,13 @@ function ShowPoiInfoCircleDialog(viewer, title, center, radius)
 			for(var i in geometry['coordinates'][0])
 			{
 				var coord = geometry['coordinates'][0][i];
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					var carto = Cesium.Cartographic.fromDegrees(coord[0], coord[1], 0);
 					var cart3 = ellipsoid.cartographicToCartesian(carto);
 					positions.push(cart3);
 				}
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					positions.push(L.latLng(coord[1], coord[0]));
 				}
@@ -2111,7 +2101,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
     );
 
 
-    if (g_max_file_size > 0) {
+    if ($.webgis.config.max_file_size > 0) {
 		var res = '';
 		for(var i in fileext)
 		{
@@ -2128,7 +2118,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
             // send Blob objects via XHR requests:
             disableImageResize: /Android(?!.*Chrome)|Opera/
                 .test(window.navigator.userAgent),
-            maxFileSize: g_max_file_size,
+            maxFileSize: $.webgis.config.max_file_size,
             //acceptFileTypes: /(\.|\/)(gif|jpe?g|png)$/i
             acceptFileTypes: re
         });
@@ -2226,7 +2216,7 @@ function InitToolPanel(viewer)
 		{
 			console.log('turn off label:' + webgis_type);
 		}
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			ReloadCzmlDataSource(viewer, g_zaware);
 		}
@@ -2238,25 +2228,25 @@ function InitToolPanel(viewer)
 			if($(this).is(':checked'))
 			{
 				console.log('turn on edge:' + webgis_type);
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
-					for(var k in g_geojsons)
+					for(var k in $.webgis.data.geojsons)
 					{
-						DrawEdgeBetweenTwoNode(viewer, 'edge_tower', g_geojsons[k]['properties']['start'], g_geojsons[k]['properties']['end'], false);
+						DrawEdgeBetweenTwoNode(viewer, 'edge_tower', $.webgis.data.geojsons[k]['properties']['start'], $.webgis.data.geojsons[k]['properties']['end'], false);
 					}
 				}
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					UpdateEdges2D(viewer, webgis_type);
 				}
 			}else
 			{
 				console.log('turn off edge:' + webgis_type);
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					RemoveSegmentsByType(viewer, 'edge_tower');
 				}
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					ClearEdges2D(viewer, webgis_type);
 				}
@@ -2270,12 +2260,12 @@ function InitToolPanel(viewer)
 			}else
 			{
 				console.log('turn off geometry:' + webgis_type);
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					ClearEdges2D(viewer, webgis_type);
 				}
 			}
-			if($.webgis.map_backend === 'cesium')
+			if($.webgis.config.map_backend === 'cesium')
 			{
 				ReloadCzmlDataSource(viewer, g_zaware);
 			}
@@ -2289,7 +2279,7 @@ function InitToolPanel(viewer)
 		{
 			console.log('turn off icon:' + 'point');
 		}
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			ReloadCzmlDataSource(viewer, g_zaware);
 		}
@@ -2337,13 +2327,13 @@ function InitToolPanel(viewer)
 	
 	$('#but_add_poi').button({label:'添加兴趣点'});
 	$('#but_add_poi').on('click', function(){
-		if(g_drawhelper.isVisible())
+		if($.webgis.control.drawhelper.isVisible())
 		{
-			g_drawhelper.show(false);
+			$.webgis.control.drawhelper.show(false);
 		}
 		else
 		{
-			g_drawhelper.show(true);
+			$.webgis.control.drawhelper.show(true);
 		}
 	});
 	$('#but_remove_poi').button({label:'清空兴趣点'});
@@ -2375,7 +2365,7 @@ function InitToolPanel(viewer)
 		}
 		var arr = $('#line_choose').multipleSelect("getSelects");
 		var textarr = $('#line_choose').multipleSelect("getSelects", 'text');
-		if(arr.length>0 && g_lines[arr[0]])
+		if(arr.length>0 && $.webgis.data.lines[arr[0]])
 		{
 			ShowConfirm(null, 500, 200,
 				'删除确认',
@@ -2384,9 +2374,9 @@ function InitToolPanel(viewer)
 					DeleteLine(viewer, arr[0], function(){
 						LoadLineData($.webgis.db.db_name, function(){
 							$('#line_choose').empty();
-							for(var k in g_lines)
+							for(var k in $.webgis.data.lines)
 							{
-								$('#line_choose').append('<option value="' + k + '">' + g_lines[k]['properties']['name'] + '</option>');
+								$('#line_choose').append('<option value="' + k + '">' + $.webgis.data.lines[k]['properties']['name'] + '</option>');
 							}
 							$('#line_choose').multipleSelect("refresh");
 						});					
@@ -2409,11 +2399,11 @@ function InitToolPanel(viewer)
 	});
 	$('#but_dn_remove').button({label:'清空配电网络'});
 	$('#but_dn_remove').on('click', function(){
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			RemoveSegmentsByType(viewer, 'edge_dn');
 		}
-		if($.webgis.map_backend === 'leaflet')
+		if($.webgis.config.map_backend === 'leaflet')
 		{
 			ClearEdges2D(viewer, 'edge_dn');
 		}
@@ -2444,7 +2434,7 @@ function ClearEdges2D(viewer, webgis_type)
 			viewer.removeLayer(layer);
 		}
 	});
-	g_geometry_segments.length = 0;
+	$.webgis.geometry.segments.length = 0;
 }
 
 
@@ -2499,15 +2489,15 @@ function AddEdgeBetweenTwoNode2D(viewer, webgis_type, start_obj, end_obj, isfres
 function UpdateEdges2D(viewer, webgis_type)
 {
 	var pairlist = [];
-	for(var k in g_geojsons)
+	for(var k in $.webgis.data.geojsons)
 	{
 		
-		if(g_geojsons[k]['properties'] && g_geojsons[k]['properties']['start'] && g_geojsons[k]['properties']['end'])
+		if($.webgis.data.geojsons[k]['properties'] && $.webgis.data.geojsons[k]['properties']['start'] && $.webgis.data.geojsons[k]['properties']['end'])
 		{
-			var pair = DrawEdgeBetweenTwoNode(viewer, webgis_type, g_geojsons[k]['properties']['start'], g_geojsons[k]['properties']['end'], false);
+			var pair = DrawEdgeBetweenTwoNode(viewer, webgis_type, $.webgis.data.geojsons[k]['properties']['start'], $.webgis.data.geojsons[k]['properties']['end'], false);
 			if(pair)
 			{
-				pair.push(g_geojsons[k]);
+				pair.push($.webgis.data.geojsons[k]);
 				pairlist.push(pair);
 			}
 		}
@@ -2573,14 +2563,14 @@ function GetEdgeLeafletByWebgisType(viewer, webgis_type, initpolyline)
 		
 		lyr_polylinegroup.on('click', function(e){
 			ClearSelectColor2D(viewer);
-			if(g_selected_obj)
+			if($.webgis.select.selected_obj)
 			{
-				g_prev_selected_obj = g_selected_obj;
+				$.webgis.select.prev_selected_obj = $.webgis.select.selected_obj;
 			}
-			g_selected_obj = {};
-			g_selected_obj.id = e.layer.geojson;
+			$.webgis.select.selected_obj = {};
+			$.webgis.select.selected_obj.id = e.layer.geojson;
 			console.log('edge:' + e.layer.geojson._id);
-			g_leaflet_old_style[e.layer.geojson._id] = {color:e.layer.options.color, weight:e.layer.options.weight};
+			$.webgis.mapping.leaflet_old_style[e.layer.geojson._id] = {color:e.layer.options.color, weight:e.layer.options.weight};
 			e.layer.setStyle({color : 'green', weight:10});
 			OnSelect(viewer, null);
 		});		
@@ -2898,9 +2888,9 @@ function ShowRoleControl(viewer)
 				];
 				
 				
-				for(var i in $.webgis.role_functions)
+				for(var i in $.webgis.mapping.role_functions)
 				{
-					flds.push({display: $.webgis.role_functions[i]['label'], id: "role_functions_" + $.webgis.role_functions[i]['value'], newline: true,  type: "checkbox", defaultvalue:false,  group:'允许功能', labelwidth:270});
+					flds.push({display: $.webgis.mapping.role_functions[i]['label'], id: "role_functions_" + $.webgis.mapping.role_functions[i]['value'], newline: true,  type: "checkbox", defaultvalue:false,  group:'允许功能', labelwidth:270});
 				}
 				
 				
@@ -2925,9 +2915,9 @@ function ClearPoi(viewer)
 	delete $.webgis.data.czmls;
 	$.webgis.data.czmls = {};
 	ReloadCzmlDataSource(viewer, g_zaware, true);
-	for(var k in g_gltf_models)
+	for(var k in $.webgis.data.gltf_models)
 	{
-		var m = g_gltf_models[k];
+		var m = $.webgis.data.gltf_models[k];
 		if(scene.primitives.contains(m))
 		{
 			var b = scene.primitives.remove(m);
@@ -3099,7 +3089,7 @@ function InitSearchBox(viewer)
 						LoadLineByLineName(viewer, $.webgis.db.db_name, name, function(data1){
 							var extent = GetExtentByCzml();
 							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-							if($.webgis.map_backend === 'cesium')
+							if($.webgis.config.map_backend === 'cesium')
 							{
 								ReloadCzmlDataSource(viewer, g_zaware);
 							}
@@ -3212,31 +3202,31 @@ function ShowSearchResult(viewer, geojson)
 		if(geojson['properties'] )
 		{
 			var _id = geojson['_id'];
-			if(!g_geojsons[_id])
+			if(!$.webgis.data.geojsons[_id])
 			{
-				g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
+				$.webgis.data.geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 			}
-			if($.webgis.map_backend === 'cesium')
+			if($.webgis.config.map_backend === 'cesium')
 			{
 				if(!$.webgis.data.czmls[_id])
 				{
-					if(g_geojsons[_id]['properties']['webgis_type'].indexOf('point_')>-1)
-						$.webgis.data.czmls[_id] = CreatePointCzmlFromGeojson(g_geojsons[_id]);
-					else if(g_geojsons[_id]['properties']['webgis_type'].indexOf('polyline_')>-1)
-						$.webgis.data.czmls[_id] = CreatePolyLineCzmlFromGeojson(g_geojsons[_id]);
-					else if(g_geojsons[_id]['properties']['webgis_type'].indexOf('polygon_')>-1)
-						$.webgis.data.czmls[_id] = CreatePolygonCzmlFromGeojson(g_geojsons[_id]);
+					if($.webgis.data.geojsons[_id]['properties']['webgis_type'].indexOf('point_')>-1)
+						$.webgis.data.czmls[_id] = CreatePointCzmlFromGeojson($.webgis.data.geojsons[_id]);
+					else if($.webgis.data.geojsons[_id]['properties']['webgis_type'].indexOf('polyline_')>-1)
+						$.webgis.data.czmls[_id] = CreatePolyLineCzmlFromGeojson($.webgis.data.geojsons[_id]);
+					else if($.webgis.data.geojsons[_id]['properties']['webgis_type'].indexOf('polygon_')>-1)
+						$.webgis.data.czmls[_id] = CreatePolygonCzmlFromGeojson($.webgis.data.geojsons[_id]);
 					ReloadCzmlDataSource(viewer, g_zaware);
 				}
 			}
-			if($.webgis.map_backend === 'leaflet')
+			if($.webgis.config.map_backend === 'leaflet')
 			{
 				if(geojson.type === undefined)
 				{
 					geojson.type = 'Feature';
 				}
 				//console.log(geojson);
-				g_leaflet_geojson_layer.addData(geojson);
+				$.webgis.control.leaflet_geojson_layer.addData(geojson);
 			}
 		}
 	}
@@ -3467,7 +3457,7 @@ function CreatePointCzmlFromGeojson(geojson)
 		subtype = 'point_dn_transformarea'
 	}
 	//console.log(subtype);
-	var style = $.webgis.style_mapping[subtype];
+	var style = $.webgis.mapping.style_mapping[subtype];
 	var v;
 	var icon_img = 'img/marker30x48.png';
 	if(subtype === 'point_tower')
@@ -3534,16 +3524,16 @@ function FilterModelList(str)
 	{
 	}
 	$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + '(无)' + '</li>');
-	for(var i in g_models_gltf_files)
+	for(var i in $.webgis.data.models_gltf_files)
 	{
 		if(str.length > 0)
 		{
-			if(g_models_gltf_files[i].toLowerCase().indexOf(str.toLowerCase())>-1)
+			if($.webgis.data.models_gltf_files[i].toLowerCase().indexOf(str.toLowerCase())>-1)
 			{
-				$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models_gltf_files[i] + '</li>');
+				$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + $.webgis.data.models_gltf_files[i] + '</li>');
 			}
 		}else{
-			$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + g_models_gltf_files[i] + '</li>');
+			$('#tower_info_model_list_selectable').append('<li class="ui-widget-content1">' + $.webgis.data.models_gltf_files[i] + '</li>');
 		}
 	}
 	$("#tower_info_model_list_selectable").selectable({
@@ -3555,9 +3545,9 @@ function FilterModelList(str)
 			{
 				var obj = {};
 				obj['url'] = '/' + url;
-				if(g_models_mapping[model_code_height])
+				if($.webgis.mapping.models_mapping[model_code_height])
 				{
-					obj['data'] = g_models_mapping[model_code_height];
+					obj['data'] = $.webgis.mapping.models_mapping[model_code_height];
 				}else
 				{
 					obj['data'] = {};
@@ -3565,11 +3555,11 @@ function FilterModelList(str)
 					obj['data']['model_code'] = GetMCByModelCode(model_code_height);
 					obj['data']['model_code_height'] = model_code_height;
 				}
-				if(g_selected_obj && g_selected_obj.id)
+				if($.webgis.select.selected_obj && $.webgis.select.selected_obj.id)
 				{
-					obj['tower_id'] = g_selected_obj.id;
+					obj['tower_id'] = $.webgis.select.selected_obj.id;
 				}
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					var json = encodeURIComponent(JSON.stringify(obj));
 					iframe.attr('src', 'threejs/editor/index.html?' + json);
@@ -3591,9 +3581,9 @@ function FilterModelList(str)
 				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
 				if($.webgis.selected_geojson )
 				{
-					if(g_models_mapping[model_code_height])
+					if($.webgis.mapping.models_mapping[model_code_height])
 					{
-						$.webgis.selected_geojson['properties']['model'] = g_models_mapping[model_code_height];
+						$.webgis.selected_geojson['properties']['model'] = $.webgis.mapping.models_mapping[model_code_height];
 					}
 					else
 					{
@@ -3602,7 +3592,7 @@ function FilterModelList(str)
 				}
 			}else
 			{
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					iframe.attr('src', 'threejs/editor/index.html' );
 				}
@@ -3612,7 +3602,7 @@ function FilterModelList(str)
 					$.webgis.selected_geojson['properties']['model'] = undefined;
 				}
 			}
-			//console.log(g_geojsons[g_selected_obj.id]);
+			//console.log($.webgis.data.geojsons[$.webgis.select.selected_obj.id]);
 		},
 		selecting: function( event, ui ) {
 			if( $(".ui-selected, .ui-selecting").length > 1){
@@ -3635,7 +3625,7 @@ function LoadBorder(viewer, db_name, condition, callback)
 			{
 				for(var i in data)
 				{
-					g_geojsons[data[i]['_id']] = data[i];
+					$.webgis.data.geojsons[data[i]['_id']] = data[i];
 					//var dataSource = new Cesium.GeoJsonDataSource();
 					//dataSource.load(data[0]);
 					//dataSource.dsname = 'geojson';
@@ -3651,14 +3641,14 @@ function LoadBorder(viewer, db_name, condition, callback)
 function RemoveBorders(viewer)
 {
 	var l = [];
-	for(var k in g_borders)
+	for(var k in $.webgis.data.borders)
 	{
 		l.push(k);
 	}
 	for(var i in l)
 	{
-		viewer.scene.primitives.remove(g_borders[l[i]]);
-		delete g_borders[l[i]];
+		viewer.scene.primitives.remove($.webgis.data.borders[l[i]]);
+		delete $.webgis.data.borders[l[i]];
 	}
 }
 function ReloadBorders(viewer, forcereload)
@@ -3669,17 +3659,17 @@ function ReloadBorders(viewer, forcereload)
 		RemoveBorders(viewer);
 	}
 	var extent = {'west':179, 'east':-179, 'south':89, 'north':-89};
-	for(var k in g_geojsons)
+	for(var k in $.webgis.data.geojsons)
 	{
 		if(!forcereload)
 		{
-			if(g_borders[k])
+			if($.webgis.data.borders[k])
 			{
 				continue;
 			}
 		}
 		//console.log('load ' + k);
-		var g = g_geojsons[k];
+		var g = $.webgis.data.geojsons[k];
 		if(g.properties.type && g.properties.type.indexOf('border')>-1)
 		{
 			var positions = [];
@@ -3757,7 +3747,7 @@ function ReloadBorders(viewer, forcereload)
 					})
 				});
 				viewer.scene.primitives.add(primitive);
-				g_borders[k] = primitive;
+				$.webgis.data.borders[k] = primitive;
 			}
 			
 		}
@@ -3770,7 +3760,7 @@ function LoadSegments(db_name, callback)
 	var segs_cond = {'db':db_name, 'collection':'segments'};
 	MongoFind( segs_cond, 
 		function(data){
-			g_segments = data;
+			$.webgis.data.segments = data;
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
@@ -3780,7 +3770,7 @@ function LoadModelsList(db_name, callback)
 	var cond = {'db':db_name, 'collection':'-', 'action':'models_list', 'data':{}};
 	MongoFind( cond, 
 		function(data){
-			g_models_gltf_files = data;
+			$.webgis.data.models_gltf_files = data;
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
@@ -3793,14 +3783,14 @@ function LoadModelsMapping(db_name, callback)
 			for(var i in data)
 			{
 				var model_code_height = data[i]['model_code_height'];
-				if(g_models_mapping[model_code_height] === undefined)
+				if($.webgis.mapping.models_mapping[model_code_height] === undefined)
 				{
 					var d = data[i];
 					delete d['_id'];
-					g_models_mapping[model_code_height] = d;
+					$.webgis.mapping.models_mapping[model_code_height] = d;
 				}
 			}
-			//console.log(g_models_mapping);
+			//console.log($.webgis.mapping.models_mapping);
 			ShowProgressBar(false);
 			if(callback) callback();
 	});
@@ -3809,7 +3799,7 @@ function GetExtentByCzml()
 {
 	var ret;
 	ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
-	//if($.webgis.map_backend === 'cesium')
+	//if($.webgis.config.map_backend === 'cesium')
 	//{
 		//if($.webgis.data.czmls)
 		//{
@@ -3851,14 +3841,14 @@ function GetExtentByCzml()
 			//}
 		//}
 	//}
-	//if($.webgis.map_backend === 'leaflet')
+	//if($.webgis.config.map_backend === 'leaflet')
 	//{
 	var gj = {type: "FeatureCollection",features:[]};
-	for(var k in g_geojsons)
+	for(var k in $.webgis.data.geojsons)
 	{
-		if (g_geojsons[k].geometry)
+		if ($.webgis.data.geojsons[k].geometry)
 		{
-			gj.features.push(g_geojsons[k]);
+			gj.features.push($.webgis.data.geojsons[k]);
 		}
 	}
 	var arr = geojsonExtent(gj);
@@ -3877,7 +3867,7 @@ function LoadCodeData(db_name, callback)
 	var cond = {'db':db_name, 'collection':'codes'};
 	MongoFind( cond, 
 		function(data){
-			g_codes = data[0];
+			$.webgis.data.codes = data[0];
 			ShowProgressBar(false);
 			if (callback) callback();
 	});
@@ -3888,10 +3878,10 @@ function LoadLineData(db_name, callback)
 {
 	var line_cond = {'db':db_name, 'collection':'network', 'properties.webgis_type':'polyline_line'};
 	MongoFind( line_cond,function(linedatas){
-		g_lines = {};
+		$.webgis.data.lines = {};
 		for(var i in linedatas)
 		{
-			g_lines[linedatas[i]['_id']] = linedatas[i];
+			$.webgis.data.lines[linedatas[i]['_id']] = linedatas[i];
 		}
 		ShowProgressBar(false);
 		if (callback) callback();
@@ -3904,8 +3894,8 @@ function LoadSysRole(db_name, callback)
 	MongoFind( cond, 
 		function(data){
 			ShowProgressBar(false);
-			$.webgis.sysrole = data;
-			//console.log($.webgis.sysrole);
+			$.webgis.data.sysrole = data;
+			//console.log($.webgis.data.sysrole);
 			if (callback) callback();
 	});
 }
@@ -3919,7 +3909,7 @@ function AddTerrainZOffset(geojson)
 	{
 		if(coord instanceof Array && coord.length==3 && $.isNumeric(coord[0]))
 		{
-			coord[2] = coord[2] + g_terrain_z_offset;
+			coord[2] = coord[2] + $.webgis.config.terrain_z_offset;
 		}
 		else if(coord instanceof Array)
 		{
@@ -3945,7 +3935,7 @@ function RemoveTerrainZOffset(geojson)
 	{
 		if(coord instanceof Array && coord.length==3 && $.isNumeric(coord[0]))
 		{
-			coord[2] = coord[2] - g_terrain_z_offset;
+			coord[2] = coord[2] - $.webgis.config.terrain_z_offset;
 		}
 		else if(coord instanceof Array)
 		{
@@ -3999,21 +3989,21 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 				var _id = data[i]['_id'];
 				var geojson = data[i];
 				//geojson = AddZValueByCesium(viewer, geojson, g_zaware);
-				if(!g_geojsons[_id])
+				if(!$.webgis.data.geojsons[_id])
 				{
-					g_geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
+					$.webgis.data.geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
 				}
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					if(!$.webgis.data.czmls[_id])
 					{
-						$.webgis.data.czmls[_id] = CreateCzmlFromGeojson(g_geojsons[_id]);
+						$.webgis.data.czmls[_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[_id]);
 					}
 				}
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					//console.log(geojson);
-					g_leaflet_geojson_layer.addData(geojson);
+					$.webgis.control.leaflet_geojson_layer.addData(geojson);
 				}
 			}
 			if(callback) callback(data);
@@ -4024,9 +4014,9 @@ function LoadLineByLineName(viewer, db_name, name, callback)
 {
 	var get_line_id = function(name){
 		var ret;
-		for(var k in g_lines)
+		for(var k in $.webgis.data.lines)
 		{
-			if(g_lines[k]['properties']['name'] === name)
+			if($.webgis.data.lines[k]['properties']['name'] === name)
 			{
 				ret = k;
 				break;
@@ -4050,13 +4040,13 @@ function LoadLineByLineName(viewer, db_name, name, callback)
 	MongoFind(cond, function(data){
 		if(data.length>0)
 		{
-			if(!g_geojsons[_id])
+			if(!$.webgis.data.geojsons[_id])
 			{
-				g_geojsons[_id] = data[0]; //AddTerrainZOffset(data[0]);
+				$.webgis.data.geojsons[_id] = data[0]; //AddTerrainZOffset(data[0]);
 			}
 			if(!$.webgis.data.czmls[_id])
 			{
-				$.webgis.data.czmls[_id] = CreateCzmlFromGeojson(g_geojsons[_id]);
+				$.webgis.data.czmls[_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[_id]);
 			}
 		}
 		if(callback) callback(data);
@@ -4165,14 +4155,14 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 		return r;
 	};
 	
-	//if($.webgis.map_backend === 'leaflet')
+	//if($.webgis.config.map_backend === 'leaflet')
 	//{
-		//for(var id in g_geojsons)
+		//for(var id in $.webgis.data.geojsons)
 		//{
-			//var g = g_geojsons[id];
+			//var g = $.webgis.data.geojsons[id];
 			//if(g.geometry)
 			//{
-				//g_leaflet_geojson_layer.addData(g);
+				//$.webgis.control.leaflet_geojson_layer.addData(g);
 			//}
 		//}
 		//return;
@@ -4299,8 +4289,8 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 					//}
 					//if(opt[kk] === false)
 					//{
-					//console.log(g_geojsons[k]);
-					if(g_geojsons[k] && g_geojsons[k]['properties'] && g_geojsons[k]['properties']['model'])
+					//console.log($.webgis.data.geojsons[k]);
+					if($.webgis.data.geojsons[k] && $.webgis.data.geojsons[k]['properties'] && $.webgis.data.geojsons[k]['properties']['model'])
 					{
 						obj['billboard']['show'] = {'boolean':false};
 					}else
@@ -4347,7 +4337,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 	if($.webgis.data.czmls === {})
 	{
 		viewer.selectedEntity = undefined;
-		g_selected_obj = undefined;
+		$.webgis.select.selected_obj = undefined;
 	}
 	var dataSource = GetDataSourcesByName(viewer, 'czml');
 	if(!dataSource)
@@ -4377,9 +4367,9 @@ function LookAtTarget(viewer, id, zoom_factor)
 	//scene.camera.controller.lookAt(scene.camera.position, target, scene.camera.up);
 	var ellipsoid = scene.globe.ellipsoid;
 	
-	if(g_geojsons[id])
+	if($.webgis.data.geojsons[id])
 	{
-		var g = g_geojsons[id];
+		var g = $.webgis.data.geojsons[id];
 		var x = g['geometry']['coordinates'][0];
 		var y = g['geometry']['coordinates'][1];
 		var z = g['geometry']['coordinates'][2];
@@ -4394,9 +4384,9 @@ function LookAtTargetExtent(viewer, id, dx, dy)
 {
 	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
-	if(g_geojsons[id])
+	if($.webgis.data.geojsons[id])
 	{
-		var tower = g_geojsons[id];
+		var tower = $.webgis.data.geojsons[id];
 		var x = tower['geometry']['coordinates'][0];
 		var y = tower['geometry']['coordinates'][1];
 		var west = Cesium.Math.toRadians(x - dx);
@@ -4426,7 +4416,7 @@ function ViewExtentByPos(viewer, lng, lat,  dx, dy)
 
 function FlyToPoint(viewer, x, y, z, factor, duration)
 {
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var ellipsoid = scene.globe.ellipsoid;
@@ -4442,7 +4432,7 @@ function FlyToPoint(viewer, x, y, z, factor, duration)
 			duration	:duration/1000.0
 		});
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
 		var c = L.latLng(y, x);
 		viewer.setView(c, 10);
@@ -4469,7 +4459,7 @@ function FlyToPointCart3(viewer, cartopos, duration)
 
 function FlyToExtent(viewer, west, south, east, north)
 {
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var extent = Cesium.Rectangle.fromDegrees(west, south, east, north);
@@ -4481,7 +4471,7 @@ function FlyToExtent(viewer, west, south, east, north)
 			destination : extent
 		});
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
 		var southWest = L.latLng(south, west);
 		var	northEast = L.latLng(north, east);		
@@ -4493,9 +4483,9 @@ function FlyToExtent(viewer, west, south, east, north)
 function GetTowerInfoByTowerId(id)
 {
 	var ret = null;
-	if(g_geojsons[id])
+	if($.webgis.data.geojsons[id])
 	{
-		ret = g_geojsons[id];
+		ret = $.webgis.data.geojsons[id];
 	}
 	return ret;
 }
@@ -4508,7 +4498,7 @@ function LoadTowerModelByTower(viewer, tower)
 	if(tower)
 	{
 		var id = tower['_id'];
-		if(!g_gltf_models[id])
+		if(!$.webgis.data.gltf_models[id])
 		{
 			if(tower['properties']['model'] && tower['properties']['model']['model_code_height'])
 			{
@@ -4545,7 +4535,7 @@ function LoadTowerModelByTower(viewer, tower)
 						);
 						if(model)
 						{
-							g_gltf_models[id] = model;
+							$.webgis.data.gltf_models[id] = model;
 							console.log("load model for [" + id + "]");
 						}
 					}else
@@ -4572,9 +4562,9 @@ function GetNextTowerModelData(ids)
 	for(var i in ids)
 	{
 		var id = ids[i];
-		if(g_geojsons[id])
+		if($.webgis.data.geojsons[id])
 		{
-			var tower = g_geojsons[id];
+			var tower = $.webgis.data.geojsons[id];
 			ret.push(tower['properties']['model']);
 		}
 	}
@@ -4586,9 +4576,9 @@ function GetNextModelUrl(ids)
 	for(var i in ids)
 	{
 		var id = ids[i];
-		if(g_geojsons[id])
+		if($.webgis.data.geojsons[id])
 		{
-			var tower = g_geojsons[id];
+			var tower = $.webgis.data.geojsons[id];
 			var url = GetModelUrl1(tower['properties']['model']['model_code_height']);
 			if(url.length>0)
 			{
@@ -4867,12 +4857,12 @@ function TowerInfoMixin(viewer)
 		try{
 			picked = viewer.scene.pick(e.endPosition);
 		}catch(e){}
-		if (Cesium.defined(picked) && Cesium.defined(g_selected_obj) && Cesium.defined(picked.id) && picked.id === g_selected_obj) 
+		if (Cesium.defined(picked) && Cesium.defined($.webgis.select.selected_obj) && Cesium.defined(picked.id) && picked.id === $.webgis.select.selected_obj) 
 		{
-			var id = g_selected_obj.id;
-			if(g_geojsons[id] && g_geojsons[id]['properties']['name'])
+			var id = $.webgis.select.selected_obj.id;
+			if($.webgis.data.geojsons[id] && $.webgis.data.geojsons[id]['properties']['name'])
 			{
-				ShowGeoTip(id, e.endPosition, g_geojsons[id]['properties']['name']);
+				ShowGeoTip(id, e.endPosition, $.webgis.data.geojsons[id]['properties']['name']);
 			}else 
 			{
 				ShowGeoTip(false);
@@ -5134,21 +5124,21 @@ function TowerInfoMixin(viewer)
 
 function ReloadLinePosition(viewer)
 {
-	for(var k in g_lines)
+	for(var k in $.webgis.data.lines)
 	{
 		var color = '#FF0000';
-		if(g_lines[k].properties.voltage == '13')
+		if($.webgis.data.lines[k].properties.voltage == '13')
 		{
 			color = '#FF0000';
 		}
-		if(g_lines[k].properties.voltage == '15')
+		if($.webgis.data.lines[k].properties.voltage == '15')
 		{
 			color = '#0000FF';
 		}
-		if(g_geojsons[k])
+		if($.webgis.data.geojsons[k])
 		{
-			DrawLineModelByLine(viewer, g_lines[k], 4.0, color, null );
-			//DrawBufferOfLine(viewer, 'test', g_lines[k], 1000, 3000, '#FF0000', 0.2);
+			DrawLineModelByLine(viewer, $.webgis.data.lines[k], 4.0, color, null );
+			//DrawBufferOfLine(viewer, 'test', $.webgis.data.lines[k], 1000, 3000, '#FF0000', 0.2);
 		}
 	}
 }
@@ -5156,7 +5146,7 @@ function ReloadLinePosition(viewer)
 function CheckIsTower(id)
 {
 	var ret = false;
-	if(g_geojsons[id] && g_geojsons[id]['properties']['webgis_type'] && g_geojsons[id]['properties']['webgis_type'] === 'point_tower')
+	if($.webgis.data.geojsons[id] && $.webgis.data.geojsons[id]['properties']['webgis_type'] && $.webgis.data.geojsons[id]['properties']['webgis_type'] === 'point_tower')
 	{
 		ret = true;
 	}
@@ -5168,7 +5158,7 @@ function ReloadModelPosition(viewer)
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	for(var k in $.webgis.data.czmls)
 	{
-		if(g_gltf_models[k])
+		if($.webgis.data.gltf_models[k])
 		{
 			var t = GetTowerInfoByTowerId(k);
 			if(t)
@@ -5178,8 +5168,8 @@ function ReloadModelPosition(viewer)
 				//var carto = Cesium.Cartographic.fromDegrees($.webgis.data.czmls[k]['position']['cartographicDegrees'][0], $.webgis.data.czmls[k]['position']['cartographicDegrees'][1], $.webgis.data.czmls[k]['position']['cartographicDegrees'][2]);
 				//var cart3 = ellipsoid.cartographicToCartesian(carto);
 				//var mat4 = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.IDENTITY, cart3);
-				//var m = Cesium.Matrix4.multiplyTransformation(g_gltf_models[k].modelMatrix, mat4, mat4);
-				//g_gltf_models[k].modelMatrix = m;
+				//var m = Cesium.Matrix4.multiplyTransformation($.webgis.data.gltf_models[k].modelMatrix, mat4, mat4);
+				//$.webgis.data.gltf_models[k].modelMatrix = m;
 				
 				var lng = t['geometry']['coordinates'][0],
 					lat = t['geometry']['coordinates'][1],
@@ -5187,7 +5177,7 @@ function ReloadModelPosition(viewer)
 					rotate = t['properties']['rotate'];
 				
 				if(!g_zaware) height = 0;
-				PositionModel(ellipsoid, g_gltf_models[k], lng, lat, height, rotate);
+				PositionModel(ellipsoid, $.webgis.data.gltf_models[k], lng, lat, height, rotate);
 			}
 		}
 	}
@@ -5199,9 +5189,9 @@ function GetNeighborTowers(ids)
 	for(var j in ids)
 	{
 		var id = ids[j];
-		if(g_geojsons[id])
+		if($.webgis.data.geojsons[id])
 		{
-			var tower = g_geojsons[id];
+			var tower = $.webgis.data.geojsons[id];
 			ret.push(tower);
 		}
 	}
@@ -5215,9 +5205,9 @@ function GetSegmentPairsByTowTowerId(id0, id1)
 	ret['t0'] = 0.9;
 	ret['w'] = 0.001;
 	
-	for(var i in g_segments)
+	for(var i in $.webgis.data.segments)
 	{
-		var seg = g_segments[i];
+		var seg = $.webgis.data.segments[i];
 		if(seg['start_tower'] == id0 && seg['end_tower'] == id1)
 		{
 			ret['contact_points'] = seg['contact_points'];
@@ -5232,9 +5222,9 @@ function GetSegmentPairsByTowTowerId(id0, id1)
 function GetPhaseColor(phase)
 {
 	var ret = '#000000';
-	if($.webgis.phase_color_mapping[phase])
+	if($.webgis.mapping.phase_color_mapping[phase])
 	{
-		ret = $.webgis.phase_color_mapping[phase];
+		ret = $.webgis.mapping.phase_color_mapping[phase];
 	}
 	return ret;
 }
@@ -5260,15 +5250,15 @@ function RemoveSegmentsByType(viewer, webgis_type)
 	var remove_one = function()
 	{
 		var ret = false;
-		for(var i in g_geometry_segments)
+		for(var i in $.webgis.geometry.segments)
 		{
-			var seg = g_geometry_segments[i];
+			var seg = $.webgis.geometry.segments[i];
 			if(seg.webgis_type === webgis_type)
 			{
 				try{
 					scene.primitives.remove(seg.primitive);
 				}catch(e){}
-				g_geometry_segments.splice(i,1);
+				$.webgis.geometry.segments.splice(i,1);
 				ret = true;
 				break;
 			}
@@ -5279,7 +5269,7 @@ function RemoveSegmentsByType(viewer, webgis_type)
 	if(webgis_type===undefined)
 	{
 		scene.primitives.removeAll();
-		g_geometry_segments.length = 0;
+		$.webgis.geometry.segments.length = 0;
 	}else
 	{
 		var ok = remove_one();
@@ -5306,15 +5296,15 @@ function RemoveSegmentsFromArray(node0, node1)
 	}
 	if(id0 && id1)
 	{
-		for(var i in g_geometry_segments)
+		for(var i in $.webgis.geometry.segments)
 		{
-			var seg = g_geometry_segments[i];
+			var seg = $.webgis.geometry.segments[i];
 			if(
 				(seg['start'] == id0 && seg['end'] == id1)
 			|| 	(seg['end'] == id0 && seg['start'] == id1)
 			){
 				ret = seg;
-				g_geometry_segments.splice(i,1);
+				$.webgis.geometry.segments.splice(i,1);
 				break;
 			}
 		}
@@ -5351,7 +5341,7 @@ function CheckSegmentsRing(node0, node1)
 		while(prev)
 		{
 			oldprev = prev;
-			prev = find_prev(oldprev, g_geometry_segments);
+			prev = find_prev(oldprev, $.webgis.geometry.segments);
 			if(prev && prev == id1)
 			{
 				ret = true;
@@ -5380,9 +5370,9 @@ function CheckSegmentsExist(node0, node1, webgis_type, callback)
 	{
 		if(id0 && id1)
 		{
-			for(var i in g_geometry_segments)
+			for(var i in $.webgis.geometry.segments)
 			{
-				var seg = g_geometry_segments[i];
+				var seg = $.webgis.geometry.segments[i];
 				if(webgis_type)
 				{
 					if(seg['webgis_type'] === webgis_type
@@ -5422,18 +5412,18 @@ function RemoveLineModel(viewer, line_id)
 {
 	var m;
 	var l = [];
-	for(var id in g_geometry_lines)
+	for(var id in $.webgis.geometry.lines)
 	{
 		if(id.indexOf(line_id) > -1)
 		{
-			var model = g_geometry_lines[id];
+			var model = $.webgis.geometry.lines[id];
 			l.push({id:id, model:model});
 		}
 	}
 	while(l.length>0)
 	{
 		var o = l.pop();
-		delete g_geometry_lines[o.id];
+		delete $.webgis.geometry.lines[o.id];
 		viewer.scene.primitives.remove(o.model);	
 	}
 }
@@ -5448,7 +5438,7 @@ function RemoveSegmentsBetweenTwoNode(viewer, node0, node1, webgis_type)
 		var seg = RemoveSegmentsFromArray(node0, node1);
 		if(seg)
 		{
-			if($.webgis.map_backend === 'cesium')
+			if($.webgis.config.map_backend === 'cesium')
 			{
 				while(!seg.primitive.isDestroyed())
 				{
@@ -5473,12 +5463,12 @@ function DrawBufferOfLine1(viewer, buf_id, line, width, height, color, alpha)
 function DrawBufferOfLine(viewer, buf_id, line, width, height, color, alpha, callback)
 {
 	var ellipsoid = viewer.scene.globe.ellipsoid;
-	if(g_geojsons[line['_id']])
+	if($.webgis.data.geojsons[line['_id']])
 	{
 		//var array = SortTowersByTowersPair(line['properties']['towers_pair']);
 		//g = GetTowerGeojsonByTowerIdArray(array);
 		
-		var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':g_geojsons[line['_id']], 'distance':width};
+		var cond = {'db':$.webgis.db.db_name, 'collection':'-', 'action':'buffer', 'data':$.webgis.data.geojsons[line['_id']], 'distance':width};
 		MongoFind(cond, function(data){
 			array = data[0]['coordinates'];
 			
@@ -5564,9 +5554,9 @@ function GetTowerGeojsonByTowerIdArray(array)
 	for(var i in array)
 	{
 		var id = array[i];
-		if(g_geojsons[id])
+		if($.webgis.data.geojsons[id])
 		{
-			ret['coordinates'].push(g_geojsons[id]['geometry']['coordinates']);
+			ret['coordinates'].push($.webgis.data.geojsons[id]['geometry']['coordinates']);
 		}
 	}
 	return ret;
@@ -5592,13 +5582,13 @@ function DrawBufferOfLine2(viewer, buf_id, line, width, height, color, alpha, ca
 
 function RemoveBuffer(viewer, buf_id)
 {
-	for(var i in g_buffers)
+	for(var i in $.webgis.data.buffers)
 	{
 		if(i === buf_id)
 		{
-			var primitive = g_buffers[i];
+			var primitive = $.webgis.data.buffers[i];
 			viewer.scene.primitives.remove(primitive);
-			delete g_buffers[i];
+			delete $.webgis.data.buffers[i];
 		}
 	}
 }
@@ -5647,7 +5637,7 @@ function DrawBufferCorridorGeometry(viewer, buf_id, positions, width, height, co
 	});
 	//console.log(corridorGeometry);
 	viewer.scene.primitives.add(primitive);
-	g_buffers[buf_id] = primitive;
+	$.webgis.data.buffers[buf_id] = primitive;
 }
 
 function DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alpha)
@@ -5690,7 +5680,7 @@ function DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alph
 	});
 	//console.log(corridorGeometry);
 	viewer.scene.primitives.add(primitive);
-	g_buffers[buf_id] = primitive;
+	$.webgis.data.buffers[buf_id] = primitive;
 	
 	
 }
@@ -5769,11 +5759,11 @@ function GetPositions2DByCzmlArray(ellipsoid, arr)
 function ReloadEdges(viewer)
 {
 	//RemoveSegmentsByType(viewer, 'edge_dn');
-	for(var k in g_geojsons)
+	for(var k in $.webgis.data.geojsons)
 	{
-		if(g_geojsons[k] && g_geojsons[k]['properties']['webgis_type'] === 'edge_dn')
+		if($.webgis.data.geojsons[k] && $.webgis.data.geojsons[k]['properties']['webgis_type'] === 'edge_dn')
 		{
-			DrawEdgeBetweenTwoNode(viewer, 'edge_dn', g_geojsons[k]['properties']['start'],g_geojsons[k]['properties']['end'], false);
+			DrawEdgeBetweenTwoNode(viewer, 'edge_dn', $.webgis.data.geojsons[k]['properties']['start'],$.webgis.data.geojsons[k]['properties']['end'], false);
 		}
 	}
 }
@@ -5784,7 +5774,7 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 	{
 		return;
 	}
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		var scene = viewer.scene;
 		var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -5821,20 +5811,20 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 			id:{ properties:{'start':previd, 'end':nextid, webgis_type:'edge_dn'}}
 		});
 		scene.primitives.add(polylines);
-		g_geometry_segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:webgis_type, properties:{'start':previd, 'end':nextid, webgis_type:webgis_type}});
+		$.webgis.geometry.segments.push({'start':previd, 'end':nextid, 'primitive':polylines, webgis_type:webgis_type, properties:{'start':previd, 'end':nextid, webgis_type:webgis_type}});
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
-		if(g_geojsons[previd] && g_geojsons[nextid])
+		if($.webgis.data.geojsons[previd] && $.webgis.data.geojsons[nextid])
 		{
-			var c1 = get_geojson_center(g_geojsons[previd]);
-			var c2 = get_geojson_center(g_geojsons[nextid]);
+			var c1 = get_geojson_center($.webgis.data.geojsons[previd]);
+			var c2 = get_geojson_center($.webgis.data.geojsons[nextid]);
 			if(c1.length>0 && c2.length>0)
 			{
 				var latlng1 = L.latLng(c1[1], c1[0]);
 				var latlng2 = L.latLng(c2[1], c2[0]);
 				var o = {start:previd, end:nextid, webgis_type:webgis_type, properties:{start:previd, end:nextid, webgis_type:webgis_type}};
-				g_geometry_segments.push(o);
+				$.webgis.geometry.segments.push(o);
 				return [latlng1, latlng2];
 			}
 		}
@@ -5947,7 +5937,7 @@ function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len,
 		}
 		
 		scene.primitives.add(polylines);
-		g_geometry_segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines, webgis_type:'edge_tower', properties:{'start':tower0['_id'], 'end':tower1['_id'], webgis_type:'edge_tower'}});
+		$.webgis.geometry.segments.push({'start':tower0['_id'], 'end':tower1['_id'], 'primitive':polylines, webgis_type:'edge_tower', properties:{'start':tower0['_id'], 'end':tower1['_id'], webgis_type:'edge_tower'}});
 	}
 	return exist;
 }
@@ -6018,9 +6008,9 @@ function GetPrevNextTowerIds(tower)
 {
 	var prevs = [];
 	var nexts = [];
-	for(var i in g_lines)
+	for(var i in $.webgis.data.lines)
 	{
-		var towersid = g_lines[i]['properties']['nodes'];
+		var towersid = $.webgis.data.lines[i]['properties']['nodes'];
 		var j = 0;
 		for(j=0; j<towersid.length; j++)
 		{
@@ -6208,12 +6198,12 @@ function SaveLine(viewer, id)
 			}
 			else
 			{
-				g_lines[data1[0]['_id']] = data1[0];
-				if(!g_geojsons[data1[0]['_id']])
+				$.webgis.data.lines[data1[0]['_id']] = data1[0];
+				if(!$.webgis.data.geojsons[data1[0]['_id']])
 				{
-					g_geojsons[data1[0]['_id']] = {};
+					$.webgis.data.geojsons[data1[0]['_id']] = {};
 				}
-				g_geojsons[data1[0]['_id']]['properties'] = data1[0]['properties'];
+				$.webgis.data.geojsons[data1[0]['_id']]['properties'] = data1[0]['properties'];
 				$.jGrowl("保存成功", { 
 					life: 2000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -6255,26 +6245,26 @@ function SaveTower(viewer)
 				{
 					return;
 				}
-				g_drawhelper.clearPrimitive();
+				$.webgis.control.drawhelper.clearPrimitive();
 				$('#dlg_tower_info').dialog( "close" );
 				for(var i in data1)
 				{
 					var geojson = data1[i];
 					var id = geojson['_id'];
-					g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
+					$.webgis.data.geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 					
-					if($.webgis.map_backend === 'cesium')
+					if($.webgis.config.map_backend === 'cesium')
 					{
-						$.webgis.data.czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+						$.webgis.data.czmls[id] = CreateCzmlFromGeojson($.webgis.data.geojsons[id]);
 						if(geojson['properties'] && geojson['properties']['model'])
 						{
-							LoadTowerModelByTower(viewer, g_geojsons[id]);
-							RemoveSegmentsTower(viewer, g_geojsons[id]);
-							DrawSegmentsByTower(viewer, g_geojsons[id]);
+							LoadTowerModelByTower(viewer, $.webgis.data.geojsons[id]);
+							RemoveSegmentsTower(viewer, $.webgis.data.geojsons[id]);
+							DrawSegmentsByTower(viewer, $.webgis.data.geojsons[id]);
 						}
 					}
 				}
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					ReloadCzmlDataSource(viewer, g_zaware);
 				}
@@ -6347,7 +6337,7 @@ function ShowTowerInfo(viewer, id)
 		$.webgis.selected_geojson = $.extend(true, {}, tower);
 		FilterModelList('');
 		ShowTowerInfoDialog(viewer, $.webgis.selected_geojson);
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			LoadTowerModelByTower(viewer, $.webgis.selected_geojson);
 			DrawSegmentsByTower(viewer, $.webgis.selected_geojson);
@@ -6370,11 +6360,11 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
 	var data = {op:'gridfs', db:$.webgis.db.db_name, width:64, height:64, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
-		if(g_image_slider_tower_info)
+		if($.webgis.control.image_slider_tower_info)
 		{
-			g_image_slider_tower_info.destroy();
-			delete g_image_slider_tower_info;
-			g_image_slider_tower_info = undefined;
+			$.webgis.control.image_slider_tower_info.destroy();
+			delete $.webgis.control.image_slider_tower_info;
+			$.webgis.control.image_slider_tower_info = undefined;
 		}
 		$('#' + container_id).empty();
 		var img_data = [];
@@ -6403,7 +6393,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			$('#' + container_id).html(s);
 		}
 		
-		if(!g_image_slider_tower_info)
+		if(!$.webgis.control.image_slider_tower_info)
 		{
 			var options = {
 				allowfullscreen: true,
@@ -6435,8 +6425,8 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			if(data1.length>0)
 			{
 				var $fotoramaDiv = $('#' + container_id).fotorama(options);
-				g_image_slider_tower_info = $fotoramaDiv.data('fotorama');
-				//console.log(g_image_slider_tower_info);
+				$.webgis.control.image_slider_tower_info = $fotoramaDiv.data('fotorama');
+				//console.log($.webgis.control.image_slider_tower_info);
 			}
 		}
 		ShowProgressBar(false);
@@ -6452,13 +6442,13 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
 	var data = {op:'gridfs', db:$.webgis.db.db_name, width:150, height:150, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
-		if(g_image_slider_tower_info)
+		if($.webgis.control.image_slider_tower_info)
 		{
-			delete g_image_slider_tower_info;
-			g_image_slider_tower_info = undefined;
-			g_image_thumbnail_tower_info.length = 0;
+			delete $.webgis.control.image_slider_tower_info;
+			$.webgis.control.image_slider_tower_info = undefined;
+			$.webgis.data.image_thumbnail_tower_info.length = 0;
 		}
-		g_image_thumbnail_tower_info = data1;
+		$.webgis.data.image_thumbnail_tower_info = data1;
 		$('#' + container_id).empty();
 		var s = '';
 		if(data1.length>0)
@@ -6511,7 +6501,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		';
 		$('#' + container_id).append(s);
 		
-		if(!g_image_slider_tower_info)
+		if(!$.webgis.control.image_slider_tower_info)
 		{
 			var options = {
 				$AutoPlay: true,                                    //[Optional] Whether to auto play, to enable slideshow, this option must be set to true, default value is false
@@ -6545,7 +6535,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 			};
 			if(data1.length>0)
 			{
-				g_image_slider_tower_info = new $JssorSlider$(container_id , options);
+				$.webgis.control.image_slider_tower_info = new $JssorSlider$(container_id , options);
 			}
 		}
 		ShowProgressBar(false);
@@ -6553,16 +6543,16 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		//you can remove responsive code if you don't want the slider scales while window resizes
 		function ScaleSlider() {
 			//console.log($('#tower_info_photo').css('width'));
-			if(g_image_slider_tower_info)
+			if($.webgis.control.image_slider_tower_info)
 			{
-				var parentWidth = g_image_slider_tower_info.$Elmt.parentNode.parentNode.parentNode.parentNode.clientWidth;
+				var parentWidth = $.webgis.control.image_slider_tower_info.$Elmt.parentNode.parentNode.parentNode.parentNode.clientWidth;
 				//console.log(parentWidth);
 				if (parentWidth)
 				{
 					//$('#tower_info_photo_container').css('width', parentWidth)
-					//g_image_slider_tower_info.$SetScaleWidth(Math.min(parentWidth, 550));
+					//$.webgis.control.image_slider_tower_info.$SetScaleWidth(Math.min(parentWidth, 550));
 					var w = parentWidth - 20;
-					g_image_slider_tower_info.$SetScaleWidth(w );
+					$.webgis.control.image_slider_tower_info.$SetScaleWidth(w );
 					$('#' + toggle_id).css('width', (w-20) + 'px' );
 				}
 			}
@@ -6641,12 +6631,12 @@ function DestroyFileUploader(div_id)
 {
 	$('#form_' + div_id + '_uploader_form').fileupload('destroy');
 	$('#div_' + div_id + '_uploader').empty();
-	if(g_image_slider_tower_info)
+	if($.webgis.control.image_slider_tower_info)
 	{
-		delete g_image_slider_tower_info;
-		g_image_slider_tower_info = undefined;
+		delete $.webgis.control.image_slider_tower_info;
+		$.webgis.control.image_slider_tower_info = undefined;
 		$('#' + div_id + '_container').empty();
-		g_image_thumbnail_tower_info.length = 0;
+		$.webgis.data.image_thumbnail_tower_info.length = 0;
 	}
 	delete $.webgis.selected_geojson;
 	$.webgis.selected_geojson = undefined;
@@ -6658,14 +6648,14 @@ function ShowTowerInfoDialog(viewer, tower)
 	var title = '';
 	title = tower['properties']['name'];
 	var buttons = [];
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		buttons.push({
 			text: "锁定视角", 
 			click: function(e){
-				g_is_tower_focus = !g_is_tower_focus;
+				$.webgis.config.is_tower_focus = !$.webgis.config.is_tower_focus;
 				var selectedEntity = viewer.selectedEntity;
-				if(g_is_tower_focus)
+				if($.webgis.config.is_tower_focus)
 				{
 					$(e.target).css('background', '#00AA00 url(/css/black-green-theme/images/ui-bg_dots-medium_75_000000_4x4.png) 50% 50% repeat');
 					$(e.target).html('解除锁定');
@@ -6789,12 +6779,12 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['denomi_height'] = tower['properties']['denomi_height'];
 					$('#tower_info_title_model_code').html('杆塔型号：' + tower['properties']['model']['model_code'] + ' 呼称高：' + GetDenomiHeightByModelCode(tower['properties']['model']['model_code_height']) + '米');
 				}
-				if($.webgis.map_backend === 'cesium')
+				if($.webgis.config.map_backend === 'cesium')
 				{
 					var json = encodeURIComponent(JSON.stringify(obj));
 					iframe.attr('src', 'threejs/editor/index.html?' + json);
 				}
-				if($.webgis.map_backend === 'leaflet')
+				if($.webgis.config.map_backend === 'leaflet')
 				{
 					iframe.css('display', 'none');
 					$('#tower_info_model_blank').html('<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>你的浏览器不支持HTML5的WEBGL标准，因此无法显示3D模型。请使用最新的Chrome浏览器或Chrome内核的浏览器');
@@ -6831,11 +6821,11 @@ function ShowTowerInfoDialog(viewer, tower)
 					obj['next_ids'] = next_ids;
 					obj['segments'] = GetSegmentsByTowerStartEnd(tower['_id'], next_ids);
 					var json = encodeURIComponent(JSON.stringify(obj));
-					if($.webgis.map_backend === 'cesium')
+					if($.webgis.config.map_backend === 'cesium')
 					{
 						iframe.attr('src', 'threejs/editor/index.html?' + json);
 					}
-					if($.webgis.map_backend === 'leaflet')
+					if($.webgis.config.map_backend === 'leaflet')
 					{
 						iframe.css('display', 'none');
 						$('#tower_info_segment_blank').html('<p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>你的浏览器不支持HTML5的WEBGL标准，因此无法显示3D模型。请使用最新的Chrome浏览器或Chrome内核的浏览器');
@@ -6859,16 +6849,16 @@ function ShowTowerInfoDialog(viewer, tower)
 		}
 		//threejs/editor/index.html
 	});
-	for(var i in g_tower_baseinfo_fields)
+	for(var i in $.webgis.form_fields.tower_baseinfo_fields)
 	{
-		var fld = g_tower_baseinfo_fields[i];
+		var fld = $.webgis.form_fields.tower_baseinfo_fields[i];
 		if(fld.id === 'line_names' && fld.type === 'multiselect')
 		{
-			g_tower_baseinfo_fields[i].editor.data = CreateLineNamesSelectOption();
-			g_tower_baseinfo_fields[i].editor.position = 'top';
+			$.webgis.form_fields.tower_baseinfo_fields[i].editor.data = CreateLineNamesSelectOption();
+			$.webgis.form_fields.tower_baseinfo_fields[i].editor.position = 'top';
 		}
 	}
-	var form = $('#form_tower_info_base').webgisform(g_tower_baseinfo_fields,
+	var form = $('#form_tower_info_base').webgisform($.webgis.form_fields.tower_baseinfo_fields,
 	{
 		prefix:'tower_baseinfo_',
 		maxwidth:520
@@ -6912,9 +6902,9 @@ function ShowTowerInfoDialog(viewer, tower)
 	}
 	
 	
-	if(!g_contextmenu_metal)
+	if(!$.webgis.control.contextmenu_metal)
 	{
-		g_contextmenu_metal = $.ligerMenu({ top: 100, left: 100, width: 150, items:
+		$.webgis.control.contextmenu_metal = $.ligerMenu({ top: 100, left: 100, width: 150, items:
 			[
 			{ text: '增加金具', icon:'add',
 				children:[
@@ -6939,7 +6929,7 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 	$("#listbox_tower_info_metal").bind("contextmenu", function (e)
 	{
-		g_contextmenu_metal.show({ top: e.pageY, left: e.pageX });
+		$.webgis.control.contextmenu_metal.show({ top: e.pageY, left: e.pageX });
 		return false;
 	});
 
@@ -6960,13 +6950,13 @@ function ShowTowerInfoDialog(viewer, tower)
 		onSelected:function(idx, name, obj){
 			if(obj)
 			{
-				g_selected_metal_item = obj;
+				$.webgis.select.selected_metal_item = obj;
 				var o = obj;
 				var flds = [];
 				var formdata = {};
 				if(o['type'] == '绝缘子串')
 				{
-					flds = g_insulator_flds;
+					flds = $.webgis.form_fields.insulator_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -6975,7 +6965,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '防振锤')
 				{
-					flds = g_damper_flds;
+					flds = $.webgis.form_fields.damper_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -6984,7 +6974,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '接地装置')
 				{
-					flds = g_grd_flds;
+					flds = $.webgis.form_fields.grd_flds;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -6993,7 +6983,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '基础')
 				{
-					flds = g_base_flds_1;
+					flds = $.webgis.form_fields.base_flds_1;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -7002,7 +6992,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '拉线' || o['type'] == '防鸟刺' || o['type'] == '在线监测装置' )
 				{
-					flds = g_base_flds_2_3_4;
+					flds = $.webgis.form_fields.base_flds_2_3_4;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -7011,7 +7001,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '雷电计数器' || o['type'] == '超声波驱鸟装置')
 				{
-					flds = g_base_flds_5;
+					flds = $.webgis.form_fields.base_flds_5;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{
@@ -7078,11 +7068,11 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 		{
 			var element = $( this );
 			var s = '';
-			if(g_image_slider_tower_info  && element.is( "[data-" + div_id + "-download]" ))
+			if($.webgis.control.image_slider_tower_info  && element.is( "[data-" + div_id + "-download]" ))
 			{
-				//var idx = g_image_slider_tower_info.$CurrentIndex();
-				//var img = g_image_thumbnail_tower_info[idx];
-				var img = g_image_slider_tower_info.activeFrame;
+				//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
+				//var img = $.webgis.data.image_thumbnail_tower_info[idx];
+				var img = $.webgis.control.image_slider_tower_info.activeFrame;
 				s = '<div class="tower-photo-tip">';
 				s += '<p>文件名称:' + img.filename + '</p>';
 				s += '<p>备注:' + img.description + '</p>';
@@ -7106,11 +7096,11 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 	//$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
 	//});
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').on('click', function(){
-		if(g_image_slider_tower_info )
+		if($.webgis.control.image_slider_tower_info )
 		{
-			//var idx = g_image_slider_tower_info.$CurrentIndex();
-			//var img = g_image_thumbnail_tower_info[idx];
-			var img = g_image_slider_tower_info.activeFrame;
+			//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
+			//var img = $.webgis.data.image_thumbnail_tower_info[idx];
+			var img = $.webgis.control.image_slider_tower_info.activeFrame;
 			
 			var url = '/get?' + 'op=gridfs' + '&db=' + $.webgis.db.db_name + '&_id=' + img._id +  '&attachmentdownload=true';
 			//console.log(url);
@@ -7121,11 +7111,11 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 		}
 	});
 	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
-		if(g_image_slider_tower_info )
+		if($.webgis.control.image_slider_tower_info )
 		{
-			//var idx = g_image_slider_tower_info.$CurrentIndex();
-			//var img = g_image_thumbnail_tower_info[idx];
-			var img = g_image_slider_tower_info.activeFrame;
+			//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
+			//var img = $.webgis.data.image_thumbnail_tower_info[idx];
+			var img = $.webgis.control.image_slider_tower_info.activeFrame;
 			
 			ShowConfirm(null, 500, 350,
 				'删除确认',
@@ -7212,8 +7202,8 @@ function BufferCreate(viewer, type, position, distance, style, resolution, callb
 			}
 			geojson['properties']['webgis_type'] = 'polygon_buffer';
 			if(style) geojson['properties']['style'] = style;
-			g_geojsons[geojson['_id']] = geojson;
-			$.webgis.data.czmls[geojson['_id']] = CreateCzmlFromGeojson(g_geojsons[geojson['_id']]);
+			$.webgis.data.geojsons[geojson['_id']] = geojson;
+			$.webgis.data.czmls[geojson['_id']] = CreateCzmlFromGeojson($.webgis.data.geojsons[geojson['_id']]);
 			ReloadCzmlDataSource(viewer, g_zaware);
 			if(callback) callback(geojson);
 		}else
@@ -7236,7 +7226,7 @@ function BufferAnalyze(viewer, geojson, webgis_type, callback)
 function ShowBufferAnalyzeDialog(viewer, type, position)
 {
 	var ellipsoid;
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -7269,10 +7259,10 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 	};
 	var clear_tmp_buffer = function()
 	{
-		if(g_geojsons['tmp_buffer']) 
+		if($.webgis.data.geojsons['tmp_buffer']) 
 		{
-			delete g_geojsons['tmp_buffer'];
-			g_geojsons['tmp_buffer'] = undefined;
+			delete $.webgis.data.geojsons['tmp_buffer'];
+			$.webgis.data.geojsons['tmp_buffer'] = undefined;
 		}
 		if($.webgis.data.czmls['tmp_buffer']) 
 		{
@@ -7338,8 +7328,8 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 									{
 										var g = data[i];
 										//console.log(g);
-										if(!g_geojsons[g['_id']]) g_geojsons[g['_id']] = g;//AddTerrainZOffset(g);
-										if(!$.webgis.data.czmls[g['_id']]) $.webgis.data.czmls[g['_id']] = CreateCzmlFromGeojson(g_geojsons[g['_id']]);
+										if(!$.webgis.data.geojsons[g['_id']]) $.webgis.data.geojsons[g['_id']] = g;//AddTerrainZOffset(g);
+										if(!$.webgis.data.czmls[g['_id']]) $.webgis.data.czmls[g['_id']] = CreateCzmlFromGeojson($.webgis.data.geojsons[g['_id']]);
 									}
 									ReloadCzmlDataSource(viewer, g_zaware);
 								}
@@ -7505,9 +7495,9 @@ function GetPropertiesByTwoNodes(viewer, id0, id1)
 {
 	var ret;
 	//var scene = viewer.scene;
-	for(var i in g_geometry_segments)
+	for(var i in $.webgis.geometry.segments)
 	{
-		var g = g_geometry_segments[i];
+		var g = $.webgis.geometry.segments[i];
 		if(g.start == id0 && g.end == id1)
 		{
 			ret = g.properties;
@@ -7520,21 +7510,21 @@ function GetPropertiesByTwoNodes(viewer, id0, id1)
 function SaveEdge(viewer, id, callback)
 {
 	
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
-		if(g_node_connect_mode 
-		&& g_selected_obj 
-		&& g_prev_selected_obj 
-		&& $.webgis.data.czmls[g_selected_obj.id] 
-		&& $.webgis.data.czmls[g_prev_selected_obj.id] 
-		&& $.webgis.data.czmls[g_selected_obj.id]['webgis_type'] === $.webgis.data.czmls[g_prev_selected_obj.id]['webgis_type']
+		if($.webgis.config.node_connect_mode 
+		&& $.webgis.select.selected_obj 
+		&& $.webgis.select.prev_selected_obj 
+		&& $.webgis.data.czmls[$.webgis.select.selected_obj.id] 
+		&& $.webgis.data.czmls[$.webgis.select.prev_selected_obj.id] 
+		&& $.webgis.data.czmls[$.webgis.select.selected_obj.id]['webgis_type'] === $.webgis.data.czmls[$.webgis.select.prev_selected_obj.id]['webgis_type']
 		)
 		{
 			var geojson = {};
-			var webgis_type = $.webgis.data.czmls[g_selected_obj.id]['webgis_type'];
+			var webgis_type = $.webgis.data.czmls[$.webgis.select.selected_obj.id]['webgis_type'];
 			geojson['_id'] = id;
 			geojson['type'] = 'Feature';
-			geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
+			geojson['properties'] = GetPropertiesByTwoNodes(viewer, $.webgis.select.prev_selected_obj.id, $.webgis.select.selected_obj.id);
 			var cond = {'db':$.webgis.db.db_name, 'collection':'edges', 'action':'save', 'data':geojson};
 			ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 			MongoFind(cond, function(data1){
@@ -7543,24 +7533,24 @@ function SaveEdge(viewer, id, callback)
 			});
 		}
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
-		if(g_node_connect_mode 
-		&& g_selected_obj 
-		&& g_prev_selected_obj 
-		&& g_geojsons[g_selected_obj.id] 
-		&& g_geojsons[g_prev_selected_obj.id] 
-		&& g_geojsons[g_selected_obj.id] ['properties']
-		&& g_geojsons[g_prev_selected_obj.id]['properties'] 
-		&& g_geojsons[g_selected_obj.id]['properties']['webgis_type'] === g_geojsons[g_prev_selected_obj.id]['properties']['webgis_type']
+		if($.webgis.config.node_connect_mode 
+		&& $.webgis.select.selected_obj 
+		&& $.webgis.select.prev_selected_obj 
+		&& $.webgis.data.geojsons[$.webgis.select.selected_obj.id] 
+		&& $.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id] 
+		&& $.webgis.data.geojsons[$.webgis.select.selected_obj.id] ['properties']
+		&& $.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id]['properties'] 
+		&& $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'] === $.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id]['properties']['webgis_type']
 		)
 		{
 			var geojson = {};
-			//var webgis_type = g_geojsons[g_selected_obj.id]['properties']['webgis_type'];
+			//var webgis_type = $.webgis.data.geojsons[$.webgis.select.selected_obj.id]['properties']['webgis_type'];
 			//webgis_type = webgis_type.replace('point', 'edge');
 			geojson['_id'] = id;
 			geojson['type'] = 'Feature';
-			geojson['properties'] = GetPropertiesByTwoNodes(viewer, g_prev_selected_obj.id, g_selected_obj.id);
+			geojson['properties'] = GetPropertiesByTwoNodes(viewer, $.webgis.select.prev_selected_obj.id, $.webgis.select.selected_obj.id);
 			var cond = {'db':$.webgis.db.db_name, 'collection':'edges', 'action':'save', 'data':geojson};
 			ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
 			MongoFind(cond, function(data1){
@@ -7611,7 +7601,7 @@ function SaveDN(viewer, callback)
 function ShowPoiInfoDialog(viewer, title, type, position, id)
 {
 	var ellipsoid;
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		ellipsoid = viewer.scene.globe.ellipsoid;
 	}
@@ -7648,20 +7638,20 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 					}
 
 					$( this ).dialog( "close" );
-					if(id && g_geojsons[id])
+					if(id && $.webgis.data.geojsons[id])
 					{
 						
-						if($.webgis.map_backend === 'cesium')
+						if($.webgis.config.map_backend === 'cesium')
 						{
 							if(type === 'point')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates'];
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates'];
 								var carto =  Cesium.Cartographic.fromDegrees(arr[0], arr[1], arr[2]);
 								position = ellipsoid.cartographicToCartesian(carto);
 							}
 							else if(type === 'polyline')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates'];
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates'];
 								position = [];
 								for(var i in arr)
 								{
@@ -7671,7 +7661,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 							}
 							else if(type === 'polygon')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates'][0];
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates'][0];
 								position = [];
 								for(var i in arr)
 								{
@@ -7680,16 +7670,16 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 								}
 							}
 						}
-						if($.webgis.map_backend === 'leaflet')
+						if($.webgis.config.map_backend === 'leaflet')
 						{
 							if(type === 'point')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates']
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates']
 								position = L.latLng(arr[1], arr[0]);
 							}
 							else if(type === 'polyline')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates'];
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates'];
 								position = [];
 								for(var i in arr)
 								{
@@ -7699,7 +7689,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 							}
 							else if(type === 'polygon')
 							{
-								var arr = g_geojsons[id]['geometry']['coordinates'][0];
+								var arr = $.webgis.data.geojsons[id]['geometry']['coordinates'][0];
 								position = [];
 								for(var i in arr)
 								{
@@ -7761,30 +7751,30 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 									that.dialog( "close" );
 									if(id === undefined)
 									{
-										g_drawhelper.clearPrimitive();
+										$.webgis.control.drawhelper.clearPrimitive();
 										if(data1 && data1.length>0)
 										{
 											for(var i in data1)
 											{
 												var geojson = data1[i];
 												var id = geojson['_id'];
-												if(!g_geojsons[id])
+												if(!$.webgis.data.geojsons[id])
 												{
-													g_geojsons[id] = geojson; //AddTerrainZOffset(geojson);
+													$.webgis.data.geojsons[id] = geojson; //AddTerrainZOffset(geojson);
 												}
-												if($.webgis.map_backend === 'cesium')
+												if($.webgis.config.map_backend === 'cesium')
 												{
 													if(!$.webgis.data.czmls[id])
 													{
-														$.webgis.data.czmls[id] = CreateCzmlFromGeojson(g_geojsons[id]);
+														$.webgis.data.czmls[id] = CreateCzmlFromGeojson($.webgis.data.geojsons[id]);
 													}
 												}
-												if($.webgis.map_backend === 'leaflet')
+												if($.webgis.config.map_backend === 'leaflet')
 												{
-													g_leaflet_geojson_layer.addData(geojson);
+													$.webgis.control.leaflet_geojson_layer.addData(geojson);
 												}
 											}
-											if($.webgis.map_backend === 'cesium')
+											if($.webgis.config.map_backend === 'cesium')
 											{
 												ReloadCzmlDataSource(viewer, g_zaware);
 											}
@@ -7829,7 +7819,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		poitypelist = [{value:'polygon_marker',label:'区域'},{value:'polygon_hazard',label:'区域隐患源'}];
 		if(id === undefined)
 		{
-			if($.webgis.map_backend === 'cesium')
+			if($.webgis.config.map_backend === 'cesium')
 			{
 				AddToCzml(ellipsoid, type, position);
 			}
@@ -7849,9 +7839,9 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 	$("form[id^=form_poi_info_]").empty();
 	var webformlist = BuildPoiForms();
 	$("form[id^=form_poi_info_]").parent().css('display','none');
-	if(id && g_geojsons[id])
+	if(id && $.webgis.data.geojsons[id])
 	{
-		var wt = g_geojsons[id]['properties']['webgis_type'];
+		var wt = $.webgis.data.geojsons[id]['properties']['webgis_type'];
 		$("#form_poi_info_" + wt).parent().css('display','block');
 	}
 	else
@@ -7863,10 +7853,10 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		var v = event.target.value;
 		webformlist[v].parent().css('display','block');
 	});
-	if(id && g_geojsons[id])
+	if(id && $.webgis.data.geojsons[id])
 	{
-		var data = g_geojsons[id]['properties'];
-		var wt = g_geojsons[id]['properties']['webgis_type'];
+		var data = $.webgis.data.geojsons[id]['properties'];
+		var wt = $.webgis.data.geojsons[id]['properties']['webgis_type'];
 		$("#form_poi_info_" + wt).webgisform('setdata', data);
 	}
 	
@@ -7934,7 +7924,7 @@ function AddToCzml(ellipsoid, type, positions)
 		for(var i in positions)
 		{
 			var cart3 = positions[i];
-			if($.webgis.map_backend === 'cesium')
+			if($.webgis.config.map_backend === 'cesium')
 			{
 				var carto = ellipsoid.cartesianToCartographic(cart3);
 				if(i == 0)
@@ -7943,7 +7933,7 @@ function AddToCzml(ellipsoid, type, positions)
 				}
 				g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto.longitude), Cesium.Math.toDegrees(carto.latitude)]);
 			}
-			if($.webgis.map_backend === 'leaflet')
+			if($.webgis.config.map_backend === 'leaflet')
 			{
 				if(i == 0)
 				{
@@ -7952,11 +7942,11 @@ function AddToCzml(ellipsoid, type, positions)
 				g['geometry']['coordinates'][0].push([cart3.lng, cart3.lat]);
 			}
 		}
-		if($.webgis.map_backend === 'cesium')
+		if($.webgis.config.map_backend === 'cesium')
 		{
 			g['geometry']['coordinates'][0].push([Cesium.Math.toDegrees(carto_0.longitude), Cesium.Math.toDegrees(carto_0.latitude)]);
 		}
-		if($.webgis.map_backend === 'leaflet')
+		if($.webgis.config.map_backend === 'leaflet')
 		{
 			g['geometry']['coordinates'][0].push([carto_0.lng, carto_0.lat]);
 		}
@@ -8053,13 +8043,13 @@ function BuildPoiForms()
 		if(v.indexOf("point_dn_")>-1)
 		{
 			var function_list = [];
-			//console.log(g_codes['functional_type']);
-			for(var k in g_codes['functional_type'])
+			//console.log($.webgis.data.codes['functional_type']);
+			for(var k in $.webgis.data.codes['functional_type'])
 			{
 				
 				if(k == 'PAE' || k == 'PAB' || k == 'PLM')
 				{
-					function_list.push({value:k, label:g_codes['functional_type'][k]});
+					function_list.push({value:k, label:$.webgis.data.codes['functional_type'][k]});
 				}
 			}
 			function_list.push({value:'T', label:'变压器区域'});
@@ -8168,9 +8158,9 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 	for(var i in end_ids)
 	{
 		var end_id = end_ids[i];
-		for(var j in g_segments)
+		for(var j in $.webgis.data.segments)
 		{
-			var seg = g_segments[j];
+			var seg = $.webgis.data.segments[j];
 			if(seg['start_tower'] == start_id && seg['end_tower'] == end_id)
 			{
 				ret.push(seg);
@@ -8185,9 +8175,9 @@ function GetSegmentsByTowerStartEnd(start_id, end_ids)
 function CheckModelCode(modelcode)
 {
 	var ret = false;
-	for(var i in g_models_gltf_files)
+	for(var i in $.webgis.data.models_gltf_files)
 	{
-		if (g_models_gltf_files[i] == modelcode)
+		if ($.webgis.data.models_gltf_files[i] == modelcode)
 		{
 			ret = true;
 			break;
@@ -8229,9 +8219,9 @@ function PositionModel(ellipsoid, model, lng, lat, height, rotate)
 function GetLineNamesListByTowerId(id)
 {
 	var ret = [];
-	for(var k in g_lines)
+	for(var k in $.webgis.data.lines)
 	{
-		if(g_lines[k]['properties']['nodes'].indexOf(id)>-1)
+		if($.webgis.data.lines[k]['properties']['nodes'].indexOf(id)>-1)
 		{
 			ret.push(k);
 		}
@@ -8297,7 +8287,7 @@ function AddMetal(e)
 				});
 			idx += 1;
 		}
-		g_selected_metal_item = undefined;
+		$.webgis.select.selected_metal_item = undefined;
 		$("#listbox_tower_info_metal").ligerListBox().setData(data);
 		
 	}
@@ -8309,9 +8299,9 @@ function DeleteMetal()
 	{
 		if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
 		{
-			if(g_selected_metal_item )
+			if($.webgis.select.selected_metal_item )
 			{
-				var o = g_selected_metal_item;
+				var o = $.webgis.select.selected_metal_item;
 				$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
 			}
 			var data = [];
@@ -8325,7 +8315,7 @@ function DeleteMetal()
 					});
 				idx += 1;
 			}
-			g_selected_metal_item = undefined;
+			$.webgis.select.selected_metal_item = undefined;
 			$("#listbox_tower_info_metal").ligerListBox().setData(data);
 		}
 	}
@@ -8334,9 +8324,9 @@ function DeleteMetal()
 function CreateLineNamesSelectOption()
 {
 	var ret = [];
-	for(var k in g_lines)
+	for(var k in $.webgis.data.lines)
 	{
-		ret.push({value:k, label:g_lines[k]['properties']['name']});
+		ret.push({value:k, label:$.webgis.data.lines[k]['properties']['name']});
 	}
 	return ret;
 }
@@ -8344,38 +8334,38 @@ function CreateLineNamesSelectOption()
 function OnSelect(viewer, e)
 {
 	var clearselcolor = function(){
-		if(g_prev_selected_obj && g_prev_selected_obj.primitive && g_primitive_material_unselect)
+		if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.primitive && $.webgis.select.primitive_material_unselect)
 		{
-			g_prev_selected_obj.primitive.material = g_primitive_material_unselect;
+			$.webgis.select.prev_selected_obj.primitive.material = $.webgis.select.primitive_material_unselect;
 		}
-		if(g_prev_selected_obj && g_prev_selected_obj.polyline && g_polyline_material_unselect)
+		if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.polyline && $.webgis.select.polyline_material_unselect)
 		{
-			g_prev_selected_obj.polyline.material = g_polyline_material_unselect;
+			$.webgis.select.prev_selected_obj.polyline.material = $.webgis.select.polyline_material_unselect;
 		}
-		if(g_prev_selected_obj && g_prev_selected_obj.polygon && g_polygon_material_unselect)
+		if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.polygon && $.webgis.select.polygon_material_unselect)
 		{
-			g_prev_selected_obj.polygon.material = g_polygon_material_unselect;
+			$.webgis.select.prev_selected_obj.polygon.material = $.webgis.select.polygon_material_unselect;
 		}
 	};
 	clearselcolor();
 	$('#btn_edge_save').attr('disabled','disabled');
-	if($.webgis.map_backend === 'cesium')
+	if($.webgis.config.map_backend === 'cesium')
 	{
 		$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + PickLngLatFromScreen(viewer, e.position));
 		if (Cesium.defined(viewer.selectedEntity)) 
 		{
-			g_prev_selected_obj = g_selected_obj;
-			g_selected_obj = viewer.selectedEntity;
-			var id = g_selected_obj.id;
+			$.webgis.select.prev_selected_obj = $.webgis.select.selected_obj;
+			$.webgis.select.selected_obj = viewer.selectedEntity;
+			var id = $.webgis.select.selected_obj.id;
 			if (id && id.properties && id.properties.webgis_type === 'edge_dn')
 			{
 				clearselcolor();
-				g_primitive_material_unselect =  g_selected_obj.primitive.material;
-				if(g_primitive_material_unselect)
+				$.webgis.select.primitive_material_unselect =  $.webgis.select.selected_obj.primitive.material;
+				if($.webgis.select.primitive_material_unselect)
 				{
-					g_selected_obj.primitive.material = 
+					$.webgis.select.selected_obj.primitive.material = 
 					//Cesium.Material.fromType('PolylineOutline',{
-						//color:	g_primitive_material_unselect.uniforms.color,
+						//color:	$.webgis.select.primitive_material_unselect.uniforms.color,
 						//outlineColor : Cesium.Color.fromCssColorString('rgba(0, 255, 0, 1.0)'),
 						//outlineWidth: 1.0
 					//});
@@ -8387,37 +8377,37 @@ function OnSelect(viewer, e)
 					});
 				}
 			}
-			else if (g_selected_obj.polyline)
+			else if ($.webgis.select.selected_obj.polyline)
 			{
-				if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
+				if($.webgis.select.prev_selected_obj===undefined || $.webgis.select.prev_selected_obj.id != id)
 				{
 					clearselcolor();
 					console.log('selected polyline id=' + id);
-					g_polyline_material_unselect = g_selected_obj.polyline.material;
-					g_selected_obj.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 255, 1.0)'));
+					$.webgis.select.polyline_material_unselect = $.webgis.select.selected_obj.polyline.material;
+					$.webgis.select.selected_obj.polyline.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 255, 1.0)'));
 					if($.webgis.data.czmls[id] &&  $.webgis.data.czmls[id]['webgis_type'] == 'polyline_line')
 					{
 						ShowLineDialog(viewer, id);
 					}
 				}
 			}
-			else if (g_selected_obj.polygon)
+			else if ($.webgis.select.selected_obj.polygon)
 			{
-				if(g_prev_selected_obj===undefined || g_prev_selected_obj.id != id)
+				if($.webgis.select.prev_selected_obj===undefined || $.webgis.select.prev_selected_obj.id != id)
 				{
 					clearselcolor();
 					console.log('selected polygon id=' + id);
-					g_polygon_material_unselect = g_selected_obj.polygon.material;
-					g_selected_obj.polygon.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.3)'));
+					$.webgis.select.polygon_material_unselect = $.webgis.select.selected_obj.polygon.material;
+					$.webgis.select.selected_obj.polygon.material = Cesium.ColorMaterialProperty.fromColor(Cesium.Color.fromCssColorString('rgba(0, 255, 0, 0.3)'));
 				}
 			}
-			else if (g_selected_obj.point)
+			else if ($.webgis.select.selected_obj.point)
 			{
 				clearselcolor();
 				//console.log('selected marker id=' + id);
-				if(g_prev_selected_obj && g_prev_selected_obj.id)
+				if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.id)
 				{
-					//console.log('prev selected id=' + g_prev_selected_obj.id);
+					//console.log('prev selected id=' + $.webgis.select.prev_selected_obj.id);
 				}
 				if($.webgis.data.czmls[id] && $.webgis.data.czmls[id]['webgis_type'].indexOf('point_')>-1 && $.webgis.data.czmls[id]['webgis_type'] == 'point_tower')
 				{
@@ -8443,9 +8433,9 @@ function OnSelect(viewer, e)
 					if($.webgis.data.czmls[id]['webgis_type'] === 'point_tower') webgis_type_title = '杆塔';
 					if($.webgis.data.czmls[id]['webgis_type'] === 'point_dn') webgis_type_title = '配电网';
 				}
-				if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
+				if(CheckIsTower(id) && ($.webgis.select.prev_selected_obj===undefined || $.webgis.select.prev_selected_obj.id != id))
 				{
-					if(g_prev_selected_obj && g_prev_selected_obj.id)
+					if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.id)
 					{
 						//if(CheckTowerInfoModified())
 						if(false)
@@ -8471,9 +8461,9 @@ function OnSelect(viewer, e)
 						ShowTowerInfo(viewer, id);
 					}
 				}
-				if($.webgis.data.czmls[id]  && g_prev_selected_obj && $.webgis.data.czmls[g_prev_selected_obj.id] && $.webgis.data.czmls[g_prev_selected_obj.id]['webgis_type'] === $.webgis.data.czmls[id]['webgis_type'])
+				if($.webgis.data.czmls[id]  && $.webgis.select.prev_selected_obj && $.webgis.data.czmls[$.webgis.select.prev_selected_obj.id] && $.webgis.data.czmls[$.webgis.select.prev_selected_obj.id]['webgis_type'] === $.webgis.data.czmls[id]['webgis_type'])
 				{
-					var edgeexist = CheckSegmentsExist(g_prev_selected_obj, g_selected_obj, $.webgis.data.czmls[id]['webgis_type']);
+					var edgeexist = CheckSegmentsExist($.webgis.select.prev_selected_obj, $.webgis.select.selected_obj, $.webgis.data.czmls[id]['webgis_type']);
 					if(edgeexist)
 					{
 						$.jGrowl("该两点间该方向已存在连接",{
@@ -8483,9 +8473,9 @@ function OnSelect(viewer, e)
 							glue:'before'
 						});
 					}
-					if(g_node_connect_mode && !edgeexist)
+					if($.webgis.config.node_connect_mode && !edgeexist)
 					{
-						var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
+						var ring = CheckSegmentsRing($.webgis.select.prev_selected_obj, $.webgis.select.selected_obj);
 						if(ring)
 						{
 							$.jGrowl("不能形成环路",{
@@ -8498,11 +8488,11 @@ function OnSelect(viewer, e)
 						}else
 						{
 							$('#btn_edge_save').removeAttr('disabled');
-							$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
+							$('#div_edge_instruction').html($.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id].properties.name + '->' + $.webgis.data.geojsons[id].properties.name);
 							var webgis_type;
 							if($.webgis.data.czmls[id]['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
 							if($.webgis.data.czmls[id]['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
-							DrawEdgeBetweenTwoNode(viewer, webgis_type, g_prev_selected_obj.id, id, true);
+							DrawEdgeBetweenTwoNode(viewer, webgis_type, $.webgis.select.prev_selected_obj.id, id, true);
 						}
 					}
 				}
@@ -8511,48 +8501,48 @@ function OnSelect(viewer, e)
 		else{
 			clearselcolor();
 			ShowGeoTip(false);
-			g_prev_selected_obj = g_selected_obj;			
-			g_selected_obj = undefined;
+			$.webgis.select.prev_selected_obj = $.webgis.select.selected_obj;			
+			$.webgis.select.selected_obj = undefined;
 		}
 	}
-	if($.webgis.map_backend === 'leaflet')
+	if($.webgis.config.map_backend === 'leaflet')
 	{
 		$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] );
-		if(g_selected_obj && g_selected_obj.id)
+		if($.webgis.select.selected_obj && $.webgis.select.selected_obj.id)
 		{
-			if(typeof g_selected_obj.id === 'string')
+			if(typeof $.webgis.select.selected_obj.id === 'string')
 			{
-				var id = g_selected_obj.id;
-				if(g_geojsons[id] && g_geojsons[id]['properties'] && g_geojsons[id]['properties']['webgis_type'] == 'point_tower')
+				var id = $.webgis.select.selected_obj.id;
+				if($.webgis.data.geojsons[id] && $.webgis.data.geojsons[id]['properties'] && $.webgis.data.geojsons[id]['properties']['webgis_type'] == 'point_tower')
 				{
 					try{
 						$('#dlg_poi_info').dialog("close");
 					}catch(e)
 					{
 					}
-					if(CheckIsTower(id) && (g_prev_selected_obj===undefined || g_prev_selected_obj.id != id))
+					if(CheckIsTower(id) && ($.webgis.select.prev_selected_obj===undefined || $.webgis.select.prev_selected_obj.id != id))
 					{
-						if(!g_node_connect_mode)
+						if(!$.webgis.config.node_connect_mode)
 						{
 							ShowTowerInfo(viewer, id);
 						}
 					}
 				}
-				if(g_geojsons[id] && g_geojsons[id]['properties'] && g_geojsons[id]['properties']['webgis_type'].indexOf('point_')>-1 && g_geojsons[id]['properties']['webgis_type'] != 'point_tower')
+				if($.webgis.data.geojsons[id] && $.webgis.data.geojsons[id]['properties'] && $.webgis.data.geojsons[id]['properties']['webgis_type'].indexOf('point_')>-1 && $.webgis.data.geojsons[id]['properties']['webgis_type'] != 'point_tower')
 				{
 					try{
 						$('#dlg_tower_info').dialog("close");
 					}catch(e)
 					{
 					}
-					if(!g_node_connect_mode)
+					if(!$.webgis.config.node_connect_mode)
 					{
 						ShowPoiInfoDialog(viewer, '编辑', 'point', [], id);
 					}
 				}
-				if(g_geojsons[id]  && g_prev_selected_obj && g_geojsons[g_prev_selected_obj.id] && g_geojsons[g_prev_selected_obj.id]['properties']['webgis_type'] === g_geojsons[id]['properties']['webgis_type'])
+				if($.webgis.data.geojsons[id]  && $.webgis.select.prev_selected_obj && $.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id] && $.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id]['properties']['webgis_type'] === $.webgis.data.geojsons[id]['properties']['webgis_type'])
 				{
-					var edgeexist = CheckSegmentsExist(g_prev_selected_obj, g_selected_obj);
+					var edgeexist = CheckSegmentsExist($.webgis.select.prev_selected_obj, $.webgis.select.selected_obj);
 					if(edgeexist)
 					{
 						$.jGrowl("该两点间该方向已存在连接",{
@@ -8563,9 +8553,9 @@ function OnSelect(viewer, e)
 						});
 					}
 					
-					if(g_node_connect_mode && !edgeexist)
+					if($.webgis.config.node_connect_mode && !edgeexist)
 					{
-						var ring = CheckSegmentsRing(g_prev_selected_obj, g_selected_obj);
+						var ring = CheckSegmentsRing($.webgis.select.prev_selected_obj, $.webgis.select.selected_obj);
 						if(ring)
 						{
 							$.jGrowl("不能形成环路",{
@@ -8578,11 +8568,11 @@ function OnSelect(viewer, e)
 						}else
 						{
 							$('#btn_edge_save').removeAttr('disabled');
-							$('#div_edge_instruction').html(g_geojsons[g_prev_selected_obj.id].properties.name + '->' + g_geojsons[id].properties.name);
+							$('#div_edge_instruction').html($.webgis.data.geojsons[$.webgis.select.prev_selected_obj.id].properties.name + '->' + $.webgis.data.geojsons[id].properties.name);
 							var webgis_type;
-							if(g_geojsons[id]['properties']['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
-							if(g_geojsons[id]['properties']['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
-							AddEdgeBetweenTwoNode2D(viewer, webgis_type, g_prev_selected_obj, g_selected_obj, true);
+							if($.webgis.data.geojsons[id]['properties']['webgis_type'] === 'point_dn') webgis_type = 'edge_dn';
+							if($.webgis.data.geojsons[id]['properties']['webgis_type'] === 'point_tower') webgis_type = 'edge_tower';
+							AddEdgeBetweenTwoNode2D(viewer, webgis_type, $.webgis.select.prev_selected_obj, $.webgis.select.selected_obj, true);
 						}
 					}
 				}
@@ -8591,7 +8581,7 @@ function OnSelect(viewer, e)
 			}
 			else
 			{
-				$.webgis.selected_geojson = g_selected_obj.id;
+				$.webgis.selected_geojson = $.webgis.select.selected_obj.id;
 				//if($.webgis.selected_geojson._id === 'tmp_edge')
 				//{
 					//$.webgis.selected_geojson._id = null;
@@ -8673,10 +8663,10 @@ function ShowLineDialog(viewer, mode)
     var voltagelist = [];
     for (i = 0; i < list.length; i++)
     {
-        for (var key in g_codes['voltage_level']) {
+        for (var key in $.webgis.data.codes['voltage_level']) {
             if (key == list[i]) 
 			{
-                voltagelist.push({ value: key, label: g_codes['voltage_level'][key] });
+                voltagelist.push({ value: key, label: $.webgis.data.codes['voltage_level'][key] });
             }
         }
     }
@@ -8684,11 +8674,11 @@ function ShowLineDialog(viewer, mode)
 	var equipment_class = [];
     for (i = 0; i < list.length; i++)
     {
-		for (var key in g_codes['equipment_class']) 
+		for (var key in $.webgis.data.codes['equipment_class']) 
 		{
             if (key == list[i]) 
 			{
-				equipment_class.push({ value: key, label: g_codes['equipment_class'][key] });
+				equipment_class.push({ value: key, label: $.webgis.data.codes['equipment_class'][key] });
 			}
 		}
 	}
@@ -8696,11 +8686,11 @@ function ShowLineDialog(viewer, mode)
 	var object_class = []
     for (i = 0; i < list.length; i++)
     {
-		for (var key in g_codes['object_class']) 
+		for (var key in $.webgis.data.codes['object_class']) 
 		{
             if (key == list[i]) 
 			{
-				object_class.push({ value: key, label: g_codes['object_class'][key] });
+				object_class.push({ value: key, label: $.webgis.data.codes['object_class'][key] });
 			}
 		}
 	}
@@ -8745,9 +8735,9 @@ function ShowLineDialog(viewer, mode)
 	{
 		$('#fld_line_edit_choose').css('display', 'block');
 		$('#line_choose').empty();
-		for(var k in g_lines)
+		for(var k in $.webgis.data.lines)
 		{
-			$('#line_choose').append('<option value="' + k + '">' + g_lines[k]['properties']['name'] + '</option>');
+			$('#line_choose').append('<option value="' + k + '">' + $.webgis.data.lines[k]['properties']['name'] + '</option>');
 		}
 		
 		var select = $('#line_choose').multipleSelect({
@@ -8764,10 +8754,10 @@ function ShowLineDialog(viewer, mode)
 				{
 					//console.log(view.value);
 					var arr = $('#line_choose').multipleSelect("getSelects");
-					if(g_lines[view.value])
+					if($.webgis.data.lines[view.value])
 					{
 						$("#form_line_info").webgisform('clear');
-						$("#form_line_info").webgisform('setdata', g_lines[view.value]['properties']);
+						$("#form_line_info").webgisform('setdata', $.webgis.data.lines[view.value]['properties']);
 					}
 				}
 			},
@@ -8788,9 +8778,9 @@ function ShowLineDialog(viewer, mode)
         //margin:10,
         //groupmargin:10
     });
-	//if(id && g_lines[id])
+	//if(id && $.webgis.data.lines[id])
 	//{
-		//$("#form_line_info").webgisform('setdata', g_lines[id]['properties']);
+		//$("#form_line_info").webgisform('setdata', $.webgis.data.lines[id]['properties']);
 	//}
 	$('#tabs_line_info').tabs({ 
 		collapsible: false,
@@ -8814,7 +8804,7 @@ function GetParamsFromUrl() {
 	var ret = {};
 	if(location.search.length>0)
 	{
-		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  $.webgis.encrypt_key);
+		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  $.webgis.config.encrypt_key);
 		var s = decrypted.toString(CryptoJS.enc.Utf8);
 		s = decodeURIComponent(s);
 		ret = JSON.parse(s);
@@ -8834,18 +8824,18 @@ function CheckPermission(funcname)
 		return true;
 	}
 	var ret = false;
-	if($.webgis.sysrole.indexOf(funcname)>-1)
+	if($.webgis.data.sysrole.indexOf(funcname)>-1)
 	{
 		ret = true;
 	}
 	if(ret === false)
 	{
 		var s = '';
-		for(var i in $.webgis.role_functions)
+		for(var i in $.webgis.mapping.role_functions)
 		{
-			if($.webgis.role_functions[i]['value'] === funcname)
+			if($.webgis.mapping.role_functions[i]['value'] === funcname)
 			{
-				s = $.webgis.role_functions[i]['label'];
+				s = $.webgis.mapping.role_functions[i]['label'];
 				break;
 			}
 		}

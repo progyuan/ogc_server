@@ -1,19 +1,27 @@
 $.webgis = {};
-$.webgis.arcserver_host = 'yncaiyun1.com';//10.181.160.72
-$.webgis.host = 'yncaiyun1.com';//10.181.160.72
-//$.webgis.arcserver_host = '192.168.1.107';//10.181.160.72
-//$.webgis.host = '192.168.1.107';//10.181.160.72
-$.webgis.port = 8088;
-$.webgis.tiles_host = 'yncaiyun1.com';
-$.webgis.tiles_port = 8088;
-//var $.webgis.db.db_name = 'kmgd';
+$.webgis.mapping = {};
 $.webgis.db = {};
+$.webgis.data = {};
+$.webgis.config = {};
+$.webgis.select = {};
+$.webgis.control = {};
+$.webgis.form_fields = {};
+$.webgis.geometry = {};
+$.webgis.remote = {};
+$.webgis.remote.arcserver_host = 'yncaiyun1.com';//10.181.160.72
+$.webgis.remote.host = 'yncaiyun1.com';//10.181.160.72
+//$.webgis.remote.arcserver_host = '192.168.1.107';//10.181.160.72
+//$.webgis.remote.host = '192.168.1.107';//10.181.160.72
+$.webgis.remote.port = 8088;
+$.webgis.remote.tiles_host = 'yncaiyun1.com';
+$.webgis.remote.tiles_port = 8088;
+//var $.webgis.db.db_name = 'kmgd';
 $.webgis.db.db_name = 'kmgd';
 //$.webgis.db.db_name = 'ztgd';
-$.webgis.zaware = false;
+$.webgis.config.zaware = false;
 
-$.webgis.encrypt_key = 'kmgd111';
-$.webgis.phase_color_mapping = {
+$.webgis.config.encrypt_key = 'kmgd111';
+$.webgis.mapping.phase_color_mapping = {
 	'A':'#FFFF00',
 	'B':'#FF0000',
 	'C':'#00FF00',
@@ -22,7 +30,7 @@ $.webgis.phase_color_mapping = {
 	'L':'#000000',
 	'R':'#000000'
 };
-$.webgis.style_mapping = {
+$.webgis.mapping.style_mapping = {
 	'point_tower' :		{icon_img:'img/features/powerlinepole.png', color:[255, 255, 0, 255],outlineColor:[0, 0, 0, 255], outlineWidth:1, pixelSize:10, labelFillColor:[128, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_hazard' :	{icon_img:'img/features/radiation.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
 	'point_marker' :	{icon_img:'img/marker30x48.png', color:[64, 128, 255, 255],outlineColor:[255, 255, 255, 255], outlineWidth:1, pixelSize:3, labelFillColor:[255, 255, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale: 0.6},
@@ -64,7 +72,7 @@ $.webgis.style_mapping = {
 	'polygon_buffer':{color:[255, 0, 0, 50], outlineColor:[255, 64, 0, 255],  labelFillColor:[255, 0, 0, 255], labelOutlineColor:[255, 255, 255, 255], labelScale:1}
 };
 
-$.webgis.role_functions = [
+$.webgis.mapping.role_functions = [
 	{value:'line_edit', label:'线路工程查看'},
 	{value:'line_save', label:'线路工程创建与保存'},
 	{value:'line_delete', label:'线路工程删除'},
@@ -832,7 +840,7 @@ function ColorArrayToRgba(array)
 
 function GetDefaultStyleValue(type, stylename)
 {
-	var mapping = $.webgis.style_mapping[type];
+	var mapping = $.webgis.mapping.style_mapping[type];
 	//if(type.indexOf('point_')>-1) mapping = g_style_point_mapping[type];
 	//if(type.indexOf('polyline_')>-1) mapping = g_style_polyline_mapping[type];
 	//if(type.indexOf('polygon_')>-1) mapping = g_style_polygon_mapping[type];
@@ -1182,7 +1190,7 @@ function CheckInternetConnection()
 }
 function CheckIntranetConnection()
 {
-	return CheckUrlExist('http://' + $.webgis.host + ':' + $.webgis.port);
+	return CheckUrlExist('http://' + $.webgis.remote.host + ':' + $.webgis.remote.port);
 }
 
 
