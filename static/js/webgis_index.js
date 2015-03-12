@@ -71,12 +71,12 @@ $(function() {
 								$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] );
 							});
 						});
-						//g_zaware = true;
+						//$.webgis.config.zaware = true;
 						//LoadAllDNNode(viewer, $.webgis.db.db_name, function(){
 							//LoadAllDNEdge(viewer, $.webgis.db.db_name, function(){
 								//var extent = GetExtentByCzml();
 								//FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
-								//ReloadCzmlDataSource(viewer, g_zaware);
+								//ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 							//});
 						//});
 					
@@ -110,6 +110,7 @@ $(function() {
 		load_init_data();
 	}catch(ex)
 	{
+		console.log(ex);
 		$('#cesiumContainer').empty();
 		$('#control_toolpanel_kmgd_left').css('display','none');
 		ShowProgressBar(false);
@@ -641,6 +642,8 @@ function InitCesiumViewer()
 	var viewer;
 	
 	viewer = new Cesium.Viewer('cesiumContainer',{
+	//var func = WebGISViewerConstructor();
+	//viewer = new func('cesiumContainer',{
 		showRenderLoopErrors:false,
 		scene3DOnly:true,
 		animation:false,
@@ -650,7 +653,7 @@ function InitCesiumViewer()
 		selectionIndicator:true,
 		sceneModePicker:false,
 		navigationInstructionsInitiallyVisible:false,
-		infoBox:true,
+		infoBox:false,
 		imageryProviderViewModels:providerViewModels,
 		terrainProviderViewModels:terrainProviderViewModels
 	});
@@ -659,6 +662,12 @@ function InitCesiumViewer()
 	TowerInfoMixin(viewer);
 	return viewer;
 }
+
+
+
+
+
+
 
 
 function ClearSelectColor2D(viewer)
@@ -1011,7 +1020,7 @@ function InitKeyboardEvent(viewer)
 									viewer.trackedEntity = undefined;
 									if($.webgis.config.map_backend === 'cesium')
 									{
-										ReloadCzmlDataSource(viewer, g_zaware, true);
+										ReloadCzmlDataSource(viewer, $.webgis.config.zaware, true);
 									}
 								}
 								else
@@ -1316,7 +1325,7 @@ click: function($data) { $parent.selectedImagery = $data; }');
         return Cesium.destroyObject(this);
     };
 
-	var g_BaseLayerPicker = new BaseLayerPicker($('.cesium-viewer-toolbar')[0], {layers:viewer.layers, selectedLayer:viewer.layers[0]});
+	$.webgis.toolbar.BaseLayerPicker = new BaseLayerPicker($('.cesium-viewer-toolbar')[0], {layers:viewer.layers, selectedLayer:viewer.layers[0]});
 
 }
 
@@ -1422,7 +1431,7 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 
         return Cesium.destroyObject(this);
     };
-	var g_HomeButton = new HomeButton($('.cesium-viewer-toolbar')[0]);
+	$.webgis.toolbar.HomeButton = new HomeButton($('.cesium-viewer-toolbar')[0]);
 
 }
 
@@ -1641,7 +1650,7 @@ cesiumSvgPath: { path: _svgPath, width: 32, height: 32 }');
         return Cesium.destroyObject(this);
     };
 	
-	var g_NavigationHelpButton = new NavigationHelpButton({
+	$.webgis.toolbar.NavigationHelpButton = new NavigationHelpButton({
 		container : $('.cesium-viewer-toolbar')[0]
 	});
 	
@@ -1738,7 +1747,7 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
     };
 	
 	//console.log($('.cesium-viewer-toolbar'));
-	g_rulerButton = new RulerButton({
+	$.webgis.toolbar.rulerButton = new RulerButton({
 		container : $('.cesium-viewer-toolbar')[0]
 	});
 }
@@ -1855,8 +1864,9 @@ function InitDrawHelper(viewer)
 		}
 	});
 	toolbar.addListener('polylineCreated', function(event) {
-		event.positions.pop();
-		event.positions.pop();
+		//maybe cesium1.7 fix this bug
+		//event.positions.pop();
+		//event.positions.pop();
 		console.log('Polyline created with ' + event.positions.length + ' points');
 		//console.log(event.positions);
 		var polyline = new DrawHelper.PolylinePrimitive({
@@ -1876,8 +1886,9 @@ function InitDrawHelper(viewer)
 		//});
 	});
 	toolbar.addListener('polygonCreated', function(event) {
-		event.positions.pop();
-		event.positions.pop();
+		//maybe cesium1.7 fix this bug
+		//event.positions.pop();
+		//event.positions.pop();
 		console.log('Polygon created with ' + event.positions.length + ' points');
 		var polygon = new DrawHelper.PolygonPrimitive({
 			positions: event.positions,
@@ -2218,7 +2229,7 @@ function InitToolPanel(viewer)
 		}
 		if($.webgis.config.map_backend === 'cesium')
 		{
-			ReloadCzmlDataSource(viewer, g_zaware);
+			ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 		}
 	});
 	$('input[id^=chb_show_geometry_]').on("ifChanged", function(e){
@@ -2267,7 +2278,7 @@ function InitToolPanel(viewer)
 			}
 			if($.webgis.config.map_backend === 'cesium')
 			{
-				ReloadCzmlDataSource(viewer, g_zaware);
+				ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 			}
 		}
 	});
@@ -2281,7 +2292,7 @@ function InitToolPanel(viewer)
 		}
 		if($.webgis.config.map_backend === 'cesium')
 		{
-			ReloadCzmlDataSource(viewer, g_zaware);
+			ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 		}
 	});
 	
@@ -2914,7 +2925,7 @@ function ClearPoi(viewer)
 	var scene = viewer.scene;
 	delete $.webgis.data.czmls;
 	$.webgis.data.czmls = {};
-	ReloadCzmlDataSource(viewer, g_zaware, true);
+	ReloadCzmlDataSource(viewer, $.webgis.config.zaware, true);
 	for(var k in $.webgis.data.gltf_models)
 	{
 		var m = $.webgis.data.gltf_models[k];
@@ -2928,6 +2939,8 @@ function ClearPoi(viewer)
 
 function TranslateToCN()
 {
+	$('.cesium-home-button').attr('title', '返回初始视角');
+	$('.cesium-navigation-help-button').attr('title', '快速操作帮助');
 	$($('.cesium-baseLayerPicker-sectionTitle')[0]).html('地表图源');
 	//$($('.cesium-baseLayerPicker-sectionTitle')[0]).attr('imgtype', 'imagery');
 	$($('.cesium-baseLayerPicker-sectionTitle')[1]).html('3D地型数据源');
@@ -2937,9 +2950,14 @@ function TranslateToCN()
 	$('.cesium-navigation-help-zoom').html('缩放');
 	$($('.cesium-navigation-help-zoom').siblings()[0]).html('右键点击 + 拖动, 或');
 	$($('.cesium-navigation-help-zoom').siblings()[1]).html('鼠标滚轮');
-	$('.cesium-navigation-help-rotate').html('视角旋转');
+	$('.cesium-touch-navigation-help .cesium-navigation-help-zoom').next().html('两指滑动');
+	$('.cesium-click-navigation-help .cesium-navigation-help-rotate').html('视角旋转');
 	$($('.cesium-navigation-help-rotate').siblings()[0]).html('中键点击 + 拖动, 或');
 	$($('.cesium-navigation-help-rotate').siblings()[1]).html('CTRL + 左键点击 + 拖动');
+	$('.cesium-touch-navigation-help .cesium-navigation-help-rotate').html('视角翻转');
+	$('.cesium-touch-navigation-help .cesium-navigation-help-rotate').next().html('两指同向滑动');
+	$('.cesium-touch-navigation-help .cesium-navigation-help-tilt').html('视角旋转');
+	$('.cesium-touch-navigation-help .cesium-navigation-help-tilt').next().html('两指反向滑动');
 }
 
 function InitModelList(viewer)
@@ -3091,7 +3109,7 @@ function InitSearchBox(viewer)
 							FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
 							if($.webgis.config.map_backend === 'cesium')
 							{
-								ReloadCzmlDataSource(viewer, g_zaware);
+								ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 							}
 						});
 					});
@@ -3216,7 +3234,7 @@ function ShowSearchResult(viewer, geojson)
 						$.webgis.data.czmls[_id] = CreatePolyLineCzmlFromGeojson($.webgis.data.geojsons[_id]);
 					else if($.webgis.data.geojsons[_id]['properties']['webgis_type'].indexOf('polygon_')>-1)
 						$.webgis.data.czmls[_id] = CreatePolygonCzmlFromGeojson($.webgis.data.geojsons[_id]);
-					ReloadCzmlDataSource(viewer, g_zaware);
+					ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 				}
 			}
 			if($.webgis.config.map_backend === 'leaflet')
@@ -3988,7 +4006,7 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 			{
 				var _id = data[i]['_id'];
 				var geojson = data[i];
-				//geojson = AddZValueByCesium(viewer, geojson, g_zaware);
+				//geojson = AddZValueByCesium(viewer, geojson, $.webgis.config.zaware);
 				if(!$.webgis.data.geojsons[_id])
 				{
 					$.webgis.data.geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
@@ -4506,7 +4524,7 @@ function LoadTowerModelByTower(viewer, tower)
 					lat = parseFloat($('#form_tower_info_base').webgisform('get','lat').val()),
 					height = parseFloat($('#form_tower_info_base').webgisform('get','alt').val()),
 					rotate = parseFloat($('#form_tower_info_base').webgisform('get','rotate').val());
-				if(!g_zaware)
+				if(!$.webgis.config.zaware)
 				{
 					height = 0;
 				}else
@@ -4542,7 +4560,7 @@ function LoadTowerModelByTower(viewer, tower)
 					{
 						console.log("model " + url + " does not exist");
 						$.webgis.data.czmls[id]['billboard']['show'] = {'boolean':true};
-						ReloadCzmlDataSource(viewer, g_zaware);
+						ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 					}
 				}
 			}
@@ -4663,26 +4681,26 @@ function CreateTowerModel(viewer, modelurl,  lng,  lat,  height, rotate, scale)
 	
 	var model = scene.primitives.add(primitive);
 	
-	model.readyToRender.addEventListener(function(model) {
-		model.activeAnimations.addAll({
-			speedup : 0.5,
-			loop : Cesium.ModelAnimationLoop.REPEAT
-		});
+	//model.readyToRender.addEventListener(function(model) {
+		//model.activeAnimations.addAll({
+			//speedup : 0.5,
+			//loop : Cesium.ModelAnimationLoop.REPEAT
+		//});
 
-		//// Zoom to model
-		//var worldBoundingSphere = model.computeWorldBoundingSphere();
-		//var center = worldBoundingSphere.center;
-		//var transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
-		//var camera = scene.camera;
-		//camera.transform = transform;
-		//camera.controller.constrainedAxis = Cesium.Cartesian3.UNIT_Z;
-		//var controller = scene.screenSpaceCameraController;
-		//controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
-		//controller.enableTilt = true;
-		//var r = 1.25 * Math.max(worldBoundingSphere.radius, camera.frustum.near);
-		//controller.minimumZoomDistance = r * 0.25;
-		//camera.controller.lookAt(new Cesium.Cartesian3(r, r, r), Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Z);
-	});
+		////// Zoom to model
+		////var worldBoundingSphere = model.computeWorldBoundingSphere();
+		////var center = worldBoundingSphere.center;
+		////var transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+		////var camera = scene.camera;
+		////camera.transform = transform;
+		////camera.controller.constrainedAxis = Cesium.Cartesian3.UNIT_Z;
+		////var controller = scene.screenSpaceCameraController;
+		////controller.ellipsoid = Cesium.Ellipsoid.UNIT_SPHERE;
+		////controller.enableTilt = true;
+		////var r = 1.25 * Math.max(worldBoundingSphere.radius, camera.frustum.near);
+		////controller.minimumZoomDistance = r * 0.25;
+		////camera.controller.lookAt(new Cesium.Cartesian3(r, r, r), Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_Z);
+	//});
 	return model;
 }
 
@@ -4691,30 +4709,29 @@ function TowerInfoMixin(viewer)
 {
 	var scene = viewer.scene;
 	var ellipsoid = scene.globe.ellipsoid;
-	if (!Cesium.defined(viewer)) {
-		throw new Cesium.DeveloperError('viewer is required.');
-	}
-	if (viewer.hasOwnProperty('trackedEntity')) {
-		throw new Cesium.DeveloperError('trackedEntity is already defined by another mixin.');
-	}
-	if (viewer.hasOwnProperty('selectedEntity')) {
-		throw new Cesium.DeveloperError('selectedEntity is already defined by another mixin.');
-	}
+	//if (!Cesium.defined(viewer)) {
+		//throw new Cesium.DeveloperError('viewer is required.');
+	//}
+	//if (viewer.hasOwnProperty('trackedEntity')) {
+		//throw new Cesium.DeveloperError('trackedEntity is already defined by another mixin.');
+	//}
+	//if (viewer.hasOwnProperty('selectedEntity')) {
+		//throw new Cesium.DeveloperError('selectedEntity is already defined by another mixin.');
+	//}
 
-	var infoBox;// = viewer.infoBox;
-	var infoBoxViewModel = Cesium.defined(infoBox) ? infoBox.viewModel : undefined;
+	//var infoBox;// = viewer.infoBox;
+	//var infoBoxViewModel = Cesium.defined(infoBox) ? infoBox.viewModel : undefined;
 
-	var selectionIndicator = viewer.selectionIndicator;
-	var selectionIndicatorViewModel = Cesium.defined(selectionIndicator) ? selectionIndicator.viewModel : undefined;
-	var enableInfoOrSelection = Cesium.defined(infoBox) || Cesium.defined(selectionIndicator);
+	//var selectionIndicator = viewer.selectionIndicator;
+	//var selectionIndicatorViewModel = Cesium.defined(selectionIndicator) ? selectionIndicator.viewModel : undefined;
+	//var enableInfoOrSelection = Cesium.defined(infoBox) || Cesium.defined(selectionIndicator);
 	//enableInfoOrSelection = false;
 	var eventHelper = new Cesium.EventHelper();
-	var entityView;
+	//var entityView;
 
 	function trackSelectedEntity() {
 		viewer.trackedEntity = viewer.selectedEntity;
 		var id = viewer.trackedEntity.id;
-		//console.log('track id=' + id);
 		LookAtTarget(viewer, id);
 	}
 
@@ -4731,94 +4748,92 @@ function TowerInfoMixin(viewer)
 		viewer.selectedEntity = undefined;
 	}
 
-	if (Cesium.defined(infoBoxViewModel)) {
-		eventHelper.add(infoBoxViewModel.cameraClicked, trackSelectedEntity);
-		eventHelper.add(infoBoxViewModel.closeClicked, clearSelectedEntity);
-	}
+	//if (Cesium.defined(infoBoxViewModel)) {
+		//eventHelper.add(infoBoxViewModel.cameraClicked, trackSelectedEntity);
+		//eventHelper.add(infoBoxViewModel.closeClicked, clearSelectedEntity);
+	//}
 
-	var scratchVertexPositions;
-	var scratchBoundingSphere;
+	//var scratchVertexPositions;
+	//var scratchBoundingSphere;
 
-	function onTick(clock) {
-		var time = clock.currentTime;
-		if (Cesium.defined(entityView)) {
-			entityView.update(time);
-		}
+	//function onTick(clock) {
+		//var time = clock.currentTime;
+		//if (Cesium.defined(entityView)) {
+			//entityView.update(time);
+		//}
 
-		var selectedEntity = viewer.selectedEntity;
-		if(selectedEntity && selectedEntity.isAvailable)
-		{
-			var showSelection = Cesium.defined(selectedEntity) && enableInfoOrSelection;
-			if (showSelection) {
-				var oldPosition = Cesium.defined(selectionIndicatorViewModel) ? selectionIndicatorViewModel.position : undefined;
-				var position;
-				var enableCamera = false;
+		//var selectedEntity = viewer.selectedEntity;
+		//if(selectedEntity && selectedEntity.isAvailable)
+		//{
+			//var showSelection = Cesium.defined(selectedEntity) && enableInfoOrSelection;
+			//if (showSelection) {
+				//var oldPosition = Cesium.defined(selectionIndicatorViewModel) ? selectionIndicatorViewModel.position : undefined;
+				//var position;
+				//var enableCamera = false;
 	
-				if (selectedEntity.isAvailable(time)) {
-					if (Cesium.defined(selectedEntity.position)) {
-						position = selectedEntity.position.getValue(time, oldPosition);
-						enableCamera = Cesium.defined(position) && (viewer.trackedEntity !== viewer.selectedEntity);
-					} else if (Cesium.defined(selectedEntity.positions)) {
-						scratchVertexPositions = selectedEntity.positions.getValue(time, scratchVertexPositions);
-						scratchBoundingSphere = Cesium.BoundingSphere.fromPoints(scratchVertexPositions, scratchBoundingSphere);
-						position = scratchBoundingSphere.center;
-						// Can't track scratch positions: "enableCamera" is false.
-					}
-					// else "position" is undefined and "enableCamera" is false.
-				}
-				// else "position" is undefined and "enableCamera" is false.
-	
-				if (Cesium.defined(selectionIndicatorViewModel)) {
-					selectionIndicatorViewModel.position = position;
-				}
-	
-				if (Cesium.defined(infoBoxViewModel)) {
-					infoBoxViewModel.enableCamera = enableCamera;
-					infoBoxViewModel.isCameraTracking = (viewer.trackedEntity === viewer.selectedEntity);
-	
-					//if (Cesium.defined(selectedEntity.description)) {
-						//infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedEntity.description.getValue(time), '');
-					//} else {
-						//infoBoxViewModel.descriptionRawHtml = '';
+				//if (selectedEntity.isAvailable(time)) {
+					//if (Cesium.defined(selectedEntity.position)) {
+						//position = selectedEntity.position.getValue(time, oldPosition);
+						//enableCamera = Cesium.defined(position) && (viewer.trackedEntity !== viewer.selectedEntity);
+					//} else if (Cesium.defined(selectedEntity.positions)) {
+						//scratchVertexPositions = selectedEntity.positions.getValue(time, scratchVertexPositions);
+						//scratchBoundingSphere = Cesium.BoundingSphere.fromPoints(scratchVertexPositions, scratchBoundingSphere);
+						//position = scratchBoundingSphere.center;
+						//// Can't track scratch positions: "enableCamera" is false.
 					//}
-				}
-			}
+					//// else "position" is undefined and "enableCamera" is false.
+				//}
+				//// else "position" is undefined and "enableCamera" is false.
 	
-			if (Cesium.defined(selectionIndicatorViewModel)) {
-				selectionIndicatorViewModel.showSelection = showSelection;
-				selectionIndicatorViewModel.update();
-			}
+				//if (Cesium.defined(selectionIndicatorViewModel)) {
+					//selectionIndicatorViewModel.position = position;
+				//}
 	
-			if (Cesium.defined(infoBoxViewModel)) {
-				infoBoxViewModel.showInfo = showSelection;
-			}
-		}else
-		{
-			selectionIndicatorViewModel.showSelection = false;
-			selectionIndicatorViewModel.update();
-		}
-	}
-	eventHelper.add(viewer.clock.onTick, onTick);
+				//if (Cesium.defined(infoBoxViewModel)) {
+					//infoBoxViewModel.enableCamera = enableCamera;
+					//infoBoxViewModel.isCameraTracking = (viewer.trackedEntity === viewer.selectedEntity);
+	
+					////if (Cesium.defined(selectedEntity.description)) {
+						////infoBoxViewModel.descriptionRawHtml = Cesium.defaultValue(selectedEntity.description.getValue(time), '');
+					////} else {
+						////infoBoxViewModel.descriptionRawHtml = '';
+					////}
+				//}
+			//}
+	
+			//if (Cesium.defined(selectionIndicatorViewModel)) {
+				//selectionIndicatorViewModel.showSelection = showSelection;
+				//selectionIndicatorViewModel.update();
+			//}
+	
+			//if (Cesium.defined(infoBoxViewModel)) {
+				//infoBoxViewModel.showInfo = showSelection;
+			//}
+		//}else
+		//{
+			//selectionIndicatorViewModel.showSelection = false;
+			//selectionIndicatorViewModel.update();
+		//}
+	//}
+	//eventHelper.add(viewer.clock.onTick, onTick);
 
-	function pickTrackedEntity(e) {
+	function pickEntity(e) {
 		var picked = viewer.scene.pick(e.position);
-		var ellipsoid = viewer.scene.globe.ellipsoid;
-		var cartesian = viewer.scene.camera.pickEllipsoid(e.position, ellipsoid);
-		if (cartesian) {
-			//var cartographic = ellipsoid.cartesianToCartographic(cartesian);
-			//var lng = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7),
-				//lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
-			//var text = '(' + lng + ',' + lat + ')';
-			//label.show = true;
-			//label.text = text;
-			//label.position = cartesian;
-		}
+		//var ellipsoid = viewer.scene.globe.ellipsoid;
+		//var cartesian = viewer.scene.camera.pickEllipsoid(e.position, ellipsoid);
+		//if (cartesian) {
+			////var cartographic = ellipsoid.cartesianToCartographic(cartesian);
+			////var lng = Cesium.Math.toDegrees(cartographic.longitude).toFixed(7),
+				////lat = Cesium.Math.toDegrees(cartographic.latitude).toFixed(7);
+			////var text = '(' + lng + ',' + lat + ')';
+			////label.show = true;
+			////label.text = text;
+			////label.position = cartesian;
+		//}
 		
 		
 		if (Cesium.defined(picked)) {
 			var id = Cesium.defaultValue(picked.id, picked.primitive.id);
-			//console.log(id);
-			//console.log(typeof id);
 			if (id instanceof Cesium.Entity) {
 				return id;
 			}
@@ -4837,7 +4852,8 @@ function TowerInfoMixin(viewer)
 	}
 
 	function pickAndTrackObject(e) {
-		var trackedEntity = pickTrackedEntity(e);
+		var trackedEntity = pickEntity(e);
+		
 		if (Cesium.defined(trackedEntity)) 
 		{
 			if (trackedEntity.primitive && trackedEntity.primitive instanceof Cesium.Primitive)
@@ -4874,8 +4890,13 @@ function TowerInfoMixin(viewer)
 	}
 	
 	function pickAndSelectObject(e) {
-		viewer.selectedEntity = pickTrackedEntity(e);
-		OnSelect(viewer, e);
+		//viewer.selectedEntity = pickEntity(e);
+		var selectedEntity = pickEntity(e);
+		if(selectedEntity && selectedEntity.primitive === undefined)
+		{
+			viewer.selectedEntity = selectedEntity;
+		}
+		OnSelect(viewer, e, selectedEntity);
 	}
 
 	//event after terrain change
@@ -4886,21 +4907,17 @@ function TowerInfoMixin(viewer)
 			if($(e.target).parent().attr('title') == 'no-terrain')
 			{
 				//console.log('no terrain');
-				g_zaware = false;
+				$.webgis.config.zaware = false;
 			}
 			else
 			{
-				g_zaware = true;
+				$.webgis.config.zaware = true;
 				//console.log('yes terrain');			
 			}
-			ReloadCzmlDataSource(viewer, g_zaware, true);
+			ReloadCzmlDataSource(viewer, $.webgis.config.zaware, true);
 			ReloadModelPosition(viewer);
 		}
 	});
-	//console.log(viewer.baseLayerPicker.viewModel.selectedImagery.command.afterExecute);
-	//eventHelper.add(viewer.scene.globe.imageryLayers.layerShownOrHidden, function(commandInfo){
-		//console.log(commandInfo);
-	//});
 
 
 	if (Cesium.defined(viewer.homeButton)) {
@@ -4913,9 +4930,9 @@ function TowerInfoMixin(viewer)
 		});
 	}
 
-	if (Cesium.defined(viewer.geocoder)) {
-		eventHelper.add(viewer.geocoder.viewModel.search.beforeExecute, clearObjects);
-	}
+	//if (Cesium.defined(viewer.geocoder)) {
+		//eventHelper.add(viewer.geocoder.viewModel.search.beforeExecute, clearObjects);
+	//}
 
 	function ClearTrackedObj(viewer)
 	{
@@ -4939,16 +4956,6 @@ function TowerInfoMixin(viewer)
         var description;
 
         if (mode === Cesium.SceneMode.SCENE2D) {
-            //description = {
-                //destination : Cesium.Extent.MAX_VALUE,
-                //duration : flightDuration/1000.0,
-                //endReferenceFrame : new Cesium.Matrix4(0, 0, 1, 0,
-                                                //1, 0, 0, 0,
-                                                //0, 1, 0, 0,
-                                                //0, 0, 0, 1)
-            //};
-            //flight = Cesium.CameraFlightPath.createAnimationExtent(scene, description);
-            //scene.animations.add(flight);
 			scene.camera.flyTo({
                 destination : Cesium.Extent.MAX_VALUE,
                 duration : flightDuration/1000.0,
@@ -4959,15 +4966,6 @@ function TowerInfoMixin(viewer)
 			});			
         } else if (mode === Cesium.SceneMode.SCENE3D) {
             var defaultCamera = new Cesium.Camera(context);
-            //description = {
-                //destination : defaultCamera.position,
-                //duration : flightDuration/1000.0,
-                //up : defaultCamera.up,
-                //direction : defaultCamera.direction,
-                //endReferenceFrame : Cesium.Matrix4.IDENTITY
-            //};
-            //flight = Cesium.CameraFlightPath.createAnimation(scene, description);
-            //scene.animations.add(flight);
 			
 			scene.camera.flyTo({
                 destination : defaultCamera.position,
@@ -4978,25 +4976,6 @@ function TowerInfoMixin(viewer)
 			});			
 			
         } else if (mode === Cesium.SceneMode.COLUMBUS_VIEW) {
-            //var maxRadii = ellipsoid.maximumRadius;
-            //var position = Cesium.Cartesian3.multiplyByScalar(Cesium.Cartesian3.normalize(new Cesium.Cartesian3(0.0, -1.0, 1.0)), 5.0 * maxRadii);
-            //var direction = Cesium.Cartesian3.normalize(Cesium.Cartesian3.subtract(Cesium.Cartesian3.ZERO, position));
-            //var right = Cesium.Cartesian3.cross(direction, Cesium.Cartesian3.UNIT_Z);
-            //var up = Cesium.Cartesian3.cross(right, direction);
-
-            //description = {
-                //destination : position,
-                //duration : flightDuration/1000.0,
-                //up : up,
-                //direction : direction,
-                //endReferenceFrame : new Cesium.Matrix4(0, 0, 1, 0,
-                                                //1, 0, 0, 0,
-                                                //0, 1, 0, 0,
-                                                //0, 0, 0, 1)
-            //};
-
-            //flight = Cesium.CameraFlightPath.createAnimation(scene, description);
-            //scene.animations.add(flight);
 			scene.camera.flyTo({
                 destination : position,
                 duration : flightDuration/1000.0,
@@ -5010,114 +4989,113 @@ function TowerInfoMixin(viewer)
         }
 	}
 
-	function onDynamicCollectionChanged(collection, added, removed) {
-		var length = removed.length;
-		for (var i = 0; i < length; i++) {
-			var removedObject = removed[i];
-			if (viewer.trackedEntity === removedObject) {
-				//viewer.homeButton.viewModel.command();
-			}
-			if (viewer.selectedEntity === removedObject) {
-				//viewer.selectedEntity = undefined;
-			}
-		}
-	}
-
-	function dataSourceAdded(dataSourceCollection, dataSource) {
-		var entities = dataSource.entities ;//.getDynamicObjectCollection();
-		entities.collectionChanged.addEventListener(onDynamicCollectionChanged);
-	}
-
-	function dataSourceRemoved(dataSourceCollection, dataSource) {
-		var entities = dataSource.entities ;//.getDynamicObjectCollection();
-		entities.collectionChanged.removeEventListener(onDynamicCollectionChanged);
-
-		if (Cesium.defined(viewer.trackedEntity)) {
-			//if (entities.getById(viewer.trackedEntity.id) === viewer.trackedEntity) {
+	//function onDynamicCollectionChanged(collection, added, removed) {
+		//var length = removed.length;
+		//for (var i = 0; i < length; i++) {
+			//var removedObject = removed[i];
+			//if (viewer.trackedEntity === removedObject) {
 				////viewer.homeButton.viewModel.command();
 			//}
-		}
-
-		if (Cesium.defined(viewer.selectedEntity)) {
-			//if (entities.getById(viewer.selectedEntity.id) === viewer.selectedEntity) {
+			//if (viewer.selectedEntity === removedObject) {
 				////viewer.selectedEntity = undefined;
 			//}
-		}
-	}
+		//}
+	//}
 
-	var dataSources = viewer.dataSources;
-	var dataSourceLength = dataSources.length;
-	for (var i = 0; i < dataSourceLength; i++) {
-		dataSourceAdded(dataSources, dataSources.get(i));
-	}
+	//function dataSourceAdded(dataSourceCollection, dataSource) {
+		//var entities = dataSource.entities ;//.getDynamicObjectCollection();
+		//entities.collectionChanged.addEventListener(onDynamicCollectionChanged);
+	//}
 
-	eventHelper.add(viewer.dataSources.dataSourceAdded, dataSourceAdded);
-	eventHelper.add(viewer.dataSources.dataSourceRemoved, dataSourceRemoved);
+	//function dataSourceRemoved(dataSourceCollection, dataSource) {
+		//var entities = dataSource.entities ;//.getDynamicObjectCollection();
+		//entities.collectionChanged.removeEventListener(onDynamicCollectionChanged);
+
+		//if (Cesium.defined(viewer.trackedEntity)) {
+			////if (entities.getById(viewer.trackedEntity.id) === viewer.trackedEntity) {
+				//////viewer.homeButton.viewModel.command();
+			////}
+		//}
+
+		//if (Cesium.defined(viewer.selectedEntity)) {
+			////if (entities.getById(viewer.selectedEntity.id) === viewer.selectedEntity) {
+				//////viewer.selectedEntity = undefined;
+			////}
+		//}
+	//}
+
+	//var dataSources = viewer.dataSources;
+	//var dataSourceLength = dataSources.length;
+	//for (var i = 0; i < dataSourceLength; i++) {
+		//dataSourceAdded(dataSources, dataSources.get(i));
+	//}
+
+	//eventHelper.add(viewer.dataSources.dataSourceAdded, dataSourceAdded);
+	//eventHelper.add(viewer.dataSources.dataSourceRemoved, dataSourceRemoved);
 
 	viewer.screenSpaceEventHandler.setInputAction(pickAndSelectObject, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(pickAndTrackObject, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 	viewer.screenSpaceEventHandler.setInputAction(moveOverObject, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
 	viewer.trackedEntity = undefined;
-
 	viewer.selectedEntity = undefined;
 
-	Cesium.knockout.track(viewer, ['trackedEntity', 'selectedEntity']);
+	//Cesium.knockout.track(viewer, ['trackedEntity', 'selectedEntity']);
 
-	var knockoutSubscriptions = [];
+	//var knockoutSubscriptions = [];
 
-	knockoutSubscriptions.push(Cesium.subscribeAndEvaluate(viewer, 'trackedEntity', function(value) {
-		var scene = viewer.scene;
-		var sceneMode = scene.frameState.mode;
-		var isTracking = Cesium.defined(value);
-		if (sceneMode === Cesium.SceneMode.COLUMBUS_VIEW || sceneMode === Cesium.SceneMode.SCENE2D) {
-			scene.screenSpaceCameraController.enableTranslate = !isTracking;
-		}
+	//knockoutSubscriptions.push(Cesium.subscribeAndEvaluate(viewer, 'trackedEntity', function(value) {
+		//var scene = viewer.scene;
+		//var sceneMode = scene.frameState.mode;
+		//var isTracking = Cesium.defined(value);
+		//if (sceneMode === Cesium.SceneMode.COLUMBUS_VIEW || sceneMode === Cesium.SceneMode.SCENE2D) {
+			//scene.screenSpaceCameraController.enableTranslate = !isTracking;
+		//}
 
-		if (sceneMode === Cesium.SceneMode.COLUMBUS_VIEW || sceneMode === Cesium.SceneMode.SCENE3D) {
-			scene.screenSpaceCameraController.enableTilt = !isTracking;
-		}
+		//if (sceneMode === Cesium.SceneMode.COLUMBUS_VIEW || sceneMode === Cesium.SceneMode.SCENE3D) {
+			//scene.screenSpaceCameraController.enableTilt = !isTracking;
+		//}
 
-		if (isTracking &&  Cesium.defined(value.position)) {
-			entityView = new Cesium.EntityView(value, scene, viewer.scene.globe.ellipsoid);
-		} else {
-			entityView = undefined;
-		}
-	}));
+		//if (isTracking &&  Cesium.defined(value.position)) {
+			//entityView = new Cesium.EntityView(value, scene, viewer.scene.globe.ellipsoid);
+		//} else {
+			//entityView = undefined;
+		//}
+	//}));
 
-	knockoutSubscriptions.push(Cesium.subscribeAndEvaluate(viewer, 'selectedEntity', function(value) {
-		if (Cesium.defined(value)) {
-			if (Cesium.defined(infoBoxViewModel)) {
-				infoBoxViewModel.titleText = Cesium.defined(value.name) ? value.name : value.id;
-			}
+	//knockoutSubscriptions.push(Cesium.subscribeAndEvaluate(viewer, 'selectedEntity', function(value) {
+		//if (Cesium.defined(value)) {
+			//if (Cesium.defined(infoBoxViewModel)) {
+				//infoBoxViewModel.titleText = Cesium.defined(value.name) ? value.name : value.id;
+			//}
 
-			if (Cesium.defined(selectionIndicatorViewModel)) {
-				selectionIndicatorViewModel.animateAppear();
-			}
-		} else {
-			if (Cesium.defined(selectionIndicatorViewModel)) {
-				selectionIndicatorViewModel.animateDepart();
-			}
-		}
-	}));
+			//if (Cesium.defined(selectionIndicatorViewModel)) {
+				//selectionIndicatorViewModel.animateAppear();
+			//}
+		//} else {
+			//if (Cesium.defined(selectionIndicatorViewModel)) {
+				//selectionIndicatorViewModel.animateDepart();
+			//}
+		//}
+	//}));
 
-	viewer.destroy = Cesium.wrapFunction(viewer, viewer.destroy, function() {
-		eventHelper.removeAll();
+	//viewer.destroy = Cesium.wrapFunction(viewer, viewer.destroy, function() {
+		//eventHelper.removeAll();
 
-		var i;
-		for (i = 0; i < knockoutSubscriptions.length; i++) {
-			knockoutSubscriptions[i].dispose();
-		}
+		//var i;
+		//for (i = 0; i < knockoutSubscriptions.length; i++) {
+			//knockoutSubscriptions[i].dispose();
+		//}
 
-		viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
-		viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+		//viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
+		//viewer.screenSpaceEventHandler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
 
-		var dataSources = viewer.dataSources;
-		var dataSourceLength = dataSources.length;
-		for (i = 0; i < dataSourceLength; i++) {
-			dataSourceRemoved(dataSources, dataSources.get(i));
-		}
-	});
+		//var dataSources = viewer.dataSources;
+		//var dataSourceLength = dataSources.length;
+		//for (i = 0; i < dataSourceLength; i++) {
+			//dataSourceRemoved(dataSources, dataSources.get(i));
+		//}
+	//});
 }
 
 
@@ -5176,7 +5154,7 @@ function ReloadModelPosition(viewer)
 					height = t['geometry']['coordinates'][2],
 					rotate = t['properties']['rotate'];
 				
-				if(!g_zaware) height = 0;
+				if(!$.webgis.config.zaware) height = 0;
 				PositionModel(ellipsoid, $.webgis.data.gltf_models[k], lng, lat, height, rotate);
 			}
 		}
@@ -5602,7 +5580,7 @@ function DrawBufferCorridorGeometry(viewer, buf_id, positions, width, height, co
 	if(alpha) rgba.a = alpha;
 	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
 	
-	if(!g_zaware) height = 0;
+	if(!$.webgis.config.zaware) height = 0;
 	
 	var corridorGeometry = new Cesium.CorridorGeometry({
 			positions : positions,
@@ -5649,7 +5627,7 @@ function DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alph
 	if(alpha) rgba.a = alpha;
 	rgba = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
 	
-	if(!g_zaware) height = 0;
+	if(!$.webgis.config.zaware) height = 0;
 	
 	var geometry = new Cesium.PolygonGeometry.fromPositions({
 			positions : positions,
@@ -5703,7 +5681,7 @@ function GetPositionsByGeojsonCoordinatesArray(ellipsoid, arr, force2d)
 			pos.push(0);
 		}else
 		{
-			if(g_zaware)
+			if($.webgis.config.zaware)
 			{
 				pos.push(alt);
 			}else
@@ -5735,7 +5713,7 @@ function GetPositionsByCzmlArray(ellipsoid, arr, force2d)
 				pos.push(0);
 			}else
 			{
-				if(g_zaware)
+				if($.webgis.config.zaware)
 				{
 					pos.push(cz['position']['cartographicDegrees'][2]);
 				}else
@@ -5786,7 +5764,7 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 		if($.webgis.data.czmls[previd])
 		{
 			var a = $.webgis.data.czmls[previd]['position']['cartographicDegrees'];
-			if(!g_zaware) a[2] = 0;
+			if(!$.webgis.config.zaware) a[2] = 0;
 			var carto = Cesium.Cartographic.fromDegrees(a[0], a[1], a[2]);
 			var cart3 = ellipsoid.cartographicToCartesian(carto);
 			positions.push(cart3);
@@ -5794,7 +5772,7 @@ function DrawEdgeBetweenTwoNode(viewer, webgis_type, previd, nextid, fresh)
 		if($.webgis.data.czmls[nextid])
 		{
 			var a = $.webgis.data.czmls[nextid]['position']['cartographicDegrees'];
-			if(!g_zaware) a[2] = 0;
+			if(!$.webgis.config.zaware) a[2] = 0;
 			var carto = Cesium.Cartographic.fromDegrees(a[0], a[1], a[2]);
 			var cart3 = ellipsoid.cartographicToCartesian(carto);
 			positions.push(cart3);
@@ -5848,7 +5826,7 @@ function DrawSegmentsBetweenTwoTower(viewer, tower0, tower1, prev_len, next_len,
 			height1 = tower1['geometry']['coordinates'][2],
 			rotate1 = Cesium.Math.toRadians(tower1['properties']['rotate'] - 90);
 		
-		if(!g_zaware)
+		if(!$.webgis.config.zaware)
 		{
 			height0 = 0;
 			height1 = 0;
@@ -6043,6 +6021,7 @@ function GetPrevNextTowerIds(tower)
 
 function DrawSegmentsByTower(viewer, tower)
 {
+	//console.log(viewer);
 	var scene = viewer.scene;
 	var arr = GetPrevNextTowerIds(tower);
 	var prev_towers = GetNeighborTowers(arr[0]);
@@ -6266,7 +6245,7 @@ function SaveTower(viewer)
 				}
 				if($.webgis.config.map_backend === 'cesium')
 				{
-					ReloadCzmlDataSource(viewer, g_zaware);
+					ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 				}
 			}
 		});
@@ -6913,13 +6892,17 @@ function ShowTowerInfoDialog(viewer, tower)
 					{ text:'接地装置',click: AddMetal},
 					{ text:'基础',click: AddMetal},
 					{ text:'拉线',click: AddMetal},
-					{ text:'防鸟刺',click: AddMetal},
+					{ text:'防鸟刺',click: AddMetal}
+				]
+			},
+			{ text: '增加附件', icon:'add',
+				children:[
 					{ text:'在线监测装置',click: AddMetal},
 					{ text:'雷电计数器',click: AddMetal},
 					{ text:'超声波驱鸟装置',click: AddMetal}
 				]
 			},
-			{ text: '删除金具', click: DeleteMetal,icon:'delete' }
+			{ text: '删除金具/附件', click: DeleteMetal,icon:'delete' }
 			//{ line: true },
 			//{ text: '查看', click: onclick11 },
 			//{ text: '关闭', click: onclick112 }
@@ -7204,7 +7187,7 @@ function BufferCreate(viewer, type, position, distance, style, resolution, callb
 			if(style) geojson['properties']['style'] = style;
 			$.webgis.data.geojsons[geojson['_id']] = geojson;
 			$.webgis.data.czmls[geojson['_id']] = CreateCzmlFromGeojson($.webgis.data.geojsons[geojson['_id']]);
-			ReloadCzmlDataSource(viewer, g_zaware);
+			ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 			if(callback) callback(geojson);
 		}else
 		{
@@ -7268,7 +7251,7 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 		{
 			delete $.webgis.data.czmls['tmp_buffer'];
 			$.webgis.data.czmls['tmp_buffer'] = undefined;
-			ReloadCzmlDataSource(viewer, g_zaware, true);
+			ReloadCzmlDataSource(viewer, $.webgis.config.zaware, true);
 		}
 	};
 	var bind_buttons = function(formname, dialog)
@@ -7331,7 +7314,7 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 										if(!$.webgis.data.geojsons[g['_id']]) $.webgis.data.geojsons[g['_id']] = g;//AddTerrainZOffset(g);
 										if(!$.webgis.data.czmls[g['_id']]) $.webgis.data.czmls[g['_id']] = CreateCzmlFromGeojson($.webgis.data.geojsons[g['_id']]);
 									}
-									ReloadCzmlDataSource(viewer, g_zaware);
+									ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 								}
 							});
 						}
@@ -7776,7 +7759,7 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 											}
 											if($.webgis.config.map_backend === 'cesium')
 											{
-												ReloadCzmlDataSource(viewer, g_zaware);
+												ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 											}
 										}
 									}
@@ -8191,7 +8174,7 @@ function RePositionPoint(viewer, id, lng, lat, height, rotate)
 	if($.webgis.data.czmls[id] && $.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 	{
 		$.webgis.data.czmls[id]['position']['cartographicDegrees'] = [parseFloat(lng), parseFloat(lat), parseFloat(height)];
-		ReloadCzmlDataSource(viewer, g_zaware);
+		ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
 	}
 }
 
@@ -8331,7 +8314,7 @@ function CreateLineNamesSelectOption()
 	return ret;
 }
 
-function OnSelect(viewer, e)
+function OnSelect(viewer, e, selectedEntity)
 {
 	var clearselcolor = function(){
 		if($.webgis.select.prev_selected_obj && $.webgis.select.prev_selected_obj.primitive && $.webgis.select.primitive_material_unselect)
@@ -8352,10 +8335,12 @@ function OnSelect(viewer, e)
 	if($.webgis.config.map_backend === 'cesium')
 	{
 		$('#lnglat_indicator').html( '当前用户:' + $.webgis.current_userinfo['displayname'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + PickLngLatFromScreen(viewer, e.position));
-		if (Cesium.defined(viewer.selectedEntity)) 
+		//if (Cesium.defined(viewer.selectedEntity)) 
+		if (Cesium.defined(selectedEntity)) 
 		{
 			$.webgis.select.prev_selected_obj = $.webgis.select.selected_obj;
-			$.webgis.select.selected_obj = viewer.selectedEntity;
+			//$.webgis.select.selected_obj = viewer.selectedEntity;
+			$.webgis.select.selected_obj = selectedEntity;
 			var id = $.webgis.select.selected_obj.id;
 			if (id && id.properties && id.properties.webgis_type === 'edge_dn')
 			{

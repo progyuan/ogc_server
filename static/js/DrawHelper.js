@@ -7,8 +7,7 @@
  * www.metaaps.com
  *
  */
-var g_drawhelper_mode;
-var g_rulerButton;
+
 
 var DrawHelper = (function() {
 
@@ -1060,7 +1059,7 @@ var DrawHelper = (function() {
                         markers.getBillboard(positions.length - 1).position = cartesian;
                         // show tooltip
 						var tip;
-                        if(g_drawhelper_mode === 'ruler')
+                        if($.webgis.control.drawhelper_mode === 'ruler')
 						{
 							if(!isPolygon)
 							{
@@ -1238,7 +1237,7 @@ var DrawHelper = (function() {
 						s += '<p>西' + Cesium.Math.toDegrees(value.west).toFixed(5) + '°&nbsp;&nbsp;东' + Cesium.Math.toDegrees(value.east).toFixed(5) + '°</p>';
 						s += '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;南' + Cesium.Math.toDegrees(value.south).toFixed(5) + '°</p>';
                         
-						if(g_drawhelper_mode === 'ruler')
+						if($.webgis.control.drawhelper_mode === 'ruler')
 						{
 							var area = 0;
 							var polypos = [];
@@ -1344,7 +1343,7 @@ var DrawHelper = (function() {
 						//var s = '<p>圆心:(' + Cesium.Math.toDegrees(carto.longitude).toFixed(7) + ',' + Cesium.Math.toDegrees(carto.latitude).toFixed(7) + ')</p>';
 						var s = '<p>圆心:' + GetDisplayLatLngString(ellipsoid, circle.getCenter(), 7) + '</p>';
                         s += '<p>半径:' + r.toFixed(1) + '米</p>';
-						if(g_drawhelper_mode === 'ruler')
+						if($.webgis.control.drawhelper_mode === 'ruler')
 						{
 							var area = Math.PI * r * r;
 							if(area < 1000000)
@@ -1985,10 +1984,10 @@ var DrawHelper = (function() {
             addIcon('close', options.closeIcon, '关闭', function() {
                 //scene.primitives.removeAll();
 				drawHelper.close();
-				if(g_rulerButton)
+				if($.webgis.toolbar.rulerButton)
 				{
-					$(g_rulerButton.viewModel.button).css('background-color', 'rgba(38, 38, 38, 0.75)');
-					g_drawhelper_mode = undefined;
+					$($.webgis.toolbar.rulerButton.viewModel.button).css('background-color', 'rgba(38, 38, 38, 0.75)');
+					$.webgis.control.drawhelper_mode = undefined;
 				}
             });
 

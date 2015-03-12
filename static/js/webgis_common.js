@@ -5,6 +5,7 @@ $.webgis.data = {};
 $.webgis.config = {};
 $.webgis.select = {};
 $.webgis.control = {};
+$.webgis.toolbar = {};
 $.webgis.form_fields = {};
 $.webgis.geometry = {};
 $.webgis.remote = {};
@@ -1030,7 +1031,7 @@ function GetDisplayLatLngString(ellipsoid, cartesian, precision)
 		var height = 0;
 		if(Math.abs(cartographic.height) > Cesium.Math.EPSILON1) height =  Math.floor(cartographic.height);
 		var s = "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ")";
-		if(g_zaware)
+		if($.webgis.config.zaware)
 		{
 			s =  "(" + Cesium.Math.toDegrees(cartographic.longitude).toFixed(precision || 3) + ", " + Cesium.Math.toDegrees(cartographic.latitude).toFixed(precision || 3) + ", " + height + ")";
 		}
