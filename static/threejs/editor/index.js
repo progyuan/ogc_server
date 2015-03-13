@@ -1,3 +1,7 @@
+if($.webgis === undefined)
+{
+	$.webgis = {};
+}
 $.webgis.editor = {};
 $.webgis.editor.elapsed_time = 0.0;
 $.webgis.editor.is_add_seg = false;
@@ -9,6 +13,9 @@ $.webgis.editor.off_x = 15;
 $.webgis.editor.off_z = 30;
 $.webgis.editor.contact_points = [];
 
+Number.prototype.format = function (){
+	return this.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+};
 
 $(function() {
 	InitWebGISFormDefinition();
@@ -34,8 +41,10 @@ $(function() {
 
 	var editor = new Editor();
 	var viewport = new Viewport( editor );
-	var viewportdom = viewport.container.setId( 'viewport' );
-	document.body.appendChild( viewportdom.dom );
+	//var viewportdom = viewport.container.setId( 'viewport' );
+	//document.body.appendChild( viewportdom.dom );
+	document.body.appendChild( viewport.dom );
+
 
 	//var toolbar = new Toolbar( editor ).setId( 'toolbar' )
 	//document.body.appendChild( toolbar.dom );
@@ -50,60 +59,18 @@ $(function() {
 
 	//editor.setTheme( editor.config.getKey( 'theme' ) );
 	editor.setTheme( 'css/dark.css' );
-
-	if(false)
-	{
-		editor.storage.init( function () {
 	
-			editor.storage.get( function ( state ) {
 	
-				if ( state !== undefined ) {
-	
-					var loader = new THREE.ObjectLoader();
-					var scene = loader.parse( state );
-	
-					editor.setScene( scene );
-	
-				}
-	
-				var selected = editor.config.getKey( 'selected' );
-	
-				if ( selected !== undefined ) {
-	
-					editor.selectByUuid( selected );
-	
-				}
-	
-			} );
-	
-			
-	
-			var timeout;
-			var exporter = new THREE.ObjectExporter();
-	
-			var saveState = function ( scene ) {
-	
-				clearTimeout( timeout );
-	
-				timeout = setTimeout( function () {
-	
-					editor.storage.set( exporter.parse( editor.scene ) );
-	
-				}, 1000 );
-	
-			};
-			
-
-			var signals = editor.signals;
-	
-			signals.objectAdded.add( saveState );
-			signals.objectChanged.add( saveState );
-			signals.objectRemoved.add( saveState );
-			signals.materialChanged.add( saveState );
-			signals.sceneGraphChanged.add( saveState );
-	
-		});
-	}
+	//var loader = new THREE.XHRLoader();
+	//loader.crossOrigin = '';
+	//loader.load( 'examples/pong.app.json', function ( text ) {
+		//var json = JSON.parse( text );
+		//editor.clear();
+		//editor.fromJSON( json );
+	//});
+	//param['url'] = '/gltf1/BJ1_25_0.json';
+	param['url'] = '/gltf/BJ1_25_0.gltf';
+	//param['url'] = 'model/duck/duck.gltf';
 	
 
 	var OnSelected = function(obj)
@@ -341,7 +308,7 @@ $(function() {
 							LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
 						}
 						
-						SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0);
+						//SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0);
 						ShowProgressBar(false);
 				});
 			}
@@ -350,9 +317,10 @@ $(function() {
 	{
 		if(param['url'])
 		{
-			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
+			//LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
+			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-180, 0,0], [10,10,10], '#00FF00', 
 				function(target){
-					SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, target);
+					//SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, target);
 					ShowProgressBar(false);
 			});
 		}
@@ -1071,7 +1039,8 @@ function SetupRoundCamera(scene, renderer, camera, radius, target)
 
 function LoadGltfFromUrl(editor, viewport,  url, offset, rotation, scale, color, callback)
 {
-	var loader = new THREE.glTFLoader();
+	//var loader = new THREE.glTFLoader();
+	var loader = new THREE.glTFLoader;
 	loader.useBufferGeometry = false;
 	loader.load( url, function(data, mat) {
 		var obj = data.scene;

@@ -110,7 +110,7 @@ var global = window;
                         var descriptionKeys = Object.keys(descriptions);
                         descriptionKeys.forEach( function(descriptionKey) {
                             var description = descriptions[descriptionKey];
-                            description.path = this.resolvePathIfNeeded(description.path);
+                            description.uri = this.resolvePathIfNeeded(description.uri);
                         }, this);
                     }
                 }, this);
@@ -272,12 +272,16 @@ var global = window;
                     this.baseURL = (i !== 0) ? jsonPath.substring(0, i + 1) : '';
                     var jsonfile = new XMLHttpRequest();
                     jsonfile.open("GET", jsonPath, true);
-                    jsonfile.addEventListener( 'load', function ( event ) {
-                        self.json = JSON.parse(jsonfile.responseText);
-                        if (callback) {
-                            callback(self.json);
+                    jsonfile.onreadystatechange = function() {
+                        if (jsonfile.readyState == 4) {
+                            if (jsonfile.status == 200) {
+                                self.json = JSON.parse(jsonfile.responseText);
+                                if (callback) {
+                                    callback(self.json);
+                                }
+                            }
                         }
-                    }, false );
+                    };
                     jsonfile.send(null);
                } else {
                     if (callback) {

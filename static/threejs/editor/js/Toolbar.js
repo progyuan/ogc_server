@@ -1,8 +1,13 @@
+/**
+ * @author mrdoob / http://mrdoob.com/
+ */
+
 var Toolbar = function ( editor ) {
 
 	var signals = editor.signals;
 
 	var container = new UI.Panel();
+	container.setId( 'toolbar' );
 
 	var buttons = new UI.Panel();
 	container.add( buttons );
@@ -44,49 +49,16 @@ var Toolbar = function ( editor ) {
 	var local = new UI.Checkbox( false ).onChange( update );
 	buttons.add( local );
 	buttons.add( new UI.Text( 'local' ) );
-	
-	
-	//var add_cp = new UI.Button( '添加挂线点' ).onClick( function () {
-		//console.log( 'add_cp' );
-	//});
-	//var cp_side = new UI.Select();
-	//cp_side.setOptions({
-		//'0':'大号端',
-		//'1':'小号端'
-	//});
-	//var delete_seg = new UI.Button( '删除线段' ).onClick( function () {
 
-		//console.log( 'delete_seg' );
-
-	//} );
-	//var add_seg = new UI.Button( '添加线段' ).onClick( function () {
-		//console.log( 'add_seg' );
-	//} );
-	//var seg_phase = new UI.Select();
-	//seg_phase.setOptions({
-		//'G':'地线(黑)',
-		//'A':'A相(黄)',
-		//'B':'B相(红)',
-		//'C':'C相(绿)'
-	//});
-	//if(g_mode=='tower')
-	//{
-		//buttons.add( add_cp );
-		//buttons.add( cp_side );
-	//}
-	//if(g_mode=='segs')
-	//{
-		//buttons.add( delete_seg );
-		//buttons.add( add_seg );
-		//buttons.add( seg_phase );
-	//}
-	
-	
+	var showGrid = new UI.Checkbox().onChange( update ).setValue( true );
+	buttons.add( showGrid );
+	buttons.add( new UI.Text( 'show' ) );
 
 	function update() {
 
 		signals.snapChanged.dispatch( snap.getValue() === true ? grid.getValue() : null );
 		signals.spaceChanged.dispatch( local.getValue() === true ? "local" : "world" );
+		signals.showGridChanged.dispatch( showGrid.getValue() );
 
 	}
 
