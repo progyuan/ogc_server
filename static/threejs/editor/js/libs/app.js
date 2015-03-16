@@ -69,7 +69,6 @@ var APP = {
 		};
 
 		this.setCamera = function ( value ) {
-
 			camera = value;
 			camera.aspect = this.width / this.height;
 			camera.updateProjectionMatrix();

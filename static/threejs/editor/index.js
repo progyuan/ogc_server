@@ -12,6 +12,7 @@ $.webgis.editor.segments_editting = [];
 $.webgis.editor.off_x = 15;
 $.webgis.editor.off_z = 30;
 $.webgis.editor.contact_points = [];
+$.webgis.editor.is_playing = true;
 
 Number.prototype.format = function (){
 	return this.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
@@ -40,11 +41,15 @@ $(function() {
 	window.BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder || window.MozBlobBuilder;
 
 	var editor = new Editor();
+	$.webgis.editor.editor = editor;
+
 	var viewport = new Viewport( editor );
-	//var viewportdom = viewport.container.setId( 'viewport' );
-	//document.body.appendChild( viewportdom.dom );
 	document.body.appendChild( viewport.dom );
 
+	var player = new Player( editor );
+	
+	$.webgis.editor.player = player;
+    document.body.appendChild( player.dom );
 
 	//var toolbar = new Toolbar( editor ).setId( 'toolbar' )
 	//document.body.appendChild( toolbar.dom );
@@ -58,7 +63,7 @@ $(function() {
 	//
 
 	//editor.setTheme( editor.config.getKey( 'theme' ) );
-	editor.setTheme( 'css/dark.css' );
+	editor.setTheme( 'css/dark_webgis.css' );
 	
 	
 	//var loader = new THREE.XHRLoader();
@@ -69,7 +74,7 @@ $(function() {
 		//editor.fromJSON( json );
 	//});
 	//param['url'] = '/gltf1/BJ1_25_0.json';
-	param['url'] = '/gltf/BJ1_25_0.gltf';
+	//param['url'] = '/gltf/BJ1_25_0.gltf';
 	//param['url'] = 'model/duck/duck.gltf';
 	
 
@@ -191,8 +196,17 @@ $(function() {
 	}, false );
 
 	
-	$(document).mousedown(function() {
-		ClearRoundCamera(viewport);
+	$(document).on('click',function(event) {
+		event.preventDefault();
+		event.stopPropagation();
+		//ClearRoundCamera(viewport);
+		//$.webgis.editor.is_playing = ! $.webgis.editor.is_playing;
+		if($.webgis.editor.is_playing)
+		{
+			$.webgis.editor.is_playing = false;
+			$.webgis.editor.editor.signals.stopPlayer.dispatch();
+			onWindowResize();
+		}
 	});
 	//$(window).on('message',function(e) {
 		//console.log('recv:' + e.originalEvent.data);
@@ -201,7 +215,6 @@ $(function() {
 	//});
 	
 	//document.addEventListener( 'drop', function ( event ) {
-
 		//event.preventDefault();
 		//editor.loader.loadFile( event.dataTransfer.files[ 0 ] );
 
@@ -233,7 +246,7 @@ $(function() {
 
 	window.addEventListener( 'resize', onWindowResize, false );
 
-	onWindowResize();
+	//onWindowResize();
 	
 	AddHemisphereLight(editor);
 	var off_x = $.webgis.editor.off_x, off_z = $.webgis.editor.off_z;
@@ -284,8 +297,9 @@ $(function() {
 			}
 			if(param['url'])
 			{
-				LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, off_z], [-90,0,0], [10,10,10], '#00FF00',
+				LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, off_z], [-180,0,0], [10,10,10], '#00FF00',
 					function(target){
+						ShowProgressBar(false);
 						if(window.parent)
 						{
 							if(param['data_next'].length==1)
@@ -300,16 +314,28 @@ $(function() {
 						
 						if(param['url_next'].length==1)
 						{
-							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [0, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
+							ShowProgressBar(true, 400, 150, '载入中', '正在载入，请稍候...');
+							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [0, 0, -off_z], [-180,0,0], [10,10,10], '#CCFFCC',
+								function(target){
+									ShowProgressBar(false);
+									onWindowResize();
+									SetupAnimation();
+							});
 						}
 						if(param['url_next'].length==2)
 						{
-							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [-off_x, 0, -off_z], [-90,0,0], [10,10,10], '#CCFFCC');
-							LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-90,0,0], [10,10,10], '#BBFFBB');
+							ShowProgressBar(true, 400, 150, '载入中', '正在载入，请稍候...');
+							LoadGltfFromUrl(editor, viewport,  param['url_next'][0], [-off_x, 0, -off_z], [-180,0,0], [10,10,10], '#CCFFCC',
+								function(target){
+									ShowProgressBar(true, 400, 150, '载入中', '正在载入，请稍候...');
+									LoadGltfFromUrl(editor, viewport,  param['url_next'][1], [off_x, 0, -off_z], [-180,0,0], [10,10,10], '#BBFFBB',
+										function(target1){
+											ShowProgressBar(false);
+											onWindowResize();
+											SetupAnimation();
+									});
+							});
 						}
-						
-						//SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0);
-						ShowProgressBar(false);
 				});
 			}
 		}, '../../');
@@ -320,8 +346,9 @@ $(function() {
 			//LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-90,0,0], [10,10,10], '#00FF00', 
 			LoadGltfFromUrl(editor, viewport,  param['url'], [0, 0, 0], [-180, 0,0], [10,10,10], '#00FF00', 
 				function(target){
-					//SetupRoundCamera(editor.scene, viewport.renderer, viewport.camera, 90.0, target);
 					ShowProgressBar(false);
+					onWindowResize();
+					SetupAnimation();
 			});
 		}
 		if(param['data'])
@@ -469,8 +496,8 @@ $(function() {
 		
 	}
 	
-	
 });
+
 
 
 function UpdateContactPoint(obj, pos)
@@ -993,8 +1020,6 @@ function SetSelectObjectPosition(editor, pos)
 {
 	if(editor.selected && editor.selected.name.indexOf('tower/')==-1)
 	{
-		//console.log(pos);
-		//editor.selected.position = new THREE.Vector3(parseFloat(pos.x), parseFloat(pos.y), parseFloat(pos.z));
 		var p = {x:parseFloat(pos.x),y:parseFloat(pos.y),z:parseFloat(pos.z)};
 		editor.selected.position.set(p.x, p.y, p.z);
 		UpdateContactPoint(editor.selected, p);
@@ -1014,28 +1039,41 @@ function ClearRoundCamera(viewport)
 		viewport.camera.lookAt(new THREE.Vector3(0,0,0));
 	}
 }
-function SetupRoundCamera(scene, renderer, camera, radius, target)
+
+function SetupAnimation()
 {
-	var constant = 0.5;
-	var inteval = 0.05;
-	var height = 60.0;
-	$.webgis.editor.camera_move_around_int  = setInterval(function(){
-		if(target)
-		{
-			camera.position.y = height;
-			camera.position.x = target.position.x + radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
-			camera.position.z = target.position.z + radius * Math.sin( constant * $.webgis.editor.elapsed_time );
-			camera.lookAt( target.position );
-		}else{
-			camera.position.y = height;
-			camera.position.x = radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
-			camera.position.z = radius * Math.sin( constant * $.webgis.editor.elapsed_time );
-			camera.lookAt( new THREE.Vector3(0, 0, 0) );
-		}
-		renderer.render( scene, camera );
-		$.webgis.editor.elapsed_time += inteval;
-	}, 1000 * inteval);
+	var cam_orbit_script = {
+		"name": "Camera Orbit",
+		"source": "player.setCamera( $.webgis.editor.editor.camera );\n\nfunction update( event ) {\n\n\tvar time = event.time * 0.001;\n\n\t$.webgis.editor.editor.camera.position.x = Math.sin( time ) * 50;\n\t$.webgis.editor.editor.camera.position.z = Math.cos( time ) * 50;\n\t$.webgis.editor.editor.camera.lookAt( $.webgis.editor.editor.scene.position );\n\n}"
+	};
+	$.webgis.editor.editor.camera.position.setY(50);
+	$.webgis.editor.editor.addScript($.webgis.editor.editor.camera, cam_orbit_script);
+	$.webgis.editor.editor.signals.startPlayer.dispatch();
+
 }
+
+//function SetupRoundCamera(scene, renderer, camera, radius, target)
+//{
+	//var constant = 0.5;
+	//var inteval = 0.05;
+	//var height = 60.0;
+	//$.webgis.editor.camera_move_around_int  = setInterval(function(){
+		//if(target)
+		//{
+			//camera.position.y = height;
+			//camera.position.x = target.position.x + radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
+			//camera.position.z = target.position.z + radius * Math.sin( constant * $.webgis.editor.elapsed_time );
+			//camera.lookAt( target.position );
+		//}else{
+			//camera.position.y = height;
+			//camera.position.x = radius * Math.cos( constant * $.webgis.editor.elapsed_time );         
+			//camera.position.z = radius * Math.sin( constant * $.webgis.editor.elapsed_time );
+			//camera.lookAt( new THREE.Vector3(0, 0, 0) );
+		//}
+		//renderer.render( scene, camera );
+		//$.webgis.editor.elapsed_time += inteval;
+	//}, 1000 * inteval);
+//}
 
 function LoadGltfFromUrl(editor, viewport,  url, offset, rotation, scale, color, callback)
 {
@@ -1116,7 +1154,8 @@ function ShowLabelBySelected(editor)
 		{
 			var sp = MakeLabel(editor.selected.name, {fontsize: 48, color:'#00FFFF'});
 			editor.addObject( sp );
-			sp.position = editor.selected.position;
+			sp.position.copy(editor.selected.position);
+			//console.log(sp);
 		}
 	}
 }

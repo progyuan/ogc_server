@@ -3557,7 +3557,7 @@ function FilterModelList(str)
 	$("#tower_info_model_list_selectable").selectable({
 		selected: function( event, ui ) {
 			var model_code_height = $(ui.selected).html();
-			var url = GetModelUrl1(model_code_height);
+			var url = GetModelUrl(model_code_height, true);
 			var iframe = $('#tower_info_model').find('iframe');
 			if(url.length>0)
 			{
@@ -4539,7 +4539,7 @@ function LoadTowerModelByTower(viewer, tower)
 				if($.isNumeric(lng) && $.isNumeric(lat) && $.isNumeric(height) && $.isNumeric(rotate))
 				{
 					var url = GetModelUrl(tower['properties']['model']['model_code_height']);
-					//console.log(url);
+					//console.log('cesium=' + url);
 					if(CheckUrlExist(url))
 					{
 						var model = CreateTowerModel(
@@ -4597,7 +4597,7 @@ function GetNextModelUrl(ids)
 		if($.webgis.data.geojsons[id])
 		{
 			var tower = $.webgis.data.geojsons[id];
-			var url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+			var url = GetModelUrl(tower['properties']['model']['model_code_height'], true);
 			if(url.length>0)
 			{
 				ret.push(url);
@@ -4608,20 +4608,8 @@ function GetNextModelUrl(ids)
 	return ret;
 }
 
-function GetModelUrl(model_code_height)
-{
-	if(!model_code_height)
-	{
-		return '';
-	}
-	if(model_code_height === '(无)')
-	{
-		return '';
-	}
-	return "gltf/" + model_code_height + ".gltf" ;
-}
 
-function GetModelUrl1(model_code_height)
+function GetModelUrl(model_code_height, check)
 {
 	if(!model_code_height)
 	{
@@ -4631,8 +4619,12 @@ function GetModelUrl1(model_code_height)
 	{
 		return '';
 	}
-	var url = "gltf1/" + model_code_height + ".json" ;
-	if(!CheckUrlExist(url)) url = '';
+	//var url = "gltf1/" + model_code_height + ".json" ;
+	var url = "gltf/" + model_code_height + ".gltf" ;
+	if(check === true)
+	{
+		if(!CheckUrlExist(url)) url = '';
+	}
 	return url;
 }
 
@@ -6736,9 +6728,9 @@ function ShowTowerInfoDialog(viewer, tower)
 				var url = '';
 				if(tower['properties']['model'])
 				{
-					url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+					url = GetModelUrl(tower['properties']['model']['model_code_height'], true);
 				}
-				//console.log(url);
+				//console.log('threejs=' + url);
 				$('#tower_info_model_list_toggle').find('a').html('>>显示列表');
 				$('#tower_info_model_list').css('display', 'none');
 				$('#tower_info_model').find('iframe').css('width', '99%');
@@ -6779,7 +6771,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				var url = '';
 				if(tower['properties']['model'])
 				{
-					url = GetModelUrl1(tower['properties']['model']['model_code_height']);
+					url = GetModelUrl(tower['properties']['model']['model_code_height'], true);
 				}
 				var arr = GetPrevNextTowerIds(tower);
 				var next_ids = arr[1]
@@ -6982,9 +6974,18 @@ function ShowTowerInfoDialog(viewer, tower)
 						formdata[k] = metal[k];
 					}
 				}
-				if(o['type'] == '雷电计数器' || o['type'] == '超声波驱鸟装置')
+				if(o['type'] == '雷电计数器' )
 				{
 					flds = $.webgis.form_fields.base_flds_5;
+					var metal = tower['properties']['metals'][o['idx']-1];
+					for(var k in metal)
+					{
+						formdata[k] = metal[k];
+					}
+				}
+				if(o['type'] == '超声波驱鸟装置')
+				{
+					flds = $.webgis.form_fields.base_flds_6;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
 					{

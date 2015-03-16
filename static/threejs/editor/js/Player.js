@@ -11,14 +11,13 @@ var Player = function ( editor ) {
 	container.setPosition( 'absolute' );
 	container.setDisplay( 'none' );
 
-	//
 
 	var player = new APP.Player();
 
 	window.addEventListener( 'resize', function () {
 
 		if ( player.dom === undefined ) return;
-
+		
 		player.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
 
 	} );
@@ -30,21 +29,27 @@ var Player = function ( editor ) {
 		player.load( editor.toJSON() );
 		player.setSize( container.dom.offsetWidth, container.dom.offsetHeight );
 		player.play();
-
 		container.dom.appendChild( player.dom );
-
 	} );
 
 	signals.stopPlayer.add( function () {
 
 		container.setDisplay( 'none' );
-
 		player.stop();
-
-		container.dom.removeChild( player.dom );
-
+		if(player.dom)
+		{
+			container.dom.removeChild( player.dom );
+		}
 	} );
+	
+	this.player = player;
 
 	return container;
 
 };
+
+//Player.prototype = {
+	//getPlayer:function(){
+		//return this.player;
+	//}
+//}

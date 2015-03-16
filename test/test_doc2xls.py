@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys
+import os, sys, subprocess
 import json
 import xlrd, xlwt
 import re
@@ -27,13 +27,47 @@ def enc1(aStr):
 
 
 
-DIR_ROOT = ur'D:\TDDOWNLOAD\附件3：安规学习资料'
+#DIR_ROOT = ur'D:\TDDOWNLOAD\附件3：安规学习资料'
+LIBREOFFICE_EXECUTEABLE = ur'E:\Program Files (x86)\LibreOfficePortable\LibreOfficePortable.exe'
+DIR_ROOT = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题'
+TXT_DIR = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题\txt'
 EXPORT_PATH = os.path.join(DIR_ROOT, u'result.xls')
 EXPORT_PATH = os.path.join(DIR_ROOT, u'result.json')
+EXPORT_PATH1 = os.path.join(DIR_ROOT, u'result1.json')
 
-def get_txt_files():
+
+
+def doc_to_mediawiki(fileext):
     ret = []
+    if not os.path.exists(TXT_DIR):
+        os.mkdir(TXT_DIR)
     for root, dirs, files  in os.walk(DIR_ROOT, topdown=False):
+        for name in files:
+            ext = name[name.rindex('.'):]
+            if ext == '.%s' % fileext:
+                p = os.path.join(root, name)
+                print('converting to txt: %s ...' % p)
+                #cmd = ur'"%s" --headless --convert-to txt:MediaWiki --outdir "%s" "%s"' % (LIBREOFFICE_EXECUTEABLE, TXT_DIR, p)
+                cmd = [
+                    enc1(LIBREOFFICE_EXECUTEABLE),
+                       '--headless',
+                       '--convert-to',
+                       'txt:MediaWiki',
+                       '--outdir',
+                       enc1(TXT_DIR),
+                       enc1(p)
+                ]
+                p1 = os.path.join(TXT_DIR, name.replace(ext, '.txt'))
+                if os.path.exists(p1):
+                    os.remove(p1)
+                subprocess.check_output(cmd)
+                ret.append(p1)
+    return ret
+    
+
+def get_txt_files(adir):
+    ret = []
+    for root, dirs, files  in os.walk(adir, topdown=False):
         for name in files:
             ext = name[-4:]
             if ext == '.txt':
@@ -51,17 +85,31 @@ def parse_txt(path):
             s = dec(line.strip())
             if len(s) == 0:
                 continue
-            if "<center>'''" in s:
+            if "<center>'''" in s or '</center>' in s:
                 continue
-            if len(re.findall(r'^\d+\.', s))>0:
-                l = re.findall(r'^\d+\.', s)
-                #o['title'] = s.replace(l[0], '')
-            if len(re.findall(ur'^[ABCD]．', s))>0:
+            if u"答案要点： " in s:
+                continue
+            if u"、单选题" in s:
+                continue
+            if u"、多选题" in s:
+                continue
+            if u"姓名 单位 准考证号 分数" in s:
+                continue
+            if u"密封线 " in s:
+                continue
+            #if len(re.findall(r'^\d+\.', s))>0:
+                #l = re.findall(r'^\d+\.', s)
+            if len(re.findall(ur'^\d+．', s))>0:
+                l = re.findall(ur'^\d+．', s)
+                o['title'] = s.replace(l[0], '')
+            if len(re.findall(ur'^[ABCDEFGHI]．', s))>0:
                 if not o.has_key('choice'):
                     o['choice'] = ''
                 o['choice'] += ' ' + s
             if u'答案：' in s:
-                o['answer'] = s
+                #o['answer'] = s
+                o['answer'] = s.upper()
+                
             if o.has_key('title') and o.has_key('answer'):
                 ret.append(o)
                 o = {}
@@ -104,9 +152,38 @@ def export_to_json(alist):
                         o['answer'].append({'text':s.strip(), 'correct':(u'B' in ans)})   
                         if u'D．' in c:
                             s = c[c.index(u'C．')+2:c.index(u'D．')]
-                            o['answer'].append({'text':s.strip(), 'correct':(u'C' in ans)})     
-                            s = c[c.index(u'D．')+2:]
-                            o['answer'].append({'text':s.strip(), 'correct':(u'D' in ans)})
+                            o['answer'].append({'text':s.strip(), 'correct':(u'C' in ans)})
+                            if u'E．' in c:
+                                s = c[c.index(u'D．')+2:c.index(u'E．')]
+                                o['answer'].append({'text':s.strip(), 'correct':(u'D' in ans)})
+                                if u'F．' in c:
+                                    s = c[c.index(u'E．')+2:c.index(u'F．')]
+                                    o['answer'].append({'text':s.strip(), 'correct':(u'E' in ans)})
+                                    if u'G．' in c:
+                                        s = c[c.index(u'F．')+2:c.index(u'G．')]
+                                        o['answer'].append({'text':s.strip(), 'correct':(u'F' in ans)})
+                                        if u'H．' in c:
+                                            s = c[c.index(u'G．')+2:c.index(u'H．')]
+                                            o['answer'].append({'text':s.strip(), 'correct':(u'G' in ans)})
+                                            if u'I．' in c:
+                                                s = c[c.index(u'H．')+2:c.index(u'I．')]
+                                                o['answer'].append({'text':s.strip(), 'correct':(u'H' in ans)})
+                            
+                                            else:
+                                                s = c[c.index(u'H．')+2:]
+                                                o['answer'].append({'text':s.strip(), 'correct':(u'H' in ans)})
+                                        else:
+                                            s = c[c.index(u'G．')+2:]
+                                            o['answer'].append({'text':s.strip(), 'correct':(u'G' in ans)})
+                                    else:
+                                        s = c[c.index(u'F．')+2:]
+                                        o['answer'].append({'text':s.strip(), 'correct':(u'F' in ans)})
+                                else:
+                                    s = c[c.index(u'E．')+2:]
+                                    o['answer'].append({'text':s.strip(), 'correct':(u'E' in ans)})
+                            else:
+                                s = c[c.index(u'D．')+2:]
+                                o['answer'].append({'text':s.strip(), 'correct':(u'D' in ans)})
                         else:
                             s = c[c.index(u'C．')+2:]
                             o['answer'].append({'text':s.strip(), 'correct':(u'C' in ans)})
@@ -126,20 +203,35 @@ def export_to_json(alist):
     return ret
         
         
-                            
-                
     
-    
-    
-if __name__ == "__main__":
+
+def json_to_mongodb_import(path):
+    ret = ''
+    with open(path) as f: 
+        arr = json.loads(f.read())
+        print('total [%d], converting to mongodb import format...' % len(arr))
+        for i in arr:
+            ret += json.dumps(i, ensure_ascii=False, indent=4) + '\n'
+    with open(EXPORT_PATH1, 'w') as f1:
+        f1.write(enc(ret))
+    print('Done')
+            
+def main():
     total = []
-    files = get_txt_files()
+    files = doc_to_mediawiki('doc')
     for i in files:
-        total.extend (parse_txt(i))
+        print('parsing %s ...' % i)
+        l = parse_txt(i)
+        total.extend (l)
     #print(total)
     #export_to_xls(total)
     ret = export_to_json(total)
     body = json.dumps(ret, ensure_ascii=False, indent=4)
     with open(EXPORT_PATH, 'w') as f:
         f.write(enc(body))
+    json_to_mongodb_import(EXPORT_PATH)
+    
+    
+if __name__ == "__main__":
+    main()
     
