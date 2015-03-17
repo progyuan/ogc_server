@@ -1,15 +1,14 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>迪森测试</title>
+        <title>websocket测试</title>
         <script>
 			window.onload = function() 
 			{
 				var HOST = "localhost";
-				var PORT = 88;
+				var PORT = 8080;
 			
-				//console.log("clock");
-				var wsurl =  "ws://" + HOST + ":" + PORT + "/dishen_ws";
+				var wsurl =  "ws://" + HOST + ":" + PORT + "";
 				var ws = null;
 				try {
 					ws = new WebSocket(wsurl);
@@ -25,19 +24,22 @@
 					};
 					ws.onerror = function(e) 
 					{
-						console.log("here=" + e);
+						console.log("error=" + e);
 						ws.close();
 					};
 					ws.onmessage = function(e) 
 					{
 						if(e.data.length>0)
 						{
+						/*
 							var arr = e.data.split('\n');
 							data = parseInt(arr[1]);
 							hash = arr[0];
 							console.log("hash=" + hash + ",data=" + data);
 							var div = document.getElementById("dishen");
 							div.innerHTML += "hash=" + hash + ",data=" + data + "<br/>";
+							*/
+							console.log(e.data);
 						}
 					};
 				}

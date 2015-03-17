@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+#from gevent import monkey; monkey.patch_socket()
 import codecs
 import os, sys
 import copy
@@ -13,7 +13,7 @@ import exceptions
 import time
 import base64
 import md5
-import socket
+from gevent import socket
 import urllib, urllib2, urlparse
 from socket import error
 import errno
@@ -5533,6 +5533,84 @@ def joinedqueue_consumer_chat():
             finally:
                 gJoinableQueue.task_done()    
     
+
+def tcp_recv(sock=None, interval=0.01):
+    global gConfig
+    def connect():
+        tcp_host = gConfig['webgis']['tcp']['tcp_host']
+        tcp_port = int(gConfig['webgis']['tcp']['tcp_port'])
+        sock = socket.create_connection((tcp_host, tcp_port), timeout=5)
+        sock.settimeout(None)
+        #sock = socket.create_connection((tcp_host, tcp_port))
+        sock.send("bird")
+        return sock    
+    def get_packet(astr):
+        ret = ''
+        rest = astr
+        if '###' in astr:
+            idx0 =  astr.index('###') + 3
+            astr = astr[idx0:]
+            if '###' in astr:
+                idx1 = astr.index('###')
+                ret = astr[:idx1]
+                rest = astr[idx1+3:]
+        return ret, rest
+    
+    def get_packets(astr):
+        ret = []
+        p, rest = get_packet(astr)
+        while len(p)>0:
+            ret.append(p)
+            p, rest = get_packet(rest)
+        return ret, rest
+        
+        
+        
+        
+        
+    MAX_MSGLEN = int(gConfig['webgis']['tcp']['max_msg_len'])
+    BUFFER_SIZE = int(gConfig['webgis']['tcp']['buffer_size'])
+    recvstr = ''
+    while 1:
+        chunks = []
+        bytes_read = 0
+        try:
+            if sock is None:
+                sock = connect()
+            
+            buf = bytearray(b"\n" * MAX_MSGLEN)
+            sock.recv_into(buf)
+            recvstr += buf.strip().decode("utf-8")
+            if len(recvstr)>0:
+                print(recvstr)
+                l, recvstr = get_packets(recvstr)
+                print(l)
+        except:
+            recvstr = ''
+            e = sys.exc_info()[1]
+            message = ''
+            if hasattr(e, 'strerror'):
+                message = e.strerror
+            elif hasattr(e, 'message'):
+                message = e.message
+            else:
+                message = str(e)
+            print('connecting bird server fail:%s' %  message)
+            try:
+                sock = connect()
+            except:
+                recvstr = ''
+                e1 = sys.exc_info()[1]
+                message = ''
+                if hasattr(e1, 'strerror'):
+                    message = e1.strerror
+                elif hasattr(e1, 'message'):
+                    message = e1.message
+                else:
+                    message = str(e1)
+                print('connecting bird server fail:%s' %  message)
+        gevent.sleep(interval)
+
     
 def cycles_task():
     global gConfig, gJoinableQueue
@@ -5542,6 +5620,8 @@ def cycles_task():
         gevent.spawn(joinedqueue_consumer_pay)
     elif gConfig['wsgi']['application'].lower() == 'chat_platform' and gJoinableQueue:
         gevent.spawn(joinedqueue_consumer_chat)
+    elif gConfig['wsgi']['application'].lower() == 'webgis':
+        gevent.spawn(tcp_recv, None, float(gConfig['webgis']['tcp']['cycle_interval']) )
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
