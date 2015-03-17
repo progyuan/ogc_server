@@ -5537,8 +5537,8 @@ def joinedqueue_consumer_chat():
 def tcp_recv(sock=None, interval=0.01):
     global gConfig
     def connect():
-        tcp_host = gConfig['webgis']['tcp']['tcp_host']
-        tcp_port = int(gConfig['webgis']['tcp']['tcp_port'])
+        tcp_host = gConfig['webgis']['anti_bird']['tcp_host']
+        tcp_port = int(gConfig['webgis']['anti_bird']['tcp_port'])
         sock = socket.create_connection((tcp_host, tcp_port), timeout=5)
         sock.settimeout(None)
         #sock = socket.create_connection((tcp_host, tcp_port))
@@ -5564,16 +5564,9 @@ def tcp_recv(sock=None, interval=0.01):
             p, rest = get_packet(rest)
         return ret, rest
         
-        
-        
-        
-        
-    MAX_MSGLEN = int(gConfig['webgis']['tcp']['max_msg_len'])
-    BUFFER_SIZE = int(gConfig['webgis']['tcp']['buffer_size'])
+    MAX_MSGLEN = int(gConfig['webgis']['anti_bird']['max_msg_len'])
     recvstr = ''
     while 1:
-        chunks = []
-        bytes_read = 0
         try:
             if sock is None:
                 sock = connect()
@@ -5583,14 +5576,16 @@ def tcp_recv(sock=None, interval=0.01):
             recvstr += buf.strip().decode("utf-8")
             if len(recvstr)>0:
                 print(recvstr)
-                l, recvstr = get_packets(recvstr)
-                print(l)
+                packets, recvstr = get_packets(recvstr)
+                print(packets)
         except:
             recvstr = ''
             e = sys.exc_info()[1]
             message = ''
             if hasattr(e, 'strerror'):
                 message = e.strerror
+                if message is None and hasattr(e, 'message'):
+                    message = e.message
             elif hasattr(e, 'message'):
                 message = e.message
             else:
@@ -5604,6 +5599,8 @@ def tcp_recv(sock=None, interval=0.01):
                 message = ''
                 if hasattr(e1, 'strerror'):
                     message = e1.strerror
+                    if message is None and hasattr(e1, 'message'):
+                        message = e1.message
                 elif hasattr(e1, 'message'):
                     message = e1.message
                 else:
@@ -5621,7 +5618,11 @@ def cycles_task():
     elif gConfig['wsgi']['application'].lower() == 'chat_platform' and gJoinableQueue:
         gevent.spawn(joinedqueue_consumer_chat)
     elif gConfig['wsgi']['application'].lower() == 'webgis':
-        gevent.spawn(tcp_recv, None, float(gConfig['webgis']['tcp']['cycle_interval']) )
+        if gConfig['webgis']['anti_bird'].has_key('enable_fetch') and gConfig['webgis']['anti_bird']['enable_fetch'].lower() == 'true':
+            interval = 0.01
+            if gConfig['webgis']['anti_bird'].has_key('cycle_interval'):
+                interval = float(gConfig['webgis']['anti_bird']['cycle_interval'])
+            gevent.spawn(tcp_recv, None,  interval)
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
