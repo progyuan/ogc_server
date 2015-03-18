@@ -5090,10 +5090,12 @@ def application_webgis(environ, start_response):
                 gevent.sleep(interval)
             if ws and ws.closed:
                 del ws
-        return  '200 OK', '', {}
+        return  '200 OK', {}, ''
 
-    
-    
+    def handle_proxy(environ):
+        querydict = get_querydict_by_GET_POST(environ)
+        if querydict
+        headers['Content-Type'] = mimetype
     
     
     headers = {}
@@ -5580,7 +5582,12 @@ def tcp_recv(sock=None, interval=0.01):
     def connect():
         tcp_host = gConfig['webgis']['anti_bird']['tcp_host']
         tcp_port = int(gConfig['webgis']['anti_bird']['tcp_port'])
-        sock = socket.create_connection((tcp_host, tcp_port), timeout=5)
+        timeout = 5.0
+        try:
+            timeout = float(gConfig['webgis']['anti_bird']['tcp_timeout'])
+        except:
+            timeout = 5.0
+        sock = socket.create_connection((tcp_host, tcp_port), timeout=timeout)
         sock.settimeout(None)
         #sock = socket.create_connection((tcp_host, tcp_port))
         sock.send("bird")
@@ -5635,11 +5642,12 @@ def tcp_recv(sock=None, interval=0.01):
     
     def send_to_client(equip_mapping, packets):
         for packet in packets:
-            href = '%s/debug/get/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+            href = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
             objstr = httpget(href)
             if True:
                 obj = {}
-                obj['img_src'] = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+               #/debug/getImage/5509686bdd8aebb93f4276b3
+                obj['img_src'] = '/proxy?oid=%s' % '5509686bdd8aebb93f4276b3' 
                 for k in gWebSocketsMap.keys():
                     ws = gWebSocketsMap[k]
                     if not ws.closed:
@@ -5687,7 +5695,7 @@ def tcp_recv(sock=None, interval=0.01):
                 message = e.message
             else:
                 message = str(e)
-            print('connecting bird server fail:%s' %  message)
+            print('connecting anti-bird server fail:%s' %  message)
             try:
                 sock = connect()
             except:
@@ -5702,7 +5710,7 @@ def tcp_recv(sock=None, interval=0.01):
                     message = e1.message
                 else:
                     message = str(e1)
-                print('connecting bird server fail:%s' %  message)
+                print('connecting anti-bird server fail:%s' %  message)
         gevent.sleep(interval)
 
     

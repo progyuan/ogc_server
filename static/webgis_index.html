@@ -86,10 +86,10 @@
 </head>
 <body>
 
-<div id="cesiumContainer" class="fullSize"></div>
+<div id="cesiumContainer" class="fullSize" ></div>
 <div id="lnglat_indicator" class="kmgd-lnglat-indicator"></div>
 
-<div id="control_search">
+<div id="control_search" >
 	<div id="button_search" ></div>
 	<div id="text_search_waiting" >输入关键字拼音首字母</div>
 	<input id="input_search" type="text" value =""><span id="button_search_clear">X</span>
@@ -153,12 +153,12 @@
 </div>
 
 
-<div id="drawhelpertoolbar">
+<div id="drawhelpertoolbar" >
 </div>
 
 <div id="control_toolpanel_kmgd_handle">&gt;
 </div>
-<div id="control_toolpanel_kmgd_left">
+<div id="control_toolpanel_kmgd_left" >
 	<div id="accordion_tools">
 	  <h3>地图图层</h3>
 	  <div style="min-height:400px;">
@@ -215,18 +215,18 @@
 	</div>	
 </div>
 
-<div id="dlg_change_password" >
+<div id="dlg_change_password" style="display:none;">
 	<form id="form_change_password"></form>
 </div>
-<div id="dlg_change_role" >
+<div id="dlg_change_role" style="display:none;">
 	<form id="form_change_role"></form>
 </div>
 
-<div id="dlg_dn_create" >
+<div id="dlg_dn_create" style="display:none;">
 	<form id="form_dn_create"></form>
 </div>
 
-<div id="dlg_line_info" style="display:none">
+<div id="dlg_line_info" style="display:none;">
 	<fieldset id="fld_line_edit_choose" style="display:none">
 		<legend >输电线路列表</legend>
 		<div>
@@ -248,7 +248,7 @@
 	</div>
 </div>
 
-<div id="dlg_buffer_analyze" >
+<div id="dlg_buffer_analyze" style="display:none;">
 	<span>
 		<form id="form_buffer_create"></form>
 	</span>
@@ -257,7 +257,7 @@
 	</span>
 </div>
 
-<div id="dlg_poi_info" style="display:none">
+<div id="dlg_poi_info" style="display:none;">
 	<div  id="tabs_poi_info" >
 		<ul>
 			<li><a href="#poi_info_base">基础信息</a></li>
@@ -301,8 +301,7 @@
 	</div>
 </div>
 
-
-<div id="dlg_tower_info" >
+<div id="dlg_tower_info" style="display:none;">
 	<div id="tabs_tower_info">
 		<ul>
 			<li><a href="#tower_info_base">基础信息</a></li>
@@ -310,7 +309,6 @@
 			<li><a href="#tower_info_segment">架空线段</a></li>
 			<li><a href="#tower_info_metal">金具/附件</a></li>
 			<li><a href="#tower_info_photo">照片文档</a></li>
-			<!--<li><a href="#tower_info_test">驱鸟器</a></li>-->
 		</ul>
 		<div id="tower_info_base">
 			<form id="form_tower_info_base">
@@ -352,7 +350,6 @@
 		<!--</div>-->
 	</div>
 </div>
-
 <!-- The template to display files available for upload -->
 <script id="template-upload" type="text/x-tmpl">
 {% for (var i=0, file; file=o.files[i]; i++) { %}

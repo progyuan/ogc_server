@@ -95,19 +95,18 @@ $(function() {
 		$.webgis.viewer = viewer;
 		InitRuler(viewer);
 		InitLogout(viewer);
-	
 		InitWebGISFormDefinition();
 		InitDrawHelper(viewer);
 		$.webgis.control.drawhelper.show(false);
 		InitPoiInfoDialog();
 		InitTowerInfoDialog();
-		
 		InitSearchBox(viewer);
 		InitToolPanel(viewer);
 		InitModelList(viewer);
 		InitKeyboardEvent(viewer);
 		load_init_data();
 		InitAntiBird(viewer);
+		InitScreenSize();
 	}catch(ex)
 	{
 		console.log(ex);
@@ -166,6 +165,10 @@ $(function() {
 	//};
 });
 
+function InitScreenSize()
+{
+	$('#cesiumContainer').css('height', $( window ).height() + 'px');
+}
 function CreateTileHeatMap(viewer, options)
 {
 	var aip = new ArcGisMapServerImageryProvider({
@@ -2004,7 +2007,7 @@ function InitDrawHelper(viewer)
 			//console.log('Extent edited: extent is (N: ' + event.extent.north.toFixed(3) + ', E: ' + event.extent.east.toFixed(3) + ', S: ' + event.extent.south.toFixed(3) + ', W: ' + event.extent.west.toFixed(3) + ')');
 		//});
 	});
-
+	$.webgis.control.drawhelper._tooltip.setVisible(false);
 }
 
 function ShowPoiInfoCircleDialog(viewer, title, center, radius)
@@ -8825,8 +8828,17 @@ function ShowLineDialog(viewer, mode)
 			}
 			if(title == '照片文档')
 			{
-				ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
-				CreateFileBrowser('line_info_photo', 450, 450, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'network', id);
+				var arr = $('#line_choose').multipleSelect("getSelects");
+				//console.log(arr);
+				if(arr.length>0)
+				{
+					var id = arr[0];
+					ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
+					CreateFileBrowser('line_info_photo', 450, 450, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'network', id);
+				}else
+				{
+					ShowMessage(null, 400, 200, '无法获取图片数据', '无法获取图片数据,请先选择输电线路.');
+				}
 			}
 		}
 	});

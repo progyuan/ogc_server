@@ -19,6 +19,7 @@ var DrawHelper = (function() {
         this._viewer = cesiumWidget;
 		this._scene = cesiumWidget.scene;
 		this._tooltip = createTooltip(cesiumWidget.container);
+		//console.log(cesiumWidget.container);
         this._surfaces = [];
 		this._primitives = [];
         this.initialiseHandlers();
