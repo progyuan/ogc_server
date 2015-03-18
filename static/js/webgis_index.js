@@ -105,9 +105,9 @@ $(function() {
 		InitSearchBox(viewer);
 		InitToolPanel(viewer);
 		InitModelList(viewer);
-		//InitBird(viewer);
 		InitKeyboardEvent(viewer);
 		load_init_data();
+		InitAntiBird(viewer);
 	}catch(ex)
 	{
 		console.log(ex);
@@ -137,6 +137,7 @@ $(function() {
 			InitModelList(viewer);
 			InitKeyboardEvent(viewer);
 			load_init_data();
+			InitAntiBird(viewer);
 		});
 	}
 	
@@ -1752,9 +1753,55 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 	});
 }
 
-function InitBird(viewer)
+function InitAntiBird(viewer)
 {
-	$('#tower_info_test').drawChart({});
+	var wsurl =  $.webgis.websocket.antibird.WS_PROTOCOL + "://" + $.webgis.websocket.antibird.HOST + ":" + $.webgis.websocket.antibird.PORT + "/websocket";
+	if($.webgis.websocket.antibird.websocket === undefined)
+	{
+		$.webgis.websocket.antibird.websocket = new WebSocket(wsurl);
+	}
+	if($.webgis.websocket.antibird.websocket)
+	{
+		$.webgis.websocket.antibird.websocket.onopen = function() 
+		{
+			$.webgis.websocket.antibird.websocket.send('');
+		};
+		$.webgis.websocket.antibird.websocket.onclose = function(e) 
+		{
+			console.log("websocket close");
+		};
+		$.webgis.websocket.antibird.websocket.onerror = function(e) 
+		{
+			console.log("websocket error:" + e);
+		};
+		$.webgis.websocket.antibird.websocket.onmessage = function(e) 
+		{
+			if(e.data.length>0)
+			{
+				var data1 = JSON.parse(e.data);
+				
+				if(data1 instanceof Array)
+				{
+				}
+				if(data1 instanceof Object)
+				{
+					if(data1.result)
+					{
+						console.log(data1.result);
+					}
+					else
+					{
+						console.log(data1);
+						$.webgis.websocket.antibird.websocket.send('');
+					}
+				}
+				
+			}else
+			{
+				$.webgis.websocket.antibird.websocket.send('');
+			}
+		};
+	}		
 }
 
 

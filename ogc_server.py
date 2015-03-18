@@ -5055,10 +5055,52 @@ def application_pay_platform(environ, start_response):
     
     
 def application_webgis(environ, start_response):
-    global gConfig, gRequest, gSessionStore
+    global gConfig, gRequest, gSessionStore, gWebSocketsMap
+    
+    def handle_websocket(environ):
+        key = str(gevent.getcurrent().__hash__())
+        ws = get_websocket(environ)
+        if not gWebSocketsMap.has_key(key):
+            gWebSocketsMap[key] = ws
+            app = gConfig['wsgi']['application']
+            interval = 1.0
+            try:
+                interval = float(gConfig[app]['websocket']['interval_poll'])
+            except:
+                interval = 1.0
+            while ws and not ws.closed:
+                obj = ws_recv(environ)
+                if obj and isinstance(obj, dict) and obj.has_key('op'):
+                    if obj['op'] == 'queue_size':
+                        qsize = 0
+                        if gJoinableQueue:
+                            qsize = gJoinableQueue.qsize()
+                        ws.send(json.dumps({'queue_size':qsize}, ensure_ascii=True, indent=4))
+                    if obj['op'] == 'turn_on_sound':
+                        ws.send('')
+                else:
+                    try:
+                        ws.send('')
+                    except:
+                        for k in gWebSocketsMap.keys():
+                            if gWebSocketsMap[k] is ws:
+                                gWebSocketsMap[k].close()
+                                del gWebSocketsMap[k]
+                                break
+                gevent.sleep(interval)
+            if ws and ws.closed:
+                del ws
+        return  '200 OK', '', {}
+
+    
+    
+    
+    
     headers = {}
     headerslist = []
     cookie_header = None
+    statuscode = '200 OK'
+    body = ''
         
     path_info = environ['PATH_INFO']
     if 'proxy.cgi' in path_info:
@@ -5083,9 +5125,8 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_wfs(environ)
     elif path_info =='/create_cluster' or  path_info =='/kill_cluster':
         statuscode, headers, body = handle_cluster(environ)
-    #elif path_info == gConfig['websocket']['services']:
-        #if p=='/control':
-            #print('websocket_version=%s' % environ['wsgi.websocket_version'])
+    elif path_info == '/websocket':
+        statuscode, headers, body = handle_websocket(environ)
         
     else:
         if gConfig['web']['session']['enable_session'].lower() == 'true' :
@@ -5535,7 +5576,7 @@ def joinedqueue_consumer_chat():
     
 
 def tcp_recv(sock=None, interval=0.01):
-    global gConfig
+    global gConfig, gWebSocketsMap
     def connect():
         tcp_host = gConfig['webgis']['anti_bird']['tcp_host']
         tcp_port = int(gConfig['webgis']['anti_bird']['tcp_port'])
@@ -5563,7 +5604,63 @@ def tcp_recv(sock=None, interval=0.01):
             ret.append(p)
             p, rest = get_packet(rest)
         return ret, rest
+    
+    def httpget(href):
+        ret = ''
+        connection_timeout, network_timeout = 5.0, 10.0
+        if gConfig['webgis']['anti_bird'].has_key('www_connection_timeout') and len(gConfig['webgis']['anti_bird']['www_connection_timeout']):
+            connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
+        if gConfig['webgis']['anti_bird'].has_key('www_network_timeout') and len(gConfig['webgis']['anti_bird']['www_network_timeout']):
+            network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
+        client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+        url = URL(href) 
+        g = gevent.spawn(client.get, url.request_uri)
+        g.join()
+        response = g.value
+        if response and response.status_code == 200:
+            ret = response.read()
+        else:
+            msg = ''
+            if response:
+                msg = response.status_code
+            print('httpget error:%d' % msg)
+        return ret
         
+    def init_anti_bird_mapping():
+        ret = {}
+        href = gConfig['webgis']['anti_bird']['http_url']
+        s = httpget(href)
+        #print(s)
+        return ret
+    
+    def send_to_client(equip_mapping, packets):
+        for packet in packets:
+            href = '%s/debug/get/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+            objstr = httpget(href)
+            if True:
+                obj = {}
+                obj['img_src'] = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+                for k in gWebSocketsMap.keys():
+                    ws = gWebSocketsMap[k]
+                    if not ws.closed:
+                        print(obj)
+                        ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
+            if len(objstr)>0:
+                try:
+                    obj = json.loads(objstr)
+                    obj['img_src'] = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+                    for k in gWebSocketsMap.keys():
+                        ws = gWebSocketsMap[k]
+                        if not ws.closed:
+                            ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
+                except:
+                    e = sys.exc_info()[1]
+                    if hasattr(e, 'message'):
+                        print('send_to_client error:%s' % e.message)
+                    else:
+                        print('send_to_client error:%s' % str(e))
+    
+    equip_mapping = init_anti_bird_mapping()
     MAX_MSGLEN = int(gConfig['webgis']['anti_bird']['max_msg_len'])
     recvstr = ''
     while 1:
@@ -5575,9 +5672,9 @@ def tcp_recv(sock=None, interval=0.01):
             sock.recv_into(buf)
             recvstr += buf.strip().decode("utf-8")
             if len(recvstr)>0:
-                print(recvstr)
+                #print(recvstr)
                 packets, recvstr = get_packets(recvstr)
-                print(packets)
+                send_to_client(equip_mapping, packets)
         except:
             recvstr = ''
             e = sys.exc_info()[1]

@@ -81,7 +81,12 @@ $.webgis.form_fields.base_flds_6 = [ //超声波驱鸟装置
 	{display: "生产厂家", id: "manufacturer", newline: true,  type: "text", group:'驱鸟装置', width:350, defaultvalue:'昶丰科技有限公司'},
 	{display: "型号", id: "model", newline: true,  type: "text", group:'驱鸟装置', width:350, defaultvalue:'CFT-EQU-BIRD-01'},
 	//{display: "机箱编号", id: "boxid", newline: true,  type: "select", editor:{data:[{value:'111',label:'111'},{value:'222',label:'222'},{value:'333',label:'333'}]}, group:'驱鸟装置', width:70, validate:{required:true}},
-	{display: "唯一编号", id: "assembly_graph", newline: true,  type: "text", group:'驱鸟装置', width:350}
+	{display: "唯一编号", id: "imei", newline: true,  type: "select", editor:{data:[{value:'111',label:'111'},{value:'222',label:'222'},{value:'333',label:'333'}]}, group:'驱鸟装置', width:350},
+	{display: "最新图片", id: "img_button", newline: true,  type: "button", group:'驱鸟装置', width:350, defaultvalue:'点击查看',
+		click:function( event, ui ){
+			console.log('aaa');
+		}
+	}
 ];
 
 

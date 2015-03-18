@@ -9,6 +9,8 @@ $.webgis.toolbar = {};
 $.webgis.form_fields = {};
 $.webgis.geometry = {};
 $.webgis.remote = {};
+$.webgis.websocket = {};
+$.webgis.websocket.antibird = {};
 $.webgis.remote.arcserver_host = 'yncaiyun1.com';//10.181.160.72
 $.webgis.remote.host = 'yncaiyun1.com';//10.181.160.72
 //$.webgis.remote.arcserver_host = '192.168.1.107';//10.181.160.72
@@ -20,6 +22,10 @@ $.webgis.remote.tiles_port = 8088;
 $.webgis.db.db_name = 'kmgd';
 //$.webgis.db.db_name = 'ztgd';
 $.webgis.config.zaware = false;
+
+$.webgis.websocket.antibird.WS_PROTOCOL = 'ws';
+$.webgis.websocket.antibird.HOST = 'yncaiyun1.com';
+$.webgis.websocket.antibird.PORT = 8088;
 
 $.webgis.config.encrypt_key = 'kmgd111';
 $.webgis.mapping.phase_color_mapping = {
@@ -448,6 +454,21 @@ function InitWebGISFormDefinition()
 							checkboxClass: 'icheckbox_flat-green'
 						});
 						if(checked) $('#' + id).iCheck('check');
+					}
+					if(fld.type == 'button' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '">'
+						+ '<' + divorspan + '  style="display:inline-block;width:24px;height:24px;border:0px #00FF00 solid;">'
+						+ '<div id="' + fldid + '" name="' + fldid + '" style="float:right;display:inline-block;text-align:center;width:' + fld.width + 'px">' + fld.defaultvalue + '</div>' 
+						+ '</' + divorspan + '>'
+						+ '<label for="' + fldid + '" style="display:inline-block;text-align:left;width:' + (fld.labelwidth || this.options.labelwidth) + 'px;">' + fld.display + '</label>'
+						+ '</' + divorspan + '>');
+						var id = fldid;
+						if(fld.click){
+							$('#' + id).button();
+							$('#' + id).off();
+							$('#' + id).on('click', fld.click);
+						}
 					}
 				}
 			}
