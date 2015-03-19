@@ -99,7 +99,7 @@ $(function() {
 		InitDrawHelper(viewer);
 		$.webgis.control.drawhelper.show(false);
 		InitPoiInfoDialog();
-		InitTowerInfoDialog();
+		//InitTowerInfoDialog();
 		InitSearchBox(viewer);
 		InitToolPanel(viewer);
 		InitModelList(viewer);
@@ -129,7 +129,7 @@ $(function() {
 			$.webgis.control.drawhelper.show(false);
 			
 			InitPoiInfoDialog();
-			InitTowerInfoDialog();
+			//InitTowerInfoDialog();
 			
 			InitSearchBox(viewer);
 			InitToolPanel(viewer);
@@ -202,10 +202,10 @@ function IFrameUpdateTower(tower_id, data)
 			$.webgis.data.czmls[id] = CreateCzmlFromGeojson($.webgis.data.geojsons[id]);
 		}
 	}
-	var selected_id = $.webgis.selected_geojson['_id'];
+	var selected_id = $.webgis.select.selected_geojson['_id'];
 	if($.webgis.data.geojsons[selected_id])
 	{
-		$.webgis.selected_geojson['properties']['model'] = $.webgis.data.geojsons[selected_id]['properties']['model'];
+		$.webgis.select.selected_geojson['properties']['model'] = $.webgis.data.geojsons[selected_id]['properties']['model'];
 	}
 }
 function IFrameUpdateModel(tower_id, data)
@@ -2237,20 +2237,20 @@ function InitPoiInfoDialog()
 	//$('#form_poi_info' ).webgisform("getvalidate");
 
 }
-function InitTowerInfoDialog()
-{
-	var iframe = $('#tower_info_model').find('iframe');
-	iframe.load(function(){
-		var iframeDoc = iframe.contents().get(0);
-		$(iframeDoc).off();
-		$(iframeDoc).on('mousedown', function(e){
-			for (var i = 1; i < 99; i++)
-			{
-				iframe[0].contentWindow.clearInterval(i);
-			}
-		});
-	});
-}
+//function InitTowerInfoDialog()
+//{
+	//var iframe = $('#tower_info_model').find('iframe');
+	//iframe.load(function(){
+		//var iframeDoc = iframe.contents().get(0);
+		//$(iframeDoc).off();
+		//$(iframeDoc).on('mousedown', function(e){
+			//for (var i = 1; i < 99; i++)
+			//{
+				//iframe[0].contentWindow.clearInterval(i);
+			//}
+		//});
+	//});
+//}
 
 function InitToolPanel(viewer)
 {
@@ -3662,15 +3662,15 @@ function FilterModelList(str)
 				};
 				var arr = get_code_height(model_code_height);
 				$('#tower_info_title_model_code').html('杆塔型号：' + arr[0] + ' 呼称高：' + arr[1] + '米');
-				if($.webgis.selected_geojson )
+				if($.webgis.select.selected_geojson )
 				{
 					if($.webgis.mapping.models_mapping[model_code_height])
 					{
-						$.webgis.selected_geojson['properties']['model'] = $.webgis.mapping.models_mapping[model_code_height];
+						$.webgis.select.selected_geojson['properties']['model'] = $.webgis.mapping.models_mapping[model_code_height];
 					}
 					else
 					{
-						$.webgis.selected_geojson['properties']['model'] = {contact_points:[],model_code:arr[0], model_code_height:model_code_height};
+						$.webgis.select.selected_geojson['properties']['model'] = {contact_points:[],model_code:arr[0], model_code_height:model_code_height};
 					}
 				}
 			}else
@@ -3679,10 +3679,10 @@ function FilterModelList(str)
 				{
 					iframe.attr('src', 'threejs/editor/index.html' );
 				}
-				if($.webgis.selected_geojson)
+				if($.webgis.select.selected_geojson)
 				{
-					delete $.webgis.selected_geojson['properties']['model'];
-					$.webgis.selected_geojson['properties']['model'] = undefined;
+					delete $.webgis.select.selected_geojson['properties']['model'];
+					$.webgis.select.selected_geojson['properties']['model'] = undefined;
 				}
 			}
 			//console.log($.webgis.data.geojsons[$.webgis.select.selected_obj.id]);
@@ -6252,7 +6252,7 @@ function SaveLine(viewer, id)
 }
 function SaveTower(viewer)
 {
-	if($.webgis.selected_geojson)
+	if($.webgis.select.selected_geojson)
 	{
 		var data = $('#form_tower_info_base').webgisform('getdata');
 		for(var k in data)
@@ -6265,15 +6265,21 @@ function SaveTower(viewer)
 			){
 				continue;
 			}
-			$.webgis.selected_geojson['properties'][k] = data[k];
+			$.webgis.select.selected_geojson['properties'][k] = data[k];
 		}
-		//if($.webgis.selected_geojson['properties']['model'])
+		//if($.webgis.select.selected_geojson['properties']['model'])
 		//{
-			//$.webgis.selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode($.webgis.selected_geojson['properties']['model']['model_code_height']);
+			//$.webgis.select.selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode($.webgis.select.selected_geojson['properties']['model']['model_code_height']);
 		//}
-		//console.log($.webgis.selected_geojson);
+		var items = $("#listbox_tower_info_metal").ligerListBox().getSelectedItems();
+		//console.log(items);
+		var formdata = $('#form_tower_info_metal').webgisform('getdata');
+		//console.log(formdata);
+		var idx = items[0].idx - 1;
+		$.webgis.select.selected_geojson.properties.metals[idx] = formdata;
+		//console.log($.webgis.select.selected_geojson.properties);
 		//if(true) return;
-		SavePoi($.webgis.selected_geojson, function(data1){
+		SavePoi($.webgis.select.selected_geojson, function(data1){
 			//console.log(data1);
 			if(data1 && data1.length>0)
 			{
@@ -6370,19 +6376,19 @@ function ShowTowerInfo(viewer, id)
 	var tower = GetTowerInfoByTowerId(id);
 	if(tower)
 	{
-		$.webgis.selected_geojson = $.extend(true, {}, tower);
+		$.webgis.select.selected_geojson = $.extend(true, {}, tower);
 		FilterModelList('');
-		ShowTowerInfoDialog(viewer, $.webgis.selected_geojson);
+		ShowTowerInfoDialog(viewer, $.webgis.select.selected_geojson);
 		if($.webgis.config.map_backend === 'cesium')
 		{
-			LoadTowerModelByTower(viewer, $.webgis.selected_geojson);
-			DrawSegmentsByTower(viewer, $.webgis.selected_geojson);
+			LoadTowerModelByTower(viewer, $.webgis.select.selected_geojson);
+			DrawSegmentsByTower(viewer, $.webgis.select.selected_geojson);
 		}
 	}
 	else
 	{
-		delete $.webgis.selected_geojson;
-		$.webgis.selected_geojson = undefined;
+		delete $.webgis.select.selected_geojson;
+		$.webgis.select.selected_geojson = undefined;
 	}
 
 }
@@ -6674,8 +6680,8 @@ function DestroyFileUploader(div_id)
 		$('#' + div_id + '_container').empty();
 		$.webgis.data.image_thumbnail_tower_info.length = 0;
 	}
-	delete $.webgis.selected_geojson;
-	$.webgis.selected_geojson = undefined;
+	delete $.webgis.select.selected_geojson;
+	$.webgis.select.selected_geojson = undefined;
 }
 
 function ShowTowerInfoDialog(viewer, tower)
@@ -7050,9 +7056,14 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '超声波驱鸟装置')
 				{
-					UpdateBaseFields6();
-					flds = $.webgis.form_fields.base_flds_6;
 					var metal = tower['properties']['metals'][o['idx']-1];
+					var enable_imei_select = true;
+					if(metal.imei && metal.imei.length>0)
+					{
+						enable_imei_select = false;
+					}
+					UpdateBaseFields6(enable_imei_select);
+					flds = $.webgis.form_fields.base_flds_6;
 					for(var k in metal)
 					{
 						formdata[k] = metal[k];
@@ -7070,14 +7081,25 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 }
 
-function UpdateBaseFields6()
+function UpdateBaseFields6(enable_imei_select)
 {
 	for(var i in $.webgis.form_fields.base_flds_6)
 	{
 		var fld =  $.webgis.form_fields.base_flds_6[i];
 		if(fld.id === 'imei')
 		{
-			$.webgis.form_fields.base_flds_6[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
+			if(enable_imei_select)
+			{
+				$.webgis.form_fields.base_flds_6[i].type = 'select';
+				$.webgis.form_fields.base_flds_6[i].editor = {};
+				$.webgis.form_fields.base_flds_6[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
+				$.webgis.form_fields.base_flds_6[i].validate = {required:true};
+			}else
+			{
+				$.webgis.form_fields.base_flds_6[i].type = 'text';
+				$.webgis.form_fields.base_flds_6[i].editor = {readonly:true};
+				delete $.webgis.form_fields.base_flds_6[i].validate;
+			}
 		}
 	}
 }
@@ -7435,8 +7457,6 @@ function ShowBufferAnalyzeDialog(viewer, type, position)
 		position:{at: "right center"},
 		title:'缓冲区分析',
 		close:function(event, ui){
-			//delete $.webgis.selected_geojson;
-			//$.webgis.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -7498,8 +7518,8 @@ function ShowDNAddDialog(viewer)
 		position:{at: "right center"},
 		title:'创建配电网络',
 		close:function(event, ui){
-			delete $.webgis.selected_geojson;
-			$.webgis.selected_geojson = undefined;
+			delete $.webgis.select.selected_geojson;
+			$.webgis.select.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -7677,8 +7697,8 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 		position:{at: "right center"},
 		title:title,
 		close:function(event, ui){
-			delete $.webgis.selected_geojson;
-			$.webgis.selected_geojson = undefined;
+			delete $.webgis.select.selected_geojson;
+			$.webgis.select.selected_geojson = undefined;
 		},
 		show: {
 			effect: "slide",
@@ -8292,7 +8312,7 @@ function GetLineNamesListByTowerId(id)
 
 function AddMetal(e)
 {
-	if($.webgis.selected_geojson)
+	if($.webgis.select.selected_geojson)
 	{
 		var o = {};
 		o['type'] = e.text;
@@ -8332,19 +8352,23 @@ function AddMetal(e)
 			o['anchor_model'] = '';
 			o['depth'] = 0;
 		}
-		if($.webgis.selected_geojson['properties']['metals'] === undefined)
+		if(e.text == '超声波驱鸟装置')
 		{
-			$.webgis.selected_geojson['properties']['metals'] = [];
+			//o['imei'] = '';
 		}
-		$.webgis.selected_geojson['properties']['metals'].push(o);
+		if($.webgis.select.selected_geojson['properties']['metals'] === undefined)
+		{
+			$.webgis.select.selected_geojson['properties']['metals'] = [];
+		}
+		$.webgis.select.selected_geojson['properties']['metals'].push(o);
 		var data = [];
 		var idx = 1;
-		for(var i in $.webgis.selected_geojson['properties']['metals'])
+		for(var i in $.webgis.select.selected_geojson['properties']['metals'])
 		{
 			data.push({
 				'idx':idx, 
-				'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
-				'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
+				'type':$.webgis.select.selected_geojson['properties']['metals'][i]['type'],
+				'model':$.webgis.select.selected_geojson['properties']['metals'][i]['model']
 				});
 			idx += 1;
 		}
@@ -8356,9 +8380,9 @@ function AddMetal(e)
 
 function DeleteMetal()
 {
-	if($.webgis.selected_geojson)
+	if($.webgis.select.selected_geojson)
 	{
-		if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
+		if($.webgis.select.selected_geojson['properties']['metals'] && $.webgis.select.selected_geojson['properties']['metals'].length>0)
 		{
 			ShowConfirm(null, 500, 200,
 				'删除确认',
@@ -8367,16 +8391,16 @@ function DeleteMetal()
 					if($.webgis.select.selected_metal_item )
 					{
 						var o = $.webgis.select.selected_metal_item;
-						$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+						$.webgis.select.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
 					}
 					var data = [];
 					var idx = 1;
-					for(var i in $.webgis.selected_geojson['properties']['metals'])
+					for(var i in $.webgis.select.selected_geojson['properties']['metals'])
 					{
 						data.push({
 							'idx':idx, 
-							'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
-							'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
+							'type':$.webgis.select.selected_geojson['properties']['metals'][i]['type'],
+							'model':$.webgis.select.selected_geojson['properties']['metals'][i]['model']
 							});
 						idx += 1;
 					}
@@ -8388,23 +8412,23 @@ function DeleteMetal()
 			);
 		}
 	}
-	//if($.webgis.selected_geojson)
+	//if($.webgis.select.selected_geojson)
 	//{
-		//if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
+		//if($.webgis.select.selected_geojson['properties']['metals'] && $.webgis.select.selected_geojson['properties']['metals'].length>0)
 		//{
 			//if($.webgis.select.selected_metal_item )
 			//{
 				//var o = $.webgis.select.selected_metal_item;
-				//$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+				//$.webgis.select.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
 			//}
 			//var data = [];
 			//var idx = 1;
-			//for(var i in $.webgis.selected_geojson['properties']['metals'])
+			//for(var i in $.webgis.select.selected_geojson['properties']['metals'])
 			//{
 				//data.push({
 					//'idx':idx, 
-					//'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
-					//'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
+					//'type':$.webgis.select.selected_geojson['properties']['metals'][i]['type'],
+					//'model':$.webgis.select.selected_geojson['properties']['metals'][i]['model']
 					//});
 				//idx += 1;
 			//}
@@ -8676,10 +8700,10 @@ function OnSelect(viewer, e, selectedEntity)
 			}
 			else
 			{
-				$.webgis.selected_geojson = $.webgis.select.selected_obj.id;
-				//if($.webgis.selected_geojson._id === 'tmp_edge')
+				$.webgis.select.selected_geojson = $.webgis.select.selected_obj.id;
+				//if($.webgis.select.selected_geojson._id === 'tmp_edge')
 				//{
-					//$.webgis.selected_geojson._id = null;
+					//$.webgis.select.selected_geojson._id = null;
 				//}
 			}
 		}
