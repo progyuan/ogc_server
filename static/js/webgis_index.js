@@ -1758,6 +1758,21 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 
 function InitAntiBird(viewer)
 {
+	GetAntiBirdEquipListData(viewer);
+	InitAntiBirdWebsocket(viewer);
+}
+function GetAntiBirdEquipListData(viewer)
+{
+	var url = '/anti_bird_equip_list';
+	$.get(url, {is_filter_used:true}, function( data1 ){
+		//
+		//if(data.redirect) return;
+		ret = JSON.parse(decodeURIComponent(data1));
+		$.webgis.websocket.antibird.anti_bird_equip_list = ret;
+	}, 'text');
+}
+function InitAntiBirdWebsocket(viewer)
+{
 	var wsurl =  $.webgis.websocket.antibird.WS_PROTOCOL + "://" + $.webgis.websocket.antibird.HOST + ":" + $.webgis.websocket.antibird.PORT + "/websocket";
 	if($.webgis.websocket.antibird.websocket === undefined)
 	{
@@ -7035,6 +7050,7 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '超声波驱鸟装置')
 				{
+					UpdateBaseFields6();
 					flds = $.webgis.form_fields.base_flds_6;
 					var metal = tower['properties']['metals'][o['idx']-1];
 					for(var k in metal)
@@ -7054,6 +7070,17 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 }
 
+function UpdateBaseFields6()
+{
+	for(var i in $.webgis.form_fields.base_flds_6)
+	{
+		var fld =  $.webgis.form_fields.base_flds_6[i];
+		if(fld.id === 'imei')
+		{
+			$.webgis.form_fields.base_flds_6[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
+		}
+	}
+}
 function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 {
 	$('#' + div_id).empty();
@@ -8333,26 +8360,58 @@ function DeleteMetal()
 	{
 		if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
 		{
-			if($.webgis.select.selected_metal_item )
-			{
-				var o = $.webgis.select.selected_metal_item;
-				$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
-			}
-			var data = [];
-			var idx = 1;
-			for(var i in $.webgis.selected_geojson['properties']['metals'])
-			{
-				data.push({
-					'idx':idx, 
-					'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
-					'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
-					});
-				idx += 1;
-			}
-			$.webgis.select.selected_metal_item = undefined;
-			$("#listbox_tower_info_metal").ligerListBox().setData(data);
+			ShowConfirm(null, 500, 200,
+				'删除确认',
+				'确认删除该金具/附件并保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+				function () {
+					if($.webgis.select.selected_metal_item )
+					{
+						var o = $.webgis.select.selected_metal_item;
+						$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+					}
+					var data = [];
+					var idx = 1;
+					for(var i in $.webgis.selected_geojson['properties']['metals'])
+					{
+						data.push({
+							'idx':idx, 
+							'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
+							'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
+							});
+						idx += 1;
+					}
+					$.webgis.select.selected_metal_item = undefined;
+					$("#listbox_tower_info_metal").ligerListBox().setData(data);
+				},
+				function () {
+				}
+			);
 		}
 	}
+	//if($.webgis.selected_geojson)
+	//{
+		//if($.webgis.selected_geojson['properties']['metals'] && $.webgis.selected_geojson['properties']['metals'].length>0)
+		//{
+			//if($.webgis.select.selected_metal_item )
+			//{
+				//var o = $.webgis.select.selected_metal_item;
+				//$.webgis.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+			//}
+			//var data = [];
+			//var idx = 1;
+			//for(var i in $.webgis.selected_geojson['properties']['metals'])
+			//{
+				//data.push({
+					//'idx':idx, 
+					//'type':$.webgis.selected_geojson['properties']['metals'][i]['type'],
+					//'model':$.webgis.selected_geojson['properties']['metals'][i]['model']
+					//});
+				//idx += 1;
+			//}
+			//$.webgis.select.selected_metal_item = undefined;
+			//$("#listbox_tower_info_metal").ligerListBox().setData(data);
+		//}
+	//}
 }
 
 function CreateLineNamesSelectOption()

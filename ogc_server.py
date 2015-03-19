@@ -5053,6 +5053,45 @@ def application_pay_platform(environ, start_response):
         handle_websocket(environ)
     return [body]
     
+
+def handle_http_proxy(path_info, real_host, connection_timeout, network_timeout):
+    href = 'http://%s%s' % (real_host, path_info.replace('/proxy/', '/'))
+    #print(href)
+    ret = ''
+    try:
+        client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+        url = URL(href) 
+        g = gevent.spawn(client.get, url.request_uri)
+        g.join()
+        response = g.value
+        if response and response.status_code == 200:
+            ret = response.read()
+        else:
+            msg = 'handle_http_proxy response error:%d' % response.status_code
+            ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
+    except:
+        e = sys.exc_info()[1]
+        msg = ''
+        if hasattr(e, 'message'):
+            msg = 'handle_http_proxy error:%s' % e.message
+        else:
+            msg = 'handle_http_proxy error:%s' % str(e)
+        ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
+    return  '200 OK', {}, ret
+
+def anti_bird_proxy(path_info):
+    global gConfig
+    connection_timeout, network_timeout = 5.0, 10.0
+    try:
+        connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
+    except:
+        pass
+    try:
+        network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
+    except:
+        pass
+    return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], connection_timeout, network_timeout)
+
     
 def application_webgis(environ, start_response):
     global gConfig, gRequest, gSessionStore, gWebSocketsMap
@@ -5091,12 +5130,130 @@ def application_webgis(environ, start_response):
             if ws and ws.closed:
                 del ws
         return  '200 OK', {}, ''
-
-    def handle_proxy(environ):
-        querydict = get_querydict_by_GET_POST(environ)
-        if querydict
-        headers['Content-Type'] = mimetype
     
+    def init_anti_bird_list():
+        ret = []
+        href = '/proxy/api/detector'
+        code, header, s = anti_bird_proxy(href)
+        try:
+            obj = json.loads(s)
+            if isinstance(obj, dict) :
+                if obj.has_key('result'):
+                    print('init_anti_bird_list error:%s' % obj['result'])
+                else:
+                    if obj.has_key('_id'):
+                        if obj.has_key('imei'):
+                            obj['label'] = obj['imei']
+                            obj['value'] = obj['imei']
+                        ret = [obj, ]
+                    else:
+                        print('init_anti_bird_list error: unknown error')
+                        ret = []
+            elif isinstance(obj, list) :
+                for i in obj:
+                    idx = obj.index(i)
+                    if i.has_key('imei'):
+                        i['label'] = i['imei']
+                        i['value'] = i['imei']
+                    obj[idx] = i
+                ret = obj
+        except:
+            e = sys.exc_info()[1]
+            if hasattr(e, 'message'):
+                print('init_anti_bird_list error: %s' % e.message)
+            else:
+                print('init_anti_bird_list error: %s' % str(e))
+            ret = []
+        return ret
+    
+    
+    
+    def anti_bird_equip_list(environ):
+        ret = ''
+        is_filter_used=False
+        querydict = get_querydict_by_GET_POST(environ)
+        if querydict.has_key('is_filter_used') and querydict['is_filter_used'].lower() == 'true':
+            is_filter_used = True
+        equip_list = init_anti_bird_list()
+        if not is_filter_used:
+            ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
+        else:
+            exist = []
+            l = db_util.mongo_find(
+                gConfig['webgis']['mongodb']['database'],
+                'features',
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                {
+                    "properties.webgis_type":"point_tower",
+                    "properties.metals":{
+                        "$elemMatch":{
+                            "type":u"超声波驱鸟装置"
+                        }
+                    }
+                },
+                0,
+                'webgis'
+                )
+            for i in l:
+                for j in i['properties']['metals']:
+                    if isinstance(j, dict) and j.has_key('imei'):
+                        if not j['imei'] in exist:
+                            exist.append(j['imei'])
+            while len(exist)>0:
+                i0 = exist[0]
+                for i in equip_list:
+                    if i['imei'] == i0:
+                        equip_list.remove(i)
+                        exist.remove(i0)
+                        break
+            ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
+        return  '200 OK', {}, ret
+    
+    def anti_bird_equip_tower_mapping(environ):
+        querydict = get_querydict_by_GET_POST(environ)
+        ret = {}
+        if querydict.has_key('imei'):
+            l = db_util.mongo_find(
+                gConfig['webgis']['mongodb']['database'],
+                'features',
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                {
+                    "properties.webgis_type":"point_tower",
+                    "properties.metals":{
+                        "$elemMatch":{
+                            "type":u"超声波驱鸟装置",
+                            "imei":querydict['imei']
+                        }
+                    }
+                },
+                0,
+                'webgis'
+                )
+            if len(l)>0:
+                ret[querydict['imei']] = l[0]['_id']
+        else:
+            l = db_util.mongo_find(
+                gConfig['webgis']['mongodb']['database'],
+                'features',
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                {
+                    "properties.webgis_type":"point_tower",
+                    "properties.metals":{
+                        "$elemMatch":{
+                            "type":u"超声波驱鸟装置",
+                        }
+                    }
+                },
+                0,
+                'webgis'
+                )
+            for i in l:
+                for j in i['metals']:
+                    ret[j['imei']] = i['_id']
+            
+        ret = json.dumps(ret, ensure_ascii=True, indent=4)
+        return  '200 OK', {}, ret
+        
     
     headers = {}
     headerslist = []
@@ -5129,7 +5286,12 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_cluster(environ)
     elif path_info == '/websocket':
         statuscode, headers, body = handle_websocket(environ)
-        
+    elif len(path_info)>6 and path_info[:6] == '/proxy':
+        statuscode, headers, body = anti_bird_proxy(path_info)
+    elif path_info == '/anti_bird_equip_list':
+        statuscode, headers, body = anti_bird_equip_list(environ)
+    elif path_info == '/anti_bird_equip_tower_mapping':
+        statuscode, headers, body = anti_bird_equip_tower_mapping(environ)
     else:
         if gConfig['web']['session']['enable_session'].lower() == 'true' :
             #return handle_session(environ, start_response)
@@ -5612,63 +5774,84 @@ def tcp_recv(sock=None, interval=0.01):
             p, rest = get_packet(rest)
         return ret, rest
     
-    def httpget(href):
-        ret = ''
-        connection_timeout, network_timeout = 5.0, 10.0
-        if gConfig['webgis']['anti_bird'].has_key('www_connection_timeout') and len(gConfig['webgis']['anti_bird']['www_connection_timeout']):
-            connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
-        if gConfig['webgis']['anti_bird'].has_key('www_network_timeout') and len(gConfig['webgis']['anti_bird']['www_network_timeout']):
-            network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
-        client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-        url = URL(href) 
-        g = gevent.spawn(client.get, url.request_uri)
-        g.join()
-        response = g.value
-        if response and response.status_code == 200:
-            ret = response.read()
-        else:
-            msg = ''
-            if response:
-                msg = response.status_code
-            print('httpget error:%d' % msg)
+    #def httpget(href):
+        #ret = ''
+        #connection_timeout, network_timeout = 5.0, 10.0
+        #if gConfig['webgis']['anti_bird'].has_key('www_connection_timeout') and len(gConfig['webgis']['anti_bird']['www_connection_timeout']):
+            #connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
+        #if gConfig['webgis']['anti_bird'].has_key('www_network_timeout') and len(gConfig['webgis']['anti_bird']['www_network_timeout']):
+            #network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
+        #client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+        #url = URL(href) 
+        #g = gevent.spawn(client.get, url.request_uri)
+        #g.join()
+        #response = g.value
+        #if response and response.status_code == 200:
+            #ret = response.read()
+        #else:
+            #msg = ''
+            #if response:
+                #msg = response.status_code
+            #print('httpget error:%d' % msg)
+        #return ret
+        
+    
+    
+    def get_latest_records(imei, records_num=1):
+        ret = []
+        href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
+        status, header, objstr = anti_bird_proxy(href)
+        if len(objstr)>0:
+            try:
+                obj = json.loads(objstr)
+                if isinstance(obj, dict) :
+                    if obj.has_key('result'):
+                        print('get_latest_records error:%s' % obj['result'])
+                    else:
+                        if obj.has_key('_id'):
+                            ret = [obj, ]
+                        else:
+                            print('get_latest_records error: unknown error')
+                            ret = []
+                elif isinstance(obj, list) :
+                    ret = obj
+            except:
+                e = sys.exc_info()[1]
+                if hasattr(e, 'message'):
+                    print('send_to_client error:%s' % e.message)
+                else:
+                    print('send_to_client error:%s' % str(e))
+        for i in ret:
+            idx = ret.index(i)
+            if i.has_key('_id'):
+                href = '/proxy/debug/getImageId/%s' %  i['_id']
+                status, header, s = anti_bird_proxy(href)
+                obj = json.loads(s)
+                if isinstance(obj, dict) :
+                    if obj.has_key('ids'):
+                        if not i.has_key('picture'):
+                            i['picture'] = []
+                        for j in obj['ids']:
+                            i['picture'].append('/proxy/debug/getImage/%s' % j)
+            ret[idx] = i    
         return ret
         
-    def init_anti_bird_mapping():
-        ret = {}
-        href = gConfig['webgis']['anti_bird']['http_url']
-        s = httpget(href)
-        #print(s)
-        return ret
-    
-    def send_to_client(equip_mapping, packets):
-        for packet in packets:
-            href = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
-            objstr = httpget(href)
-            if True:
-                obj = {}
-               #/debug/getImage/5509686bdd8aebb93f4276b3
-                obj['img_src'] = '/proxy?oid=%s' % '5509686bdd8aebb93f4276b3' 
-                for k in gWebSocketsMap.keys():
-                    ws = gWebSocketsMap[k]
-                    if not ws.closed:
-                        print(obj)
-                        ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
-            if len(objstr)>0:
-                try:
-                    obj = json.loads(objstr)
-                    obj['img_src'] = '%s/debug/getImage/%s' % (gConfig['webgis']['anti_bird']['http_url'], packet)
+    def send_to_client(packets):
+        for imei in packets:
+            try:
+                l = get_latest_records(imei)
+                if len(l)>0:
                     for k in gWebSocketsMap.keys():
                         ws = gWebSocketsMap[k]
                         if not ws.closed:
-                            ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
-                except:
-                    e = sys.exc_info()[1]
-                    if hasattr(e, 'message'):
-                        print('send_to_client error:%s' % e.message)
-                    else:
-                        print('send_to_client error:%s' % str(e))
+                            ws.send(json.dumps(l, ensure_ascii=True, indent=4))
+            except:
+                e = sys.exc_info()[1]
+                if hasattr(e, 'message'):
+                    print('send_to_client error:%s' % e.message)
+                else:
+                    print('send_to_client error:%s' % str(e))
     
-    equip_mapping = init_anti_bird_mapping()
     MAX_MSGLEN = int(gConfig['webgis']['anti_bird']['max_msg_len'])
     recvstr = ''
     while 1:
@@ -5682,7 +5865,7 @@ def tcp_recv(sock=None, interval=0.01):
             if len(recvstr)>0:
                 #print(recvstr)
                 packets, recvstr = get_packets(recvstr)
-                send_to_client(equip_mapping, packets)
+                send_to_client(packets)
         except:
             recvstr = ''
             e = sys.exc_info()[1]
