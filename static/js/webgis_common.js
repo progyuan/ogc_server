@@ -11,12 +11,12 @@ $.webgis.geometry = {};
 $.webgis.remote = {};
 $.webgis.websocket = {};
 $.webgis.websocket.antibird = {};
-$.webgis.remote.arcserver_host = 'yncaiyun.com';//10.181.160.72
-$.webgis.remote.host = 'yncaiyun.com';//10.181.160.72
+$.webgis.remote.arcserver_host = 'yncaiyun1.com';//10.181.160.72
+$.webgis.remote.host = 'yncaiyun1.com';//10.181.160.72
 //$.webgis.remote.arcserver_host = '192.168.1.107';//10.181.160.72
 //$.webgis.remote.host = '192.168.1.107';//10.181.160.72
 $.webgis.remote.port = 8088;
-$.webgis.remote.tiles_host = 'yncaiyun.com';
+$.webgis.remote.tiles_host = 'yncaiyun1.com';
 $.webgis.remote.tiles_port = 8088;
 //var $.webgis.db.db_name = 'kmgd';
 $.webgis.db.db_name = 'kmgd';
@@ -24,7 +24,7 @@ $.webgis.db.db_name = 'kmgd';
 $.webgis.config.zaware = false;
 
 $.webgis.websocket.antibird.WS_PROTOCOL = 'ws';
-$.webgis.websocket.antibird.HOST = 'yncaiyun.com';
+$.webgis.websocket.antibird.HOST = 'yncaiyun1.com';
 $.webgis.websocket.antibird.PORT = 8088;
 
 $.webgis.config.encrypt_key = 'kmgd111';
@@ -243,6 +243,8 @@ function InitWebGISFormDefinition()
 							//source:source
 						//});
 						var position = 'bottom';
+						var filter = false;
+						if(fld.editor && fld.editor.filter === true) filter = true;
 						if(fld.editor && fld.editor.position) position = fld.editor.position;
 						var fld1 = fld;
 						var auto = $('#' + fldid).multipleSelect({
@@ -251,6 +253,7 @@ function InitWebGISFormDefinition()
 							selectAllDelimiter: ['(', ')'],
 							allSelected: '(全部)',
 							//minumimCountSelected: 3,
+							filter:filter,
 							countSelected: '(选择#个,共%个)',
 							noMatchesFound: '(无匹配)',
 							single: true,
@@ -294,12 +297,15 @@ function InitWebGISFormDefinition()
 						if(fld.editor && fld.editor.position) position = fld.editor.position;
 						var selectAll = false;
 						if(fld.selectall) selectAll = true;
+						var filter = false;
+						if(fld.editor && fld.editor.filter === true) filter = true;
 						var auto = $('#' + fldid).multipleSelect({
 							selectAll: selectAll,
 							selectAllText: '全部',
 							selectAllDelimiter: ['(', ')'],
 							allSelected: '(全部)',
 							//minumimCountSelected: 3,
+							filter:filter,
 							countSelected: '(选择#个,共%个)',
 							noMatchesFound: '(无匹配)',
 							single: false,
@@ -631,7 +637,7 @@ function InitWebGISFormDefinition()
 				var id = fields[k]['id'];
 				var typ = fields[k]['type'];
 				var editor = fields[k]['editor'];
-				if(typ === 'button')
+				if(typ.indexOf( 'button_') > -1)
 				{
 					continue;
 				}
@@ -711,7 +717,7 @@ function InitWebGISFormDefinition()
 				
 				//}
 				var typ = fields[k]['type'];
-				if(typ === 'button')
+				if(typ.indexOf( 'button_') > -1)
 				{
 					continue;
 				}

@@ -6684,6 +6684,129 @@ function DestroyFileUploader(div_id)
 	$.webgis.select.selected_geojson = undefined;
 }
 
+function BuildAntiBirdImageSlide(data1)
+{
+	$('#div_container_anti_bird_info_pics' ).empty();
+	var img_data = [];
+	if(data1.length == 0)
+	{
+		var s = '';
+		s += '<div style="text-align: center;vertical-align: middle;line-height: 400px;">';
+		s += '	无照片';
+		s += '</div>';
+		$('#div_container_anti_bird_info_pics').html(s);
+		return;
+	}
+	for (var i in data1)
+	{
+		for (var j in data1[i].picture)
+		{
+			var pic_url = data1[i].picture[j];
+			var item = { 
+				id: data1[i]._id + '_' + j, 
+				_id: data1[i]._id + '_' + j, 
+				img:pic_url , 
+				full:pic_url , 
+				caption: '日期:' + data1[i].time.substr(0,19) + ' 环境温度:' + data1[i].envTemp + '摄氏度',
+				filename:data1[i].imei + '_' + j + '_' + data1[i].time.substr(0,19) + '.jpg',
+				data:data1[i],
+				mimetype:'image/jpeg',
+				description:'日期:' + data1[i].time.substr(0,19) + ' 环境温度:' + data1[i].envTemp + '摄氏度'
+			};
+			img_data.push(item);
+		}
+	}
+	
+	var options = {
+		allowfullscreen: true,
+		width: 550,
+		height:400,
+		margin:0,
+		nav:'false',//dots, thumbs
+		//navposition:'bottom',
+		//thumbwidth:64,
+		//thumbheight:64,
+		//thumbmargin:0,
+		//thumbborderwidth:0,
+		fit:'scaledown', //contain, cover, scaledown, none
+		//thumbfit:'scaledown', //contain, cover, scaledown, none
+		transition:'slide', //slide, crossfade, dissolve
+		clicktransition:'slide',
+		transitionduration:200,
+		startindex:0,
+		loop:true,
+		autoplay:false,//10000,
+		stopautoplayontouch:true,
+		keyboard:false,
+		arrows:true,
+		click:false,
+		direction:'ltr',
+		hash:true,
+		data:img_data
+	};
+	var $fotoramaAntiBirdPicsDiv = $('#div_container_anti_bird_info_pics' ).fotorama(options);
+	$.webgis.control.image_slider_anti_bird_pics = $fotoramaAntiBirdPicsDiv.data('fotorama');
+}	
+
+function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
+{
+	var title = '';
+	title = imei;
+	var buttons = [];
+	buttons.push({	
+		text: "关闭", 
+		click: function(){ 
+			$( this ).dialog( "close" );
+		}
+	});
+	$('#dlg_anti_bird_info').dialog({
+		width: 630,
+		height: 730,
+		minWidth:200,
+		minHeight: 200,
+		draggable: true,
+		resizable: true, 
+		modal: false,
+		//position:{at: "right center"},
+		position:{at: "center"},
+		title:title,
+		close: function(event, ui){
+			delete $.webgis.control.image_slider_anti_bird_pics;
+			$.webgis.control.image_slider_anti_bird_pics = undefined;
+			$('#div_container_anti_bird_info_pics' ).empty();
+		},
+		show: {
+			effect: "slide",
+			direction: "right",
+			duration: 500
+		},
+		hide: {
+			effect: "slide",
+			direction: "right",
+			duration: 500
+		},		
+		buttons:buttons
+	});
+	$('#tabs_anti_bird_info').tabs({ 
+		collapsible: false,
+		active: 0,
+		beforeActivate: function( event, ui ) {
+		}
+	});
+	//console.log(imei);
+	if(records_num === undefined)
+	{
+		records_num = 10;
+	}
+	var url = '/anti_bird_get_latest_records_by_imei?imei=' + imei + '&records_num=' + records_num;
+	//console.log(url);
+	ShowProgressBar(true, 670, 200, '载入中', '正在载入最新' + records_num + '张图片数据，请稍候...');
+	$.get(url, {is_filter_used:true}, function( data1 ){
+		ShowProgressBar(false);
+		BuildAntiBirdImageSlide(data1);
+	}, 'json');
+}
+
 function ShowTowerInfoDialog(viewer, tower)
 {
 	//var infoBox = viewer.infoBox;
@@ -6765,7 +6888,7 @@ function ShowTowerInfoDialog(viewer, tower)
 	
 	$('#dlg_tower_info').dialog({
 		width: 630,
-		height: 720,
+		height: 730,
 		minWidth:200,
 		minHeight: 200,
 		draggable: true,
@@ -6774,7 +6897,7 @@ function ShowTowerInfoDialog(viewer, tower)
 		position:{at: "right center"},
 		title:title,
 		close: function(event, ui){
-			DestroyFileUploader('tower_info_photo')
+			DestroyFileUploader('tower_info_photo');
 		},
 		show: {
 			effect: "slide",
@@ -6782,7 +6905,9 @@ function ShowTowerInfoDialog(viewer, tower)
 			duration: 500
 		},
 		//hide: {
-			//effect: "blind",
+			////effect: "blind",
+			//effect: "slide",
+			//direction: "right",
 			//duration: 500
 		//},		
 		buttons:buttons
@@ -6889,7 +7014,6 @@ function ShowTowerInfoDialog(viewer, tower)
 				CreateFileBrowser('tower_info_photo', 520, 480, ['jpg','jpeg','png', 'bmp', 'gif', 'doc', 'xls', 'xlsx', 'docx', 'pdf'], 'features', tower['_id']);
 			}
 		}
-		//threejs/editor/index.html
 	});
 	for(var i in $.webgis.form_fields.tower_baseinfo_fields)
 	{
@@ -6997,6 +7121,7 @@ function ShowTowerInfoDialog(viewer, tower)
 			if(obj)
 			{
 				$.webgis.select.selected_metal_item = obj;
+				$.webgis.select.selected_imei = undefined;
 				var o = obj;
 				var flds = [];
 				var formdata = {};
@@ -7058,12 +7183,12 @@ function ShowTowerInfoDialog(viewer, tower)
 				{
 					var metal = tower['properties']['metals'][o['idx']-1];
 					var enable_imei_select = true;
-					if(metal.imei && metal.imei.length>0)
+					if(metal && metal.imei && metal.imei.length>0)
 					{
 						enable_imei_select = false;
+						$.webgis.select.selected_imei = metal.imei;
 					}
-					UpdateBaseFields6(enable_imei_select);
-					flds = $.webgis.form_fields.base_flds_6;
+					flds = UpdateBaseFields6(enable_imei_select);
 					for(var k in metal)
 					{
 						formdata[k] = metal[k];
@@ -7083,25 +7208,29 @@ function ShowTowerInfoDialog(viewer, tower)
 
 function UpdateBaseFields6(enable_imei_select)
 {
+	var ret = $.extend(true, [], $.webgis.form_fields.base_flds_6);
 	for(var i in $.webgis.form_fields.base_flds_6)
 	{
 		var fld =  $.webgis.form_fields.base_flds_6[i];
 		if(fld.id === 'imei')
 		{
+			var filter = false;
+			if(fld.editor && fld.editor.filter === true) filter = true;
 			if(enable_imei_select)
 			{
-				$.webgis.form_fields.base_flds_6[i].type = 'select';
-				$.webgis.form_fields.base_flds_6[i].editor = {};
-				$.webgis.form_fields.base_flds_6[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
-				$.webgis.form_fields.base_flds_6[i].validate = {required:true};
+				//$.webgis.form_fields.base_flds_6[i].type = 'select';
+				//$.webgis.form_fields.base_flds_6[i].editor = {};
+				ret[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
+				//$.webgis.form_fields.base_flds_6[i].validate = {required:true};
 			}else
 			{
-				$.webgis.form_fields.base_flds_6[i].type = 'text';
-				$.webgis.form_fields.base_flds_6[i].editor = {readonly:true};
-				delete $.webgis.form_fields.base_flds_6[i].validate;
+				ret[i].type = 'text';
+				ret[i].editor = {readonly:true};
+				delete ret[i].validate;
 			}
 		}
 	}
+	return ret;
 }
 function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 {

@@ -5055,7 +5055,8 @@ def application_pay_platform(environ, start_response):
     
 
 def handle_http_proxy(path_info, real_host, connection_timeout, network_timeout):
-    href = 'http://%s%s' % (real_host, path_info.replace('/proxy/', '/'))
+    token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
+    href = 'http://%s%s?token=%s&random=%d' % (real_host, path_info.replace('/proxy/', '/'), token, random.randint(0,100000))
     #print(href)
     ret = ''
     try:
@@ -5064,7 +5065,7 @@ def handle_http_proxy(path_info, real_host, connection_timeout, network_timeout)
         g = gevent.spawn(client.get, url.request_uri)
         g.join()
         response = g.value
-        if response and response.status_code == 200:
+        if response and (response.status_code == 200 or response.status_code == 304):
             ret = response.read()
         else:
             msg = 'handle_http_proxy response error:%d' % response.status_code
@@ -5092,6 +5093,56 @@ def anti_bird_proxy(path_info):
         pass
     return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], connection_timeout, network_timeout)
 
+def anti_bird_get_latest_records_by_imei(environ):
+    querydict = get_querydict_by_GET_POST(environ)
+    ret = []
+    if querydict.has_key('imei'):
+        records_num = 1
+        try:
+            records_num = int(querydict['records_num'])
+        except:
+            pass
+        ret = anti_bird_get_latest_records(querydict['imei'], records_num)
+    return  '200 OK', {}, json.dumps(ret, ensure_ascii=True, indent=4)
+
+def anti_bird_get_latest_records(imei, records_num=1):
+    ret = []
+    href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
+    status, header, objstr = anti_bird_proxy(href)
+    if len(objstr)>0:
+        try:
+            obj = json.loads(objstr)
+            if isinstance(obj, dict) :
+                if obj.has_key('result'):
+                    print('anti_bird_get_latest_records error:%s' % obj['result'])
+                else:
+                    if obj.has_key('_id'):
+                        ret = [obj, ]
+                    else:
+                        print('anti_bird_get_latest_records error: unknown error')
+                        ret = []
+            elif isinstance(obj, list) :
+                ret = obj
+        except:
+            e = sys.exc_info()[1]
+            if hasattr(e, 'message'):
+                print('anti_bird_get_latest_records error:%s' % e.message)
+            else:
+                print('anti_bird_get_latest_records error:%s' % str(e))
+    for i in ret:
+        idx = ret.index(i)
+        if i.has_key('_id'):
+            href = '/proxy/debug/getImageId/%s' %  i['_id']
+            status, header, s = anti_bird_proxy(href)
+            obj = json.loads(s)
+            if isinstance(obj, dict) :
+                if obj.has_key('ids'):
+                    if not i.has_key('picture'):
+                        i['picture'] = []
+                    for j in obj['ids']:
+                        i['picture'].append('/proxy/debug/getImage/%s' % j)
+        ret[idx] = i    
+    return ret
     
 def application_webgis(environ, start_response):
     global gConfig, gRequest, gSessionStore, gWebSocketsMap
@@ -5292,6 +5343,8 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = anti_bird_equip_list(environ)
     elif path_info == '/anti_bird_equip_tower_mapping':
         statuscode, headers, body = anti_bird_equip_tower_mapping(environ)
+    elif path_info == '/anti_bird_get_latest_records_by_imei':
+        statuscode, headers, body = anti_bird_get_latest_records_by_imei(environ)
     else:
         if gConfig['web']['session']['enable_session'].lower() == 'true' :
             #return handle_session(environ, start_response)
@@ -5773,73 +5826,11 @@ def tcp_recv(sock=None, interval=0.01):
             ret.append(p)
             p, rest = get_packet(rest)
         return ret, rest
-    
-    #def httpget(href):
-        #ret = ''
-        #connection_timeout, network_timeout = 5.0, 10.0
-        #if gConfig['webgis']['anti_bird'].has_key('www_connection_timeout') and len(gConfig['webgis']['anti_bird']['www_connection_timeout']):
-            #connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
-        #if gConfig['webgis']['anti_bird'].has_key('www_network_timeout') and len(gConfig['webgis']['anti_bird']['www_network_timeout']):
-            #network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
-        #client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-        #url = URL(href) 
-        #g = gevent.spawn(client.get, url.request_uri)
-        #g.join()
-        #response = g.value
-        #if response and response.status_code == 200:
-            #ret = response.read()
-        #else:
-            #msg = ''
-            #if response:
-                #msg = response.status_code
-            #print('httpget error:%d' % msg)
-        #return ret
-        
-    
-    
-    def get_latest_records(imei, records_num=1):
-        ret = []
-        href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
-        status, header, objstr = anti_bird_proxy(href)
-        if len(objstr)>0:
-            try:
-                obj = json.loads(objstr)
-                if isinstance(obj, dict) :
-                    if obj.has_key('result'):
-                        print('get_latest_records error:%s' % obj['result'])
-                    else:
-                        if obj.has_key('_id'):
-                            ret = [obj, ]
-                        else:
-                            print('get_latest_records error: unknown error')
-                            ret = []
-                elif isinstance(obj, list) :
-                    ret = obj
-            except:
-                e = sys.exc_info()[1]
-                if hasattr(e, 'message'):
-                    print('send_to_client error:%s' % e.message)
-                else:
-                    print('send_to_client error:%s' % str(e))
-        for i in ret:
-            idx = ret.index(i)
-            if i.has_key('_id'):
-                href = '/proxy/debug/getImageId/%s' %  i['_id']
-                status, header, s = anti_bird_proxy(href)
-                obj = json.loads(s)
-                if isinstance(obj, dict) :
-                    if obj.has_key('ids'):
-                        if not i.has_key('picture'):
-                            i['picture'] = []
-                        for j in obj['ids']:
-                            i['picture'].append('/proxy/debug/getImage/%s' % j)
-            ret[idx] = i    
-        return ret
         
     def send_to_client(packets):
         for imei in packets:
             try:
-                l = get_latest_records(imei)
+                l = anti_bird_get_latest_records(imei)
                 if len(l)>0:
                     for k in gWebSocketsMap.keys():
                         ws = gWebSocketsMap[k]
