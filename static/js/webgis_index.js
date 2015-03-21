@@ -1760,15 +1760,51 @@ function InitAntiBird(viewer)
 {
 	GetAntiBirdEquipListData(viewer);
 	InitAntiBirdWebsocket(viewer);
+	InitAntiBirdTool(viewer);
 }
+function AntiBirdBadgeMessageArrival(message)
+{
+	if($.webgis.data.antibird.unread_msg_queue === undefined)
+	{
+		$.webgis.data.antibird.unread_msg_queue = [];
+	}
+}
+function AntiBirdBadgeDecrease(content)
+{
+	$("#button_anti_bird").empty();
+	$("#button_anti_bird").iosbadge({ theme: 'green', size: 20, content:content });
+}
+function AntiBirdBadgeIncrease(content)
+{
+	$("#button_anti_bird").show();
+	$("#button_anti_bird").empty();
+	$("#button_anti_bird").iosbadge({ theme: 'green', size: 20, content:content });
+	//theme:red,blue,green,grey,ios
+	//size: `20`, `22`, `24`, `26`, `28`, `30`, `32`, `34` and `36`
+	//effect:shake, bounce
+	$( "#button_anti_bird" ).effect( 'bounce', {}, 500 );
+}
+function InitAntiBirdTool(viewer)
+{
+	$("#button_anti_bird").hide();
+}
+
 function GetAntiBirdEquipListData(viewer)
 {
 	var url = '/anti_bird_equip_list';
+	ShowProgressBar(true, 670, 200, '加载中', '正在加载驱鸟设备信息，请稍候...');
 	$.get(url, {is_filter_used:true}, function( data1 ){
-		//
-		//if(data.redirect) return;
+		ShowProgressBar(false);
 		ret = JSON.parse(decodeURIComponent(data1));
-		$.webgis.websocket.antibird.anti_bird_equip_list = ret;
+		$.webgis.data.antibird.anti_bird_equip_list = ret;
+		url = '/anti_bird_equip_tower_mapping';
+		ShowProgressBar(true, 670, 200, '加载中', '正在加载驱鸟设备与杆塔绑定信息，请稍候...');
+		$.get(url, {}, function( data1 ){
+			ShowProgressBar(false);
+			ret = JSON.parse(decodeURIComponent(data1));
+			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
+			console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
+		}, 'text');
 	}, 'text');
 }
 function InitAntiBirdWebsocket(viewer)
@@ -3068,8 +3104,7 @@ function GetCheckedBoxList(prefix)
 }
 function InitSearchBox(viewer)
 {
-	//$('#control_search').css( 'display','none');
-	$('#control_search').css( 'z-index','9');
+	//$('#control_search').css( 'z-index','9');
 	$('#button_search_clear').on( 'click', function(){
 		var v = $('#input_search').val();
 		//console.log(v);
@@ -6686,7 +6721,7 @@ function DestroyFileUploader(div_id)
 
 function BuildAntiBirdImageSlide(data1)
 {
-	$('#div_container_anti_bird_info_pics' ).empty();
+	$('#div_anti_bird_info_pics' ).empty();
 	var img_data = [];
 	if(data1.length == 0)
 	{
@@ -6694,11 +6729,13 @@ function BuildAntiBirdImageSlide(data1)
 		s += '<div style="text-align: center;vertical-align: middle;line-height: 400px;">';
 		s += '	无照片';
 		s += '</div>';
-		$('#div_container_anti_bird_info_pics').html(s);
+		$('#div_anti_bird_info_pics').html(s);
 		return;
 	}
+	var idx = 1;
 	for (var i in data1)
 	{
+		var localtime = moment(data1[i].time).local().format('YYYY-MM-DD HH:mm:ss');
 		for (var j in data1[i].picture)
 		{
 			var pic_url = data1[i].picture[j];
@@ -6707,13 +6744,14 @@ function BuildAntiBirdImageSlide(data1)
 				_id: data1[i]._id + '_' + j, 
 				img:pic_url , 
 				full:pic_url , 
-				caption: '日期:' + data1[i].time.substr(0,19) + ' 环境温度:' + data1[i].envTemp + '摄氏度',
-				filename:data1[i].imei + '_' + j + '_' + data1[i].time.substr(0,19) + '.jpg',
+				caption: '第' + idx + '张 拍摄日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃',
+				filename:data1[i].imei + '_' + j + '_' + localtime + '.jpg',
 				data:data1[i],
 				mimetype:'image/jpeg',
-				description:'日期:' + data1[i].time.substr(0,19) + ' 环境温度:' + data1[i].envTemp + '摄氏度'
+				description:'日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '摄氏度'
 			};
 			img_data.push(item);
+			idx += 1;
 		}
 	}
 	
@@ -6744,6 +6782,7 @@ function BuildAntiBirdImageSlide(data1)
 		hash:true,
 		data:img_data
 	};
+	$('#div_anti_bird_info_pics' ).append('<div id="div_container_anti_bird_info_pics"></div>');
 	var $fotoramaAntiBirdPicsDiv = $('#div_container_anti_bird_info_pics' ).fotorama(options);
 	$.webgis.control.image_slider_anti_bird_pics = $fotoramaAntiBirdPicsDiv.data('fotorama');
 }	
@@ -6753,6 +6792,26 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 	var title = '';
 	title = imei;
 	var buttons = [];
+	buttons.push({	
+		text: "定位到驱鸟器", 
+		click: function(){
+			ShowProgressBar(true, 670, 200, '查询中', '正在查询杆塔绑定数据，请稍候...');
+			var url = '/anti_bird_equip_tower_mapping';
+			$.get(url, {imei:imei}, function( data1 ){
+				ShowProgressBar(false);
+				if($.isEmptyObject(data1))
+				{
+					if($.webgis.websocket.antibird.latest_records[imei])
+					{
+						console.log('no tower binding found, ');
+					}
+				}else if(data1[imei])
+				{
+					console.log('ower binding found:' + data1[imei]);
+				}
+			}, 'json');
+		}
+	});
 	buttons.push({	
 		text: "关闭", 
 		click: function(){ 
@@ -6773,7 +6832,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		close: function(event, ui){
 			delete $.webgis.control.image_slider_anti_bird_pics;
 			$.webgis.control.image_slider_anti_bird_pics = undefined;
-			$('#div_container_anti_bird_info_pics' ).empty();
+			$('#div_anti_bird_info_pics' ).empty();
 		},
 		show: {
 			effect: "slide",
@@ -6802,6 +6861,11 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 	//console.log(url);
 	ShowProgressBar(true, 670, 200, '载入中', '正在载入最新' + records_num + '张图片数据，请稍候...');
 	$.get(url, {is_filter_used:true}, function( data1 ){
+		if($.webgis.websocket.antibird.latest_records === undefined)
+		{
+			$.webgis.websocket.antibird.latest_records = {};
+		}
+		$.webgis.websocket.antibird.latest_records[imei] = data1;
 		ShowProgressBar(false);
 		BuildAntiBirdImageSlide(data1);
 	}, 'json');
@@ -7115,7 +7179,7 @@ function ShowTowerInfoDialog(viewer, tower)
 		],
 		isMultiSelect: false,
 		isShowCheckBox: false,
-		width: 500,
+		width: 530,
 		height:150,
 		onSelected:function(idx, name, obj){
 			if(obj)
@@ -7220,7 +7284,7 @@ function UpdateBaseFields6(enable_imei_select)
 			{
 				//$.webgis.form_fields.base_flds_6[i].type = 'select';
 				//$.webgis.form_fields.base_flds_6[i].editor = {};
-				ret[i].editor.data = $.webgis.websocket.antibird.anti_bird_equip_list;
+				ret[i].editor.data = $.webgis.data.antibird.anti_bird_equip_list;
 				//$.webgis.form_fields.base_flds_6[i].validate = {required:true};
 			}else
 			{

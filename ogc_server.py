@@ -5299,8 +5299,9 @@ def application_webgis(environ, start_response):
                 'webgis'
                 )
             for i in l:
-                for j in i['metals']:
-                    ret[j['imei']] = i['_id']
+                for j in i['properties']['metals']:
+                    if j['type'] == u'超声波驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
+                        ret[j['imei']] = i['_id']
             
         ret = json.dumps(ret, ensure_ascii=True, indent=4)
         return  '200 OK', {}, ret
@@ -5830,12 +5831,14 @@ def tcp_recv(sock=None, interval=0.01):
     def send_to_client(packets):
         for imei in packets:
             try:
-                l = anti_bird_get_latest_records(imei)
-                if len(l)>0:
-                    for k in gWebSocketsMap.keys():
-                        ws = gWebSocketsMap[k]
-                        if not ws.closed:
-                            ws.send(json.dumps(l, ensure_ascii=True, indent=4))
+                #l = anti_bird_get_latest_records(imei)
+                obj = {'imei':imei}
+                #if len(l)>0:
+                for k in gWebSocketsMap.keys():
+                    ws = gWebSocketsMap[k]
+                    if not ws.closed:
+                        #ws.send(json.dumps(l, ensure_ascii=True, indent=4))
+                        ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
             except:
                 e = sys.exc_info()[1]
                 if hasattr(e, 'message'):

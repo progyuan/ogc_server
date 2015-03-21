@@ -1002,4 +1002,24 @@ input[type="button"].btn-block {
 	width:250px;
 }
 
+#button_anti_bird{
+	opacity:0.6;
+    position: absolute;
+    bottom: 20px;
+    right: 10px;
+    width: 54px;
+	height:54px;
+	border:0px solid #00FF00;
+	background:#FFFFFF url(/img/anti_bird_icon.png)  center;
+	background-size:54px 54px;
+	border-radius: 12px;
+}
+#button_anti_bird:hover {
+    background-color: #FFFF00;
+	border:3px solid #FFFF00;
+}
+#button_anti_bird:active {
+    background-color: #00FF00;
+	border:3px solid #00FF00;
+}
 

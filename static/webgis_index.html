@@ -28,6 +28,7 @@
 	<link rel="stylesheet" href="css/kmgd-icon.css" />
 	<link rel="stylesheet" href="css/fotorama.css" />
 	<link rel="stylesheet" href="css/multiple-select.css" />
+	<link rel="stylesheet" href="css/iosbadge.css" />
     <script type="text/javascript" src="js/jquery/jquery-2.1.0.min.js"></script>
     <!--<script type="text/javascript" src="js/jquery/jquery-1.11.1.min.js"></script>-->
     <!--<script type="text/javascript" src="js/CesiumUnminified/Cesium.js"></script>-->
@@ -48,7 +49,7 @@
     <script type="text/javascript" src="js/jquery/jquery.validate.js"></script>
     <script type="text/javascript" src="js/jquery/jquery.metadata.js"></script>
     <script type="text/javascript" src="js/jquery/messages_cn.js"></script>
-    <!--<script type="text/javascript" src="js/ligerui.all.js"></script>-->
+    <script type="text/javascript" src="js/moment-with-locales.min.js"></script>
     <script type="text/javascript" src="js/ligerui.min.js"></script>
     <script type="text/javascript" src="js/MathLib.min.js"></script>
     <script type="text/javascript" src="js/tinycolor-min.js"></script>
@@ -60,8 +61,7 @@
 	<script type="text/javascript" src="js/jquery/jquery.tooltipster.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.jgrowl.js"></script>
 	<script type="text/javascript" src="js/jquery/jquery.multiple.select.js"></script>
-	<!--<script type="text/javascript" src="js/highcharts.js"></script>-->
-	<!--<script type="text/javascript" src="js/webgis.js"></script>-->
+	<script type="text/javascript" src="js/iosbadge.min.js"></script>
 	<script type="text/javascript" src="js/spectrum.js"></script>
     <script type="text/javascript" src="js/catenary.js"></script>
     <script type="text/javascript" src="js/polyk.js"></script>
@@ -88,6 +88,10 @@
 
 <div id="cesiumContainer" class="fullSize" ></div>
 <div id="lnglat_indicator" class="kmgd-lnglat-indicator"></div>
+
+<div id="control_anti_bird" >
+	<div id="button_anti_bird" ></div>
+</div>
 
 <div id="control_search" >
 	<div id="button_search" ></div>
@@ -308,7 +312,7 @@
 			<li><a href="#anti_bird_info_chart">统计图表</a></li>
 		</ul>
 		<div id="anti_bird_info_pics">
-			<div id="div_container_anti_bird_info_pics">
+			<div id="div_anti_bird_info_pics">
 			</div>
 		</div>
 		<div id="anti_bird_info_chart">
