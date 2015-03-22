@@ -5093,17 +5093,6 @@ def anti_bird_proxy(path_info):
         pass
     return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], connection_timeout, network_timeout)
 
-def anti_bird_get_latest_records_by_imei(environ):
-    querydict = get_querydict_by_GET_POST(environ)
-    ret = []
-    if querydict.has_key('imei'):
-        records_num = 1
-        try:
-            records_num = int(querydict['records_num'])
-        except:
-            pass
-        ret = anti_bird_get_latest_records(querydict['imei'], records_num)
-    return  '200 OK', {}, json.dumps(ret, ensure_ascii=True, indent=4)
 
 def anti_bird_get_latest_records(imei, records_num=1):
     ret = []
@@ -5217,6 +5206,17 @@ def application_webgis(environ, start_response):
             ret = []
         return ret
     
+    def anti_bird_get_latest_records_by_imei(environ):
+        querydict = get_querydict_by_GET_POST(environ)
+        ret = []
+        if querydict.has_key('imei'):
+            records_num = 1
+            try:
+                records_num = int(querydict['records_num'])
+            except:
+                pass
+            ret = anti_bird_get_latest_records(querydict['imei'], records_num)
+        return  '200 OK', {}, json.dumps(ret, ensure_ascii=True, indent=4)
     
     
     def anti_bird_equip_list(environ):
@@ -5281,7 +5281,12 @@ def application_webgis(environ, start_response):
                 'webgis'
                 )
             if len(l)>0:
-                ret[querydict['imei']] = l[0]['_id']
+                obj = {}
+                obj['tower_id'] = l[0]['_id']
+                obj['name'] = l[0]['properties']['name']
+                obj['lng'] = l[0]['geometry']['coordinates'][0]
+                obj['lat'] = l[0]['geometry']['coordinates'][1]
+                ret[querydict['imei']] = obj
         else:
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
@@ -5301,7 +5306,12 @@ def application_webgis(environ, start_response):
             for i in l:
                 for j in i['properties']['metals']:
                     if j['type'] == u'超声波驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
-                        ret[j['imei']] = i['_id']
+                        obj = {}
+                        obj['tower_id'] = i['_id']
+                        obj['name'] = i['properties']['name']
+                        obj['lng'] = i['geometry']['coordinates'][0]
+                        obj['lat'] = i['geometry']['coordinates'][1]
+                        ret[j['imei']] = obj
             
         ret = json.dumps(ret, ensure_ascii=True, indent=4)
         return  '200 OK', {}, ret

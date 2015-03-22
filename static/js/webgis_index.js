@@ -782,6 +782,11 @@ function InitKeyboardEvent(viewer)
 			
 		});
 	}
+	$(document).on('click', function(e){
+		if( e.target.id != 'anti_bird_msg_list_container' && e.target.id != 'button_anti_bird' && e.target.id != 'anti_bird_msg_list_filter') {
+			$("#anti_bird_msg_list_container").hide('slide', {direction:'right'}, 500);
+		}
+	});
 	
 	$(document).on('keyup', function(e){
 		if(e.keyCode == 76)//ctrl(17) L(76)
@@ -1758,9 +1763,84 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 
 function InitAntiBird(viewer)
 {
-	GetAntiBirdEquipListData(viewer);
+	InitAntiBirdEquipListData(viewer);
 	InitAntiBirdWebsocket(viewer);
 	InitAntiBirdTool(viewer);
+}
+
+function AntiBirdBadgeMessageListReload(data, filter)
+{
+	$('#anti_bird_msg_list_list').empty();
+	$("#anti_bird_msg_list_list").append('<ul></ul>');
+	var i;
+	for(i = data.length - 1; i>-1; i--)
+	{
+		var item = data[i];
+		//var liprefix = '<li id="' + item.uid + '@' + item.imei + '" class="ui-widget-content"><a id="anti_bird_msg_item_link_@' + item.imei + '" href="javascript:void(0);" class="anti-bird-msg-list-item">';
+		var liprefix = '<li id="' + item.uid + '@' + item.imei + '" class="ui-widget-content"><a  href="javascript:void(0);" class="anti-bird-msg-list-item">';
+		//var lipostfix = '</a><a id="anti_bird_msg_item_clear_@' + item.uid + '" href="javascript:void(0);" class="anti-bird-msg-list-item" style="float:right;">清除</a></li>';
+		var lipostfix = '</a></li>';
+		if(item.name)
+		{
+			if(filter && filter.length>0)
+			{
+				if(item.name.indexOf(filter)>-1 || item.imei.indexOf(filter)>-1)
+				{
+					//$('#anti_bird_msg_list_list ul').append(liprefix + item.imei + '(' + item.name + ')' + lipostfix);
+					$('#anti_bird_msg_list_list ul').append(liprefix +  '(' + item.name + ')' + lipostfix);
+				}
+			}else
+			{
+				//$('#anti_bird_msg_list_list ul').append(liprefix + item.imei + '(' + item.name + ')' + lipostfix);
+				$('#anti_bird_msg_list_list ul').append(liprefix +  '(' + item.name + ')' + lipostfix);
+			}
+		}else
+		{
+			if(filter && filter.length>0)
+			{
+				if(item.imei.indexOf(filter)>-1)
+				{
+					$('#anti_bird_msg_list_list ul').append(liprefix + item.imei  + lipostfix);
+				}
+			}else
+			{
+				$('#anti_bird_msg_list_list ul').append(liprefix + item.imei  + lipostfix);
+			}
+		}
+	}
+	
+	$("#anti_bird_msg_list_list ul").selectable({
+		selected: function( event, ui ) {
+			if($(ui.selected).attr('id'))
+			{
+				var arr = $(ui.selected).attr('id').split('@');
+				//console.log(arr);
+				ShowAntiBirdInfoDialog($.webgis.viewer, arr[1], 10);
+			}
+		},
+		//selecting: function( event, ui ) {
+			//if( $(".ui-selected, .ui-selecting").length > 1){
+                  //$(ui.selecting).removeClass("ui-selecting");
+                  //$(ui.selecting).removeClass("ui-selected");
+            //}
+		//},
+		create:function( event, ui ) {
+			////console.log($('a[id^=anti_bird_msg_item_link_]').length);
+			//$('a[id^=anti_bird_msg_item_link_]').off();
+			//$('a[id^=anti_bird_msg_item_clear_]').off();
+			//$('a[id^=anti_bird_msg_item_link_]').on('click', function(){
+				//var id = $(this).attr('id');
+				//var imei = id.substr(id.indexOf('@') + 1);
+				//console.log('href=' + imei);
+			//});
+			//$('a[id^=anti_bird_msg_item_clear_]').on('click', function(){
+				//var id = $(this).attr('id');
+				//var uid = id.substr(id.indexOf('@') + 1);
+				//console.log('clear=' + uid);
+			//});
+		}
+	});	
+	
 }
 function AntiBirdBadgeMessageArrival(message)
 {
@@ -1768,17 +1848,34 @@ function AntiBirdBadgeMessageArrival(message)
 	{
 		$.webgis.data.antibird.unread_msg_queue = [];
 	}
+	var obj = {};
+	if(message.imei)
+	{
+		if($.webgis.data.antibird.anti_bird_equip_tower_mapping === undefined)
+		{
+			$.webgis.data.antibird.anti_bird_equip_tower_mapping = {};
+		}
+		if($.webgis.data.antibird.anti_bird_equip_tower_mapping[message.imei])
+		{
+			obj = $.extend(true, {}, $.webgis.data.antibird.anti_bird_equip_tower_mapping[message.imei]);
+		}
+		obj.imei = message.imei;
+		obj.uid = $.uuid();
+		$.webgis.data.antibird.unread_msg_queue.push(obj);
+		AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
+		AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
+	}
 }
 function AntiBirdBadgeDecrease(content)
 {
-	$("#button_anti_bird").empty();
+	//$("#button_anti_bird").empty();
 	$("#button_anti_bird").iosbadge({ theme: 'green', size: 20, content:content });
 }
 function AntiBirdBadgeIncrease(content)
 {
 	$("#button_anti_bird").show();
-	$("#button_anti_bird").empty();
-	$("#button_anti_bird").iosbadge({ theme: 'green', size: 20, content:content });
+	//$("#button_anti_bird").empty();
+	$("#button_anti_bird").iosbadge({ theme: 'green', size: 28, content:content });
 	//theme:red,blue,green,grey,ios
 	//size: `20`, `22`, `24`, `26`, `28`, `30`, `32`, `34` and `36`
 	//effect:shake, bounce
@@ -1787,9 +1884,38 @@ function AntiBirdBadgeIncrease(content)
 function InitAntiBirdTool(viewer)
 {
 	$("#button_anti_bird").hide();
+	$("#anti_bird_msg_list_container").hide();
+	$("#button_anti_bird").on('click', function(){
+		if($("#anti_bird_msg_list_container").css('display') === 'none')
+		{
+			$("#anti_bird_msg_list_container").show('slide', {direction:'right'}, 500, function(){
+				try{
+					$('#button_anti_bird_msg_list_clear').button('destroy');
+				}catch(e)
+				{
+					//console.log(e);
+				}
+				$('#button_anti_bird_msg_list_clear').button({label:'全部清除'});
+				$('#button_anti_bird_msg_list_clear').on('click', function(){
+					$.webgis.data.antibird.unread_msg_queue = [];
+					$("#anti_bird_msg_list_container").hide('slide', {direction:'right'}, 500, function(){
+						$("#button_anti_bird").hide();
+					});
+				});
+			});
+		}else
+		{
+			$("#anti_bird_msg_list_container").hide('slide', {direction:'right'}, 500, function(){
+			});
+		}
+	});
+	$('#anti_bird_msg_list_filter').on('keyup', function(e){
+		var text = $(e.target).val();
+		AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, text);
+	});
 }
 
-function GetAntiBirdEquipListData(viewer)
+function InitAntiBirdEquipListData(viewer)
 {
 	var url = '/anti_bird_equip_list';
 	ShowProgressBar(true, 670, 200, '加载中', '正在加载驱鸟设备信息，请稍候...');
@@ -1803,6 +1929,7 @@ function GetAntiBirdEquipListData(viewer)
 			ShowProgressBar(false);
 			ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
+			//$.webgis.data.geojsons
 			console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
 		}, 'text');
 	}, 'text');
@@ -1846,6 +1973,7 @@ function InitAntiBirdWebsocket(viewer)
 					else
 					{
 						console.log(data1);
+						AntiBirdBadgeMessageArrival(data1);
 						$.webgis.websocket.antibird.websocket.send('');
 					}
 				}
@@ -6307,11 +6435,13 @@ function SaveTower(viewer)
 			//$.webgis.select.selected_geojson['properties']['denomi_height'] = GetDenomiHeightByModelCode($.webgis.select.selected_geojson['properties']['model']['model_code_height']);
 		//}
 		var items = $("#listbox_tower_info_metal").ligerListBox().getSelectedItems();
-		//console.log(items);
-		var formdata = $('#form_tower_info_metal').webgisform('getdata');
-		//console.log(formdata);
-		var idx = items[0].idx - 1;
-		$.webgis.select.selected_geojson.properties.metals[idx] = formdata;
+		if(items && items[0])
+		{
+			var formdata = $('#form_tower_info_metal').webgisform('getdata');
+			//console.log(formdata);
+			var idx = items[0].idx - 1;
+			$.webgis.select.selected_geojson.properties.metals[idx] = formdata;
+		}
 		//console.log($.webgis.select.selected_geojson.properties);
 		//if(true) return;
 		SavePoi($.webgis.select.selected_geojson, function(data1){
@@ -6789,27 +6919,46 @@ function BuildAntiBirdImageSlide(data1)
 
 function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 {
-	var title = '';
-	title = imei;
+	var title = imei;
+	
+	if($.webgis.data.antibird.anti_bird_equip_tower_mapping === undefined)
+	{
+		$.webgis.data.antibird.anti_bird_equip_tower_mapping = {};
+	}
+	if($.webgis.data.antibird.anti_bird_equip_tower_mapping[imei])
+	{
+		title = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].name;
+	}
+	
+	
 	var buttons = [];
 	buttons.push({	
 		text: "定位到驱鸟器", 
 		click: function(){
-			ShowProgressBar(true, 670, 200, '查询中', '正在查询杆塔绑定数据，请稍候...');
-			var url = '/anti_bird_equip_tower_mapping';
-			$.get(url, {imei:imei}, function( data1 ){
-				ShowProgressBar(false);
-				if($.isEmptyObject(data1))
-				{
-					if($.webgis.websocket.antibird.latest_records[imei])
+		
+			if($.webgis.data.antibird.anti_bird_equip_tower_mapping[imei])
+			{
+				var lng = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lng;
+				var lat = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lat;
+				FlyToPoint(viewer, lng, lat, 2000, 1.05, 4000);
+			}else
+			{
+				ShowProgressBar(true, 670, 200, '查询中', '正在查询驱鸟器GPS数据，请稍候...');
+				var url = '/anti_bird_get_latest_records_by_imei';
+				$.get(url, {imei:imei}, function( data1 ){
+					ShowProgressBar(false);
+					if(data1.length>0)
 					{
-						console.log('no tower binding found, ');
+						var lng = data1[0].location.longitude;
+						var lat = data1[0].location.latitude;
+						if(lng>0 && lat>0)
+						{
+							FlyToPoint(viewer, lng, lat, 2000, 1.05, 4000);
+						}
 					}
-				}else if(data1[imei])
-				{
-					console.log('ower binding found:' + data1[imei]);
-				}
-			}, 'json');
+					console.log( data1);
+				}, 'json');
+			}
 		}
 	});
 	buttons.push({	

@@ -1005,7 +1005,7 @@ input[type="button"].btn-block {
 #button_anti_bird{
 	opacity:0.6;
     position: absolute;
-    bottom: 20px;
+    bottom: 26px;
     right: 10px;
     width: 54px;
 	height:54px;
@@ -1018,8 +1018,43 @@ input[type="button"].btn-block {
     background-color: #FFFF00;
 	border:3px solid #FFFF00;
 }
+
 #button_anti_bird:active {
     background-color: #00FF00;
 	border:3px solid #00FF00;
 }
 
+
+
+#anti_bird_msg_list_container{
+	opacity:0.6;
+    position: absolute;
+    bottom: 20px;
+    right: 64px;
+    width: 200px;
+	height:400px;
+	border:1px solid #00FF00;
+    background-color: #000000;
+}
+#anti_bird_msg_list_filter{
+	margin:6px;
+	width:190px;
+}
+#anti_bird_msg_list_list{
+	height:350px;
+	overflow-y:auto;
+	margin:6px;
+}
+#button_anti_bird_msg_list_clear{
+    position: absolute;
+	margin:6px;
+	/*border:1px solid red;*/
+    bottom: 10px;
+}
+
+.anti-bird-msg-list-item{
+    background-color: #000000;
+}
+.anti-bird-msg-list-item:hover{
+    background-color: #008800;
+}
