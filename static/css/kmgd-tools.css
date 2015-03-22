@@ -1005,7 +1005,7 @@ input[type="button"].btn-block {
 #button_anti_bird{
 	opacity:0.6;
     position: absolute;
-    bottom: 26px;
+    bottom: 10px;
     right: 10px;
     width: 54px;
 	height:54px;
@@ -1029,7 +1029,7 @@ input[type="button"].btn-block {
 #anti_bird_msg_list_container{
 	opacity:0.6;
     position: absolute;
-    bottom: 20px;
+    bottom: 10px;
     right: 64px;
     width: 200px;
 	height:400px;
@@ -1041,14 +1041,13 @@ input[type="button"].btn-block {
 	width:190px;
 }
 #anti_bird_msg_list_list{
-	height:350px;
+	height:300px;
 	overflow-y:auto;
 	margin:6px;
 }
 #button_anti_bird_msg_list_clear{
     position: absolute;
 	margin:6px;
-	/*border:1px solid red;*/
     bottom: 10px;
 }
 

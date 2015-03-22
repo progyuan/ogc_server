@@ -646,8 +646,7 @@ function InitCesiumViewer()
 	var viewer;
 	
 	viewer = new Cesium.Viewer('cesiumContainer',{
-	//var func = WebGISViewerConstructor();
-	//viewer = new func('cesiumContainer',{
+		fullscreenButton:false,
 		showRenderLoopErrors:false,
 		scene3DOnly:true,
 		animation:false,
@@ -666,11 +665,6 @@ function InitCesiumViewer()
 	TowerInfoMixin(viewer);
 	return viewer;
 }
-
-
-
-
-
 
 
 
@@ -1817,28 +1811,13 @@ function AntiBirdBadgeMessageListReload(data, filter)
 				//console.log(arr);
 				ShowAntiBirdInfoDialog($.webgis.viewer, arr[1], 10);
 			}
-		},
+		}
 		//selecting: function( event, ui ) {
 			//if( $(".ui-selected, .ui-selecting").length > 1){
                   //$(ui.selecting).removeClass("ui-selecting");
                   //$(ui.selecting).removeClass("ui-selected");
             //}
 		//},
-		create:function( event, ui ) {
-			////console.log($('a[id^=anti_bird_msg_item_link_]').length);
-			//$('a[id^=anti_bird_msg_item_link_]').off();
-			//$('a[id^=anti_bird_msg_item_clear_]').off();
-			//$('a[id^=anti_bird_msg_item_link_]').on('click', function(){
-				//var id = $(this).attr('id');
-				//var imei = id.substr(id.indexOf('@') + 1);
-				//console.log('href=' + imei);
-			//});
-			//$('a[id^=anti_bird_msg_item_clear_]').on('click', function(){
-				//var id = $(this).attr('id');
-				//var uid = id.substr(id.indexOf('@') + 1);
-				//console.log('clear=' + uid);
-			//});
-		}
 	});	
 	
 }
@@ -1869,15 +1848,16 @@ function AntiBirdBadgeMessageArrival(message)
 function AntiBirdBadgeDecrease(content)
 {
 	//$("#button_anti_bird").empty();
-	$("#button_anti_bird").iosbadge({ theme: 'green', size: 20, content:content });
+	$("#button_anti_bird").iosbadge({ theme: 'green', size: 28, position:'bottom-right', content:content });
 }
 function AntiBirdBadgeIncrease(content)
 {
 	$("#button_anti_bird").show();
 	//$("#button_anti_bird").empty();
-	$("#button_anti_bird").iosbadge({ theme: 'green', size: 28, content:content });
 	//theme:red,blue,green,grey,ios
 	//size: `20`, `22`, `24`, `26`, `28`, `30`, `32`, `34` and `36`
+	//position: `'top-left'`, `'top-right'`, `'bottom-left'` or `'bottom-right'`
+	$("#button_anti_bird").iosbadge({ theme: 'green', size: 28, position:'bottom-right',content:content });
 	//effect:shake, bounce
 	$( "#button_anti_bird" ).effect( 'bounce', {}, 500 );
 }
@@ -1913,6 +1893,13 @@ function InitAntiBirdTool(viewer)
 		var text = $(e.target).val();
 		AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, text);
 	});
+	//if(true)
+	//{
+		//$("#button_anti_bird").show();
+		//$("#anti_bird_msg_list_container").show();
+		//$('#button_anti_bird_msg_list_clear').button({label:'全部清除'});
+		//AntiBirdBadgeMessageListReload([{imei:1},{imei:2},{imei:3},{imei:4},{imei:5},{imei:6},{imei:7},{imei:8},{imei:9},{imei:10},{imei:11},{imei:12},{imei:13},{imei:14},{imei:15},{imei:16}], '');
+	//}
 }
 
 function InitAntiBirdEquipListData(viewer)
@@ -1929,8 +1916,7 @@ function InitAntiBirdEquipListData(viewer)
 			ShowProgressBar(false);
 			ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
-			//$.webgis.data.geojsons
-			console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
+			//console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
 		}, 'text');
 	}, 'text');
 }
@@ -6940,7 +6926,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 			{
 				var lng = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lng;
 				var lat = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lat;
-				FlyToPoint(viewer, lng, lat, 2000, 1.05, 4000);
+				FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
 			}else
 			{
 				ShowProgressBar(true, 670, 200, '查询中', '正在查询驱鸟器GPS数据，请稍候...');
@@ -6953,10 +6939,10 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 						var lat = data1[0].location.latitude;
 						if(lng>0 && lat>0)
 						{
-							FlyToPoint(viewer, lng, lat, 2000, 1.05, 4000);
+							FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
 						}
 					}
-					console.log( data1);
+					//console.log( data1);
 				}, 'json');
 			}
 		}
