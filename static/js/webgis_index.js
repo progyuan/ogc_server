@@ -7459,7 +7459,13 @@ function ShowTowerInfoDialog(viewer, tower)
 				}
 				if(o['type'] == '超声波驱鸟装置')
 				{
-					var metal = tower['properties']['metals'][o['idx']-1];
+					var metal = {};
+					if(tower['properties']['metals'] === undefined || tower['properties']['metals'].length == 0)
+					{
+					}else
+					{
+						metal = tower['properties']['metals'][o['idx']-1];
+					}
 					var enable_imei_select = true;
 					if(metal && metal.imei && metal.imei.length>0)
 					{
@@ -8824,7 +8830,10 @@ function DeleteMetal()
 					if($.webgis.select.selected_metal_item )
 					{
 						var o = $.webgis.select.selected_metal_item;
+						//console.log(o);
+						//console.log($.webgis.select.selected_geojson['properties']['metals']);
 						$.webgis.select.selected_geojson['properties']['metals'].splice(o['idx']-1, 1);
+						//console.log($.webgis.select.selected_geojson['properties']['metals']);
 					}
 					var data = [];
 					var idx = 1;
@@ -8839,6 +8848,14 @@ function DeleteMetal()
 					}
 					$.webgis.select.selected_metal_item = undefined;
 					$("#listbox_tower_info_metal").ligerListBox().setData(data);
+					if(data.length === 0)
+					{
+						//console.log(data);
+						var items = $("#listbox_tower_info_metal").ligerListBox().getSelectedItems();
+						//console.log(items);
+						$("#listbox_tower_info_metal").ligerListBox().removeItems(items);
+					}
+					
 				},
 				function () {
 					$('#form_tower_info_metal').empty();
