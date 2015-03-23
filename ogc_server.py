@@ -1127,7 +1127,7 @@ def handle_tiles(environ):
     headers = {}    
     #path_info = environ['PATH_INFO']
     #d = cgi.parse(None, environ)
-    querydict = get_querydict_by_GET_POST(environ)
+    querydict, buf = get_querydict_by_GET_POST(environ)
     ret = None
     mimetype = 'image/png'
     image_type = None
@@ -1169,7 +1169,7 @@ def handle_terrain(environ):
     global gConfig, gTileCache
     path_info = environ['PATH_INFO']
     #d = cgi.parse(None, environ)
-    querydict = get_querydict_by_GET_POST(environ)
+    querydict, buf = get_querydict_by_GET_POST(environ)
     ret = None
     headers = {}
     mimetype = str('application/octet-stream')
@@ -1392,15 +1392,7 @@ def handle_get_method(environ):
     global gConfig
     ret = {}
     s = ''
-    querydict = {}
-    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
-        querystring = environ['QUERY_STRING']
-        querystring = urllib.unquote_plus(querystring)
-        querydict = urlparse.parse_qs(dec(querystring))
-        d = {}
-        for k in querydict.keys():
-            d[k] = querydict[k][0]
-        querydict = d
+    querydict, buf = get_querydict_by_GET_POST(environ)
     
     isgrid = False
     area = ''
@@ -1786,16 +1778,7 @@ def handle_post_method(environ):
     global ENCODING
     global gRequest
     
-    
-    querydict = {}
-    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
-        querystring = environ['QUERY_STRING']
-        querystring = urllib.unquote_plus(querystring)
-        querydict = urlparse.parse_qs(dec(querystring))
-        d = {}
-        for k in querydict.keys():
-            d[k] = querydict[k][0]
-        querydict = d
+    querydict, buf = get_querydict_by_GET_POST(environ)
     ret = {}
     is_upload = False
     is_mongo = False
@@ -1804,22 +1787,12 @@ def handle_post_method(environ):
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     
-    try:
-        buf = environ['wsgi.input'].read()
-        ds_plus = urllib.unquote_plus(buf)
-        obj = json.loads(dec(ds_plus))
-        if isinstance(obj, dict):
-            for k in obj.keys():
-                querydict[k] = obj[k]
-    except:
-        if len(querydict.keys())>0:
-            try:
-                is_upload = handle_upload_file(environ, querydict, buf)
-                ret['result'] = ''
-            except:
-                ret['result'] = sys.exc_info()[1]
-        querydict = {}
-
+    if buf is not None:
+        try:
+            is_upload = handle_upload_file(environ, querydict, buf)
+        except:
+            pass
+    
                 
     if querydict.has_key('db') and querydict.has_key('collection'):
         is_mongo = True
@@ -2761,6 +2734,7 @@ def handle_alipay_error_notify_url(environ):
     
 def get_querydict_by_GET_POST(environ):
     querydict = {}
+    buf = None
     if environ.has_key('QUERY_STRING'):
         querystring = environ['QUERY_STRING']
         querystring = urllib.unquote_plus(querystring)
@@ -2778,7 +2752,7 @@ def get_querydict_by_GET_POST(environ):
             querydict[k] = obj[k]
     except:
         pass
-    return querydict
+    return querydict, buf
     
 def handle_combiz_platform(environ):
     global ENCODING
@@ -2991,7 +2965,7 @@ def handle_combiz_platform(environ):
     body = ''
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
-    querydict = get_querydict_by_GET_POST(environ)
+    querydict, buf = get_querydict_by_GET_POST(environ)
     endpoint = ''
     try:
         endpoint, args = urls.match()
@@ -3708,7 +3682,7 @@ def handle_chat_platform(environ, session):
     body = ''
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
-    querydict = get_querydict_by_GET_POST(environ)
+    querydict, buf = get_querydict_by_GET_POST(environ)
     endpoint = ''
     try:
         endpoint, args = urls.match()
@@ -4263,7 +4237,7 @@ def handle_authorize_platform(environ, session):
     body = ''
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
-    querydict = get_querydict_by_GET_POST(environ)
+    querydict, buf = get_querydict_by_GET_POST(environ)
     endpoint = ''
     try:
         endpoint, args = urls.match()
@@ -5118,19 +5092,13 @@ def anti_bird_get_latest_records(imei, records_num=1):
                 print('anti_bird_get_latest_records error:%s' % e.message)
             else:
                 print('anti_bird_get_latest_records error:%s' % str(e))
-    for i in ret:
-        idx = ret.index(i)
-        if i.has_key('_id'):
-            href = '/proxy/debug/getImageId/%s' %  i['_id']
-            status, header, s = anti_bird_proxy(href)
-            obj = json.loads(s)
-            if isinstance(obj, dict) :
-                if obj.has_key('ids'):
-                    if not i.has_key('picture'):
-                        i['picture'] = []
-                    for j in obj['ids']:
-                        i['picture'].append('/proxy/debug/getImage/%s' % j)
-        ret[idx] = i    
+    for item in ret:
+        idx = ret.index(item)
+        if item.has_key('picture') and isinstance(item['picture'], list):
+            for i in item['picture']:
+                idx1 = item['picture'].index(i)
+                item['picture'][idx1] = '/proxy/api/image/%s' % i
+        ret[idx] = item    
     return ret
     
 def application_webgis(environ, start_response):
@@ -5207,7 +5175,7 @@ def application_webgis(environ, start_response):
         return ret
     
     def anti_bird_get_latest_records_by_imei(environ):
-        querydict = get_querydict_by_GET_POST(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
         ret = []
         if querydict.has_key('imei'):
             records_num = 1
@@ -5222,7 +5190,7 @@ def application_webgis(environ, start_response):
     def anti_bird_equip_list(environ):
         ret = ''
         is_filter_used=False
-        querydict = get_querydict_by_GET_POST(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
         if querydict.has_key('is_filter_used') and querydict['is_filter_used'].lower() == 'true':
             is_filter_used = True
         equip_list = init_anti_bird_list()
@@ -5261,7 +5229,7 @@ def application_webgis(environ, start_response):
         return  '200 OK', {}, ret
     
     def anti_bird_equip_tower_mapping(environ):
-        querydict = get_querydict_by_GET_POST(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
         ret = {}
         if querydict.has_key('imei'):
             l = db_util.mongo_find(
@@ -5867,7 +5835,7 @@ def tcp_recv(sock=None, interval=0.01):
             sock.recv_into(buf)
             recvstr += buf.strip().decode("utf-8")
             if len(recvstr)>0:
-                #print(recvstr)
+                print(recvstr)
                 packets, recvstr = get_packets(recvstr)
                 send_to_client(packets)
         except:
@@ -5898,7 +5866,8 @@ def tcp_recv(sock=None, interval=0.01):
                 else:
                     message = str(e1)
                 print('connecting anti-bird server fail:%s' %  message)
-        gevent.sleep(interval)
+        #gevent.sleep(interval)
+        gevent.sleep(0)
 
     
 def cycles_task():

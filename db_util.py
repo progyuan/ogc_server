@@ -7246,7 +7246,6 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret = []
                     if isinstance(data, list):
                         for i in data:
-                            #i['type'] = 'Feature'
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
                                 if i['properties']['webgis_type'] == 'polygon_buffer':
                                     z_aware = False
@@ -7254,7 +7253,6 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             _id = db[collection_name].save(i)
                             ids.append(str(_id))
                     if isinstance(data, dict):
-                        #data['type'] = 'Feature'
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
                             if data['properties']['webgis_type'] == 'polygon_buffer':
                                 z_aware = False

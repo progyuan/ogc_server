@@ -1809,7 +1809,7 @@ function AntiBirdBadgeMessageListReload(data, filter)
 			{
 				var arr = $(ui.selected).attr('id').split('@');
 				//console.log(arr);
-				ShowAntiBirdInfoDialog($.webgis.viewer, arr[1], 10);
+				ShowAntiBirdInfoDialog($.webgis.viewer, arr[1], 200);
 			}
 		}
 		//selecting: function( event, ui ) {
@@ -5102,6 +5102,7 @@ function TowerInfoMixin(viewer)
 		{
 			viewer.selectedEntity = selectedEntity;
 		}
+		//console.log(selectedEntity);
 		OnSelect(viewer, e, selectedEntity);
 	}
 
@@ -6264,7 +6265,10 @@ function DrawSegmentsByTower(viewer, tower)
 
 function CheckTowerInfoModified()
 {
-	return true;
+	if(true)
+	{
+		return true;
+	}
 	var idobj = $('#form_tower_info_base').webgisform('get','id');
 	if(idobj === undefined)
 	{
@@ -6301,7 +6305,6 @@ function CheckTowerInfoModified()
 					//return true;
 				//}
 			//}
-			
 		}
 	}
 	return false;
@@ -6412,9 +6415,29 @@ function SaveTower(viewer)
 			|| k === 'lat'
 			|| k === 'model_code'
 			){
-				continue;
+				if(k === 'alt')
+				{
+					$.webgis.select.selected_geojson.geometry.coordinates[2] = parseInt(data[k]);
+				}
+				else if(k === 'lng')
+				{
+					$.webgis.select.selected_geojson.geometry.coordinates[0] = parseFloat(data[k]);
+				}
+				else if(k === 'lat')
+				{
+					$.webgis.select.selected_geojson.geometry.coordinates[1] = parseFloat(data[k]);
+				}
+				else
+				{
+					continue;
+				}
 			}
-			$.webgis.select.selected_geojson['properties'][k] = data[k];
+			if($.webgis.select.selected_geojson['properties'][k] === undefined)
+			{}
+			else
+			{
+				$.webgis.select.selected_geojson['properties'][k] = data[k];
+			}
 		}
 		//if($.webgis.select.selected_geojson['properties']['model'])
 		//{
@@ -6426,9 +6449,12 @@ function SaveTower(viewer)
 			var formdata = $('#form_tower_info_metal').webgisform('getdata');
 			//console.log(formdata);
 			var idx = items[0].idx - 1;
-			$.webgis.select.selected_geojson.properties.metals[idx] = formdata;
+			if($.webgis.select.selected_geojson.properties.metals && $.webgis.select.selected_geojson.properties.metals.length>idx)
+			{
+				$.webgis.select.selected_geojson.properties.metals[idx] = formdata;
+			}
 		}
-		//console.log($.webgis.select.selected_geojson.properties);
+		//console.log($.webgis.select.selected_geojson);
 		//if(true) return;
 		SavePoi($.webgis.select.selected_geojson, function(data1){
 			//console.log(data1);
@@ -6440,6 +6466,7 @@ function SaveTower(viewer)
 				}
 				$.webgis.control.drawhelper.clearPrimitive();
 				$('#dlg_tower_info').dialog( "close" );
+				ClearSelectEntity();
 				for(var i in data1)
 				{
 					var geojson = data1[i];
@@ -6855,16 +6882,18 @@ function BuildAntiBirdImageSlide(data1)
 		for (var j in data1[i].picture)
 		{
 			var pic_url = data1[i].picture[j];
+			var thumb_url = pic_url + '/thumbnail';
 			var item = { 
 				id: data1[i]._id + '_' + j, 
 				_id: data1[i]._id + '_' + j, 
 				img:pic_url , 
 				full:pic_url , 
+				thumb:thumb_url, 
 				caption: '第' + idx + '张 拍摄日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃',
 				filename:data1[i].imei + '_' + j + '_' + localtime + '.jpg',
 				data:data1[i],
 				mimetype:'image/jpeg',
-				description:'日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '摄氏度'
+				description:'日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃'
 			};
 			img_data.push(item);
 			idx += 1;
@@ -6876,14 +6905,14 @@ function BuildAntiBirdImageSlide(data1)
 		width: 550,
 		height:400,
 		margin:0,
-		nav:'false',//dots, thumbs
-		//navposition:'bottom',
-		//thumbwidth:64,
-		//thumbheight:64,
-		//thumbmargin:0,
-		//thumbborderwidth:0,
+		nav:'thumbs',//dots, thumbs, false
+		navposition:'bottom',
+		thumbwidth:64,
+		thumbheight:64,
+		thumbmargin:0,
+		thumbborderwidth:0,
 		fit:'scaledown', //contain, cover, scaledown, none
-		//thumbfit:'scaledown', //contain, cover, scaledown, none
+		thumbfit:'scaledown', //contain, cover, scaledown, none
 		transition:'slide', //slide, crossfade, dissolve
 		clicktransition:'slide',
 		transitionduration:200,
@@ -7038,11 +7067,12 @@ function ShowTowerInfoDialog(viewer, tower)
 					
 					if(selectedEntity)
 					{
-						var vm = viewer.homeButton.viewModel;
-						vm.command();
-						var pos = viewer.scene.globe.ellipsoid.cartesianToCartographic(selectedEntity.position._value);
-						if(pos.height === 0.0) pos.height = 2000;
-						FlyToPoint(viewer, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
+						viewer.trackedEntity = undefined;
+						//var vm = viewer.homeButton.viewModel;
+						//vm.command();
+						//var pos = viewer.scene.globe.ellipsoid.cartesianToCartographic(selectedEntity.position._value);
+						//if(pos.height === 0.0) pos.height = 2000;
+						//FlyToPoint(viewer, Cesium.Math.toDegrees(pos.longitude) , Cesium.Math.toDegrees(pos.latitude), pos.height, 2.8, 1);
 					}
 				}
 			}
@@ -7096,7 +7126,9 @@ function ShowTowerInfoDialog(viewer, tower)
 		position:{at: "right center"},
 		title:title,
 		close: function(event, ui){
+			$('#form_tower_info_metal').empty();
 			DestroyFileUploader('tower_info_photo');
+			
 		},
 		show: {
 			effect: "slide",
@@ -7115,6 +7147,7 @@ function ShowTowerInfoDialog(viewer, tower)
 		collapsible: false,
 		active: 0,
 		beforeActivate: function( event, ui ) {
+			$('#form_tower_info_metal').empty();
 			var title = ui.newTab.context.innerText;
 			if(title == '杆塔模型')
 			{
@@ -7417,10 +7450,11 @@ function UpdateBaseFields6(enable_imei_select)
 			if(fld.editor && fld.editor.filter === true) filter = true;
 			if(enable_imei_select)
 			{
-				//$.webgis.form_fields.base_flds_6[i].type = 'select';
-				//$.webgis.form_fields.base_flds_6[i].editor = {};
 				ret[i].editor.data = $.webgis.data.antibird.anti_bird_equip_list;
-				//$.webgis.form_fields.base_flds_6[i].validate = {required:true};
+				ret[i].change = function(selval){
+					var idx = $.webgis.select.selected_metal_item.idx - 1;
+					$.webgis.select.selected_geojson['properties']['metals'][idx]['imei'] = selval;
+				};
 			}else
 			{
 				ret[i].type = 'text';
@@ -8156,8 +8190,9 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 									data['geometry'] = {type:t, coordinates:GetGeojsonFromPosition(ellipsoid, position, t)};
 								}
 								SavePoi(data, function(data1){
-									//console.log(data1);
+									ClearSelectEntity();
 									that.dialog( "close" );
+									
 									if(id === undefined)
 									{
 										$.webgis.control.drawhelper.clearPrimitive();
@@ -8284,6 +8319,15 @@ function ShowPoiInfoDialog(viewer, title, type, position, id)
 			}
 		}
 	});
+}
+
+function ClearSelectEntity()
+{
+	$.webgis.viewer.trackedEntity = undefined;
+	$.webgis.viewer.selectedEntity = undefined;
+	delete $.webgis.select.selected_geojson;
+	$.webgis.select.selected_geojson = undefined;
+	$.webgis.select.selected_obj = undefined;
 }
 
 function AddToCzml(ellipsoid, type, positions)
@@ -8682,7 +8726,21 @@ function AddMetal(e)
 		}
 		if(e.text == '超声波驱鸟装置')
 		{
-			//o['imei'] = '';
+			o['imei'] = '';
+			var get_model = function(){
+				var ret = '';
+				for(var i in $.webgis.form_fields.base_flds_6)
+				{
+					var item = $.webgis.form_fields.base_flds_6[i];
+					if(item.id === 'model')
+					{
+						ret = item.defaultvalue;
+						break;
+					}
+				}
+				return ret;
+			};
+			o['model'] = get_model();
 		}
 		if($.webgis.select.selected_geojson['properties']['metals'] === undefined)
 		{
@@ -8702,7 +8760,7 @@ function AddMetal(e)
 		}
 		$.webgis.select.selected_metal_item = undefined;
 		$("#listbox_tower_info_metal").ligerListBox().setData(data);
-		
+		$('#form_tower_info_metal').empty();
 	}
 }
 
@@ -8714,8 +8772,9 @@ function DeleteMetal()
 		{
 			ShowConfirm(null, 500, 200,
 				'删除确认',
-				'确认删除该金具/附件并保存吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+				'确认删除该金具/附件吗? 删除后还需点击“保存”按钮以便所有人都能看到修改的结果。',
 				function () {
+					$('#form_tower_info_metal').empty();
 					if($.webgis.select.selected_metal_item )
 					{
 						var o = $.webgis.select.selected_metal_item;
@@ -8736,6 +8795,7 @@ function DeleteMetal()
 					$("#listbox_tower_info_metal").ligerListBox().setData(data);
 				},
 				function () {
+					$('#form_tower_info_metal').empty();
 				}
 			);
 		}

@@ -122,19 +122,19 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(event.currentTarget )
 			{
+				if(!$.webgis.config.zaware) height = 0;
+				lng = event.currentTarget.value;
 				if($.webgis.data.gltf_models[id])
 				{
-					if(!$.webgis.config.zaware) height = 0;
-					lng = event.currentTarget.value;
 					PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
 					if(tower)
 					{
 						RemoveSegmentsTower(viewer, tower);
 						DrawSegmentsByTower(viewer, tower);
-						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				RePositionPoint(viewer, id, lng, lat, height, rotate);
 				if($.webgis.selected_geojson)
 				{
 					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -151,12 +151,13 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+			if(!$.webgis.config.zaware) height = 0;
+			lng = ui.value;
 			if($.webgis.data.gltf_models[id])
 			{
-				if(!$.webgis.config.zaware) height = 0;
-				lng = ui.value;
 				PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 			}
+			RePositionPoint(viewer, id, lng, lat, height, rotate);
 			if($.webgis.selected_geojson)
 			{
 				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -175,19 +176,19 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(event.currentTarget)
 			{
+				if(!$.webgis.config.zaware) height = 0;
+				lat = event.currentTarget.value;
 				if( $.webgis.data.gltf_models[id])
 				{
-					if(!$.webgis.config.zaware) height = 0;
-					lat = event.currentTarget.value;
 					PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
 					if(tower)
 					{
 						RemoveSegmentsTower(viewer, tower);
 						DrawSegmentsByTower(viewer, tower);
-						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				RePositionPoint(viewer, id, lng, lat, height, rotate);
 				if($.webgis.selected_geojson)
 				{
 					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -204,12 +205,13 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+			if(!$.webgis.config.zaware) height = 0;
+			lat = ui.value;
 			if($.webgis.data.gltf_models[id])
 			{
-				if(!$.webgis.config.zaware) height = 0;
-				lat = ui.value;
 				PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 			}
+			RePositionPoint(viewer, id, lng, lat, height, rotate);
 			if($.webgis.selected_geojson)
 			{
 				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -228,19 +230,19 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 					lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+				height = event.currentTarget.value;
 				if(!$.webgis.config.zaware) height = 0;
 				if($.webgis.data.gltf_models[id])
 				{
-					height = event.currentTarget.value;
 					PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
 					if(tower)
 					{
 						RemoveSegmentsTower(viewer, tower);
 						DrawSegmentsByTower(viewer, tower);
-						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				RePositionPoint(viewer, id, lng, lat, height, rotate);
 				if($.webgis.selected_geojson)
 				{
 					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -257,12 +259,13 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				lat = $('#form_tower_info_base').webgisform('get','lat').val(),
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
+			height = ui.value;
 			if(!$.webgis.config.zaware) height = 0;
 			if($.webgis.data.gltf_models[id]) 
 			{
-				height = ui.value;
 				PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);	
 			}
+			RePositionPoint(viewer, id, lng, lat, height, rotate);
 			if($.webgis.selected_geojson)
 			{
 				$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -284,18 +287,18 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 					height = $('#form_tower_info_base').webgisform('get','alt').val(),
 					rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 				if(!$.webgis.config.zaware) height = 0;
+				rotate = event.currentTarget.value;
 				if($.webgis.data.gltf_models[id])
 				{
-					rotate = event.currentTarget.value;
 					PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);
 					var tower = GetTowerInfoByTowerId(id);
 					if(tower)
 					{
 						RemoveSegmentsTower(viewer, tower);
 						DrawSegmentsByTower(viewer, tower);
-						RePositionPoint(viewer, id, lng, lat, height, rotate);
 					}
 				}
+				RePositionPoint(viewer, id, lng, lat, height, rotate);
 				if($.webgis.selected_geojson)
 				{
 					$.webgis.selected_geojson = UpdateGeojsonPos($.webgis.selected_geojson, lng, lat, height, rotate);
@@ -313,10 +316,9 @@ $.webgis.form_fields.tower_baseinfo_fields = [
 				height = $('#form_tower_info_base').webgisform('get','alt').val(),
 				rotate = $('#form_tower_info_base').webgisform('get','rotate').val();
 			if(!$.webgis.config.zaware) height = 0;
+			rotate = ui.value;
 			if($.webgis.data.gltf_models[id]) 
 			{
-				rotate = ui.value;
-				//RePositionPoint(viewer, id, lng, lat, height, rotate);
 				PositionModel(ellipsoid, $.webgis.data.gltf_models[id], lng, lat, height, rotate);	
 			}
 			if($.webgis.selected_geojson)
