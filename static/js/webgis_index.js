@@ -6955,23 +6955,69 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 			{
 				var lng = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lng;
 				var lat = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].lat;
-				FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
+				ShowProgressBar(true, 670, 200, '查询中', '正在查询该驱鸟器所在杆塔数据，请稍候...');
+				var tower_id = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].tower_id;
+				var cond = {'db':$.webgis.db.db_name, 'collection':'features', '_id':tower_id};
+				MongoFind(cond, function(data1){
+					ShowProgressBar(false);
+					//console.log( data1);
+					//console.log(typeof data1);
+					if(data1 instanceof Array)
+					{
+						if(data1.length>0)
+						{
+							$.webgis.data.geojsons[tower_id] = data1[0];
+							$.webgis.data.czmls[tower_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[tower_id]);
+							ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
+							FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
+						}
+					}
+					if(data1 instanceof Object)
+					{
+						if(data1.result)
+						{
+							$.jGrowl("查询失败:" + data1.result, { 
+								life: 2000,
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+						}
+					}
+				});
 			}else
 			{
 				ShowProgressBar(true, 670, 200, '查询中', '正在查询驱鸟器GPS数据，请稍候...');
 				var url = '/anti_bird_get_latest_records_by_imei';
 				$.get(url, {imei:imei}, function( data1 ){
 					ShowProgressBar(false);
-					if(data1.length>0)
+					//console.log( data1);
+					//console.log(typeof data1);
+					if(data1 instanceof Array)
 					{
-						var lng = data1[0].location.longitude;
-						var lat = data1[0].location.latitude;
-						if(lng>0 && lat>0)
+						if(data1.length>0)
 						{
-							FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
+							var lng = data1[0].location.longitude;
+							var lat = data1[0].location.latitude;
+							if(lng>0 && lat>0)
+							{
+								FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
+							}
 						}
 					}
-					//console.log( data1);
+					if(data1 instanceof Object)
+					{
+						if(data1.result)
+						{
+							$.jGrowl("查询失败:" + data1.result, { 
+								life: 2000,
+								position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+								theme: 'bubblestylefail',
+								glue:'before'
+							});
+						}
+					}	
+					
 				}, 'json');
 			}
 		}
