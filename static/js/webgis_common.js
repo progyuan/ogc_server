@@ -184,7 +184,6 @@ function InitWebGISFormDefinition()
 					}
 					if(fld.type == 'spinner' && fld.group == group)
 					{
-						
 						//console.log(fldid + ' ' + newlinepara);
 						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px; ">' + fld.display + ':' + '</label><input  style="width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '">' + required + '</' + divorspan + '>');
 						var spin = 	$('#' + fldid).spinner({
@@ -475,6 +474,26 @@ function InitWebGISFormDefinition()
 							$('#' + id).on('click', fld.click);
 						}
 					}
+					
+					if(fld.type == 'slider' && fld.group == group)
+					{
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline 
+						+ '"><label for="' + fldid + '_title_" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px; ">' + fld.display + ':' 
+						+ '</label><label  name="' + fldid + '_title_"></label>' 
+						+ '<div id="' + fldid + '" style="float:right;width:' + fld.width + 'px"></div>'
+						+  '</' + divorspan + '>');
+						var slide = $('#' + fldid).slider({
+							range: true,
+							max:500,
+							min:0,
+							values: [ 75, 300 ],
+						});
+						if(fld.defaultvalue && fld.defaultvalue instanceof Array && fld.defaultvalue.length>1) 
+						{
+							$('#' + fldid).slider( "option", "values",  fld.defaultvalue);
+						}
+					}
+					
 				}
 			}
 			var hide = false;
@@ -682,6 +701,14 @@ function InitWebGISFormDefinition()
 						this.find('#' + prefix + id).multipleSelect("setSelects", data[id]);
 					}
 				}
+				else if(typ === 'slider')
+				{
+					if( data[id] && data[id] instanceof Array)
+					{
+						this.find('#' + prefix + id).slider( "option", "values", data[id] );
+						this.find('label[name=' + prefix + id + '_title_]').html(data[id][0] + ' - ' + data[id][1]);
+					}
+				}
 				else if(data[id])
 				{
 					if(id==='pixel_size' || id==='pixel_width' || id==='label_scale')
@@ -783,6 +810,10 @@ function InitWebGISFormDefinition()
 				else if(typ === 'multiselect')
 				{
 					ret[id] = this.find('#' + prefix + id).multipleSelect("getSelects");
+				}
+				else if(typ === 'slider')
+				{
+					ret[id] = this.find('#' + prefix + id).slider( "option", "values" );
 				}
 				else
 				{
@@ -962,6 +993,7 @@ function ShowProgressBar(show, width, height, title, msg)
 		$('body').append('<div id="dlg_progress_bar"></div>');
 		$('#dlg_progress_bar').append('<div id="div_progress_msg"></div>').html(msg);
 		$('#dlg_progress_bar').append('<div id="div_progress_bar"><span class="progressbartext" style="width:95%;"></span></div>');
+		
 		$('#dlg_progress_bar').dialog({
 			width: width,
 			height: height,

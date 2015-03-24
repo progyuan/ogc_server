@@ -100,6 +100,7 @@ gClusterProcess = {}
 gLoginToken = {}
 gSecurityConfig = {}
 gWebSocketsMap = {}
+gTcpReconnectCounter = 0
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -5273,7 +5274,7 @@ def application_webgis(environ, start_response):
                 )
             for i in l:
                 for j in i['properties']['metals']:
-                    if j['type'] == u'超声波驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
+                    if j.has_key('type') and j['type'] == u'超声波驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
                         obj = {}
                         obj['tower_id'] = i['_id']
                         obj['name'] = i['properties']['name']
@@ -5771,8 +5772,19 @@ def joinedqueue_consumer_chat():
                 gJoinableQueue.task_done()    
     
 
-def tcp_recv(sock=None, interval=0.01):
-    global gConfig, gWebSocketsMap
+def tcp_reconnect_check(interval=1):
+    global gConfig, gTcpReconnectCounter
+    gTcpReconnectCounter = 0
+    tcp_reconnect_threshold = int(gConfig['webgis']['anti_bird']['tcp_reconnect_threshold'])
+    while 1:
+        gTcpReconnectCounter += interval
+        if gTcpReconnectCounter > tcp_reconnect_threshold:
+            gTcpReconnectCounter = 0
+        gevent.sleep(interval)
+        
+    
+def tcp_recv(sock=None):
+    global gConfig, gWebSocketsMap, gTcpReconnectCounter
     def connect():
         tcp_host = gConfig['webgis']['anti_bird']['tcp_host']
         tcp_port = int(gConfig['webgis']['anti_bird']['tcp_port'])
@@ -5823,50 +5835,44 @@ def tcp_recv(sock=None, interval=0.01):
                     print('send_to_client error:%s' % e.message)
                 else:
                     print('send_to_client error:%s' % str(e))
-    
+    def print_exception():
+        e = sys.exc_info()[1]
+        message = ''
+        if hasattr(e, 'strerror'):
+            message = e.strerror
+            if message is None and hasattr(e, 'message'):
+                message = e.message
+        elif hasattr(e, 'message'):
+            message = e.message
+        else:
+            message = str(e)
+        print('connecting anti-bird server fail:%s' %  message)
+        
     MAX_MSGLEN = int(gConfig['webgis']['anti_bird']['max_msg_len'])
+    tcp_reconnect_threshold = int(gConfig['webgis']['anti_bird']['tcp_reconnect_threshold'])
     recvstr = ''
     while 1:
         try:
             if sock is None:
+                sock = connect()
+            if gTcpReconnectCounter > tcp_reconnect_threshold:
+                print('After threshold [%d] seconds with no data received, reconnecting...' % tcp_reconnect_threshold)
+                if not sock.closed:
+                    sock.close()
                 sock = connect()
             
             buf = bytearray(b"\n" * MAX_MSGLEN)
             sock.recv_into(buf)
             recvstr += buf.strip().decode("utf-8")
             if len(recvstr)>0:
-                print(recvstr)
+                gTcpReconnectCounter = 0;
+                print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), recvstr))
                 packets, recvstr = get_packets(recvstr)
                 send_to_client(packets)
         except:
             recvstr = ''
-            e = sys.exc_info()[1]
-            message = ''
-            if hasattr(e, 'strerror'):
-                message = e.strerror
-                if message is None and hasattr(e, 'message'):
-                    message = e.message
-            elif hasattr(e, 'message'):
-                message = e.message
-            else:
-                message = str(e)
-            print('connecting anti-bird server fail:%s' %  message)
-            try:
-                sock = connect()
-            except:
-                recvstr = ''
-                e1 = sys.exc_info()[1]
-                message = ''
-                if hasattr(e1, 'strerror'):
-                    message = e1.strerror
-                    if message is None and hasattr(e1, 'message'):
-                        message = e1.message
-                elif hasattr(e1, 'message'):
-                    message = e1.message
-                else:
-                    message = str(e1)
-                print('connecting anti-bird server fail:%s' %  message)
-        #gevent.sleep(interval)
+            print_exception()
+            sock = None
         gevent.sleep(0)
 
     
@@ -5882,8 +5888,9 @@ def cycles_task():
         if gConfig['webgis']['anti_bird'].has_key('enable_fetch') and gConfig['webgis']['anti_bird']['enable_fetch'].lower() == 'true':
             interval = 0.01
             if gConfig['webgis']['anti_bird'].has_key('cycle_interval'):
-                interval = float(gConfig['webgis']['anti_bird']['cycle_interval'])
-            gevent.spawn(tcp_recv, None,  interval)
+                interval = int(gConfig['webgis']['anti_bird']['cycle_interval'])
+            gevent.spawn(tcp_recv, None)
+            gevent.spawn(tcp_reconnect_check, interval)
     
     
 def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):

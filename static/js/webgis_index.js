@@ -89,7 +89,7 @@ $(function() {
 
 	
 	try{
-		//throw "unsupport_cesium_exception";
+		throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.webgis.viewer = viewer;
@@ -1902,6 +1902,80 @@ function InitAntiBirdTool(viewer)
 	//}
 }
 
+function testheatmap(viewer)
+{
+	var randnum = function(min, max) {
+		return Math.random() * (max - min) + min;
+	}	
+	var randint = function(min, max) {
+		return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
+	var testdata = function(mapping){
+		var ret = [];
+		for(var k in mapping)
+		{
+			var obj = {};
+			obj.radius = 3;
+			obj.intensity = randnum(0.2, 100.0);
+			obj.center = Cesium.Cartographic.fromDegrees(mapping[k].lng, mapping[k].lat, 0);
+			ret.push(obj);
+		}
+		return ret;
+	};
+	var testdata2d = function(mapping){
+		var ret = {};
+		var data = [];
+		for(var k in mapping)
+		{
+			var obj = {};
+			obj.radius = 0.15;
+			obj.value = randnum(0, 20);
+			obj.lng = mapping[k].lng;
+			obj.lat= mapping[k].lat;
+			data.push(obj);
+		}
+		ret.max = data.length;
+		ret.data = data;
+		return ret;
+	};
+	if($.webgis.config.map_backend === 'cesium')
+	{
+		$.webgis.data.heatmap_layers['testheatmap'] = {
+			layer: new HeatMapImageryProvider({
+						name:'testheatmap',
+						viewer:viewer,
+						defaultAlpha:0.3,
+						points:testdata($.webgis.data.antibird.anti_bird_equip_tower_mapping)
+					}),
+			type: 'heatmap'
+		};
+	}
+	if($.webgis.config.map_backend === 'leaflet')
+	{	
+		var cfg = {
+		  // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+		  // if scaleRadius is false it will be the constant radius used in pixels
+		  "radius": 2,
+		  "maxOpacity": 0.6, 
+		  // scales the radius based on map zoom
+		  "scaleRadius": true, 
+		  // if set to false the heatmap uses the global maximum for colorization
+		  // if activated: uses the data maximum within the current map boundaries 
+		  //   (there will always be a red spot with useLocalExtremas true)
+		  "useLocalExtrema": false,
+		  // which field name in your data represents the latitude - default "lat"
+		  latField: 'lat',
+		  // which field name in your data represents the longitude - default "lng"
+		  lngField: 'lng',
+		  // which field name in your data represents the data value - default "value"
+		  valueField: 'value'
+		};
+		$.webgis.data.heatmap_layers['testheatmap']  = new HeatmapOverlay(cfg);
+		viewer.addLayer($.webgis.data.heatmap_layers['testheatmap'], true);
+		$.webgis.data.heatmap_layers['testheatmap'].setData(testdata2d($.webgis.data.antibird.anti_bird_equip_tower_mapping));
+	}
+}
+
 function InitAntiBirdEquipListData(viewer)
 {
 	var url = '/anti_bird_equip_list';
@@ -1917,6 +1991,7 @@ function InitAntiBirdEquipListData(viewer)
 			ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
 			//console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
+			testheatmap(viewer);
 		}, 'text');
 	}, 'text');
 }
@@ -2529,25 +2604,40 @@ function InitToolPanel(viewer)
 	});
 	$('#but_heatmap_clear').button({label:'清除'});
 	$('#but_heatmap_clear').on('click', function(){
-		//for(var k in $.webgis.data.heatmap_layers)
-		while(Object.keys($.webgis.data.heatmap_layers).length>0)
+		if($.webgis.config.map_backend === 'cesium')
 		{
-			k = Object.keys($.webgis.data.heatmap_layers)[0];
-			//console.log(k);
-			var hm = $.webgis.data.heatmap_layers[k];
-			//console.log(hm.type);
-			if(hm.type === 'heatmap')
+			while(Object.keys($.webgis.data.heatmap_layers).length>0)
 			{
-				hm.layer.destroy();
+				k = Object.keys($.webgis.data.heatmap_layers)[0];
+				//console.log(k);
+				var hm = $.webgis.data.heatmap_layers[k];
+				//console.log(hm.type);
+				if(hm.type === 'heatmap')
+				{
+					hm.layer.destroy();
+				}
+				if(hm.type === 'tile')
+				{
+					viewer.scene.imageryLayers.remove(hm.layer, true);
+				}
+				//delete hm;
+				delete $.webgis.data.heatmap_layers[k];
 			}
-			if(hm.type === 'tile')
-			{
-				viewer.scene.imageryLayers.remove(hm.layer, true);
-			}
-			//delete hm;
-			delete $.webgis.data.heatmap_layers[k];
 		}
-		//console.log($.webgis.data.heatmap_layers);
+		if($.webgis.config.map_backend === 'leaflet')
+		{
+			//console.log($.webgis.data.heatmap_layers);
+			while(Object.keys($.webgis.data.heatmap_layers).length>0)
+			{
+				k = Object.keys($.webgis.data.heatmap_layers)[0];
+				var hm = $.webgis.data.heatmap_layers[k];
+				if(viewer.hasLayer(hm))
+				{
+					viewer.removeLayer(hm);
+					delete $.webgis.data.heatmap_layers[k];
+				}
+			}
+		}
 	});
 	
 	
@@ -6944,8 +7034,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 	{
 		title = $.webgis.data.antibird.anti_bird_equip_tower_mapping[imei].name;
 	}
-	
-	
+	title = '驱鸟器信息:' + title;
 	var buttons = [];
 	buttons.push({	
 		text: "定位到驱鸟器", 
@@ -7174,7 +7263,6 @@ function ShowTowerInfoDialog(viewer, tower)
 		close: function(event, ui){
 			$('#form_tower_info_metal').empty();
 			DestroyFileUploader('tower_info_photo');
-			
 		},
 		show: {
 			effect: "slide",
@@ -7380,7 +7468,9 @@ function ShowTowerInfoDialog(viewer, tower)
 		$.webgis.control.contextmenu_metal.show({ top: e.pageY, left: e.pageX });
 		return false;
 	});
-
+	//try{
+		//$("#listbox_tower_info_metal").ligerListBox().clearContent();
+	//}catch(e){}
 	var listbox_tower_info_metal = $("#listbox_tower_info_metal").ligerListBox({
 		data: data,
 		valueField:'idx',
@@ -7477,6 +7567,7 @@ function ShowTowerInfoDialog(viewer, tower)
 					{
 						formdata[k] = metal[k];
 					}
+					formdata['type'] = o['type'];
 				}
 				
 				$('#form_tower_info_metal').webgisform(flds, {
@@ -7493,6 +7584,26 @@ function ShowTowerInfoDialog(viewer, tower)
 function UpdateBaseFields6(enable_imei_select)
 {
 	var ret = $.extend(true, [], $.webgis.form_fields.base_flds_6);
+	
+	var get_flds6_default = function(){
+		var obj = {};
+		obj.type = '超声波驱鸟装置';
+		obj.imei = '';
+		for(var i in $.webgis.form_fields.base_flds_6)
+		{
+			var item = $.webgis.form_fields.base_flds_6[i];
+			if(item.id === 'manufacturer' && item.defaultvalue)
+			{
+				obj.manufacturer = item.defaultvalue;
+			}
+			if(item.id === 'model' && item.defaultvalue)
+			{
+				obj.model = item.defaultvalue;
+			}
+		}
+		return obj;
+	};
+	
 	for(var i in $.webgis.form_fields.base_flds_6)
 	{
 		var fld =  $.webgis.form_fields.base_flds_6[i];
@@ -7505,7 +7616,15 @@ function UpdateBaseFields6(enable_imei_select)
 				ret[i].editor.data = $.webgis.data.antibird.anti_bird_equip_list;
 				ret[i].change = function(selval){
 					var idx = $.webgis.select.selected_metal_item.idx - 1;
-					$.webgis.select.selected_geojson['properties']['metals'][idx]['imei'] = selval;
+					if($.webgis.select.selected_geojson['properties']['metals'] === undefined)
+					{
+						$.webgis.select.selected_geojson['properties']['metals'] = [];
+						$.webgis.select.selected_geojson['properties']['metals'].push(get_flds6_default());
+					}
+					if($.webgis.select.selected_geojson['properties']['metals'].length>idx)
+					{
+						$.webgis.select.selected_geojson['properties']['metals'][idx]['imei'] = selval;
+					}
 				};
 			}else
 			{

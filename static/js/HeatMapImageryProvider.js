@@ -70,8 +70,12 @@ var HeatMapImageryProvider = function(description) {
     }
     this._name = description.name;
     this._viewer = description.viewer;
-    this._tileWidth = 2048;
-    this._tileHeight = 1024;
+    //this._tileWidth = 2048;
+    //this._tileHeight = 1024;
+    //this._tileWidth = 4096;
+    //this._tileHeight = 2048;
+    this._tileWidth = 8192;
+    this._tileHeight = 4096;
     this._defaultAlpha = Cesium.defaultValue(description.defaultAlpha, 0.7);
     this._maximumLevel = 0;
     this._rectangle = Cesium.Rectangle.MAX_VALUE;
@@ -227,6 +231,7 @@ HeatMapImageryProvider.prototype.drawHeatMap = function() {
         {
             var grd = ctx.createRadialGradient(rad, rad, 0, rad, rad, rad);
             grd.addColorStop(0.0, 'rgba(0, 0, 0, ' + intensity + ')');
+            //grd.addColorStop(0.0, 'rgba(255, 255, 255, ' + intensity + ')');
             grd.addColorStop(1.0, 'transparent');
             this.cache[intensity][rad] = grd;
         }
@@ -315,6 +320,9 @@ Cesium.defineProperties(HeatMapImageryProvider.prototype, {
     defaultAlpha : {
         get : function() {
             return this._defaultAlpha;
+        },
+        set : function(_alpha) {
+			this._defaultAlpha = _alpha;
         }
     },
     defaultRadius : {
