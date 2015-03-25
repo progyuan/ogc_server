@@ -1922,6 +1922,21 @@ function testheatmap(viewer)
 		}
 		return ret;
 	};
+	var testdata1 = function(mapping){
+		var ret = [];
+		for(var k in mapping)
+		{
+			var obj = {};
+			obj.radius = 100;
+			obj.intensity = randnum(0, 200);
+			obj.lng = mapping[k].lng;
+			obj.lat = mapping[k].lat;
+			obj.name = mapping[k].name;
+			obj.tower_id = mapping[k].tower_id;
+			ret.push(obj);
+		}
+		return ret;
+	};
 	var testdata2d = function(mapping){
 		var ret = {};
 		var data = [];
@@ -1929,7 +1944,7 @@ function testheatmap(viewer)
 		{
 			var obj = {};
 			obj.radius = 0.15;
-			obj.value = randnum(0, 20);
+			obj.value = randnum(0, 50);
 			obj.lng = mapping[k].lng;
 			obj.lat= mapping[k].lat;
 			data.push(obj);
@@ -1951,6 +1966,7 @@ function testheatmap(viewer)
 					}),
 			type: 'heatmap'
 		};
+		var points = testdata1($.webgis.data.antibird.anti_bird_equip_tower_mapping);
 		DrawHeatMapCircle(viewer, points);
 	}
 	if($.webgis.config.map_backend === 'leaflet')
@@ -2003,20 +2019,21 @@ function DrawHeatMapCircle(viewer, points)
 		var ret = [];
 		for(var k in $.webgis.mapping.heat_map_gradient_stops)
 		{
-			ret.push(parseFloat(k));
+			//ret.push(parseFloat(k));
+			ret.push(k);
 		}
 		ret.sort();
 		return ret;
 	}
 	var get_alpha = function(range, gradient_list, v)
 	{
-		var ret = 0.5;
-		var vv = float(v - range[0])/float(range[1] - range[0]);
+		var ret = '0.5';
+		var vv = (v - range[0])/(range[1] - range[0]);
 		for(var i=1;i< gradient_list.length; i++)
 		{
 			var min = gradient_list[i-1];
 			var max = gradient_list[i];
-			if(vv>=min && vv<=max)
+			if(vv >= parseFloat(min) && vv <= parseFloat(max))
 			{
 				ret = max;
 				break;
@@ -2024,28 +2041,135 @@ function DrawHeatMapCircle(viewer, points)
 		}
 		return ret;
 	};
+	var num_to_color = function(num)
+	{
+		var hexStr = num.toString(16);
+		while (hexStr.length < 6) 
+		{ 
+			hexStr = '0' + hexStr; 
+		}
+		return '#' + hexStr;
+	};
+	var get_gradient_stop = function(range, gradient_list, v)
+	{
+		var ret = [255, 255, 255, 0];
+		var a = get_alpha(range, gradient_list, v);
+		//console.log(a);
+		if($.webgis.mapping.heat_map_gradient_stops[a])
+		{
+			var c = $.webgis.mapping.heat_map_gradient_stops[a];
+			c = num_to_color(c);
+			c = c.substr(0, c.length-2);
+			//console.log(c);
+			var rgba = tinycolor(c).toRgb();
+			rgba.a = Math.floor(parseFloat(a) * 256) -1;
+			ret = [rgba.r, rgba.g, rgba.b, rgba.a];
+			//console.log(ret);
+		}
+		return ret;
+	};
+	var get_gradient_stop1 = function(range, gradient_list, v)
+	{
+		var ret = 'rgba(255, 255, 255, 0)';
+		var a = get_alpha(range, gradient_list, v);
+		//console.log(a);
+		if($.webgis.mapping.heat_map_gradient_stops[a])
+		{
+			var c = $.webgis.mapping.heat_map_gradient_stops[a];
+			c = num_to_color(c);
+			c = c.substr(0, c.length-2);
+			//console.log(c);
+			var rgba = tinycolor(c).toRgb();
+			rgba.a = parseFloat(a) * 0.2;
+			ret = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
+			//console.log(ret);
+		}
+		return ret;
+	};
+	var get_gradient_stop2 = function(range, gradient_list, v)
+	{
+		var ret = 0;
+		var a = get_alpha(range, gradient_list, v);
+		//console.log(a);
+		if($.webgis.mapping.heat_map_gradient_stops[a])
+		{
+			ret = $.webgis.mapping.heat_map_gradient_stops[a];
+		}
+		return ret;
+	};
 	var range = get_max_min(points);
 	var gradient_list = get_gradient_list();
-	var arr = [];
-	var pos;
-	arr.push({"id":"document", "version":"1.0"});
+	//var arr = [];
+	//var pos;
+	//arr.push({"id":"document", "version":"1.0"});
+	//for(var i in points)
+	//{
+		//var point = points[i];
+		//var alpha = point
+		//var cz = {};
+		//cz.id = $.uuid();
+		//cz.tower_id = point.tower_id;
+		//cz.name = point.name;
+		//cz.position = {cartographicDegrees:[point.lng, point.lat, 0]};
+		//cz.point = {};
+		//cz.point.color = {rgba:get_gradient_stop(range, gradient_list, point.intensity)};
+		//cz.point.pixelSize = {number:point.radius};
+		//cz.point.show = {boolean:true};
+		//arr.push(cz);
+	//}
+	//console.log(arr);
+	//var dataSource = new Cesium.CzmlDataSource('heatmap_anti_bird');
+	//viewer.dataSources.add(dataSource);
+	//dataSource.process(arr);
+
+	
+	var ellipsoid = viewer.scene.globe.ellipsoid;
+	var collection = new Cesium.PrimitiveCollection();
 	for(var i in points)
 	{
 		var point = points[i];
-		var alpha = point
-		var cz = {};
-		cz.id = $.uuid();
-		cz.tower_id = point.tower_id;
-		cz.name = point.name;
-		cz.position = {};
-		cz.position.cartographicDegrees = [point.lng, point.lat, 0];
-		cz.point = {};
-		cz.point.color = {};
-		cz.point.color.rgba = [255,0,0,255];
-		cz.point.pixelSize = 3;
-		cz.point.show = true;
+		var rgba = get_gradient_stop1(range, gradient_list, point.intensity);
+		//console.log()
+		//height = 3000;
+		//if(!$.webgis.config.zaware) height = 0;
+		
+		var geometry = new Cesium.CircleGeometry({
+				center : Cesium.Cartesian3.fromDegrees(point.lng, point.lat),
+				radius: point.radius,
+				ellipsoid: ellipsoid,
+				extrudedHeight : point.intensity * 200,
+				vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
+		});
+		var primitive = new Cesium.Primitive({
+			geometryInstances : new Cesium.GeometryInstance({
+				id:	$.uuid(),
+				geometry : geometry,
+				attributes : {
+					color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromCssColorString(rgba))
+				}
+			}),
+			appearance : new Cesium.PerInstanceColorAppearance({
+				flat:true,
+				closed : true,
+				translucent : true,
+				//material : Cesium.Material.fromType('Color', {
+					//color : Cesium.Color.fromCssColorString(rgba)
+				//}),
+				renderState : {
+					depthTest : {
+						enabled : true
+					}
+				}
+			})
+		});
+		collection.add(primitive);
 	}
-	
+	viewer.scene.primitives.add(collection);
+	if($.webgis.data.heatmap_anti_bird_primitive === undefined)
+	{
+		$.webgis.data.heatmap_anti_bird = {};
+	}
+	$.webgis.data.heatmap_anti_bird['heatmap_anti_bird'] = collection;
 }
 
 function InitAntiBirdEquipListData(viewer)
@@ -6029,8 +6153,6 @@ function DrawBufferPolygon(viewer, buf_id, positions, width, height, color, alph
 	//console.log(corridorGeometry);
 	viewer.scene.primitives.add(primitive);
 	$.webgis.data.buffers[buf_id] = primitive;
-	
-	
 }
 
 function GetPositionsByGeojsonCoordinatesArray(ellipsoid, arr, force2d)
