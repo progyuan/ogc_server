@@ -89,7 +89,7 @@ $(function() {
 
 	
 	try{
-		throw "unsupport_cesium_exception";
+		//throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.webgis.viewer = viewer;
@@ -1940,15 +1940,18 @@ function testheatmap(viewer)
 	};
 	if($.webgis.config.map_backend === 'cesium')
 	{
+		var points = testdata($.webgis.data.antibird.anti_bird_equip_tower_mapping);
 		$.webgis.data.heatmap_layers['testheatmap'] = {
 			layer: new HeatMapImageryProvider({
 						name:'testheatmap',
 						viewer:viewer,
 						defaultAlpha:0.3,
-						points:testdata($.webgis.data.antibird.anti_bird_equip_tower_mapping)
+						gradientStops:$.webgis.mapping.heat_map_gradient_stops,
+						points:points
 					}),
 			type: 'heatmap'
 		};
+		DrawHeatMapCircle(viewer, points);
 	}
 	if($.webgis.config.map_backend === 'leaflet')
 	{	
@@ -1976,6 +1979,75 @@ function testheatmap(viewer)
 	}
 }
 
+function DrawHeatMapCircle(viewer, points)
+{
+	var get_max_min = function(points)
+	{
+		var ret = [99999, 0];
+		for(var i in points)
+		{
+			var point = points[i];
+			if(point.intensity > ret[1])
+			{
+				ret[1] = point.intensity;
+			}
+			if(point.intensity < ret[0])
+			{
+				ret[0] = point.intensity;
+			}
+		}
+		return ret;
+	};
+	var get_gradient_list = function()
+	{
+		var ret = [];
+		for(var k in $.webgis.mapping.heat_map_gradient_stops)
+		{
+			ret.push(parseFloat(k));
+		}
+		ret.sort();
+		return ret;
+	}
+	var get_alpha = function(range, gradient_list, v)
+	{
+		var ret = 0.5;
+		var vv = float(v - range[0])/float(range[1] - range[0]);
+		for(var i=1;i< gradient_list.length; i++)
+		{
+			var min = gradient_list[i-1];
+			var max = gradient_list[i];
+			if(vv>=min && vv<=max)
+			{
+				ret = max;
+				break;
+			}
+		}
+		return ret;
+	};
+	var range = get_max_min(points);
+	var gradient_list = get_gradient_list();
+	var arr = [];
+	var pos;
+	arr.push({"id":"document", "version":"1.0"});
+	for(var i in points)
+	{
+		var point = points[i];
+		var alpha = point
+		var cz = {};
+		cz.id = $.uuid();
+		cz.tower_id = point.tower_id;
+		cz.name = point.name;
+		cz.position = {};
+		cz.position.cartographicDegrees = [point.lng, point.lat, 0];
+		cz.point = {};
+		cz.point.color = {};
+		cz.point.color.rgba = [255,0,0,255];
+		cz.point.pixelSize = 3;
+		cz.point.show = true;
+	}
+	
+}
+
 function InitAntiBirdEquipListData(viewer)
 {
 	var url = '/anti_bird_equip_list';
@@ -2000,7 +2072,8 @@ function InitAntiBirdWebsocket(viewer)
 	var wsurl =  $.webgis.websocket.antibird.WS_PROTOCOL + "://" + $.webgis.websocket.antibird.HOST + ":" + $.webgis.websocket.antibird.PORT + "/websocket";
 	if($.webgis.websocket.antibird.websocket === undefined)
 	{
-		$.webgis.websocket.antibird.websocket = new WebSocket(wsurl);
+		//$.webgis.websocket.antibird.websocket = new WebSocket(wsurl);
+		$.webgis.websocket.antibird.websocket = new ReconnectingWebSocket(wsurl, null, {reconnectInterval: 4000});
 	}
 	if($.webgis.websocket.antibird.websocket)
 	{
@@ -7145,6 +7218,25 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		},		
 		buttons:buttons
 	});
+	
+	var flds = [
+		{display: "辨识速度范围", id:"slider_distinguish_speed", newline: true, is_range:true, type: "slider", group:'分布参数', labelwidth:120, width:300, defaultvalue:[1, 99],
+			slide:function(value)
+			{
+				$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:value});
+			}
+		},
+		{display: "生成热图", id: "button_create", newline: true,  type: "button", group:'操作', width:350, defaultvalue:'点击生成热度图', click:function(){
+			var data = $('#form_anti_bird_info_heatmap').webgisform('getdata');
+			AntiBirdHeatmap({speed:data.slider_distinguish_speed});
+		}}
+	];
+	var form = $('#form_anti_bird_info_heatmap').webgisform(flds,
+	{
+		prefix:'form_anti_bird_info_heatmap_',
+		maxwidth:520
+	});
+	$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:[4,60]});
 	$('#tabs_anti_bird_info').tabs({ 
 		collapsible: false,
 		active: 0,
@@ -7168,6 +7260,16 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		ShowProgressBar(false);
 		BuildAntiBirdImageSlide(data1);
 	}, 'json');
+}
+
+
+function AntiBirdHeatmap(dict)
+{
+	if(dict.speed)
+	{
+		console.log(dict.speed);
+
+	}
 }
 
 function ShowTowerInfoDialog(viewer, tower)

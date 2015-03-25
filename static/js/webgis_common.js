@@ -93,6 +93,21 @@ $.webgis.mapping.role_functions = [
 	{value:'buffer_analyze', label:'缓冲区分析'},
 ];
 
+$.webgis.mapping.heat_map_gradient_stops = {
+  '0.00': 0xffffff00,
+  '0.11': 0xaaffaaff, //
+  '0.22': 0x55ff55ff, //
+  '0.33': 0x00ff00ff, //green
+  '0.44': 0x55ff00ff, //
+  '0.55': 0xaaff00ff, //
+  '0.66': 0xffff00ff, //yellow
+  '0.77': 0xffaa00ff,  //
+  '0.88': 0xff5500ff,  //
+  '1.00': 0xff0000ff  //red
+};
+
+
+
 function GetDefaultExtent(db_name)
 {
 	if(db_name == 'kmgd')
@@ -479,18 +494,33 @@ function InitWebGISFormDefinition()
 					{
 						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline 
 						+ '"><label for="' + fldid + '_title_" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px; ">' + fld.display + ':' 
-						+ '</label><label  name="' + fldid + '_title_"></label>' 
-						+ '<div id="' + fldid + '" style="float:right;width:' + fld.width + 'px"></div>'
+						+ '</label><label style="width:' + fld.width/4*1 + 'px"  name="' + fldid + '_title_"></label>' 
+						+ '<div id="' + fldid + '" style="float:right;width:' + fld.width/4*3 + 'px"></div>'
 						+  '</' + divorspan + '>');
+						var isrange = false;
+						if(fld.is_range === true) isrange = true;
 						var slide = $('#' + fldid).slider({
-							range: true,
-							max:500,
+							range: isrange,
+							max:100,
 							min:0,
-							values: [ 75, 300 ],
+							values: [ 0, 100 ],
 						});
 						if(fld.defaultvalue && fld.defaultvalue instanceof Array && fld.defaultvalue.length>1) 
 						{
 							$('#' + fldid).slider( "option", "values",  fld.defaultvalue);
+						}
+						if(fld.slide)
+						{
+							var slide = fld.slide;
+							$('#' + fldid).on( "slide", function( event, ui ) {
+								if(isrange)
+								{
+									slide(ui.values);
+								}
+								else{
+									slide(ui.value);
+								}
+							});
 						}
 					}
 					
@@ -706,7 +736,7 @@ function InitWebGISFormDefinition()
 					if( data[id] && data[id] instanceof Array)
 					{
 						this.find('#' + prefix + id).slider( "option", "values", data[id] );
-						this.find('label[name=' + prefix + id + '_title_]').html(data[id][0] + ' - ' + data[id][1]);
+						this.find('label[name=' + prefix + id + '_title_]').html(data[id][0] + ' - ' + data[id][1] + ' km/h');
 					}
 				}
 				else if(data[id])
