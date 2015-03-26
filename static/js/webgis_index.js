@@ -89,7 +89,7 @@ $(function() {
 
 	
 	try{
-		//throw "unsupport_cesium_exception";
+		throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.webgis.viewer = viewer;
@@ -1758,7 +1758,6 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 function InitAntiBird(viewer)
 {
 	$('#div_anti_bird_inform_icon').hide();
-	$('#button_anti_bird').css('bottom', 10 + 'px').css('right', 10 + 'px');
 	InitAntiBirdEquipListData(viewer);
 	InitAntiBirdWebsocket(viewer);
 	InitAntiBirdTool(viewer);
@@ -1843,16 +1842,23 @@ function AntiBirdBadgeMessageArrival(viewer, message)
 		obj.imei = message.imei;
 		obj.uid = $.uuid();
 		$.webgis.data.antibird.unread_msg_queue.push(obj);
+		$('#button_anti_bird').show();
 		if(obj.lng && obj.lat)
 		{
-			var pos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, Cesium.Cartesian3.fromDegrees(obj.lng, obj.lat));
+			var pos;
+			if($.webgis.config.map_backend === 'cesium')
+			{
+				pos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, Cesium.Cartesian3.fromDegrees(obj.lng, obj.lat));
+			}
+			if($.webgis.config.map_backend === 'leaflet')
+			{
+				pos = viewer.latLngToContainerPoint(L.latLng(obj.lat, obj.lng));
+				//console.log(pos);
+			}
 			var x = Math.floor(pos.x), y = Math.floor(pos.y);
-			//console.log('x=' + x + ',y=' + y);
 			$('#div_anti_bird_inform_icon').css('top', y + 'px').css('left', x + 'px');
-			//$('#div_anti_bird_inform_icon').css('top', y + 'px');
-			//$('#div_anti_bird_inform_icon').css('left', x + 'px');
 			$('#div_anti_bird_inform_icon').show('shake', { percent: 100 }, 400, function(){
-				$( "#div_anti_bird_inform_icon" ).effect( 'transfer', { to: "#button_anti_bird", className: "ui-effects-transfer" }, 1000, function(){
+				$( "#div_anti_bird_inform_icon" ).effect( 'transfer', { to: "#button_anti_bird", className: "ui-effects-transfer" }, 1500, function(){
 					AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
 					AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
 					$('#div_anti_bird_inform_icon').hide();
@@ -1873,8 +1879,6 @@ function AntiBirdBadgeDecrease(content)
 }
 function AntiBirdBadgeIncrease(content)
 {
-	$("#button_anti_bird").show();
-	//$("#button_anti_bird").empty();
 	//theme:red,blue,green,grey,ios
 	//size: `20`, `22`, `24`, `26`, `28`, `30`, `32`, `34` and `36`
 	//position: `'top-left'`, `'top-right'`, `'bottom-left'` or `'bottom-right'`
@@ -2024,7 +2028,24 @@ function DrawHeatMapPixel(viewer, hid, list)
 	var randint = function(min, max) {
 		return Math.floor(Math.random() * (max - min + 1)) + min;
 	}
-	var add_geo_info = function(list, pixelsize){
+	var get_max_min = function(list)
+	{
+		var ret = [99999, 0];
+		for(var i in list)
+		{
+			var item = list[i];
+			if(item.count > ret[1])
+			{
+				ret[1] = item.count;
+			}
+			if(item.count < ret[0])
+			{
+				ret[0] = item.count;
+			}
+		}
+		return ret;
+	};
+	var add_geo_info = function(list, range, pixelsize){
 		var ret = [];
 		for(var i in list)
 		{
@@ -2033,7 +2054,8 @@ function DrawHeatMapPixel(viewer, hid, list)
 			{
 				var o = $.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei];
 				o.radius = pixelsize;
-				o.intensity = item.count;
+				//o.intensity = item.count;
+				o.intensity = (item.count - range[0])/(range[1] - range[0]);
 				o.text = item.text;
 				o.center = Cesium.Cartographic.fromDegrees(o.lng, o.lat, 0);
 				ret.push(o);
@@ -2041,7 +2063,7 @@ function DrawHeatMapPixel(viewer, hid, list)
 		}
 		return ret;
 	};
-	var add_geo_info2d = function(list, radius){
+	var add_geo_info2d = function(list, range, radius){
 		var ret = {};
 		var data = [];
 		for(var i in list)
@@ -2051,7 +2073,8 @@ function DrawHeatMapPixel(viewer, hid, list)
 			{
 				var o = $.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei];
 				o.radius = radius;
-				o.count = item.count;
+				o.intensity = item.count;
+				//o.intensity = (item.count - range[0])/(range[1] - range[0]);
 				o.text = item.text;
 				data.push(o);
 			}
@@ -2060,15 +2083,15 @@ function DrawHeatMapPixel(viewer, hid, list)
 		ret.data = data;
 		return ret;
 	};
-	
+	var range = get_max_min(list);
 	if($.webgis.config.map_backend === 'cesium')
 	{
-		var points = add_geo_info(list, 3);
+		var points = add_geo_info(list, range,  3);
 		if($.webgis.data.heatmap_layers[hid])
 		{
 			$.webgis.data.heatmap_layers[hid].layer.destroy();
 			delete $.webgis.data.heatmap_layers[hid];
-			$.webgis.data.heatmap_layers[hid] = undefined;
+			//$.webgis.data.heatmap_layers[hid] = undefined;
 		}
 		$.webgis.data.heatmap_layers[hid] = {
 			layer: new HeatMapImageryProvider({
@@ -2083,7 +2106,7 @@ function DrawHeatMapPixel(viewer, hid, list)
 	}
 	if($.webgis.config.map_backend === 'leaflet')
 	{	
-		var points = add_geo_info2d(list, 0.15);
+		var points = add_geo_info2d(list, range, 0.1);
 		var cfg = {
 		  // radius should be small ONLY if scaleRadius is true (or small radius is intended)
 		  // if scaleRadius is false it will be the constant radius used in pixels
@@ -2100,14 +2123,14 @@ function DrawHeatMapPixel(viewer, hid, list)
 		  // which field name in your data represents the longitude - default "lng"
 		  lngField: 'lng',
 		  // which field name in your data represents the data value - default "value"
-		  valueField: 'count'
+		  valueField: 'intensity'
 		};
 		
 		if(viewer.hasLayer($.webgis.data.heatmap_layers[hid]))
 		{
 			viewer.removeLayer($.webgis.data.heatmap_layers[hid]);
 			delete $.webgis.data.heatmap_layers[hid];
-			$.webgis.data.heatmap_layers[hid] = undefined;
+			//$.webgis.data.heatmap_layers[hid] = undefined;
 		}
 		$.webgis.data.heatmap_layers[hid]  = new HeatmapOverlay(cfg);
 		viewer.addLayer($.webgis.data.heatmap_layers[hid], true);
@@ -2257,7 +2280,7 @@ function DrawHeatMapCircle(viewer, hid, list, height_magnifier)
 		labels.add({
 			position : pos_label,
 			text : point.name + ' ' + point.text,
-			font : '30px sans-serif',
+			font : 'bold 30px arial,sans-serif',
 			fillColor : Cesium.Color.fromCssColorString(rgba),
 			outlineColor : Cesium.Color.WHITE,
 			style : Cesium.LabelStyle.FILL,
@@ -2302,7 +2325,7 @@ function DrawHeatMapCircle(viewer, hid, list, height_magnifier)
 			viewer.scene.primitives.remove($.webgis.data.heatmap_primitive[hid]);
 		}
 		delete $.webgis.data.heatmap_primitive[hid];
-		$.webgis.data.heatmap_primitive[hid] = undefined;
+		//$.webgis.data.heatmap_primitive[hid] = undefined;
 	}
 	if($.webgis.data.heatmap_primitive[hid + 'label'])
 	{
@@ -2311,7 +2334,7 @@ function DrawHeatMapCircle(viewer, hid, list, height_magnifier)
 			viewer.scene.primitives.remove($.webgis.data.heatmap_primitive[hid + 'label']);
 		}
 		delete $.webgis.data.heatmap_primitive[hid + 'label'];
-		$.webgis.data.heatmap_primitive[hid + 'label'] = undefined;
+		//$.webgis.data.heatmap_primitive[hid + 'label'] = undefined;
 	}
 	viewer.scene.primitives.add(collection);
 	viewer.scene.primitives.add(labels);
@@ -2951,7 +2974,7 @@ function InitToolPanel(viewer)
 		{
 			while(Object.keys($.webgis.data.heatmap_layers).length>0)
 			{
-				k = Object.keys($.webgis.data.heatmap_layers)[0];
+				var k = Object.keys($.webgis.data.heatmap_layers)[0];
 				//console.log(k);
 				var hm = $.webgis.data.heatmap_layers[k];
 				//console.log(hm.type);
@@ -2959,12 +2982,23 @@ function InitToolPanel(viewer)
 				{
 					hm.layer.destroy();
 				}
-				if(hm.type === 'tile')
+				if(hm && hm.type === 'tile')
 				{
 					viewer.scene.imageryLayers.remove(hm.layer, true);
 				}
 				delete $.webgis.data.heatmap_layers[k];
-				$.webgis.data.heatmap_layers[k] = undefined;
+				//$.webgis.data.heatmap_layers[k] = undefined;
+			}
+			while(Object.keys($.webgis.data.heatmap_primitive).length>0)
+			{
+				var k = Object.keys($.webgis.data.heatmap_primitive)[0];
+				//console.log(k);
+				if(viewer.scene.primitives.contains($.webgis.data.heatmap_primitive[k]))
+				{
+					viewer.scene.primitives.remove($.webgis.data.heatmap_primitive[k]);
+				}
+				delete $.webgis.data.heatmap_primitive[k];
+				//$.webgis.data.heatmap_primitive[k] = undefined;
 			}
 		}
 		if($.webgis.config.map_backend === 'leaflet')
@@ -2978,7 +3012,7 @@ function InitToolPanel(viewer)
 				{
 					viewer.removeLayer(hm);
 					delete $.webgis.data.heatmap_layers[k];
-					$.webgis.data.heatmap_layers[k] = undefined;
+					//$.webgis.data.heatmap_layers[k] = undefined;
 				}
 			}
 		}
@@ -3737,7 +3771,43 @@ function InitSearchBox(viewer)
 		},
 		select: function( event, ui ) {
 			//console.log(ui.item);
-			if(ui.item.geojson && ui.item.geojson.geometry)
+			if(ui.item.value === 'anti_bird_towers')
+			{
+				var cond = {'db':$.webgis.db.db_name, 'collection':'features', 'action':'anti_bird_towers'};
+				ShowProgressBar(true, 670, 200, '载入中', '正在载入已安装驱鸟器杆塔数据，请稍候...');
+				MongoFind( cond, 
+					function(data){
+						ShowProgressBar(false);
+						for(var i in data)
+						{
+							var _id = data[i]['_id'];
+							var geojson = data[i];
+							if(!$.webgis.data.geojsons[_id])
+							{
+								$.webgis.data.geojsons[_id] = geojson;
+							}
+							if($.webgis.config.map_backend === 'cesium')
+							{
+								if(!$.webgis.data.czmls[_id])
+								{
+									$.webgis.data.czmls[_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[_id]);
+								}
+							}
+							if($.webgis.config.map_backend === 'leaflet')
+							{
+								//console.log(geojson);
+								$.webgis.control.leaflet_geojson_layer.addData(geojson);
+							}
+						}
+						var extent = GetExtentByCzml();
+						FlyToExtent(viewer, extent['west'], extent['south'], extent['east'], extent['north']);
+						if($.webgis.config.map_backend === 'cesium')
+						{
+							ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
+						}
+				});
+			}
+			else if(ui.item.geojson && ui.item.geojson.geometry)
 			{
 				var center = get_geojson_center(ui.item.geojson);
 				if(center.length === 2)
@@ -3849,6 +3919,12 @@ function BuildSearchItemList(data)
 			name = item.name;
 			pos = undefined;
 			label = name.replace('YN_HEATMAP', '热度图');
+		}
+		if(item.action && item.action === 'anti_bird_towers')
+		{
+			name = 'anti_bird_towers';
+			pos = undefined;
+			label = '安装驱鸟器的杆塔';
 		}
 		return {
 		  label: label,
@@ -4654,10 +4730,10 @@ function LoadTowerByLineName(viewer, db_name,  name,  callback)
 			{
 				var _id = data[i]['_id'];
 				var geojson = data[i];
-				//geojson = AddZValueByCesium(viewer, geojson, $.webgis.config.zaware);
+				
 				if(!$.webgis.data.geojsons[_id])
 				{
-					$.webgis.data.geojsons[_id] = geojson; //AddTerrainZOffset(geojson);
+					$.webgis.data.geojsons[_id] = geojson;
 				}
 				if($.webgis.config.map_backend === 'cesium')
 				{
@@ -7511,7 +7587,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		prefix:'form_anti_bird_info_heatmap_',
 		maxwidth:520
 	});
-	$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:[4,60]});
+	$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:[4,60], start_date:moment().local().format('YYYYMMDD'), end_date:moment().local().format('YYYYMMDD')});
 	$('#tabs_anti_bird_info').tabs({ 
 		collapsible: false,
 		active: 0,

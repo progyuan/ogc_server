@@ -7328,7 +7328,25 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret.extend(get_heatmap_tile_service_list(conditions['py']))
                 if 'heatmap_heatmap' in tyarr : 
                     pass
+                if conditions.has_key('py') and conditions['py'] in [u'qnq', u'驱鸟器']:
+                    ret.append({'action':'anti_bird_towers'})
                 #print(ret)
+            elif action.lower() == 'anti_bird_towers':
+                ret = mongo_find(
+                    gConfig['webgis']['mongodb']['database'],
+                    'features',
+                    #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                    {
+                        "properties.webgis_type":"point_tower",
+                        "properties.metals":{
+                            "$elemMatch":{
+                                "type":u"超声波驱鸟装置",
+                            }
+                        }
+                    },
+                    0,
+                    'webgis'
+                )
             elif action.lower() == 'models_list':
                 p = SERVERGLTFROOT
                 if not os.path.exists(p):
