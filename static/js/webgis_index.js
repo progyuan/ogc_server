@@ -1757,6 +1757,8 @@ cesiumSvgPath: { path: _svgPath, width: 28, height: 28 }');
 
 function InitAntiBird(viewer)
 {
+	$('#div_anti_bird_inform_icon').hide();
+	$('#button_anti_bird').css('bottom', 10 + 'px').css('right', 10 + 'px');
 	InitAntiBirdEquipListData(viewer);
 	InitAntiBirdWebsocket(viewer);
 	InitAntiBirdTool(viewer);
@@ -1821,7 +1823,7 @@ function AntiBirdBadgeMessageListReload(data, filter)
 	});	
 	
 }
-function AntiBirdBadgeMessageArrival(message)
+function AntiBirdBadgeMessageArrival(viewer, message)
 {
 	if($.webgis.data.antibird.unread_msg_queue === undefined)
 	{
@@ -1841,8 +1843,27 @@ function AntiBirdBadgeMessageArrival(message)
 		obj.imei = message.imei;
 		obj.uid = $.uuid();
 		$.webgis.data.antibird.unread_msg_queue.push(obj);
-		AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
-		AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
+		if(obj.lng && obj.lat)
+		{
+			var pos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, Cesium.Cartesian3.fromDegrees(obj.lng, obj.lat));
+			var x = Math.floor(pos.x), y = Math.floor(pos.y);
+			//console.log('x=' + x + ',y=' + y);
+			$('#div_anti_bird_inform_icon').css('top', y + 'px').css('left', x + 'px');
+			//$('#div_anti_bird_inform_icon').css('top', y + 'px');
+			//$('#div_anti_bird_inform_icon').css('left', x + 'px');
+			$('#div_anti_bird_inform_icon').show('shake', { percent: 100 }, 400, function(){
+				$( "#div_anti_bird_inform_icon" ).effect( 'transfer', { to: "#button_anti_bird", className: "ui-effects-transfer" }, 1000, function(){
+					AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
+					AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
+					$('#div_anti_bird_inform_icon').hide();
+				});
+			});
+		}
+		else
+		{
+			AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
+			AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
+		}
 	}
 }
 function AntiBirdBadgeDecrease(content)
@@ -1966,8 +1987,8 @@ function testheatmap(viewer)
 					}),
 			type: 'heatmap'
 		};
-		var points = testdata1($.webgis.data.antibird.anti_bird_equip_tower_mapping);
-		DrawHeatMapCircle(viewer, points);
+		//var points = testdata1($.webgis.data.antibird.anti_bird_equip_tower_mapping);
+		//DrawHeatMapCircle(viewer, points);
 	}
 	if($.webgis.config.map_backend === 'leaflet')
 	{	
@@ -1995,21 +2016,120 @@ function testheatmap(viewer)
 	}
 }
 
-function DrawHeatMapCircle(viewer, points)
+function DrawHeatMapPixel(viewer, hid, list)
 {
-	var get_max_min = function(points)
+	var randnum = function(min, max) {
+		return Math.random() * (max - min) + min;
+	}	
+	var randint = function(min, max) {
+		return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
+	var add_geo_info = function(list, pixelsize){
+		var ret = [];
+		for(var i in list)
+		{
+			var item = list[i];
+			if($.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei])
+			{
+				var o = $.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei];
+				o.radius = pixelsize;
+				o.intensity = item.count;
+				o.text = item.text;
+				o.center = Cesium.Cartographic.fromDegrees(o.lng, o.lat, 0);
+				ret.push(o);
+			}
+		}
+		return ret;
+	};
+	var add_geo_info2d = function(list, radius){
+		var ret = {};
+		var data = [];
+		for(var i in list)
+		{
+			var item = list[i];
+			if($.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei])
+			{
+				var o = $.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei];
+				o.radius = radius;
+				o.count = item.count;
+				o.text = item.text;
+				data.push(o);
+			}
+		}
+		ret.max = data.length;
+		ret.data = data;
+		return ret;
+	};
+	
+	if($.webgis.config.map_backend === 'cesium')
+	{
+		var points = add_geo_info(list, 3);
+		if($.webgis.data.heatmap_layers[hid])
+		{
+			$.webgis.data.heatmap_layers[hid].layer.destroy();
+			delete $.webgis.data.heatmap_layers[hid];
+			$.webgis.data.heatmap_layers[hid] = undefined;
+		}
+		$.webgis.data.heatmap_layers[hid] = {
+			layer: new HeatMapImageryProvider({
+						name:hid,
+						viewer:viewer,
+						defaultAlpha:0.3,
+						gradientStops:$.webgis.mapping.heat_map_gradient_stops,
+						points:points
+					}),
+			type: 'heatmap'
+		};
+	}
+	if($.webgis.config.map_backend === 'leaflet')
+	{	
+		var points = add_geo_info2d(list, 0.15);
+		var cfg = {
+		  // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+		  // if scaleRadius is false it will be the constant radius used in pixels
+		  "radius": 2,
+		  "maxOpacity": 0.6, 
+		  // scales the radius based on map zoom
+		  "scaleRadius": true, 
+		  // if set to false the heatmap uses the global maximum for colorization
+		  // if activated: uses the data maximum within the current map boundaries 
+		  //   (there will always be a red spot with useLocalExtremas true)
+		  "useLocalExtrema": false,
+		  // which field name in your data represents the latitude - default "lat"
+		  latField: 'lat',
+		  // which field name in your data represents the longitude - default "lng"
+		  lngField: 'lng',
+		  // which field name in your data represents the data value - default "value"
+		  valueField: 'count'
+		};
+		
+		if(viewer.hasLayer($.webgis.data.heatmap_layers[hid]))
+		{
+			viewer.removeLayer($.webgis.data.heatmap_layers[hid]);
+			delete $.webgis.data.heatmap_layers[hid];
+			$.webgis.data.heatmap_layers[hid] = undefined;
+		}
+		$.webgis.data.heatmap_layers[hid]  = new HeatmapOverlay(cfg);
+		viewer.addLayer($.webgis.data.heatmap_layers[hid], true);
+		$.webgis.data.heatmap_layers[hid].setData(points);
+	}
+
+}
+function DrawHeatMapCircle(viewer, hid, list, height_magnifier)
+{
+	var get_max_min = function(list)
 	{
 		var ret = [99999, 0];
-		for(var i in points)
+		for(var i in list)
 		{
-			var point = points[i];
-			if(point.intensity > ret[1])
+			var item = list[i];
+			if(item.count > ret[1])
 			{
-				ret[1] = point.intensity;
+				ret[1] = item.count;
 			}
-			if(point.intensity < ret[0])
+			if(item.count < ret[0])
 			{
-				ret[0] = point.intensity;
+				ret[0] = item.count;
 			}
 		}
 		return ret;
@@ -2050,96 +2170,103 @@ function DrawHeatMapCircle(viewer, points)
 		}
 		return '#' + hexStr;
 	};
+	//var get_gradient_stop = function(range, gradient_list, v)
+	//{
+		//var ret = [255, 255, 255, 0];
+		//var a = get_alpha(range, gradient_list, v);
+		////console.log(a);
+		//if($.webgis.mapping.heat_map_gradient_stops[a])
+		//{
+			//var c = $.webgis.mapping.heat_map_gradient_stops[a];
+			//c = num_to_color(c);
+			//c = c.substr(0, c.length-2);
+			////console.log(c);
+			//var rgba = tinycolor(c).toRgb();
+			//rgba.a = Math.floor(parseFloat(a) * 256) -1;
+			//ret = [rgba.r, rgba.g, rgba.b, rgba.a];
+			////console.log(ret);
+		//}
+		//return ret;
+	//};
 	var get_gradient_stop = function(range, gradient_list, v)
-	{
-		var ret = [255, 255, 255, 0];
-		var a = get_alpha(range, gradient_list, v);
-		//console.log(a);
-		if($.webgis.mapping.heat_map_gradient_stops[a])
-		{
-			var c = $.webgis.mapping.heat_map_gradient_stops[a];
-			c = num_to_color(c);
-			c = c.substr(0, c.length-2);
-			//console.log(c);
-			var rgba = tinycolor(c).toRgb();
-			rgba.a = Math.floor(parseFloat(a) * 256) -1;
-			ret = [rgba.r, rgba.g, rgba.b, rgba.a];
-			//console.log(ret);
-		}
-		return ret;
-	};
-	var get_gradient_stop1 = function(range, gradient_list, v)
 	{
 		var ret = 'rgba(255, 255, 255, 0)';
 		var a = get_alpha(range, gradient_list, v);
-		//console.log(a);
 		if($.webgis.mapping.heat_map_gradient_stops[a])
 		{
 			var c = $.webgis.mapping.heat_map_gradient_stops[a];
 			c = num_to_color(c);
 			c = c.substr(0, c.length-2);
-			//console.log(c);
 			var rgba = tinycolor(c).toRgb();
-			rgba.a = parseFloat(a) * 0.2;
+			rgba.a = parseFloat(a) * 0.5;
 			ret = 'rgba(' + rgba.r + ',' + rgba.g + ',' + rgba.b + ',' + rgba.a + ')';
-			//console.log(ret);
 		}
 		return ret;
 	};
-	var get_gradient_stop2 = function(range, gradient_list, v)
-	{
-		var ret = 0;
-		var a = get_alpha(range, gradient_list, v);
-		//console.log(a);
-		if($.webgis.mapping.heat_map_gradient_stops[a])
-		{
-			ret = $.webgis.mapping.heat_map_gradient_stops[a];
-		}
-		return ret;
-	};
-	var range = get_max_min(points);
-	var gradient_list = get_gradient_list();
-	//var arr = [];
-	//var pos;
-	//arr.push({"id":"document", "version":"1.0"});
-	//for(var i in points)
+	//var get_gradient_stop2 = function(range, gradient_list, v)
 	//{
-		//var point = points[i];
-		//var alpha = point
-		//var cz = {};
-		//cz.id = $.uuid();
-		//cz.tower_id = point.tower_id;
-		//cz.name = point.name;
-		//cz.position = {cartographicDegrees:[point.lng, point.lat, 0]};
-		//cz.point = {};
-		//cz.point.color = {rgba:get_gradient_stop(range, gradient_list, point.intensity)};
-		//cz.point.pixelSize = {number:point.radius};
-		//cz.point.show = {boolean:true};
-		//arr.push(cz);
-	//}
-	//console.log(arr);
-	//var dataSource = new Cesium.CzmlDataSource('heatmap_anti_bird');
-	//viewer.dataSources.add(dataSource);
-	//dataSource.process(arr);
-
+		//var ret = 0;
+		//var a = get_alpha(range, gradient_list, v);
+		////console.log(a);
+		//if($.webgis.mapping.heat_map_gradient_stops[a])
+		//{
+			//ret = $.webgis.mapping.heat_map_gradient_stops[a];
+		//}
+		//return ret;
+	//};
 	
+	var add_geo_info = function(list, radius){
+		var ret = [];
+		for(var i in list)
+		{
+			var item = list[i];
+			if($.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei])
+			{
+				var o = $.webgis.data.antibird.anti_bird_equip_tower_mapping[item.imei];
+				o.radius = radius;
+				o.count = item.count;
+				o.text = item.text;
+				ret.push(o);
+			}
+		}
+		return ret;
+	};
+	
+	
+	var range = get_max_min(list);
+	var gradient_list = get_gradient_list();
 	var ellipsoid = viewer.scene.globe.ellipsoid;
 	var collection = new Cesium.PrimitiveCollection();
+	var labels = new Cesium.LabelCollection();
+	var points = add_geo_info(list, 500);
 	for(var i in points)
 	{
 		var point = points[i];
-		var rgba = get_gradient_stop1(range, gradient_list, point.intensity);
-		//console.log()
-		//height = 3000;
-		//if(!$.webgis.config.zaware) height = 0;
-		
+		var rgba = get_gradient_stop(range, gradient_list, point.count);
+		var alt = point.alt;
+		if(!$.webgis.config.zaware) alt = 0;
+		var pos = Cesium.Cartesian3.fromDegrees(point.lng, point.lat, alt);
+		var pos_label = Cesium.Cartesian3.fromDegrees(point.lng, point.lat, alt + point.count * height_magnifier);
 		var geometry = new Cesium.CircleGeometry({
-				center : Cesium.Cartesian3.fromDegrees(point.lng, point.lat),
+				center : pos,
 				radius: point.radius,
 				ellipsoid: ellipsoid,
-				extrudedHeight : point.intensity * 200,
+				extrudedHeight : point.count * height_magnifier,
 				vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT,
 		});
+		labels.add({
+			position : pos_label,
+			text : point.name + ' ' + point.text,
+			font : '30px sans-serif',
+			fillColor : Cesium.Color.fromCssColorString(rgba),
+			outlineColor : Cesium.Color.WHITE,
+			style : Cesium.LabelStyle.FILL,
+			pixelOffset : Cesium.Cartesian2.ZERO,
+			eyeOffset : Cesium.Cartesian3.ZERO,
+			horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
+			verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+			scale : 1.0		  
+		});		
 		var primitive = new Cesium.Primitive({
 			geometryInstances : new Cesium.GeometryInstance({
 				id:	$.uuid(),
@@ -2164,12 +2291,32 @@ function DrawHeatMapCircle(viewer, points)
 		});
 		collection.add(primitive);
 	}
-	viewer.scene.primitives.add(collection);
-	if($.webgis.data.heatmap_anti_bird_primitive === undefined)
+	if($.webgis.data.heatmap_primitive === undefined)
 	{
-		$.webgis.data.heatmap_anti_bird = {};
+		$.webgis.data.heatmap_primitive = {};
 	}
-	$.webgis.data.heatmap_anti_bird['heatmap_anti_bird'] = collection;
+	if($.webgis.data.heatmap_primitive[hid])
+	{
+		if(viewer.scene.primitives.contains($.webgis.data.heatmap_primitive[hid]))
+		{
+			viewer.scene.primitives.remove($.webgis.data.heatmap_primitive[hid]);
+		}
+		delete $.webgis.data.heatmap_primitive[hid];
+		$.webgis.data.heatmap_primitive[hid] = undefined;
+	}
+	if($.webgis.data.heatmap_primitive[hid + 'label'])
+	{
+		if(viewer.scene.primitives.contains($.webgis.data.heatmap_primitive[hid + 'label']))
+		{
+			viewer.scene.primitives.remove($.webgis.data.heatmap_primitive[hid + 'label']);
+		}
+		delete $.webgis.data.heatmap_primitive[hid + 'label'];
+		$.webgis.data.heatmap_primitive[hid + 'label'] = undefined;
+	}
+	viewer.scene.primitives.add(collection);
+	viewer.scene.primitives.add(labels);
+	$.webgis.data.heatmap_primitive[hid] = collection;
+	$.webgis.data.heatmap_primitive[hid + 'label'] = labels;
 }
 
 function InitAntiBirdEquipListData(viewer)
@@ -2186,8 +2333,7 @@ function InitAntiBirdEquipListData(viewer)
 			ShowProgressBar(false);
 			ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
-			//console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
-			testheatmap(viewer);
+			//testheatmap(viewer);
 		}, 'text');
 	}, 'text');
 }
@@ -2231,7 +2377,7 @@ function InitAntiBirdWebsocket(viewer)
 					else
 					{
 						console.log(data1);
-						AntiBirdBadgeMessageArrival(data1);
+						AntiBirdBadgeMessageArrival(viewer, data1);
 						$.webgis.websocket.antibird.websocket.send('');
 					}
 				}
@@ -2809,7 +2955,7 @@ function InitToolPanel(viewer)
 				//console.log(k);
 				var hm = $.webgis.data.heatmap_layers[k];
 				//console.log(hm.type);
-				if(hm.type === 'heatmap')
+				if(hm && hm.type === 'heatmap')
 				{
 					hm.layer.destroy();
 				}
@@ -2817,8 +2963,8 @@ function InitToolPanel(viewer)
 				{
 					viewer.scene.imageryLayers.remove(hm.layer, true);
 				}
-				//delete hm;
 				delete $.webgis.data.heatmap_layers[k];
+				$.webgis.data.heatmap_layers[k] = undefined;
 			}
 		}
 		if($.webgis.config.map_backend === 'leaflet')
@@ -2832,6 +2978,7 @@ function InitToolPanel(viewer)
 				{
 					viewer.removeLayer(hm);
 					delete $.webgis.data.heatmap_layers[k];
+					$.webgis.data.heatmap_layers[k] = undefined;
 				}
 			}
 		}
@@ -7348,9 +7495,15 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 				$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:value});
 			}
 		},
+		{display: "起始日期", id:"start_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'分布参数',  width:300, validate:{required:true}},
+		{display: "结束日期", id:"end_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'分布参数',  width:300, validate:{required:true}},
 		{display: "生成热图", id: "button_create", newline: true,  type: "button", group:'操作', width:350, defaultvalue:'点击生成热度图', click:function(){
 			var data = $('#form_anti_bird_info_heatmap').webgisform('getdata');
-			AntiBirdHeatmap({speed:data.slider_distinguish_speed});
+			AntiBirdHeatmap(viewer, {
+				speed:data.slider_distinguish_speed, 
+				start:moment(data.start_date).local().format('YYYYMMDD'), 
+				end:moment(data.end_date).local().format('YYYYMMDD')
+			});
 		}}
 	];
 	var form = $('#form_anti_bird_info_heatmap').webgisform(flds,
@@ -7385,12 +7538,32 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 }
 
 
-function AntiBirdHeatmap(dict)
+function AntiBirdHeatmap(viewer, dict)
 {
-	if(dict.speed)
+	//console.log(dict);
+	if(dict.speed && dict.speed.length === 2 && dict.start && dict.start.length>0 && dict.end && dict.end.length>0)
 	{
-		console.log(dict.speed);
-
+		var url= '/proxy/api/statistics/heatmap/' + dict.start + '/' + dict.end + '/' + dict.speed[0] + '/' + dict.speed[1]; 
+		//console.log(url);
+		ShowProgressBar(true, 670, 200, '载入中', '正在查询统计数据，请稍候...');
+		$.get(url, {}, function( data1 ){
+			//console.log(data1);
+			if(data1 instanceof Array)
+			{
+				//var hid = 'heatmap_' + dict.start + '_' + dict.end + '_' + dict.speed[0] + '_' + dict.speed[1];
+				var hid = 'heatmap_anti_bird';
+				for(var i in data1)
+				{
+					data1[i].text = dict.start + '-' + dict.end + ' ' + data1[i].count + '次';
+				}
+				DrawHeatMapPixel(viewer, hid , data1);
+				if($.webgis.config.map_backend === 'cesium')
+				{
+					DrawHeatMapCircle(viewer, hid, data1, 200);
+				}
+			}
+			ShowProgressBar(false);
+		}, 'json');
 	}
 }
 

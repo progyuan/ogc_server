@@ -89,10 +89,20 @@ def test():
     code, header, s = handle_http_proxy(path_info, real_host, 5.0, 10.0)
     print(s)
     
+def test1():
+    path_info = '/proxy/api/statistics/heatmap/%s/%s/%d/%d' % ('20150301', '20150326', 3, 12)
+    real_host = 'bird.yncft.com'
+    code, header, s = handle_http_proxy(path_info, real_host, 5.0, 10.0)
+    #print(s)
+    arr = json.loads(s)
+    #print(s)
+    for i in arr:
+        print(i)
 
 if __name__ == '__main__':
-    pics = save_to_image('*5428', 100)
+    #pics = save_to_image('*5428', 100)
     #print(pics)
+    test1()
     
     
     

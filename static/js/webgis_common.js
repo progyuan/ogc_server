@@ -337,10 +337,12 @@ function InitWebGISFormDefinition()
 					}
 					if(fld.type == 'date' && fld.group == group)
 					{
+						var dateFormat = "yy-mm-dd";
+						if(fld.dateFormat) dateFormat = fld.dateFormat;
 						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline + '"><label for="' + fldid + '" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px;">' + fld.display + ':' + '</label><input type="text" class="ui-widget" style="padding:7px 0px 0px 0px;width:' + fld.width + 'px;" id="' + fldid + '" name="' + fldid + '" ' + readonly + '>'  + required + '</' + divorspan + '>');
 						$('#' + fldid ).datepicker({
 							//appendText: "(yyyy-mm-dd)",
-							dateFormat:  "yy-mm-dd",
+							dateFormat:  dateFormat,
 							autoSize: false,
 							//altField: "#" + fldid,
 							buttonImage: "img/datepicker.png",

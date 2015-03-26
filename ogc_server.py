@@ -5256,6 +5256,7 @@ def application_webgis(environ, start_response):
                 obj['name'] = l[0]['properties']['name']
                 obj['lng'] = l[0]['geometry']['coordinates'][0]
                 obj['lat'] = l[0]['geometry']['coordinates'][1]
+                obj['alt'] = l[0]['geometry']['coordinates'][2]
                 ret[querydict['imei']] = obj
         else:
             l = db_util.mongo_find(
@@ -5281,6 +5282,7 @@ def application_webgis(environ, start_response):
                         obj['name'] = i['properties']['name']
                         obj['lng'] = i['geometry']['coordinates'][0]
                         obj['lat'] = i['geometry']['coordinates'][1]
+                        obj['alt'] = i['geometry']['coordinates'][2]
                         ret[j['imei']] = obj
             
         ret = json.dumps(ret, ensure_ascii=True, indent=4)

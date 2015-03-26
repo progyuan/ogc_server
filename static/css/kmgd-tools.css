@@ -944,7 +944,7 @@ input[type="button"].btn-block {
 	height:100%;
 }
 
-.kmgd-lnglat-indicator
+#lnglat_indicator
 {
 	position:absolute;
 	bottom:5px;
@@ -1056,4 +1056,21 @@ input[type="button"].btn-block {
 }
 .anti-bird-msg-list-item:hover{
     background-color: #008800;
+}
+
+.ui-effects-transfer 
+{ 
+	z-index:8;
+	border: 5px solid red;
+}
+#div_anti_bird_inform_icon
+{
+	opacity:0.6;
+	z-index:8;
+	position: absolute;
+	background:#00FF00 url(/img/anti_bird_icon.png)  center;
+	width:26px;
+	height:26px;
+	border-radius: 5px;
+	background-size:26px 26px;
 }
