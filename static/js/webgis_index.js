@@ -89,7 +89,7 @@ $(function() {
 
 	
 	try{
-		throw "unsupport_cesium_exception";
+		//throw "unsupport_cesium_exception";
 		ShowProgressBar(true, 670, 200, '载入中', '正在载入，请稍候...');
 		viewer = InitCesiumViewer();
 		$.webgis.viewer = viewer;
@@ -2681,9 +2681,6 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 	$('#' + toggle_id).off();
 	$('#' + toggle_id).on('click', function(){
 		$('#div_' + div_id + '_upload_desciption').css('display','none');
-		//var container = $('#' + container_id).fotorama();
-		//container = $(container[0]);
-		//console.log(container);
 		if($('#' + uploader_id).is(':visible') )
 		{
 			$('#' + uploader_id).css('display', 'none');
@@ -7438,7 +7435,54 @@ function BuildAntiBirdImageSlide(data1)
 	$('#div_anti_bird_info_pics' ).append('<div id="div_container_anti_bird_info_pics"></div>');
 	var $fotoramaAntiBirdPicsDiv = $('#div_container_anti_bird_info_pics' ).fotorama(options);
 	$.webgis.control.image_slider_anti_bird_pics = $fotoramaAntiBirdPicsDiv.data('fotorama');
+	AddButtonToFotorama('div_container_anti_bird_info_pics',[
+		{
+			title:'下载', 
+			className:'anti_bird_pic_toolbutton_download',
+			click:function(v){
+				console.log('download');
+				//console.log(v);
+			}
+		},
+		{
+			title:'设置鸟类活动标记', 
+			className:'anti_bird_pic_toolbutton_set_flag',
+			click:function(v){
+				console.log('set_flag');
+				console.log(v);
+			}
+		}
+	]);
 }	
+
+function AddButtonToFotorama(container_id, options)
+{
+	var ctrl;
+	if(container_id === 'div_container_anti_bird_info_pics')
+	{
+		ctrl = $.webgis.control.image_slider_anti_bird_pics;
+	}
+	var stage = $('#' + container_id).find('div[class=fotorama__stage]');
+	if(stage.length > 0 && ctrl)
+	{
+		//for(var i in options)
+		//{
+			//var opt = options[i];
+			//if(opt.className)
+			//{
+				//$(stage[0]).append('<div class="' + opt.className + '" title="' + opt.title + '"></div>');
+			//}
+		//}
+		$.each(options, function(i, opt){
+			$(stage[0]).append('<div class="' + opt.className + '" title="' + opt.title + '"></div>');
+			$(stage[0]).find('div.' + opt.className ).off();
+			$(stage[0]).find('div.' + opt.className ).on('click', function(){
+				console.log('2  ' + opt.className);
+				opt.click(ctrl.activeFrame);
+			});
+		});
+	}
+}
 
 function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 {
@@ -7474,8 +7518,14 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 						if(data1.length>0)
 						{
 							$.webgis.data.geojsons[tower_id] = data1[0];
-							$.webgis.data.czmls[tower_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[tower_id]);
-							ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
+							if($.webgis.config.map_backend === 'cesium')
+							{
+								$.webgis.data.czmls[tower_id] = CreateCzmlFromGeojson($.webgis.data.geojsons[tower_id]);
+								ReloadCzmlDataSource(viewer, $.webgis.config.zaware);
+							}
+							if($.webgis.config.map_backend === 'leaflet')
+							{
+							}
 							FlyToPoint(viewer, lng, lat, 6000, 1.05, 4000);
 						}
 					}
@@ -7565,7 +7615,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 	});
 	
 	var flds = [
-		{display: "辨识速度范围", id:"slider_distinguish_speed", newline: true, is_range:true, type: "slider", group:'分布参数', labelwidth:120, width:300, defaultvalue:[1, 99],
+		{display: "辨识速度范围", id:"slider_distinguish_speed", newline: true, is_range:true, is_show:false, type: "slider", group:'分布参数', labelwidth:120, width:300, defaultvalue:[3, 15],
 			slide:function(value)
 			{
 				$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:value});
@@ -7575,6 +7625,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		{display: "结束日期", id:"end_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'分布参数',  width:300, validate:{required:true}},
 		{display: "生成热图", id: "button_create", newline: true,  type: "button", group:'操作', width:350, defaultvalue:'点击生成热度图', click:function(){
 			var data = $('#form_anti_bird_info_heatmap').webgisform('getdata');
+			console.log(data);
 			AntiBirdHeatmap(viewer, {
 				speed:data.slider_distinguish_speed, 
 				start:moment(data.start_date).local().format('YYYYMMDD'), 
@@ -7587,11 +7638,16 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		prefix:'form_anti_bird_info_heatmap_',
 		maxwidth:520
 	});
-	$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:[4,60], start_date:moment().local().format('YYYYMMDD'), end_date:moment().local().format('YYYYMMDD')});
+	$('#form_anti_bird_info_heatmap').webgisform('setdata',{slider_distinguish_speed:[3,15], start_date:moment().local().format('YYYYMMDD'), end_date:moment().local().format('YYYYMMDD')});
 	$('#tabs_anti_bird_info').tabs({ 
 		collapsible: false,
 		active: 0,
 		beforeActivate: function( event, ui ) {
+			var title = ui.newTab.context.innerText;
+			if(title === '统计图表')
+			{
+				BuildAntiBirdStatisticsForm(imei)
+			}
 		}
 	});
 	//console.log(imei);
@@ -7611,9 +7667,47 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		ShowProgressBar(false);
 		BuildAntiBirdImageSlide(data1);
 	}, 'json');
+	
 }
 
+function BuildAntiBirdStatisticsForm(imei)
+{
+	$('#form_anti_bird_info_chart').empty();
+	$('#div_anti_bird_info_chart').empty();
+	var flds = [
+		{display: "统计类型", id:"type", newline: true,  type: "select", group:'统计参数',  width:350, defaultvalue:'D',
+			editor:{data:[{'value':'Y','label':'按年统计'},{'value':'M','label':'按月统计'},{'value':'D','label':'按天统计'}]},
+			change:function(value)
+			{
+			}
+		},
+		{display: "起始日期", id:"start_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'统计参数',  width:300, validate:{required:true}},
+		{display: "结束日期", id:"end_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'统计参数',  width:300, validate:{required:true}},
+		{display: "生成统计图", id: "button_create", newline: true,  type: "button", group:'操作', labelwidth:120, width:300, defaultvalue:'点击生成统计图', click:function(){
+			var data = $('#form_anti_bird_info_chart').webgisform('getdata');
+			//console.log(data);
+			DrawAntiBirdChart({
+				imei: imei,
+				YMD: data.type,
+				beginTime: moment(data.start_date).local().format('YYYYMMDD'),
+				endTime: moment(data.end_date).local().format('YYYYMMDD'),
+				minSpeed: '1',
+				maxSpeed: '15'
+			});
+		}}
+	];
+	var form = $('#form_anti_bird_info_chart').webgisform(flds,
+	{
+		prefix:'form_anti_bird_info_chart_',
+		maxwidth:520
+	});
+	$('#form_anti_bird_info_chart').webgisform('setdata',{type:'D', start_date:moment().local().format('YYYYMMDD'), end_date:moment().local().format('YYYYMMDD')});
 
+}
+function DrawAntiBirdChart(option)
+{
+	$('#div_anti_bird_info_chart').drawChart(option.imei,option.YMD, option.beginTime,option.endTime,option.minSpeed,option.maxSpeed);
+}
 function AntiBirdHeatmap(viewer, dict)
 {
 	//console.log(dict);

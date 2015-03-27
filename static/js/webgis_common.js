@@ -494,7 +494,8 @@ function InitWebGISFormDefinition()
 					
 					if(fld.type == 'slider' && fld.group == group)
 					{
-						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + 'margin:' + this.options.margin + 'px;' + newline 
+						if(fld.is_show === false)
+						$('#' + 'fieldset_' + uid).append('<' + divorspan + ' style="' + stylewidth + ' margin:' + this.options.margin + 'px;' + newline 
 						+ '"><label for="' + fldid + '_title_" style="display:inline-block;text-align:right;width:' + this.options.labelwidth + 'px; ">' + fld.display + ':' 
 						+ '</label><label style="width:' + fld.width/4*1 + 'px"  name="' + fldid + '_title_"></label>' 
 						+ '<div id="' + fldid + '" style="float:right;width:' + fld.width/4*3 + 'px"></div>'
@@ -524,8 +525,12 @@ function InitWebGISFormDefinition()
 								}
 							});
 						}
+						if(fld.is_show === false)
+						{
+							//$('#' + fldid).hide();
+							$('#' + fldid).parent().hide();
+						}
 					}
-					
 				}
 			}
 			var hide = false;

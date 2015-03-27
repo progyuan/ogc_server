@@ -1074,3 +1074,41 @@ input[type="button"].btn-block {
 	border-radius: 5px;
 	background-size:26px 26px;
 }
+
+#div_anti_bird_info_chart
+{
+	width:400px;
+	height:350px;
+}
+
+.anti_bird_pic_toolbutton_download
+{
+	opacity:0.7;
+	z-index:9;
+	position: absolute;
+	width:24px;
+	height:24px;
+	right:10px;
+	bottom:10px;
+	background: url(img/download24x24_white.png) no-repeat;
+}
+.anti_bird_pic_toolbutton_download:hover {
+	background-color: #00FF00;
+}
+
+
+.anti_bird_pic_toolbutton_set_flag
+{
+	opacity:0.7;
+	z-index:9;
+	position: absolute;
+	width:24px;
+	height:24px;
+	right:36px;
+	bottom:10px;
+	background: url(img/edit24x24_white.png) no-repeat;
+}
+.anti_bird_pic_toolbutton_set_flag:hover {
+	background-color: #00FF00;
+}
+
