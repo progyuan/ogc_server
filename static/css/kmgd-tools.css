@@ -791,44 +791,29 @@ input[type="button"].btn-block {
 .phototoolbar-delete{
 	opacity:0.7;
 	position: absolute;
-	cursor: pointer;
-	display: block;
-	background:  url(img/delete24x24_white.png) no-repeat;
-	overflow: hidden;
+	width:24px;
+	height:24px;
+	right:36px;
+	bottom:10px;
+	background: url(img/delete24x24_white.png) no-repeat;
 }
 
 .phototoolbar-delete:hover {
-	opacity:1.0;
-	background: #005500 url(img/delete24x24_white.png) no-repeat;
-}
-
-
-.phototoolbar-edit{
-	opacity:0.7;
-	position: absolute;
-	cursor: pointer;
-	display: block;
-	background:  url(img/edit24x24_white.png) no-repeat;
-	overflow: hidden;
-}
-
-.phototoolbar-edit:hover {
-	opacity:1.0;
-	background: #005500 url(img/edit24x24_white.png) no-repeat;
+	background-color: #005500;
 }
 
 .phototoolbar-download{
 	opacity:0.7;
 	position: absolute;
-	cursor: pointer;
-	display: block;
-	background:  url(img/download24x24_white.png) no-repeat;
-	overflow: hidden;
+	width:24px;
+	height:24px;
+	right:10px;
+	bottom:10px;
+	background: url(img/download24x24_white.png) no-repeat;
 }
 
 .phototoolbar-download:hover {
-	opacity:1.0;
-	background: #005500 url(img/download24x24_white.png) no-repeat;
+	background-color: #005500;
 }
 
 

@@ -1515,7 +1515,7 @@ def handle_get_method(environ):
             ret = db_util.gridfs_find(querydict, str(gConfig['wsgi']['application']))
             if isinstance(ret, tuple) and ret[0] and ret[1]:
                 headers['Content-Type'] = str(ret[0])
-                if d.has_key('attachmentdownload'):
+                if querydict.has_key('attachmentdownload'):
                     headers['Content-Disposition'] = 'attachment;filename="' + enc(ret[2]) + '"'
                 s = ret[1]
                 return '200 OK', headers , s

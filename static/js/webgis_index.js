@@ -2744,7 +2744,7 @@ function InitFileUploader(div_id, fileext,  bindcollection, key)
 			if(data.result)
 			{
 				//UpdateJssorSlider(div_id, bindcollection, key);
-				UpdateFotoramaSlider(div_id, bindcollection, key);
+				UpdateFotoramaSlider(div_id, bindcollection, key, CreateFileBrowserAdditionalButton(div_id, bindcollection, key));
 				$('#' + div_id + '_upload_desciption').val('');
 			}
 		},
@@ -7076,20 +7076,23 @@ function ShowTowerInfo(viewer, id)
 
 }
 
-function UpdateFotoramaSlider(div_id, bindcollection, key)
+function UpdateFotoramaSlider(div_id, bindcollection, key, buttons)
 {
-	var width = parseInt($('#' + div_id).css('width').replace('px', ''));
-	var height = parseInt($('#' + div_id).css('height').replace('px', ''));
+	//var width = parseInt($('#' + div_id).css('width').replace('px', ''));
+	//var height = parseInt($('#' + div_id).css('height').replace('px', ''));
+	var width = $('#' + div_id).width();
+	var height = $('#' + div_id).height();
+	
 	//console.log('width:' + width + ',height:' + height);
 	var container_id = div_id + '_container';
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
 	var data = {op:'gridfs', db:$.webgis.db.db_name, width:64, height:64, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
-		if($.webgis.control.image_slider_tower_info)
+		if($.webgis.control.image_slider_fotorama)
 		{
-			$.webgis.control.image_slider_tower_info.destroy();
-			delete $.webgis.control.image_slider_tower_info;
-			$.webgis.control.image_slider_tower_info = undefined;
+			$.webgis.control.image_slider_fotorama.destroy();
+			delete $.webgis.control.image_slider_fotorama;
+			$.webgis.control.image_slider_fotorama = undefined;
 		}
 		$('#' + container_id).empty();
 		var img_data = [];
@@ -7118,7 +7121,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			$('#' + container_id).html(s);
 		}
 		
-		if(!$.webgis.control.image_slider_tower_info)
+		if(!$.webgis.control.image_slider_fotorama)
 		{
 			var options = {
 				allowfullscreen: true,
@@ -7137,7 +7140,7 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 				clicktransition:'slide',
 				transitionduration:200,
 				startindex:0,
-				loop:true,
+				loop:false,
 				autoplay:false,//10000,
 				stopautoplayontouch:true,
 				keyboard:false,
@@ -7150,9 +7153,13 @@ function UpdateFotoramaSlider(div_id, bindcollection, key)
 			if(data1.length>0)
 			{
 				var $fotoramaDiv = $('#' + container_id).fotorama(options);
-				$.webgis.control.image_slider_tower_info = $fotoramaDiv.data('fotorama');
-				//console.log($.webgis.control.image_slider_tower_info);
+				$.webgis.control.image_slider_fotorama = $fotoramaDiv.data('fotorama');
 			}
+		}
+		if(buttons instanceof Array && buttons.length>0)
+		{
+			//console.log();
+			AddButtonToFotorama(container_id, $.webgis.control.image_slider_fotorama, buttons);
 		}
 		ShowProgressBar(false);
 	});
@@ -7167,10 +7174,10 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 	var toggle_id =  'div_' + div_id + '_toggle_view_upload';	
 	var data = {op:'gridfs', db:$.webgis.db.db_name, width:150, height:150, bindcollection:bindcollection, key:key};
 	GridFsFind(data, function(data1){
-		if($.webgis.control.image_slider_tower_info)
+		if($.webgis.control.image_slider_fotorama)
 		{
-			delete $.webgis.control.image_slider_tower_info;
-			$.webgis.control.image_slider_tower_info = undefined;
+			delete $.webgis.control.image_slider_fotorama;
+			$.webgis.control.image_slider_fotorama = undefined;
 			$.webgis.data.image_thumbnail_tower_info.length = 0;
 		}
 		$.webgis.data.image_thumbnail_tower_info = data1;
@@ -7226,7 +7233,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		';
 		$('#' + container_id).append(s);
 		
-		if(!$.webgis.control.image_slider_tower_info)
+		if(!$.webgis.control.image_slider_fotorama)
 		{
 			var options = {
 				$AutoPlay: true,                                    //[Optional] Whether to auto play, to enable slideshow, this option must be set to true, default value is false
@@ -7260,7 +7267,7 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 			};
 			if(data1.length>0)
 			{
-				$.webgis.control.image_slider_tower_info = new $JssorSlider$(container_id , options);
+				$.webgis.control.image_slider_fotorama = new $JssorSlider$(container_id , options);
 			}
 		}
 		ShowProgressBar(false);
@@ -7268,16 +7275,16 @@ function UpdateJssorSlider(div_id, bindcollection, key)
 		//you can remove responsive code if you don't want the slider scales while window resizes
 		function ScaleSlider() {
 			//console.log($('#tower_info_photo').css('width'));
-			if($.webgis.control.image_slider_tower_info)
+			if($.webgis.control.image_slider_fotorama)
 			{
-				var parentWidth = $.webgis.control.image_slider_tower_info.$Elmt.parentNode.parentNode.parentNode.parentNode.clientWidth;
+				var parentWidth = $.webgis.control.image_slider_fotorama.$Elmt.parentNode.parentNode.parentNode.parentNode.clientWidth;
 				//console.log(parentWidth);
 				if (parentWidth)
 				{
 					//$('#tower_info_photo_container').css('width', parentWidth)
-					//$.webgis.control.image_slider_tower_info.$SetScaleWidth(Math.min(parentWidth, 550));
+					//$.webgis.control.image_slider_fotorama.$SetScaleWidth(Math.min(parentWidth, 550));
 					var w = parentWidth - 20;
-					$.webgis.control.image_slider_tower_info.$SetScaleWidth(w );
+					$.webgis.control.image_slider_fotorama.$SetScaleWidth(w );
 					$('#' + toggle_id).css('width', (w-20) + 'px' );
 				}
 			}
@@ -7356,10 +7363,10 @@ function DestroyFileUploader(div_id)
 {
 	$('#form_' + div_id + '_uploader_form').fileupload('destroy');
 	$('#div_' + div_id + '_uploader').empty();
-	if($.webgis.control.image_slider_tower_info)
+	if($.webgis.control.image_slider_fotorama)
 	{
-		delete $.webgis.control.image_slider_tower_info;
-		$.webgis.control.image_slider_tower_info = undefined;
+		delete $.webgis.control.image_slider_fotorama;
+		$.webgis.control.image_slider_fotorama = undefined;
 		$('#' + div_id + '_container').empty();
 		$.webgis.data.image_thumbnail_tower_info.length = 0;
 	}
@@ -7394,7 +7401,8 @@ function BuildAntiBirdImageSlide(data1)
 				img:pic_url , 
 				full:pic_url , 
 				thumb:thumb_url, 
-				caption: '第' + idx + '张 拍摄日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃',
+				//caption: '第' + idx + '张 拍摄日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃',
+				caption: '拍摄日期:' + localtime + ' 环境温度:' + data1[i].envTemp + '℃',
 				filename:data1[i].imei + '_' + j + '_' + localtime + '.jpg',
 				data:data1[i],
 				mimetype:'image/jpeg',
@@ -7422,7 +7430,7 @@ function BuildAntiBirdImageSlide(data1)
 		clicktransition:'slide',
 		transitionduration:200,
 		startindex:0,
-		loop:true,
+		loop:false,
 		autoplay:false,//10000,
 		stopautoplayontouch:true,
 		keyboard:false,
@@ -7435,8 +7443,9 @@ function BuildAntiBirdImageSlide(data1)
 	$('#div_anti_bird_info_pics' ).append('<div id="div_container_anti_bird_info_pics"></div>');
 	var $fotoramaAntiBirdPicsDiv = $('#div_container_anti_bird_info_pics' ).fotorama(options);
 	$.webgis.control.image_slider_anti_bird_pics = $fotoramaAntiBirdPicsDiv.data('fotorama');
-	AddButtonToFotorama('div_container_anti_bird_info_pics',[
-		{
+	AddButtonToFotorama('div_container_anti_bird_info_pics',
+		$.webgis.control.image_slider_anti_bird_pics,
+		[{
 			title:'下载', 
 			className:'anti_bird_pic_toolbutton_download',
 			click:function(v){
@@ -7448,37 +7457,39 @@ function BuildAntiBirdImageSlide(data1)
 			title:'设置鸟类活动标记', 
 			className:'anti_bird_pic_toolbutton_set_flag',
 			click:function(v){
-				console.log('set_flag');
-				console.log(v);
+				ShowConfirm(null, 500, 200,
+					'鸟类活动确认',
+					'确定将该图片标记为鸟类活动依据吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+					function(){
+						//console.log(v);
+						SetAntiBirdPicFlag(v, true);
+					},
+					function(){
+					
+					}
+				);
 			}
 		}
 	]);
 }	
 
-function AddButtonToFotorama(container_id, options)
+function SetAntiBirdPicFlag(data,  yes_or_no)
 {
-	var ctrl;
-	if(container_id === 'div_container_anti_bird_info_pics')
-	{
-		ctrl = $.webgis.control.image_slider_anti_bird_pics;
-	}
+	//var picid = data.img.substr(data.img.lastIndexOf('/')+1);
+	var url = data.img + '/set_bird_flag/' + yes_or_no;
+	console.log(url);
+}
+
+function AddButtonToFotorama(container_id, control, options)
+{
 	var stage = $('#' + container_id).find('div[class=fotorama__stage]');
-	if(stage.length > 0 && ctrl)
+	if(stage.length > 0 && control)
 	{
-		//for(var i in options)
-		//{
-			//var opt = options[i];
-			//if(opt.className)
-			//{
-				//$(stage[0]).append('<div class="' + opt.className + '" title="' + opt.title + '"></div>');
-			//}
-		//}
 		$.each(options, function(i, opt){
 			$(stage[0]).append('<div class="' + opt.className + '" title="' + opt.title + '"></div>');
 			$(stage[0]).find('div.' + opt.className ).off();
 			$(stage[0]).find('div.' + opt.className ).on('click', function(){
-				console.log('2  ' + opt.className);
-				opt.click(ctrl.activeFrame);
+				opt.click(control.activeFrame);
 			});
 		});
 	}
@@ -8203,6 +8214,48 @@ function UpdateBaseFields6(enable_imei_select)
 	}
 	return ret;
 }
+
+function CreateFileBrowserAdditionalButton(div_id, collection, id)
+{
+	var ret = [
+		{
+			title:'下载', 
+			className:'phototoolbar-download',
+			click:function(v){
+				if(v && v._id)
+				{
+					var url = '/get?' + 'op=gridfs' + '&db=' + $.webgis.db.db_name + '&_id=' + v._id +  '&attachmentdownload=true';
+					window.open(url, '_blank');
+				}
+			}
+		},
+		{
+			title:'删除', 
+			className:'phototoolbar-delete',
+			click:function(v){
+				if(v && v._id)
+				{
+					ShowConfirm(null, 500, 350,
+						'删除确认',
+						'确认要删除文件[' + v.filename + ']吗?',
+						function(){
+							var data = {op:'gridfs_delete','db':$.webgis.db.db_name,_id:v._id};
+							GridFsFind(data, function(){
+								UpdateFotoramaSlider(div_id, collection, id, CreateFileBrowserAdditionalButton(div_id, collection, id));
+							});
+						},
+						function(){
+						},
+						v
+					);
+				}
+			}
+		}
+	];
+	return ret;
+}
+
+
 function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 {
 	$('#' + div_id).empty();
@@ -8210,18 +8263,16 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 	{
 		ShowProgressBar(false);
 		$('#' + div_id).html('请先保存，再上传图片');
-		//$('#' + div_id).css('border', '1px red solid').css('height', height + 'px');
 		return;
 	}
 	$('#' + div_id).css('width', width + 'px').css('height', height + 'px');
 	var html = '';
-	html += '<div  id="' + div_id + '_toolbar">';
-	html += '	<span  class="phototoolbar-download" style="display:inline-block;z-index:9;width: 24px; height: 27px; bottom: 140px; right: 80px;" data-' + div_id + '-download="">';
-	html += '	</span>';
-	html += '	<span  class="phototoolbar-delete" style="display:inline-block;z-index:9;width: 24px; height: 24px; bottom: 144px; right: 50px;" data-' + div_id + '-delete="">';
-	html += '	</span>';
-	html += '</div>';
-	//html += '<div id="' + div_id + '_container" style="opacity:1.0;position: relative;top: 0px;left: 0px; width: ' + width + 'px;height: ' + (height - 80) + 'px; overflow: hidden;">';
+	//html += '<div  id="' + div_id + '_toolbar">';
+	//html += '	<span  class="phototoolbar-download" style="display:inline-block;z-index:9;width: 24px; height: 27px; bottom: 140px; right: 80px;" data-' + div_id + '-download="">';
+	//html += '	</span>';
+	//html += '	<span  class="phototoolbar-delete" style="display:inline-block;z-index:9;width: 24px; height: 24px; bottom: 144px; right: 50px;" data-' + div_id + '-delete="">';
+	//html += '	</span>';
+	//html += '</div>';
 	html += '<div id="' + div_id + '_container"  style="opacity:1.0;">';
 	html += '</div>';
 	html += '<div id="div_' + div_id + '_toggle_view_upload" class="btn-primary" style="width:90%;margin:10px;text-align:center;cursor:default;">上传附件</div>';
@@ -8236,90 +8287,8 @@ function CreateFileBrowser(div_id, width, height, fileext, collection, id)
 		minHeight:100,
 		minWidth:400
 	});
-	try{
-		$(document).tooltip( "close" );
-	}catch(e){}
-	
-	$(document).tooltip({
-		//items: "[data-" + div_id + "-photo], [data-" + div_id + "-filename], [data-" + div_id + "-download], [data-" + div_id + "-delete]",
-		items: "[data-" + div_id + "-filename], [data-" + div_id + "-download], [data-" + div_id + "-delete]",
-		show: {
-		  effect: "slideDown",
-		  delay: 100
-		},
-		content: function()
-		{
-			var element = $( this );
-			var s = '';
-			if($.webgis.control.image_slider_tower_info  && element.is( "[data-" + div_id + "-download]" ))
-			{
-				//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
-				//var img = $.webgis.data.image_thumbnail_tower_info[idx];
-				var img = $.webgis.control.image_slider_tower_info.activeFrame;
-				s = '<div class="tower-photo-tip">';
-				s += '<p>文件名称:' + img.filename + '</p>';
-				s += '<p>备注:' + img.description + '</p>';
-				s += '</div>';
-			}
-			if ( element.is( "[data-" + div_id + "-filename]" ) ) {
-				s = element.attr( "data-" + div_id + "-filename" );
-			}
-			if ( element.is( "[data-" + div_id + "-delete]" ) ) {
-				s = '<div class="tower-photo-tip">';
-				s += '<p>删除</p>';
-				s += '</div>';
-			}
-			return s;
-		}
-	});
-	//$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').off();
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').off();
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').off();
-	
-	//$('#' + div_id + '_toolbar').find('span[class="phototoolbar-edit"]').on('click', function(){
-	//});
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-download"]').on('click', function(){
-		if($.webgis.control.image_slider_tower_info )
-		{
-			//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
-			//var img = $.webgis.data.image_thumbnail_tower_info[idx];
-			var img = $.webgis.control.image_slider_tower_info.activeFrame;
-			
-			var url = '/get?' + 'op=gridfs' + '&db=' + $.webgis.db.db_name + '&_id=' + img._id +  '&attachmentdownload=true';
-			//console.log(url);
-			window.open(url, '_blank');
-			//GridFsFind(data, function(data1){
-				//console.log(data1);
-			//});
-		}
-	});
-	$('#' + div_id + '_toolbar').find('span[class="phototoolbar-delete"]').on('click', function(){
-		if($.webgis.control.image_slider_tower_info )
-		{
-			//var idx = $.webgis.control.image_slider_tower_info.$CurrentIndex();
-			//var img = $.webgis.data.image_thumbnail_tower_info[idx];
-			var img = $.webgis.control.image_slider_tower_info.activeFrame;
-			
-			ShowConfirm(null, 500, 350,
-				'删除确认',
-				'确认要删除文件[' + img.filename + ']吗?',
-				function(){
-					var data = {op:'gridfs_delete','db':$.webgis.db.db_name,_id:img._id};
-					GridFsFind(data, function(){
-						//UpdateJssorSlider(div_id, collection, id);
-						UpdateFotoramaSlider(div_id, collection, id);
-					});
-				},
-				function(){
-				},
-				img
-			);
-		}
-		
-	});
 
-	//UpdateJssorSlider(div_id, collection, id);
-	UpdateFotoramaSlider(div_id, collection, id);
+	UpdateFotoramaSlider(div_id, collection, id, CreateFileBrowserAdditionalButton(div_id, collection, id));
 	UpdateFileUploader(div_id);
 	InitFileUploader(div_id, fileext, collection, id);
 }
