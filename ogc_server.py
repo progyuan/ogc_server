@@ -5030,17 +5030,26 @@ def application_pay_platform(environ, start_response):
     return [body]
     
 
-def handle_http_proxy(path_info, real_host, connection_timeout, network_timeout):
+def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, network_timeout=10.0, method='get', data=''):
     global ENCODING
     token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
-    href = 'http://%s%s?token=%s&random=%d' % (real_host, path_info.replace('/proxy/', '/'), token, random.randint(0,100000))
+    href = 'http://%s:%s%s?token=%s&random=%d' % (real_host, real_port, path_info.replace('/proxy/', '/'), token, random.randint(0,100000))
     #print(href)
     header = {'Content-Type': 'text/json;charset=' + ENCODING}
     ret = ''
-    try:
-        client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-        url = URL(href) 
+    #try:
+    client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+    url = URL(href)
+    g = None
+    if method == 'get':
         g = gevent.spawn(client.get, url.request_uri)
+    elif method == 'put':
+        g = gevent.spawn(client.put, url.request_uri, data, {'Content-Type':'application/json'})
+    elif method == 'delete':
+        g = gevent.spawn(client.delete, url.request_uri, data)
+    elif method == 'post':
+        g = gevent.spawn(client.post, url.request_uri, data)
+    if g:
         g.join()
         response = g.value
         if response is not None and hasattr(response, 'status_code'):
@@ -5058,18 +5067,20 @@ def handle_http_proxy(path_info, real_host, connection_timeout, network_timeout)
             else:
                 msg = 'handle_http_proxy response error:%d' % response.status_code
                 ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
-    except:
-        e = sys.exc_info()[1]
-        msg = ''
-        if hasattr(e, 'message'):
-            msg = 'handle_http_proxy error:%s' % e.message
         else:
-            msg = 'handle_http_proxy error:%s' % str(e)
-        header = {'Content-Type': 'text/json;charset=' + ENCODING}
-        ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
+            raise Exception('handle_http_proxy error')
+    #except:
+        #e = sys.exc_info()[1]
+        #msg = ''
+        #if hasattr(e, 'message'):
+            #msg = 'handle_http_proxy error:%s' % e.message
+        #else:
+            #msg = 'handle_http_proxy error:%s' % str(e)
+        #header = {'Content-Type': 'text/json;charset=' + ENCODING}
+        #ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
     return  '200 OK', header, ret
 
-def anti_bird_proxy(path_info):
+def anti_bird_proxy(path_info, method='get', body=''):
     global gConfig
     connection_timeout, network_timeout = 5.0, 10.0
     try:
@@ -5080,7 +5091,7 @@ def anti_bird_proxy(path_info):
         network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
     except:
         pass
-    return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], connection_timeout, network_timeout)
+    return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], connection_timeout, network_timeout, method, body)
 
 
 def anti_bird_get_latest_records(imei, records_num=1):
@@ -5159,28 +5170,29 @@ def application_webgis(environ, start_response):
         href = '/proxy/api/detector'
         code, header, s = anti_bird_proxy(href)
         try:
-            obj = json.loads(s)
-            if isinstance(obj, dict) :
-                if obj.has_key('result'):
-                    print('init_anti_bird_list error:%s' % obj['result'])
-                    raise
-                else:
-                    if obj.has_key('_id'):
-                        if obj.has_key('imei'):
-                            obj['label'] = obj['imei']
-                            obj['value'] = obj['imei']
-                        ret = [obj, ]
+            if len(s)>0:
+                obj = json.loads(s)
+                if isinstance(obj, dict) :
+                    if obj.has_key('result'):
+                        print('init_anti_bird_list error:%s' % obj['result'])
+                        raise
                     else:
-                        print('init_anti_bird_list error: unknown error')
-                        ret = []
-            elif isinstance(obj, list) :
-                for i in obj:
-                    idx = obj.index(i)
-                    if i.has_key('imei'):
-                        i['label'] = i['imei']
-                        i['value'] = i['imei']
-                    obj[idx] = i
-                ret = obj
+                        if obj.has_key('_id'):
+                            if obj.has_key('imei'):
+                                obj['label'] = obj['imei']
+                                obj['value'] = obj['imei']
+                            ret = [obj, ]
+                        else:
+                            print('init_anti_bird_list error: unknown error')
+                            ret = []
+                elif isinstance(obj, list) :
+                    for i in obj:
+                        idx = obj.index(i)
+                        if i.has_key('imei'):
+                            i['label'] = i['imei']
+                            i['value'] = i['imei']
+                        obj[idx] = i
+                    ret = obj
         except:
             e = sys.exc_info()[1]
             if hasattr(e, 'message'):
@@ -5190,6 +5202,10 @@ def application_webgis(environ, start_response):
             ret = []
         return ret
     
+    def anti_bird_has_bird_flag(environ):
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        return anti_bird_proxy(environ['PATH_INFO'], 'put', buf)
+        
     def anti_bird_get_latest_records_by_imei(environ):
         querydict, buf = get_querydict_by_GET_POST(environ)
         ret = []
@@ -5335,7 +5351,10 @@ def application_webgis(environ, start_response):
     elif path_info == '/websocket':
         statuscode, headers, body = handle_websocket(environ)
     elif len(path_info)>6 and path_info[:6] == '/proxy':
-        statuscode, headers, body = anti_bird_proxy(path_info)
+        if '/hasBird' in path_info:
+            statuscode, headers, body = anti_bird_has_bird_flag(environ)
+        else:
+            statuscode, headers, body = anti_bird_proxy(path_info)
     elif path_info == '/anti_bird_equip_list':
         statuscode, headers, body = anti_bird_equip_list(environ)
     elif path_info == '/anti_bird_equip_tower_mapping':

@@ -7442,6 +7442,16 @@ function BuildAntiBirdImageSlide(data1)
 	};
 	$('#div_anti_bird_info_pics' ).append('<div id="div_container_anti_bird_info_pics"></div>');
 	var $fotoramaAntiBirdPicsDiv = $('#div_container_anti_bird_info_pics' ).fotorama(options);
+	$fotoramaAntiBirdPicsDiv.on('fotorama:load fotorama:showend', function(e, fotorama, extra){
+		var hasBird = GetAntiBirdPicFlag(fotorama.activeFrame);
+		//console.log(fotorama.activeFrame.data._id);
+		//console.log(fotorama.activeFrame.img);
+		//hasBird = true;
+		SetAntiBirdPicFlagDom(hasBird);
+	});
+	$fotoramaAntiBirdPicsDiv.on('fotorama:show', function(e, fotorama, extra){
+		SetAntiBirdPicFlagDom(false);
+	});
 	$.webgis.control.image_slider_anti_bird_pics = $fotoramaAntiBirdPicsDiv.data('fotorama');
 	AddButtonToFotorama('div_container_anti_bird_info_pics',
 		$.webgis.control.image_slider_anti_bird_pics,
@@ -7449,35 +7459,104 @@ function BuildAntiBirdImageSlide(data1)
 			title:'下载', 
 			className:'anti_bird_pic_toolbutton_download',
 			click:function(v){
-				console.log('download');
+				var frame = $(".fotorama__active");
+				var img = frame.find('img');
 				//console.log(v);
+				frame.append('<canvas name="download" width="533px" height="400px"></canvas>');
+				var canvas = frame.find('canvas[name=download]');
+				var ctx = canvas[0].getContext("2d");
+				ctx.drawImage(img[0], 0, 0);
+				ctx.fillStyle = "#FFFF00";
+				ctx.font = "12px arial,sans-serif";
+				ctx.fillText(v.caption, 10, 380);
+				filename = v.filename;
+				if(v.data && v.data.towerName)
+				{
+					filename = v.data.towerName + '_' + filename;
+				}
+				canvas[0].toBlob(function(blob) {
+					saveAs(blob, filename);
+					canvas.remove();
+				});				
 			}
 		},
 		{
 			title:'设置鸟类活动标记', 
 			className:'anti_bird_pic_toolbutton_set_flag',
-			click:function(v){
+			click:function(active_frame){
+				var hasBird = active_frame.data.hasBird;
+				var msg = '标记为鸟类活动依据';
+				if(hasBird)
+				{
+					msg = '取消鸟类活动标记';
+				}else
+				{
+					msg = '标记为鸟类活动依据';
+				}
 				ShowConfirm(null, 500, 200,
 					'鸟类活动确认',
-					'确定将该图片标记为鸟类活动依据吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
+					'确定将该图片' + msg + '吗? 确认的话数据将会提交到服务器上，以便所有人都能看到修改的结果。',
 					function(){
-						//console.log(v);
-						SetAntiBirdPicFlag(v, true);
+						SetAntiBirdPicFlag(active_frame, !hasBird);
+						active_frame.data.hasBird = !hasBird;
 					},
 					function(){
 					
 					}
 				);
 			}
+		},
+		{
+			title:'鸟类活动标记', 
+			className:'anti_bird_pic_toolbutton_get_flag',
+			click:function(v){
+			}
 		}
 	]);
 }	
 
-function SetAntiBirdPicFlag(data,  yes_or_no)
+function SetAntiBirdPicFlagDom(hasBird)
 {
-	//var picid = data.img.substr(data.img.lastIndexOf('/')+1);
-	var url = data.img + '/set_bird_flag/' + yes_or_no;
-	console.log(url);
+	var div = $('#div_container_anti_bird_info_pics' ).find('div[class=fotorama__stage]').find('div.' + 'anti_bird_pic_toolbutton_get_flag' );
+	if(div[0])
+	{
+		if(hasBird){
+			div.show();
+		}
+		else {
+			div.hide();
+		}
+	}
+}
+function GetAntiBirdPicFlag(active_frame)
+{
+	return active_frame.data.hasBird;
+}
+function SetAntiBirdPicFlag(active_frame,  hasBird)
+{
+	var url = active_frame.img + '/hasBird';
+	var data = {hasBird: hasBird};
+	ShowProgressBar(true, 670, 200, '保存中', '正在保存，请稍候...');
+	$.ajax({
+		type : 'PUT',
+		url: url,
+		data: JSON.stringify(data),
+		dataType: 'text',
+		async:false
+	})
+	.done(function (data1){
+		ShowProgressBar(false);
+		SetAntiBirdPicFlagDom(hasBird);
+	})
+	.fail(function (xhr, status, e){
+		ShowProgressBar(false);
+		$.jGrowl("保存失败:" + e, { 
+			life: 2000,
+			position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+			theme: 'bubblestylefail',
+			glue:'before'
+		});
+	});
 }
 
 function AddButtonToFotorama(container_id, control, options)

@@ -1097,3 +1097,17 @@ input[type="button"].btn-block {
 	background-color: #00FF00;
 }
 
+.anti_bird_pic_toolbutton_get_flag
+{
+	opacity:0.6;
+	z-index:9;
+	position: absolute;
+	width:26px;
+	height:26px;
+	border-radius: 5px;
+	left:10px;
+	top:10px;
+	background: transparent url(img/anti_bird_icon_checked.png) center;
+	background-size:26px 26px;
+	border:1px solid green;
+}
