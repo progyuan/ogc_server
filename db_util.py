@@ -107,6 +107,7 @@ ODBC_STRING = {}
 gPinYin = None
 gFeatureslist = []
 gIsSaveTileToDB = True
+gHttpClient = {}
 
 ARCGISTILEROOT = r'I:\geotiff'
 GOOGLETILEROOT = r'I:\geotiff'
@@ -369,8 +370,10 @@ def kml_get_records(filepath):
                                     ret.append(tower)
     return ret
     
-def read_kml(filepath):
+def kml_to_geojson(filepath):
     lines = []
+    towers = []
+    piny = get_pinyin_data()
     tree = etree.parse(filepath)
     if tree:
         root = tree.getroot()
@@ -381,30 +384,71 @@ def read_kml(filepath):
                     tag = child2.tag.replace('{http://www.opengis.net/kml/2.2}','')
                     if tag in ['Folder']:
                         linename = None
+                        line = {}
                         for item in child2:
                             tagname = item.tag.replace('{http://www.opengis.net/kml/2.2}','')
                             if tagname == 'name':
-                                #print('%s' % item.text)
-                                linename = item.text
-                                line['name'] = linename
-                            if tagname == 'Region':
-                                line['box'] = {'north':float(item[0][0].text),'south':float(item[0][1].text),'east':float(item[0][2].text),'west':float(item[0][3].text)}
+                                line['properties'] = {}
+                                line['properties']['name'] = item.text.replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
+                                line['properties']['py'] = piny.hanzi2pinyin_first_letter(line['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
+                                line['properties']['webgis_type'] = 'polyline_line'
+                                line['properties']['supervisor'] = None
+                                line['properties']['decease_date'] = None
+                                line['properties']['manage_length'] = None
+                                line['properties']['designer'] = None
+                                line['properties']['voltage'] = None
+                                line['properties']['operator'] = None
+                                line['properties']['category'] = u'架空线'
+                                line['properties']['management'] = None
+                                line['properties']['production_date'] = None
+                                line['properties']['end_point'] = None
+                                line['properties']['responsible'] = None
+                                line['properties']['owner'] = None
+                                line['properties']['maintenace'] = None
+                                line['properties']['nodes'] = []
+                                line['properties']['status'] = None
+                                line['properties']['line_code'] = None
+                                line['properties']['finish_date'] = None
+                                line['properties']['team'] = None
+                                line['properties']['investor'] = None
+                                line['properties']['length'] = None
+                                line['properties']['constructor'] = None
+                                line['properties']['start_point'] = None
+                            #if tagname == 'Region':
+                                #line['box'] = {'north':float(item[0][0].text),'south':float(item[0][1].text),'east':float(item[0][2].text),'west':float(item[0][3].text)}
                             if tagname == 'Placemark':
-                                if not line.has_key('towers'):
-                                    line['towers'] = []
                                 tower = {}
-                                tower['name'] = item[0].text
-                                tower['coordinates'] = {}
+                                tower['_id'] = str(ObjectId())
+                                tower['geometry'] = {}
+                                tower['geometry2d'] = {}
+                                tower['properties'] = {}
+                                tower['properties']['name'] = item[0].text.replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
+                                tower['properties']['grnd_resistance'] = None
+                                tower['properties']['tower_code'] = ''
+                                tower['properties']['webgis_type'] = 'point_tower'
+                                tower['properties']['metals'] = []
+                                tower['properties']['line_rotate'] = 0
+                                tower['properties']['building_level'] = None
+                                tower['properties']['rotate'] = 0
+                                tower['properties']['vertical_span'] = 0
+                                tower['properties']['py'] = piny.hanzi2pinyin_first_letter(tower['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
+                                tower['properties']['model'] = []
+                                tower['properties']['horizontal_span'] = 0
+                                tower['properties']['denomi_height'] = None
+                                tower['geometry']['type'] = 'Point'
+                                tower['geometry2d']['type'] = 'Point'
                                 arr = item[2][2].text.split(',')
-                                tower['coordinates']['lgt'] = float(arr[0])
-                                tower['coordinates']['lat'] = float(arr[1])
-                                line['towers'].append(tower)
+                                tower['geometry']['coordinates'] = [float(arr[0]), float(arr[1]), float(arr[2])]
+                                tower['geometry2d']['coordinates'] = [float(arr[0]), float(arr[1])]
+                                tower['type'] = 'Feature'
+                                towers.append(tower)
+                                line['properties']['nodes'].append(tower['_id'])
                         lines.append(line)
         #print(lines)
         #for line in lines:
             ##for k in line.keys():
             #print('%s=%s' % (line['name'],str(line['towers'])))
-    return lines
+    return lines, towers
 
 def odbc_insert_line(lines):
     conn = None
@@ -9204,7 +9248,7 @@ def command_batch_tile_download(options):
 
     
 def gridfs_tile_find(tiletype, subtype, tilepath, params):
-    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB
+    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB, gHttpClient
     arr = tiletype.split('/')
     dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
     collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
@@ -9282,10 +9326,13 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                     response = None
                     try:
                         url = URL(urlstr)
-                        http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-                        g = gevent.spawn(http.get, url.request_uri)
-                        g.join()
-                        response = g.value
+                        #http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+                        if not gHttpClient.has_key('tiles'):
+                            gHttpClient['tiles'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
+                        #g = gevent.spawn(http.get, url.request_uri)
+                        #g.join()
+                        #response = g.value
+                        response = gHttpClient['tiles'].get(url.request_uri)
                         if response and response.status_code == 200:
                             if '.terrain' in tilepath:
                                 with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
@@ -9349,7 +9396,7 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
     
     
 def bing_tile(tiletype, subtype, tilepath, x, y, level):
-    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB
+    global gClientMongoTiles, gConfig, gClientMetadata, gIsSaveTileToDB, gHttpClient
     
     def tileXYToQuadKey(x, y, level):
         quadkey = ''
@@ -9398,8 +9445,10 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
         url_metadata_template = gConfig['webgis'][arr[1]][subtype]['url_template']
         href = url_metadata_template.replace('{key}', gConfig['webgis'][arr[1]][subtype]['key'])
         url = URL(href) 
-        http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-        response = http.get(url.request_uri)
+        #http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+        if not gHttpClient.has_key('tiles'):
+            gHttpClient['tiles'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=1000)
+        response = gHttpClient['tiles'].get(url.request_uri)
         if response and response.status_code == 200:
             obj = json.load(response)
             if obj.has_key('resourceSets') and len(obj['resourceSets'])>0 and obj['resourceSets'][0].has_key('resources') and len(obj['resourceSets'][0]['resources'])>0:
@@ -9413,20 +9462,19 @@ def bing_tile(tiletype, subtype, tilepath, x, y, level):
     href = href.replace('{subdomain}', subdomains[subdomainIndex]);
     print('downloading from %s' % href)
     url = URL(href)    
-    http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
-    response = None
-    try:
-        g = gevent.spawn(http.get, url.request_uri)
-        g.join()
-        response = g.value
-        if response and response.status_code == 200:
-            ret = response.read()
-            if len(ret) == gClientMetadata[tiletype][subtype]['missing_file_size']:
-                ret = gClientMetadata[tiletype][subtype]['missing_file_content']
-            else:
-                if gIsSaveTileToDB:
-                    gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
-    except:
+    #http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
+    if not gHttpClient.has_key('tiles'):
+        gHttpClient['tiles'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
+    
+    response = gHttpClient['tiles'].get(url.request_uri)
+    if response and response.status_code == 200:
+        ret = response.read()
+        if len(ret) == gClientMetadata[tiletype][subtype]['missing_file_size']:
+            ret = gClientMetadata[tiletype][subtype]['missing_file_content']
+        else:
+            if gIsSaveTileToDB:
+                gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret).join()
+    else:
         ret = None
     return mimetype, ret
     
@@ -9884,7 +9932,11 @@ def test_auth():
     print(wr)
     
     
-    
+def test_kml_import():
+    filepath = ur'D:\2014项目\sdxl.kml'
+    lines, towers = kml_to_geojson(filepath)
+    print(len(lines))
+    print(len(towers))
     
 if __name__=="__main__":
     opts = init_global()
@@ -9969,6 +10021,7 @@ if __name__=="__main__":
     #test_import_userinfo()
     #test_import_sysrole('ztgd')
     #test_auth()
+    test_kml_import()
     
     
     

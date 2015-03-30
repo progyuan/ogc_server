@@ -1855,15 +1855,18 @@ function AntiBirdBadgeMessageArrival(viewer, message)
 				pos = viewer.latLngToContainerPoint(L.latLng(obj.lat, obj.lng));
 				//console.log(pos);
 			}
-			var x = Math.floor(pos.x), y = Math.floor(pos.y);
-			$('#div_anti_bird_inform_icon').css('top', y + 'px').css('left', x + 'px');
-			$('#div_anti_bird_inform_icon').show('shake', { percent: 100 }, 400, function(){
-				$( "#div_anti_bird_inform_icon" ).effect( 'transfer', { to: "#button_anti_bird", className: "ui-effects-transfer" }, 1500, function(){
-					AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
-					AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
-					$('#div_anti_bird_inform_icon').hide();
+			if(pos)
+			{
+				var x = Math.floor(pos.x), y = Math.floor(pos.y);
+				$('#div_anti_bird_inform_icon').css('top', y + 'px').css('left', x + 'px');
+				$('#div_anti_bird_inform_icon').show('shake', { percent: 100 }, 400, function(){
+					$( "#div_anti_bird_inform_icon" ).effect( 'transfer', { to: "#button_anti_bird", className: "ui-effects-transfer" }, 1500, function(){
+						AntiBirdBadgeIncrease($.webgis.data.antibird.unread_msg_queue.length);
+						AntiBirdBadgeMessageListReload($.webgis.data.antibird.unread_msg_queue, '');
+						$('#div_anti_bird_inform_icon').hide();
+					});
 				});
-			});
+			}
 		}
 		else
 		{
@@ -7715,7 +7718,7 @@ function ShowAntiBirdInfoDialog(viewer,  imei, records_num)
 		{display: "结束日期", id:"end_date", dateFormat:"yymmdd", newline: true, is_range:true, type: "date", group:'分布参数',  width:300, validate:{required:true}},
 		{display: "生成热图", id: "button_create", newline: true,  type: "button", group:'操作', width:350, defaultvalue:'点击生成热度图', click:function(){
 			var data = $('#form_anti_bird_info_heatmap').webgisform('getdata');
-			console.log(data);
+			//console.log(data);
 			AntiBirdHeatmap(viewer, {
 				speed:data.slider_distinguish_speed, 
 				start:moment(data.start_date).local().format('YYYYMMDD'), 

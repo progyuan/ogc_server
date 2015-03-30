@@ -102,6 +102,7 @@ gSecurityConfig = {}
 gWebSocketsMap = {}
 gTcpReconnectCounter = 0
 gTcpSock = None
+gHttpClient = {}
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -5031,28 +5032,27 @@ def application_pay_platform(environ, start_response):
     
 
 def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, network_timeout=10.0, method='get', data=''):
-    global ENCODING
+    global ENCODING, gHttpClient
     token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
     href = 'http://%s:%s%s?token=%s&random=%d' % (real_host, real_port, path_info.replace('/proxy/', '/'), token, random.randint(0,100000))
     #print(href)
     header = {'Content-Type': 'text/json;charset=' + ENCODING}
     ret = ''
-    #try:
-    client = HTTPClient.from_url(href, concurrency=1, connection_timeout=connection_timeout, network_timeout=network_timeout, )
     url = URL(href)
-    g = None
+    if not gHttpClient.has_key('http_proxy'):
+        gHttpClient['http_proxy'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
+    client = gHttpClient['http_proxy']
+    response = None
     if method == 'get':
-        g = gevent.spawn(client.get, url.request_uri)
+        response = client.get(url.request_uri)
     elif method == 'put':
-        g = gevent.spawn(client.put, url.request_uri, data, {'Content-Type':'application/json'})
+        response = client.put(url.request_uri, data, {'Content-Type':'application/json'})
     elif method == 'delete':
-        g = gevent.spawn(client.delete, url.request_uri, data)
+        response = client.delete(url.request_uri, data)
     elif method == 'post':
-        g = gevent.spawn(client.post, url.request_uri, data)
-    if g:
-        g.join()
-        response = g.value
-        if response is not None and hasattr(response, 'status_code'):
+        response = client.post(url.request_uri, data)
+    if response:
+        if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
                 ret = response.read()
                 header = {}
@@ -5068,16 +5068,9 @@ def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, n
                 msg = 'handle_http_proxy response error:%d' % response.status_code
                 ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
         else:
-            raise Exception('handle_http_proxy error')
-    #except:
-        #e = sys.exc_info()[1]
-        #msg = ''
-        #if hasattr(e, 'message'):
-            #msg = 'handle_http_proxy error:%s' % e.message
-        #else:
-            #msg = 'handle_http_proxy error:%s' % str(e)
-        #header = {'Content-Type': 'text/json;charset=' + ENCODING}
-        #ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
+            raise Exception('handle_http_proxy error: response has no status_code')
+    else:
+        raise Exception('handle_http_proxy error')
     return  '200 OK', header, ret
 
 def anti_bird_proxy(path_info, method='get', body=''):
@@ -5460,7 +5453,7 @@ def application_markdown(environ, start_response):
     
     
 def handle_proxy_cgi(environ):
-    global gConfig
+    global gConfig, gHttpClient
     method = environ['REQUEST_METHOD']
     post_data = ''
     if method == "POST":
@@ -5480,47 +5473,22 @@ def handle_proxy_cgi(environ):
     s = ''
     headers = {'Content-Type': 'text/plain;charset=' + ENCODING}
     try:
-        #host = url.split("/")[2]
-        #if allowedHosts and not host in allowedHosts:
-            #s += "Status: 502 Bad Gateway"
-            #s += "Content-Type: text/plain"
-            #s += "This proxy does not allow you to access that location (%s)." % (host,)
-            
-      
         if url.startswith("http://") or url.startswith("https://"):
             request = None
             response = None
             http = None
             urlobj = URL(url)
+            
+            if not gHttpClient.has_key('proxy_cgi'):
+                gHttpClient['proxy_cgi'] = HTTPClient(urlobj.host, port=urlobj.port, concurrency=100)
+            client = gHttpClient['proxy_cgi']
+            
             if method == "POST":
                 #length = int(environ["CONTENT_LENGTH"])
                 headers["Content-Type"] = environ["CONTENT_TYPE"]
-                #body = sys.stdin.read(length)
-                #r = urllib2.Request(url, body, headers)
-                #request = urllib2.Request(url, post_data, headers=headers)
-                #request = urllib2.Request(url, post_data, headers=headers)
-                #y = urllib2.urlopen(request, data=post_data)
-                http = HTTPClient.from_url(urlobj)
-                #y = http.post(urlobj.request_uri, post_data, headers)
-                g = gevent.spawn(http.post, urlobj.request_uri, post_data, headers)
-                g.start()
-                while not g.ready():
-                    if g.exception:
-                        break
-                    gevent.sleep(0.1)
-                response = g.value
+                response = client.post(urlobj.request_uri, post_data, headers)
             else:
-                http = HTTPClient.from_url(urlobj)
-                #y = http.get(urlobj.request_uri)
-                g = gevent.spawn(http.get, urlobj.request_uri)
-                g.start()
-                while not g.ready():
-                    if g.exception:
-                        break
-                    gevent.sleep(0.1)
-                response = g.value
-                
-            
+                response = client.get(urlobj.request_uri)
             if response:
                 h = str(response.info())
                 #if i.has_key("Content-Type"):
@@ -5531,12 +5499,9 @@ def handle_proxy_cgi(environ):
                     if i[0] in ['Content-Type', 'Date', 'Server', ]:
                         responseh.append(i)
                 s = response.read()
-                #response.release()
-                http.close()
+                client.close()
                 headers['Content-Length'] = str(len(s))
-                #print(responseh)
         else:
-            #print("Content-Type: text/plain")
             s += "Illegal request."
     
     except Exception, E:
