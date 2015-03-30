@@ -98,11 +98,6 @@ $.webgis.form_fields.base_flds_6 = [ //超声波驱鸟装置
 				ShowAntiBirdInfoDialog($.webgis.viewer, $.webgis.select.selected_imei);
 			}
 		}
-	},
-	{display: "统计图表", id: "button_statistics", newline: true,  type: "button", group:'驱鸟装置', width:350, defaultvalue:'点击查看',
-		click:function( event, ui ){
-			console.log('bbb');
-		}
 	}
 ];
 

@@ -371,32 +371,68 @@ def kml_get_records(filepath):
     return ret
     
 def kml_to_geojson(filepath):
+    ignorelines = [u'220kV厂金II回', u'220kV厂金I回', u'220kV七官I、II回',
+                   u'500kV厂口曲靖I回', '500kV和平厂口I回', u'220kV草海线', 
+                   u'500kV草和乙线', u'500kV厂口七甸I回线', 
+                   u'500kV七罗II回',u'110kV郭南线',u'220kV马温海线',
+                   u'500kV厂口曲靖II回', u'500kV草和甲线',u'500kV草宝乙线',
+                   u'500kV和平厂口II回', u'500kV草宝甲线', u'500kV七罗I回',
+                   u'500kV大宝I回', u'500kV宝七I回', u'110kV郭岔线',
+                   u'500kV宝七II回'
+                   ]
     lines = []
     towers = []
+    edges = []
     piny = get_pinyin_data()
     tree = etree.parse(filepath)
     if tree:
         root = tree.getroot()
         for child in root:
             for child1 in child:
+                #print(child1.tag)
                 for child2 in child1:
                     line = {}
                     tag = child2.tag.replace('{http://www.opengis.net/kml/2.2}','')
-                    if tag in ['Folder']:
+                    #if tag in ['Folder']:
+                    if tag in ['Document']:
                         linename = None
                         line = {}
-                        for item in child2:
-                            tagname = item.tag.replace('{http://www.opengis.net/kml/2.2}','')
+                        voltage = None
+                        for child3 in child2:
+                            tagname = child3.tag.replace('{http://www.opengis.net/kml/2.2}','')
                             if tagname == 'name':
                                 line['properties'] = {}
-                                line['properties']['name'] = item.text.replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
+                                line['properties']['name'] = child3.text.replace(u'.kml', u'').replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
+                                if line['properties']['name'] in ignorelines:
+                                    break
+                                if '500kV' in line['properties']['name']:
+                                    voltage = '15'
+                                    line['properties']['name'] = line['properties']['name'].replace('500kV', '')
+                                elif '220kV' in line['properties']['name']:
+                                    voltage = '13'
+                                    line['properties']['name'] = line['properties']['name'].replace('220kV', '')
+                                elif '110kV' in line['properties']['name']:
+                                    voltage = '12'
+                                    line['properties']['name'] = line['properties']['name'].replace('110kV', '')
+                                elif '66kV' in line['properties']['name']:
+                                    voltage = '11'
+                                    line['properties']['name'] = line['properties']['name'].replace('66kV', '')
+                                elif '35kV' in line['properties']['name']:
+                                    voltage = '10'
+                                    line['properties']['name'] = line['properties']['name'].replace('35kV', '')
+                                elif '20kV' in line['properties']['name']:
+                                    voltage = '09'
+                                    line['properties']['name'] = line['properties']['name'].replace('20kV', '')
+                                elif '10kV' in line['properties']['name']:
+                                    voltage = '08'
+                                    line['properties']['name'] = line['properties']['name'].replace('10kV', '')
                                 line['properties']['py'] = piny.hanzi2pinyin_first_letter(line['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
                                 line['properties']['webgis_type'] = 'polyline_line'
                                 line['properties']['supervisor'] = None
                                 line['properties']['decease_date'] = None
                                 line['properties']['manage_length'] = None
                                 line['properties']['designer'] = None
-                                line['properties']['voltage'] = None
+                                line['properties']['voltage'] = voltage
                                 line['properties']['operator'] = None
                                 line['properties']['category'] = u'架空线'
                                 line['properties']['management'] = None
@@ -416,39 +452,52 @@ def kml_to_geojson(filepath):
                                 line['properties']['start_point'] = None
                             #if tagname == 'Region':
                                 #line['box'] = {'north':float(item[0][0].text),'south':float(item[0][1].text),'east':float(item[0][2].text),'west':float(item[0][3].text)}
-                            if tagname == 'Placemark':
-                                tower = {}
-                                tower['_id'] = str(ObjectId())
-                                tower['geometry'] = {}
-                                tower['geometry2d'] = {}
-                                tower['properties'] = {}
-                                tower['properties']['name'] = item[0].text.replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
-                                tower['properties']['grnd_resistance'] = None
-                                tower['properties']['tower_code'] = ''
-                                tower['properties']['webgis_type'] = 'point_tower'
-                                tower['properties']['metals'] = []
-                                tower['properties']['line_rotate'] = 0
-                                tower['properties']['building_level'] = None
-                                tower['properties']['rotate'] = 0
-                                tower['properties']['vertical_span'] = 0
-                                tower['properties']['py'] = piny.hanzi2pinyin_first_letter(tower['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
-                                tower['properties']['model'] = []
-                                tower['properties']['horizontal_span'] = 0
-                                tower['properties']['denomi_height'] = None
-                                tower['geometry']['type'] = 'Point'
-                                tower['geometry2d']['type'] = 'Point'
-                                arr = item[2][2].text.split(',')
-                                tower['geometry']['coordinates'] = [float(arr[0]), float(arr[1]), float(arr[2])]
-                                tower['geometry2d']['coordinates'] = [float(arr[0]), float(arr[1])]
-                                tower['type'] = 'Feature'
-                                towers.append(tower)
-                                line['properties']['nodes'].append(tower['_id'])
+                            if tagname == 'Folder':
+                                for child4 in child3:
+                                    tagname1 = child4.tag.replace('{http://www.opengis.net/kml/2.2}','')
+                                    if tagname1 == 'Placemark':
+                                        tower = {}
+                                        tower['_id'] = str(ObjectId())
+                                        tower['geometry'] = {}
+                                        tower['geometry2d'] = {}
+                                        tower['properties'] = {}
+                                        tower['properties']['name'] = child4[0].text.replace(u'Ⅱ',u'II').replace(u'Ⅰ',u'I')
+                                        tower['properties']['grnd_resistance'] = None
+                                        tower['properties']['tower_code'] = ''
+                                        tower['properties']['webgis_type'] = 'point_tower'
+                                        tower['properties']['metals'] = []
+                                        tower['properties']['line_rotate'] = 0
+                                        tower['properties']['building_level'] = None
+                                        tower['properties']['rotate'] = 0
+                                        tower['properties']['vertical_span'] = 0
+                                        tower['properties']['py'] = piny.hanzi2pinyin_first_letter(tower['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
+                                        tower['properties']['model'] = []
+                                        tower['properties']['horizontal_span'] = 0
+                                        tower['properties']['denomi_height'] = None
+                                        tower['properties']['voltage'] = voltage
+                                        tower['geometry']['type'] = 'Point'
+                                        tower['geometry2d']['type'] = 'Point'
+                                        arr = child4[2][2].text.split(',')
+                                        tower['geometry']['coordinates'] = [float(arr[0]), float(arr[1]), float(arr[2])]
+                                        tower['geometry2d']['coordinates'] = [float(arr[0]), float(arr[1])]
+                                        tower['type'] = 'Feature'
+                                        towers.append(tower)
+                                        line['properties']['nodes'].append(tower['_id'])
+                                for idx in range(1, len(line['properties']['nodes'])):
+                                    edge = {}
+                                    edge['_id'] = str(ObjectId())
+                                    edge['properties'] = {}
+                                    edge['properties']['start'] = line['properties']['nodes'][idx - 1]
+                                    edge['properties']['end'] = line['properties']['nodes'][idx]
+                                    edge['properties']['webgis_type'] = 'edge_tower'
+                                    edges.append(edge)
+                                
                         lines.append(line)
         #print(lines)
         #for line in lines:
             ##for k in line.keys():
             #print('%s=%s' % (line['name'],str(line['towers'])))
-    return lines, towers
+    return lines, towers, edges
 
 def odbc_insert_line(lines):
     conn = None
@@ -9931,12 +9980,66 @@ def test_auth():
     wr = collection.update({'username':'bbbb'}, {'$set':{'password':'222222'}},  multi=True, upsert=False)
     print(wr)
     
+
+def test_check_exist_line_towers():
+    l = mongo_find('kmgd', 'network', {'properties.webgis_type':'polyline_line'})
+    for i in l:
+        print('%s: towers: %d' % (i['properties']['name'], len(i['properties']['nodes'])))
+def test_get_exist_anti_bird():
+    l = mongo_find(
+        'kmgd',
+        'features',
+        {
+            "properties.webgis_type":"point_tower",
+            "properties.metals":{
+                "$elemMatch":{
+                    "type":u"超声波驱鸟装置"
+                }
+            }
+        },
+        0,
+        'webgis'
+                )
+    ret = []
+    for i in l:
+        o = {}
+        o['_id'] = i['_id']
+        o['name'] = i['properties']['name']
+        if u'草海线' in o['name'] or u'七罗' in o['name'] :
+            continue
+        o['antibird'] = []
+        #print('%s:' % i['properties']['name'])
+        for j in i['properties']['metals']:
+            #print('-------')
+            obj = {}
+            for k in j.keys():
+                if not 'button_' in k:
+                    obj[k] = j[k]
+            o['antibird'].append(obj)
+        ret.append(o)
+    return ret
+    
     
 def test_kml_import():
-    filepath = ur'D:\2014项目\sdxl.kml'
-    lines, towers = kml_to_geojson(filepath)
+    filepath = ur'D:\kml\sdxl.kml'
+    filepath1 = ur'D:\kml\lines.json'
+    filepath2 = ur'D:\kml\towers.json'
+    filepath3 = ur'D:\kml\edges.json'
+    filepath4 = ur'D:\kml\exist_anti_bird.json'
+    lines, towers, edges = kml_to_geojson(filepath)
+    exist_anti_bird = test_get_exist_anti_bird()
     print(len(lines))
     print(len(towers))
+    print(len(edges))
+    print(len(exist_anti_bird))
+    with open(filepath1, 'w') as f:
+        f.write(enc(json.dumps(lines,  ensure_ascii=False, indent=4)))
+    with open(filepath2, 'w') as f:
+        f.write(enc(json.dumps(towers,  ensure_ascii=False, indent=4)))
+    with open(filepath3, 'w') as f:
+        f.write(enc(json.dumps(edges,  ensure_ascii=False, indent=4)))
+    with open(filepath4, 'w') as f:
+        f.write(enc(json.dumps(exist_anti_bird,  ensure_ascii=False, indent=4)))
     
 if __name__=="__main__":
     opts = init_global()
@@ -10022,6 +10125,6 @@ if __name__=="__main__":
     #test_import_sysrole('ztgd')
     #test_auth()
     test_kml_import()
-    
+    #test_check_exist_line_towers()
     
     
