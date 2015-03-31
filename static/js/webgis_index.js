@@ -10,6 +10,7 @@ $.webgis.mapping.models_mapping = {};
 $.webgis.geometry.segments = [];
 $.webgis.geometry.lines = {};
 
+
 $.webgis.config.is_tower_focus = false;
 
 $.webgis.data.buffers = {};
@@ -781,9 +782,21 @@ function InitKeyboardEvent(viewer)
 			$("#anti_bird_msg_list_container").hide('slide', {direction:'right'}, 500);
 		}
 	});
+	$(document).on('keydown', function(e){
+		if(e.ctrlKey)
+		{
+			$.webgis.key_event.ctrl = true;
+			e.preventDefault();
+		}
+	});
 	
 	$(document).on('keyup', function(e){
-		if(e.keyCode == 76)//ctrl(17) L(76)
+		e.preventDefault();
+		if(e.keyCode == 17)//ctrl(17)
+		{
+			$.webgis.key_event.ctrl = false;
+		}
+		if($.webgis.key_event.ctrl === true && e.keyCode == 76)//ctrl(17) L(76)
 		{
 			//if()
 			//{
@@ -799,7 +812,7 @@ function InitKeyboardEvent(viewer)
 			if($.webgis.config.node_connect_mode)
 			{
 				//$(".jGrowl-notification:last-child").remove();
-				$.jGrowl('<div>连接模式开启(L键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
+				$.jGrowl('<div>连接模式开启(CTRL+L键关闭)</div><span id="div_edge_instruction"></span><button  id="btn_edge_save">保存</button>', { 
 					sticky:true,
 					//life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
@@ -859,7 +872,7 @@ function InitKeyboardEvent(viewer)
 			{
 				//$(".jGrowl-notification:last").trigger('jGrowl.close');
 				$('.jGrowl-notification').trigger('jGrowl.close');
-				$.jGrowl("连接模式关闭(L键开启)", { 
+				$.jGrowl("连接模式关闭(CTRL+L键开启)", { 
 					life:3000,
 					position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
 					theme: 'bubblestylesuccess',
@@ -5025,14 +5038,7 @@ function ReloadCzmlDataSource(viewer, z_aware, forcereload)
 				}
 				else if(obj['webgis_type'] && obj['webgis_type'] === 'point_tower')
 				{
-					//if(opt[kk] === true)
-					//{
-						//obj['billboard']['show'] = {'boolean':true};
-					//}
-					//if(opt[kk] === false)
-					//{
-					//console.log($.webgis.data.geojsons[k]);
-					if($.webgis.data.geojsons[k] && $.webgis.data.geojsons[k]['properties'] && $.webgis.data.geojsons[k]['properties']['model'])
+					if($.webgis.data.geojsons[k] && $.webgis.data.geojsons[k]['properties'] && $.webgis.data.geojsons[k]['properties']['model'] && !$.isEmptyObject($.webgis.data.geojsons[k]['properties']['model']))
 					{
 						obj['billboard']['show'] = {'boolean':false};
 					}else
@@ -10055,6 +10061,7 @@ function ShowLineDialog(viewer, mode)
 			countSelected: '(选择#个,共%个)',
 			noMatchesFound: '(无匹配)',
 			single: true,
+			filter: true,
 			position: 'bottom',
 			onClick:function(view){
 				if(view.checked)
