@@ -2362,19 +2362,51 @@ function InitAntiBirdEquipListData(viewer)
 {
 	var url = '/anti_bird_equip_list';
 	ShowProgressBar(true, 670, 200, '加载中', '正在加载驱鸟设备信息，请稍候...');
-	$.get(url, {is_filter_used:true}, function( data1 ){
+	$.ajax({
+		type:'GET',
+		url:url,
+		data:JSON.stringify({is_filter_used:true}),
+		dataType: 'text',
+	})
+	.done(function( data1 ){
 		ShowProgressBar(false);
-		ret = JSON.parse(decodeURIComponent(data1));
+		var ret = JSON.parse(decodeURIComponent(data1));
 		$.webgis.data.antibird.anti_bird_equip_list = ret;
 		url = '/anti_bird_equip_tower_mapping';
 		ShowProgressBar(true, 670, 200, '加载中', '正在加载驱鸟设备与杆塔绑定信息，请稍候...');
-		$.get(url, {}, function( data1 ){
+		
+		
+		$.ajax({
+			type: 'GET',
+			url: url, 
+			data:'{}',
+			dataType: 'text',
+		})
+		.done(function( data1 ){
 			ShowProgressBar(false);
-			ret = JSON.parse(decodeURIComponent(data1));
+			var ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
 			//testheatmap(viewer);
-		}, 'text');
-	}, 'text');
+		})
+		.fail(function (xhr, status, e){
+			ShowProgressBar(false);
+			$.jGrowl("加载失败:" + e, { 
+				life: 2000,
+				position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+				theme: 'bubblestylefail',
+				glue:'before'
+			});
+		});
+	})
+	.fail(function (xhr, status, e){
+		ShowProgressBar(false);
+		$.jGrowl("加载失败:" + e, { 
+			life: 2000,
+			position: 'bottom-right', //top-left, top-right, bottom-left, bottom-right, center
+			theme: 'bubblestylefail',
+			glue:'before'
+		});
+	});
 }
 function InitAntiBirdWebsocket(viewer)
 {

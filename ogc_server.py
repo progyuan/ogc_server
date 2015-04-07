@@ -2742,11 +2742,17 @@ def get_querydict_by_GET_POST(environ):
         querystring = environ['QUERY_STRING']
         querystring = urllib.unquote_plus(querystring)
         querystring = dec(querystring)
-        querydict = urlparse.parse_qs(querystring)
-        d = {}
-        for k in querydict.keys():
-            d[k] = querydict[k][0]
-        querydict = d
+        try:
+            d = json.loads(querystring)
+            if isinstance(d, dict):
+                for k in d.keys():
+                    querydict[k] = d[k]
+        except:
+            querydict = urlparse.parse_qs(querystring)
+            d = {}
+            for k in querydict.keys():
+                d[k] = querydict[k][0]
+            querydict = d
     try:
         buf = environ['wsgi.input'].read()
         ds_plus = urllib.unquote_plus(buf)
@@ -4503,6 +4509,26 @@ def ws_recv(environ):
 def application_combiz_platform(environ, start_response):
     global STATICRESOURCE_DIR
     global gConfig, gRequest, gSessionStore
+    
+    
+    def proxy(environ):
+        connection_timeout, network_timeout = 5.0, 10.0
+        proxy_type = ''
+        if '/proxy_platform' in path_info:
+            proxy_type = 'proxy_platform'
+        if '/proxy_file' in path_info:
+            proxy_type = 'proxy_file'
+        if '/proxy_pay' in path_info:
+            proxy_type = 'proxy_pay'
+        try:
+            connection_timeout = float(gConfig['combiz_platform'][proxy_type]['www_connection_timeout'])
+        except:
+            pass
+        try:
+            network_timeout = float(gConfig['combiz_platform'][proxy_type]['www_network_timeout'])
+        except:
+            pass
+        return handle_http_proxy(environ, proxy_type, gConfig['combiz_platform'][proxy_type]['protocol'],  gConfig['combiz_platform'][proxy_type]['host'], gConfig['combiz_platform'][proxy_type]['port'], '', connection_timeout, network_timeout)
         
     headers = {}
     headerslist = []
@@ -4523,6 +4549,9 @@ def application_combiz_platform(environ, start_response):
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     elif check_is_static(path_info):
         statuscode, headers, body =  handle_static(environ, path_info)
+    elif len(path_info)>7 and path_info[:7] == '/proxy_':
+        statuscode, headers, body = proxy(environ)
+        
     else:    
         statuscode, headers, body = handle_combiz_platform(environ)
     headers = CORS_header(headers)
@@ -5031,11 +5060,35 @@ def application_pay_platform(environ, start_response):
     return [body]
     
 
-def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, network_timeout=10.0, method='get', data=''):
-    global ENCODING, gHttpClient
-    token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
-    href = 'http://%s:%s%s?token=%s&random=%d' % (real_host, real_port, path_info.replace('/proxy/', '/'), token, random.randint(0,100000))
-    #print(href)
+def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', real_host='localhost', real_port='80',  token='', connection_timeout=5.0, network_timeout=10.0, request_headers={}):
+    global ENCODING, gHttpClient, gRequest
+    #token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
+    path_info = environ['PATH_INFO']
+    if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
+        path_info += '?' + environ['QUERY_STRING']
+    request = None
+    if gRequest is None:
+        request = Request(environ)
+    else:
+        request = gRequest
+    method = request.method.lower()
+    data = request.get_data()
+    headers = {}
+    #if len(request_headers.keys()) == 0:
+    for i in request.headers:
+        headers[i[0]] = enc(i[1])
+    for k in request_headers.keys():
+        headers[k] = request_headers[k]
+    del headers['Host']
+    #for k in headers.keys():
+        #print('%s=%s' % (k, headers[k]))
+    href = '%s://%s:%s%s' % (real_protocol, real_host, real_port, path_info.replace('/%s/' % proxy_placeholder, '/'))
+    if '?' in href:
+        href += '&'
+    else:
+        href += '?';
+    href += 'token=%s&random=%d' % ( token, random.randint(0,100000) )
+    print('proxy to %s' % href)
     header = {'Content-Type': 'text/json;charset=' + ENCODING}
     ret = ''
     url = URL(href)
@@ -5044,13 +5097,13 @@ def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, n
     client = gHttpClient['http_proxy']
     response = None
     if method == 'get':
-        response = client.get(url.request_uri)
+        response = client.get(url.request_uri, headers)
     elif method == 'put':
-        response = client.put(url.request_uri, data, {'Content-Type':'application/json'})
+        response = client.put(url.request_uri, data, headers)
     elif method == 'delete':
-        response = client.delete(url.request_uri, data)
+        response = client.delete(url.request_uri, data, headers)
     elif method == 'post':
-        response = client.post(url.request_uri, data)
+        response = client.post(url.request_uri, data, headers)
     if response:
         if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
@@ -5067,13 +5120,14 @@ def handle_http_proxy(path_info, real_host, real_port, connection_timeout=5.0, n
             else:
                 msg = 'handle_http_proxy response error:%d' % response.status_code
                 ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
+                #raise Exception(msg)
         else:
             raise Exception('handle_http_proxy error: response has no status_code')
     else:
         raise Exception('handle_http_proxy error')
     return  '200 OK', header, ret
 
-def anti_bird_proxy(path_info, method='get', body=''):
+def anti_bird_proxy(environ, request_headers={}):
     global gConfig
     connection_timeout, network_timeout = 5.0, 10.0
     try:
@@ -5084,13 +5138,20 @@ def anti_bird_proxy(path_info, method='get', body=''):
         network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
     except:
         pass
-    return handle_http_proxy(path_info, gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], connection_timeout, network_timeout, method, body)
+    token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
+    path_info = environ['PATH_INFO']
+    if '/hasBird' in path_info:
+        request_headers['Content-Type'] = 'application/json'
+    return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
 
 
-def anti_bird_get_latest_records(imei, records_num=1):
+def anti_bird_get_latest_records(environ, imei, records_num=1):
+    global ENCODING
     ret = []
     href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
-    status, header, objstr = anti_bird_proxy(href)
+    environ['PATH_INFO'] = href
+    environ['QUERY_STRING'] = ''
+    status, header, objstr = anti_bird_proxy(environ)
     if len(objstr)>0:
         try:
             obj = json.loads(objstr)
@@ -5121,6 +5182,7 @@ def anti_bird_get_latest_records(imei, records_num=1):
     return ret
     
 def application_webgis(environ, start_response):
+    global ENCODING
     global gConfig, gRequest, gSessionStore, gWebSocketsMap
     
     def handle_websocket(environ):
@@ -5158,17 +5220,17 @@ def application_webgis(environ, start_response):
                 del ws
         return  '200 OK', {}, ''
     
-    def init_anti_bird_list():
+    def init_anti_bird_list(environ):
         ret = []
-        href = '/proxy/api/detector'
-        code, header, s = anti_bird_proxy(href)
+        environ['PATH_INFO'] = '/proxy/api/detector'
+        environ['QUERY_STRING'] = ''
+        code, header, s = anti_bird_proxy(environ)
         try:
             if len(s)>0:
                 obj = json.loads(s)
                 if isinstance(obj, dict) :
                     if obj.has_key('result'):
                         print('init_anti_bird_list error:%s' % obj['result'])
-                        raise
                     else:
                         if obj.has_key('_id'):
                             if obj.has_key('imei'):
@@ -5186,18 +5248,16 @@ def application_webgis(environ, start_response):
                             i['value'] = i['imei']
                         obj[idx] = i
                     ret = obj
-        except:
-            e = sys.exc_info()[1]
-            if hasattr(e, 'message'):
-                print('init_anti_bird_list error: %s' % e.message)
-            else:
-                print('init_anti_bird_list error: %s' % str(e))
-            ret = []
+        except Exception,e:
+            raise
+            ##e = sys.exc_info()[1]
+            #if hasattr(e, 'message'):
+                #print('init_anti_bird_list error: %s' % e.message)
+            #else:
+                #print('init_anti_bird_list error: %s' % str(e))
+            #ret = []
         return ret
     
-    def anti_bird_has_bird_flag(environ):
-        querydict, buf = get_querydict_by_GET_POST(environ)
-        return anti_bird_proxy(environ['PATH_INFO'], 'put', buf)
         
     def anti_bird_get_latest_records_by_imei(environ):
         querydict, buf = get_querydict_by_GET_POST(environ)
@@ -5208,7 +5268,7 @@ def application_webgis(environ, start_response):
                 records_num = int(querydict['records_num'])
             except:
                 pass
-            ret = anti_bird_get_latest_records(querydict['imei'], records_num)
+            ret = anti_bird_get_latest_records(environ, querydict['imei'], records_num)
         return  '200 OK', {}, json.dumps(ret, ensure_ascii=True, indent=4)
     
     
@@ -5216,9 +5276,9 @@ def application_webgis(environ, start_response):
         ret = ''
         is_filter_used=False
         querydict, buf = get_querydict_by_GET_POST(environ)
-        if querydict.has_key('is_filter_used') and querydict['is_filter_used'].lower() == 'true':
+        if querydict.has_key('is_filter_used') and querydict['is_filter_used'] is True:
             is_filter_used = True
-        equip_list = init_anti_bird_list()
+        equip_list = init_anti_bird_list(environ)
         if not is_filter_used:
             ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
         else:
@@ -5344,10 +5404,7 @@ def application_webgis(environ, start_response):
     elif path_info == '/websocket':
         statuscode, headers, body = handle_websocket(environ)
     elif len(path_info)>6 and path_info[:6] == '/proxy':
-        if '/hasBird' in path_info:
-            statuscode, headers, body = anti_bird_has_bird_flag(environ)
-        else:
-            statuscode, headers, body = anti_bird_proxy(path_info)
+        statuscode, headers, body = anti_bird_proxy(environ)
     elif path_info == '/anti_bird_equip_list':
         statuscode, headers, body = anti_bird_equip_list(environ)
     elif path_info == '/anti_bird_equip_tower_mapping':
@@ -5844,13 +5901,10 @@ def tcp_recv(sock=None):
     def send_to_client(packets):
         for imei in packets:
             try:
-                #l = anti_bird_get_latest_records(imei)
                 obj = {'imei':imei}
-                #if len(l)>0:
                 for k in gWebSocketsMap.keys():
                     ws = gWebSocketsMap[k]
                     if not ws.closed:
-                        #ws.send(json.dumps(l, ensure_ascii=True, indent=4))
                         ws.send(json.dumps(obj, ensure_ascii=True, indent=4))
             except:
                 e = sys.exc_info()[1]
