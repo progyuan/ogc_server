@@ -5079,7 +5079,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         headers[i[0]] = enc(i[1])
     for k in request_headers.keys():
         headers[k] = request_headers[k]
-    del headers['Host']
+    headers['Host'] = real_host
     #for k in headers.keys():
         #print('%s=%s' % (k, headers[k]))
     href = '%s://%s:%s%s' % (real_protocol, real_host, real_port, path_info.replace('/%s/' % proxy_placeholder, '/'))
@@ -5110,7 +5110,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
                 ret = response.read()
                 header = {}
                 for k in response._headers_index.keys():
-                    if not k in ['transfer-encoding', ]:
+                    if  not k in ['transfer-encoding', ]:
                         v = response._headers_index[k]
                         if '-' in k:
                             k = '-'.join([i.capitalize() for i in k.split('-')])
@@ -5127,59 +5127,8 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         raise Exception('handle_http_proxy error')
     return  '200 OK', header, ret
 
-def anti_bird_proxy(environ, request_headers={}):
-    global gConfig
-    connection_timeout, network_timeout = 5.0, 10.0
-    try:
-        connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
-    except:
-        pass
-    try:
-        network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
-    except:
-        pass
-    token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
-    path_info = environ['PATH_INFO']
-    if '/hasBird' in path_info:
-        request_headers['Content-Type'] = 'application/json'
-    return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
 
 
-def anti_bird_get_latest_records(environ, imei, records_num=1):
-    global ENCODING
-    ret = []
-    href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
-    environ['PATH_INFO'] = href
-    environ['QUERY_STRING'] = ''
-    status, header, objstr = anti_bird_proxy(environ)
-    if len(objstr)>0:
-        try:
-            obj = json.loads(objstr)
-            if isinstance(obj, dict) :
-                if obj.has_key('result'):
-                    print('anti_bird_get_latest_records error:%s' % obj['result'])
-                else:
-                    if obj.has_key('_id'):
-                        ret = [obj, ]
-                    else:
-                        print('anti_bird_get_latest_records error: unknown error')
-                        ret = []
-            elif isinstance(obj, list) :
-                ret = obj
-        except:
-            e = sys.exc_info()[1]
-            if hasattr(e, 'message'):
-                print('anti_bird_get_latest_records error:%s' % e.message)
-            else:
-                print('anti_bird_get_latest_records error:%s' % str(e))
-    for item in ret:
-        idx = ret.index(item)
-        if item.has_key('picture') and isinstance(item['picture'], list):
-            for i in item['picture']:
-                idx1 = item['picture'].index(i)
-                item['picture'][idx1] = '/proxy/api/image/%s' % i
-        ret[idx] = item    
-    return ret
     
 def application_webgis(environ, start_response):
     global ENCODING
@@ -5219,12 +5168,31 @@ def application_webgis(environ, start_response):
             if ws and ws.closed:
                 del ws
         return  '200 OK', {}, ''
+
+    def proxy(environ, request_headers={}):
+        global gConfig
+        connection_timeout, network_timeout = 5.0, 10.0
+        try:
+            connection_timeout = float(gConfig['webgis']['anti_bird']['www_connection_timeout'])
+        except:
+            pass
+        try:
+            network_timeout = float(gConfig['webgis']['anti_bird']['www_network_timeout'])
+        except:
+            pass
+        token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
+        path_info = environ['PATH_INFO']
+        if '/hasBird' in path_info:
+            request_headers['Content-Type'] = 'application/json'
+        return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
+
+
     
     def init_anti_bird_list(environ):
         ret = []
         environ['PATH_INFO'] = '/proxy/api/detector'
         environ['QUERY_STRING'] = ''
-        code, header, s = anti_bird_proxy(environ)
+        code, header, s = proxy(environ)
         try:
             if len(s)>0:
                 obj = json.loads(s)
@@ -5258,6 +5226,42 @@ def application_webgis(environ, start_response):
             #ret = []
         return ret
     
+    def anti_bird_get_latest_records(environ, imei, records_num=1):
+        global ENCODING
+        ret = []
+        href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
+        environ['PATH_INFO'] = href
+        environ['QUERY_STRING'] = ''
+        status, header, objstr = proxy(environ)
+        if len(objstr)>0:
+            try:
+                obj = json.loads(objstr)
+                if isinstance(obj, dict) :
+                    if obj.has_key('result'):
+                        print('anti_bird_get_latest_records error:%s' % obj['result'])
+                    else:
+                        if obj.has_key('_id'):
+                            ret = [obj, ]
+                        else:
+                            print('anti_bird_get_latest_records error: unknown error')
+                            ret = []
+                elif isinstance(obj, list) :
+                    ret = obj
+            except:
+                e = sys.exc_info()[1]
+                if hasattr(e, 'message'):
+                    print('anti_bird_get_latest_records error:%s' % e.message)
+                else:
+                    print('anti_bird_get_latest_records error:%s' % str(e))
+        for item in ret:
+            idx = ret.index(item)
+            if item.has_key('picture') and isinstance(item['picture'], list):
+                for i in item['picture']:
+                    idx1 = item['picture'].index(i)
+                    item['picture'][idx1] = '/proxy/api/image/%s' % i
+            ret[idx] = item    
+        return ret
+
         
     def anti_bird_get_latest_records_by_imei(environ):
         querydict, buf = get_querydict_by_GET_POST(environ)
@@ -5404,7 +5408,7 @@ def application_webgis(environ, start_response):
     elif path_info == '/websocket':
         statuscode, headers, body = handle_websocket(environ)
     elif len(path_info)>6 and path_info[:6] == '/proxy':
-        statuscode, headers, body = anti_bird_proxy(environ)
+        statuscode, headers, body = proxy(environ)
     elif path_info == '/anti_bird_equip_list':
         statuscode, headers, body = anti_bird_equip_list(environ)
     elif path_info == '/anti_bird_equip_tower_mapping':
