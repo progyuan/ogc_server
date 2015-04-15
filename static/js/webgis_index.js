@@ -4413,10 +4413,6 @@ function LoadBorder(viewer, db_name, condition, callback)
 				for(var i in data)
 				{
 					$.webgis.data.geojsons[data[i]['_id']] = data[i];
-					//var dataSource = new Cesium.GeoJsonDataSource();
-					//dataSource.load(data[0]);
-					//dataSource.dsname = 'geojson';
-					//viewer.dataSources.add(dataSource);
 				}
 				ReloadBorders(viewer, false);
 			}
@@ -4586,64 +4582,25 @@ function GetExtentByCzml()
 {
 	var ret;
 	ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
-	//if($.webgis.config.map_backend === 'cesium')
-	//{
-		//if($.webgis.data.czmls)
-		//{
-			//ret = {'west':179, 'east':-179, 'south':89, 'north':-89};
-			//for(var k in $.webgis.data.czmls)
-			//{
-				//if($.webgis.data.czmls[k] && $.webgis.data.czmls[k]['polyline'])
-				//{
-					//var positions = $.webgis.data.czmls[k]['polyline']['positions']['cartographicDegrees'];
-					//for(var i in positions)
-					//{
-						//var p = positions[i];
-						//if (i%3==0 && p < ret['west']) ret['west'] = p;
-						//if (i%3==0 && p > ret['east']) ret['east'] = p;
-						//if (i%3==1 && p < ret['south']) ret['south'] = p;
-						//if (i%3==1 && p > ret['north']) ret['north'] = p;
-					//}
-				//}
-				//else if($.webgis.data.czmls[k]['polygon'])
-				//{
-					//var positions = $.webgis.data.czmls[k]['polygon']['positions']['cartographicDegrees'];
-					//for(var i in positions)
-					//{
-						//var p = positions[i];
-						//if (i%3==0 && p < ret['west']) ret['west'] = p;
-						//if (i%3==0 && p > ret['east']) ret['east'] = p;
-						//if (i%3==1 && p < ret['south']) ret['south'] = p;
-						//if (i%3==1 && p > ret['north']) ret['north'] = p;
-					//}
-				//}
-				//else if($.webgis.data.czmls[k]['position'])
-				//{
-					//var pos = $.webgis.data.czmls[k]['position']['cartographicDegrees'];
-					//if (pos[0] < ret['west']) ret['west'] = pos[0];
-					//if (pos[0] > ret['east']) ret['east'] = pos[0];
-					//if (pos[1] < ret['south']) ret['south'] = pos[1];
-					//if (pos[1] > ret['north']) ret['north'] = pos[1];
-				//}
-			//}
-		//}
-	//}
-	//if($.webgis.config.map_backend === 'leaflet')
-	//{
 	var gj = {type: "FeatureCollection",features:[]};
-	for(var k in $.webgis.data.geojsons)
-	{
-		if ($.webgis.data.geojsons[k].geometry)
-		{
-			gj.features.push($.webgis.data.geojsons[k]);
-		}
-	}
+	//console.log(_.keys($.webgis.data.geojsons).length);
+	//$.each($.webgis.data.geojsons, function(k, v){
+		//console.log(k + '=' +v.properties.name);
+	//});
+	gj.features = _.values($.webgis.data.geojsons);
+	
+	//console.log(gj.features);
 	var arr = geojsonExtent(gj);
-	ret['west'] = arr[0];
-	ret['south'] = arr[1];
-	ret['east'] = arr[2];
-	ret['north'] = arr[3];
-	//}
+	if(arr)
+	{
+		ret['west'] = arr[0];
+		ret['south'] = arr[1];
+		ret['east'] = arr[2];
+		ret['north'] = arr[3];
+	}else
+	{
+		ret = GetDefaultExtent($.webgis.db.db_name);
+	}
 	//console.log(ret);
 	return ret;
 }
