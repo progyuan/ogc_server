@@ -28,7 +28,7 @@ def enc1(aStr):
 
 
 #DIR_ROOT = ur'D:\TDDOWNLOAD\附件3：安规学习资料'
-LIBREOFFICE_EXECUTEABLE = ur'E:\Program Files (x86)\LibreOfficePortable\LibreOfficePortable.exe'
+LIBREOFFICE_EXECUTEABLE = ur'E:\Program Files (x86)\LibreOffice\program\soffice.exe'
 DIR_ROOT = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题'
 TXT_DIR = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题\txt'
 EXPORT_PATH = os.path.join(DIR_ROOT, u'result.xls')

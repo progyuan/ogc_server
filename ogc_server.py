@@ -54,6 +54,10 @@ try:
     import czml
 except:
     print('czml import error')
+try:
+    from py3o.template import Template
+except:
+    print('import py3o.template error')
 
     
 
@@ -103,6 +107,7 @@ gWebSocketsMap = {}
 gTcpReconnectCounter = 0
 gTcpSock = None
 gHttpClient = {}
+gFormTemplate = []
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -129,6 +134,11 @@ class BooleanConverter(BaseConverter):
 
     def to_url(self, value):
         return value and 'true' or 'false'
+
+
+class Py3oItem(object):
+    pass
+
 
 gUrlMap = Map([
     Rule('/', endpoint='firstaccess'),
@@ -2767,7 +2777,7 @@ def get_querydict_by_GET_POST(environ):
     
 def handle_combiz_platform(environ):
     global ENCODING
-    global gConfig, gRequest
+    global gConfig, gRequest, gFormTemplate
     
        
     def get_collection(collection):
@@ -2969,6 +2979,113 @@ def handle_combiz_platform(environ):
             else:
                 ret = json.dumps({'result':u'workflow_template_delete_fail' }, ensure_ascii=True, indent=4)
         return ret
+    
+    
+    def get_form(form_id):
+        ret = None
+        for i in gFormTemplate:
+            if i['form_path'] == form_id:
+                ret = i
+                break
+        return ret
+    def template_fill(querydict):
+        def fill_tpl(form, form_data):
+            ret = None
+            template_document = form['template_document']
+            return ret
+        ret = ''
+        content_type = 'text/json'
+        if len(gFormTemplate) == 0:
+            p = os.path.join(STATICRESOURCE_DIR, 'form_templates', 'list.json')
+            if os.path.exists(p):
+                with open(p, 'r') as f:
+                    f1 = gevent.fileobject.FileObjectThread(f, mode)
+                    gFormTemplate = json.loads(f1.read())
+            else:
+                ret = json.dumps({'result':u'template_fill_list_json_not_exist'}, ensure_ascii=True, indent=4)
+                return ret, content_type
+        o = json.loads(workflow_query(querydict))
+        if o.has_key('result'):
+            ret = json.dumps(o, ensure_ascii=True, indent=4)
+        else:
+            if querydict.has_key('form_id'):
+                if o.has_key('form_data') and isinstance(o['form_data'], dict):
+                    if querydict['form_id'] in o['form_data'].keys():
+                        form_data = o['form_data'][querydict['form_id']]
+                        form = get_form(querydict['form_id'])
+                        if form and form.has_key('template_document'):
+                            out_path = fill_tpl(form, form_data)
+                        else:
+                            ret = json.dumps({'result':u'template_fill_template_document_not_exist'}, ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'template_fill_form_id_not_exist'}, ensure_ascii=True, indent=4)
+                else:
+                    ret = json.dumps({'result':u'template_fill_form_data_is_none'}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'template_fill_form_id_required'}, ensure_ascii=True, indent=4)
+        return ret, content_type
+        
+        
+        
+    def template_export(src,  ext):
+        dirname = os.path.dirname(src)
+        out_dir = os.path.join(dirname, 'export_tmp')
+        out_path = os.path.basename(src)
+        idx = out_path.rindex('.') 
+        out_path = out_path[:idx+1]  + ext
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+        now = time.strftime('%Y-%m-%d %H:%M:%S')[:10]
+        out_dir = os.path.join(out_dir, '%s %s' % ( now , uuid.uuid4()))
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+        out_path = os.path.join(out_dir, out_path)
+        ret = json.dumps({'result':'unsupport export format.'}, ensure_ascii=True, indent=4)
+        content_type = 'text/json'
+        format = 'pdf'
+        if ext == 'pdf':
+            #format = 'pdf:writer pdf Export'
+            format = 'pdf'
+            content_type = 'application/pdf'
+        elif ext == 'doc':
+            format = 'doc:MS Word 97'
+            content_type = 'application/msword'
+        elif ext == 'docx':
+            format = 'docx:MS Word 2007 XML'
+            content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        elif ext == 'html':
+            format = 'html:XHTML Writer File'
+            content_type = 'text/html'
+        encfunc = enc
+        if sys.platform == 'win32':
+            encfunc = enc1
+        cmd = [
+            encfunc(gConfig['combiz_platform']['libreoffice']['executable_path']),
+               '--headless',
+               '--convert-to',
+               format,
+               '--outdir',
+               encfunc(out_dir),
+               encfunc(src)
+        ]
+        
+        output = gevent.subprocess.check_output(cmd)
+        print(output)
+        if len(output.strip())>0:
+            ret = json.dumps({'result':output}, ensure_ascii=True, indent=4)
+            content_type = 'text/json'
+        if not os.path.exists(out_path):
+            ret = json.dumps({'result':'export failed:file not exist.'}, ensure_ascii=True, indent=4)
+            content_type = 'text/json'
+        if os.path.exists(out_path):
+            with open(out_path, 'rb') as f:
+                f1 = gevent.fileobject.FileObjectThread(f, mode)
+                ret = f1.read()
+            
+        return ret, content_type
+    
+    
+    
     
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
