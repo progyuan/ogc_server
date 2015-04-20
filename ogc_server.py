@@ -2996,7 +2996,7 @@ def handle_combiz_platform(environ):
         out_dir = os.path.join(dirname, 'export_tmp')
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
-        now = time.strftime('%Y-%m-%d %H:%M:%S')[:10]
+        now = time.strftime('%Y-%m-%d %H:%M:%S')[:19]
         out_dir = os.path.join(out_dir, '%s %s' % ( now , uuid.uuid4()))
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -3110,16 +3110,22 @@ def handle_combiz_platform(environ):
                     out_path1 = os.path.join(out_dir, form_data[k])
                     url = URL(file_service_url + form_data[k])
                     client = HTTPClient.from_url(url)
-                    response = client.get(url.request_uri)
-                    if hasattr(response, 'status_code') and (response.status_code == 200 or response.status_code == 304):
-                        with open(out_path1, 'wb') as f:
-                            f1 = gevent.fileobject.FileObjectThread(f, 'wb')
-                            f1.write(response.read())
-                        if os.path.exists(out_path1):
-                            t.set_image_path(k, out_path1)
+                    try:
+                        response = client.get(url.request_uri)
+                        if hasattr(response, 'status_code') and (response.status_code == 200 or response.status_code == 304):
+                            with open(out_path1, 'wb') as f:
+                                f1 = gevent.fileobject.FileObjectThread(f, 'wb')
+                                f1.write(response.read())
+                            if os.path.exists(out_path1):
+                                t.set_image_path(k, out_path1)
+                    except Exception,e:
+                        print(e)
+                        out_path1 = os.path.join(STATICRESOURCE_DIR, 'form_templates', 'document', 'no-photo.jpg')
+                        t.set_image_path(k, out_path1)
                 else:
                     setattr(document, k, chinese_date(form_data[k]))
-            data['document'] = document      
+            data['document'] = document
+            #print(dir(data))
             t.render(data)
             return out_path
         ret = ''
