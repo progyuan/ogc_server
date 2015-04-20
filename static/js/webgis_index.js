@@ -1947,10 +1947,10 @@ function testheatmap(viewer)
 {
 	var randnum = function(min, max) {
 		return Math.random() * (max - min) + min;
-	}	
+	};
 	var randint = function(min, max) {
 		return Math.floor(Math.random() * (max - min + 1)) + min;
-	}
+	};
 	var testdata = function(mapping){
 		var ret = [];
 		for(var k in mapping)

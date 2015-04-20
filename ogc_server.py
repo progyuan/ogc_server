@@ -31,6 +31,7 @@ from gevent import pywsgi
 import gevent
 import gevent.fileobject
 from gevent.local import local
+from gevent.subprocess import check_output
 
 import pymongo
 from bson.objectid import ObjectId
@@ -184,6 +185,8 @@ gUrlMap = Map([
     Rule('/workflow_template_update', endpoint='workflow_template_update'),
     Rule('/workflow_template_delete', endpoint='workflow_template_delete'),
     Rule('/workflow_template_delete/<_id>', endpoint='workflow_template_delete'),
+    Rule('/workflow_form_fill', endpoint='workflow_form_fill'),
+    Rule('/workflow_form_blank', endpoint='workflow_form_blank'),
     Rule('/user_add', endpoint='user_add'),
     Rule('/user_get', endpoint='user_get'),
     Rule('/user_remove', endpoint='user_remove'),
@@ -2982,28 +2985,159 @@ def handle_combiz_platform(environ):
     
     
     def get_form(form_id):
+        global gFormTemplate
         ret = None
         for i in gFormTemplate:
             if i['form_path'] == form_id:
                 ret = i
                 break
         return ret
-    def template_fill(querydict):
-        def fill_tpl(form, form_data):
-            ret = None
-            template_document = form['template_document']
-            return ret
+    def get_out_tmp_dir(dirname):
+        out_dir = os.path.join(dirname, 'export_tmp')
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+        now = time.strftime('%Y-%m-%d %H:%M:%S')[:10]
+        out_dir = os.path.join(out_dir, '%s %s' % ( now , uuid.uuid4()))
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
+        return out_dir
+        
+    def form_blank(querydict):
+        global gFormTemplate
         ret = ''
         content_type = 'text/json'
+        filename = None
         if len(gFormTemplate) == 0:
             p = os.path.join(STATICRESOURCE_DIR, 'form_templates', 'list.json')
             if os.path.exists(p):
-                with open(p, 'r') as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, mode)
-                    gFormTemplate = json.loads(f1.read())
+                try:
+                    with open(p, 'r') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'r')
+                        gFormTemplate = json.loads(f1.read())
+                except:
+                    ret = json.dumps({'result':u'form_blank_list_json_parse_error'}, ensure_ascii=True, indent=4)
+                    return ret, content_type, filename
             else:
-                ret = json.dumps({'result':u'template_fill_list_json_not_exist'}, ensure_ascii=True, indent=4)
-                return ret, content_type
+                ret = json.dumps({'result':u'form_blank_list_json_not_exist'}, ensure_ascii=True, indent=4)
+                return ret, content_type, filename
+        if querydict.has_key('form_id'):
+            form = get_form(querydict['form_id'])
+            if form and form.has_key('blank_document'):
+                out_path = form['blank_document']
+                out_path = os.path.join(STATICRESOURCE_DIR, out_path)
+                if os.path.exists(out_path):
+                    ext = 'pdf'
+                    if querydict.has_key('format'):
+                        ext = querydict['format']
+                    ret,content_type = form_export(out_path,  ext)
+                    if querydict.has_key('attachmentdownload') and querydict['attachmentdownload'] is True:
+                        filename = os.path.basename(form['blank_document'])
+                        filename = filename[:filename.rindex('.')]
+                        filename = '%s%s.%s' % (filename , u'(空白)', ext)
+                else:
+                    ret = json.dumps({'result':u'form_blank_generated_document_not_exist'}, ensure_ascii=True, indent=4)
+            else:
+                ret = json.dumps({'result':u'form_blank_blank_document_need_specify_in_list_json'}, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'form_blank_form_id_required'}, ensure_ascii=True, indent=4)
+        return ret, content_type, filename
+        
+    def form_fill(querydict):
+        global gFormTemplate
+        def check_is_bool(form, fld):
+            ret = False
+            if form.has_key('bool') and isinstance(form['bool'], list):
+                for i in form['bool']:
+                    if i == fld:
+                        ret = True
+                        break
+            return ret
+            
+        def chinese_date(value):
+            ret = value
+            if len(ret) == 19 :
+                if ret[4] == u'-' and ret[7] == u'-' and ret[10] == u' ':
+                    ret1 = ret[:4]
+                    ret1 += u'年'
+                    ret1 += ret[5:7]
+                    ret1 +=  u'月'
+                    ret1 += ret[8:10]
+                    ret1 += u'日'
+                    ret = ret1
+            return ret
+        def check_is_image(form, fld):
+            ret = False
+            if form.has_key('image') and isinstance(form['image'], list):
+                for i in form['image']:
+                    if i == fld:
+                        ret = True
+                        break
+            return ret
+        def check_is_list(form, fld):
+            ret = False
+            if form.has_key('list') and isinstance(form['list'], list):
+                for i in form['list']:
+                    if i == fld:
+                        ret = True
+                        break
+            return ret
+        def fill_tpl(form, form_data):
+            template_document = os.path.join(STATICRESOURCE_DIR, form['template_document'])
+            dirname = os.path.dirname(template_document)
+            basename = os.path.basename(template_document)
+            basename = basename.replace('_template', '')
+            out_dir = get_out_tmp_dir(dirname)
+            out_path = os.path.join(out_dir, basename)
+            t = Template(template_document, out_path)
+            data = {}
+            document = Py3oItem()
+            file_service_url = '%s://%s:%s/fileservice/rest/file/' % (gConfig['combiz_platform']['proxy_file']['protocol'], gConfig['combiz_platform']['proxy_file']['host'], gConfig['combiz_platform']['proxy_file']['port'])
+            for k in form_data.keys():
+                #listobj = check_is_list(form, k)
+                if check_is_bool(form, k):
+                    if form_data[k] is True:
+                        setattr(document, k, u'\u2611')
+                    if form_data[k] is False:
+                        setattr(document, k, u'\u2610')
+                elif check_is_list(form, k):
+                    data[k] = []
+                    for i in form_data[k]:
+                        item = Py3oItem()
+                        for kk in i.keys():
+                            setattr(item, kk, i[kk])
+                        data[k].append(item)
+                elif check_is_image(form, k):
+                    out_path1 = os.path.join(out_dir, form_data[k])
+                    url = URL(file_service_url + form_data[k])
+                    client = HTTPClient.from_url(url)
+                    response = client.get(url.request_uri)
+                    if hasattr(response, 'status_code') and (response.status_code == 200 or response.status_code == 304):
+                        with open(out_path1, 'wb') as f:
+                            f1 = gevent.fileobject.FileObjectThread(f, 'wb')
+                            f1.write(response.read())
+                        if os.path.exists(out_path1):
+                            t.set_image_path(k, out_path1)
+                else:
+                    setattr(document, k, chinese_date(form_data[k]))
+            data['document'] = document      
+            t.render(data)
+            return out_path
+        ret = ''
+        content_type = 'text/json'
+        filename = None
+        if len(gFormTemplate) == 0:
+            p = os.path.join(STATICRESOURCE_DIR, 'form_templates', 'list.json')
+            if os.path.exists(p):
+                try:
+                    with open(p, 'r') as f:
+                        f1 = gevent.fileobject.FileObjectThread(f, 'r')
+                        gFormTemplate = json.loads(f1.read())
+                except:
+                    ret = json.dumps({'result':u'form_fill_list_json_parse_error'}, ensure_ascii=True, indent=4)
+                    return ret, content_type, filename
+            else:
+                ret = json.dumps({'result':u'form_fill_list_json_not_exist'}, ensure_ascii=True, indent=4)
+                return ret, content_type, filename
         o = json.loads(workflow_query(querydict))
         if o.has_key('result'):
             ret = json.dumps(o, ensure_ascii=True, indent=4)
@@ -3015,30 +3149,35 @@ def handle_combiz_platform(environ):
                         form = get_form(querydict['form_id'])
                         if form and form.has_key('template_document'):
                             out_path = fill_tpl(form, form_data)
+                            if os.path.exists(out_path):
+                                ext = 'pdf'
+                                if querydict.has_key('format'):
+                                    ext = querydict['format']
+                                ret, content_type = form_export(out_path,  ext)
+                                if querydict.has_key('attachmentdownload') and querydict['attachmentdownload'] is True:
+                                    filename = os.path.basename(form['template_document']).replace('_template', '')
+                                    filename = filename[:filename.rindex('.')]
+                                    filename = '%s%s.%s' % (filename , u'(已填)', ext)
+                            else:
+                                ret = json.dumps({'result':u'form_fill_generated_document_not_exist'}, ensure_ascii=True, indent=4)
                         else:
-                            ret = json.dumps({'result':u'template_fill_template_document_not_exist'}, ensure_ascii=True, indent=4)
+                            ret = json.dumps({'result':u'form_fill_template_document_need_specify_in_list_json'}, ensure_ascii=True, indent=4)
                     else:
-                        ret = json.dumps({'result':u'template_fill_form_id_not_exist'}, ensure_ascii=True, indent=4)
+                        ret = json.dumps({'result':u'form_fill_form_id_not_exist'}, ensure_ascii=True, indent=4)
                 else:
-                    ret = json.dumps({'result':u'template_fill_form_data_is_none'}, ensure_ascii=True, indent=4)
+                    ret = json.dumps({'result':u'form_fill_form_data_is_none'}, ensure_ascii=True, indent=4)
             else:
-                ret = json.dumps({'result':u'template_fill_form_id_required'}, ensure_ascii=True, indent=4)
-        return ret, content_type
+                ret = json.dumps({'result':u'form_fill_form_id_required'}, ensure_ascii=True, indent=4)
+        return ret, content_type, filename
         
         
         
-    def template_export(src,  ext):
+    def form_export(src,  ext):
         dirname = os.path.dirname(src)
-        out_dir = os.path.join(dirname, 'export_tmp')
+        out_dir = get_out_tmp_dir(dirname)
         out_path = os.path.basename(src)
         idx = out_path.rindex('.') 
         out_path = out_path[:idx+1]  + ext
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
-        now = time.strftime('%Y-%m-%d %H:%M:%S')[:10]
-        out_dir = os.path.join(out_dir, '%s %s' % ( now , uuid.uuid4()))
-        if not os.path.exists(out_dir):
-            os.mkdir(out_dir)
         out_path = os.path.join(out_dir, out_path)
         ret = json.dumps({'result':'unsupport export format.'}, ensure_ascii=True, indent=4)
         content_type = 'text/json'
@@ -3069,19 +3208,18 @@ def handle_combiz_platform(environ):
                encfunc(src)
         ]
         
-        output = gevent.subprocess.check_output(cmd)
+        output = check_output(cmd)
         print(output)
-        if len(output.strip())>0:
-            ret = json.dumps({'result':output}, ensure_ascii=True, indent=4)
-            content_type = 'text/json'
+        #if len(output.strip())>0:
+            #ret = json.dumps({'result':output}, ensure_ascii=True, indent=4)
+            #content_type = 'text/json'
         if not os.path.exists(out_path):
             ret = json.dumps({'result':'export failed:file not exist.'}, ensure_ascii=True, indent=4)
             content_type = 'text/json'
         if os.path.exists(out_path):
             with open(out_path, 'rb') as f:
-                f1 = gevent.fileobject.FileObjectThread(f, mode)
+                f1 = gevent.fileobject.FileObjectThread(f, 'rb')
                 ret = f1.read()
-            
         return ret, content_type
     
     
@@ -3116,6 +3254,16 @@ def handle_combiz_platform(environ):
             body = workflow_template_update(querydict)
         elif endpoint == 'workflow_template_delete':
             body = workflow_template_delete(querydict)
+        elif endpoint == 'workflow_form_fill':
+            body, content_type, filename = form_fill(querydict)
+            headers['Content-Type'] = content_type
+            if filename:
+                headers['Content-Disposition'] = 'attachment;filename="' + enc(filename) + '"'
+        elif endpoint == 'workflow_form_blank':
+            body, content_type, filename = form_blank(querydict)
+            headers['Content-Type'] = content_type
+            if filename:
+                headers['Content-Disposition'] = 'attachment;filename="' + enc(filename) + '"'
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     except HTTPException, e:
