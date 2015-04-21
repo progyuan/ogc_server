@@ -2996,8 +2996,8 @@ def handle_combiz_platform(environ):
         out_dir = os.path.join(dirname, 'export_tmp')
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
-        now = time.strftime('%Y-%m-%d %H:%M:%S')[:19]
-        out_dir = os.path.join(out_dir, '%s %s' % ( now , uuid.uuid4()))
+        now = time.strftime('%Y-%m-%d %H:%M:%S')[:19].replace('-','').replace(' ','').replace(':','')
+        out_dir = os.path.join(out_dir, '%s-%s' % ( now , uuid.uuid4()))
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
         return out_dir
@@ -5369,14 +5369,26 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         gHttpClient['http_proxy'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
     client = gHttpClient['http_proxy']
     response = None
-    if method == 'get':
-        response = client.get(url.request_uri, headers)
-    elif method == 'put':
-        response = client.put(url.request_uri, data, headers)
-    elif method == 'delete':
-        response = client.delete(url.request_uri, data, headers)
-    elif method == 'post':
-        response = client.post(url.request_uri, data, headers)
+    try:
+        if method == 'get':
+            response = client.get(url.request_uri, headers)
+        elif method == 'put':
+            response = client.put(url.request_uri, data, headers)
+        elif method == 'delete':
+            response = client.delete(url.request_uri, data, headers)
+        elif method == 'post':
+            response = client.post(url.request_uri, data, headers)
+    except Exception,e:
+        if e.errno == 10053 or e.errno == 10054:
+            print('encounter 10053 error, trying reconnecting...')
+            if method == 'get':
+                response = client.get(url.request_uri, headers)
+            elif method == 'put':
+                response = client.put(url.request_uri, data, headers)
+            elif method == 'delete':
+                response = client.delete(url.request_uri, data, headers)
+            elif method == 'post':
+                response = client.post(url.request_uri, data, headers)
     if response:
         if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
