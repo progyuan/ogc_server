@@ -10116,9 +10116,9 @@ function GetParamsFromUrl() {
 	var ret = {};
 	if(location.search.length>0)
 	{
-		var decrypted = CryptoJS.AES.decrypt(location.search.substr(1),  $.webgis.config.encrypt_key);
-		var s = decrypted.toString(CryptoJS.enc.Utf8);
-		s = decodeURIComponent(s);
+		var s = decodeURIComponent(location.search.substr(1));
+		var decrypted = CryptoJS.AES.decrypt(s,  $.webgis.config.encrypt_key);
+		s = decrypted.toString(CryptoJS.enc.Utf8);
 		ret = JSON.parse(s);
 	}
 	return ret;
