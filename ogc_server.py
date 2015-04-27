@@ -5379,16 +5379,25 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         elif method == 'post':
             response = client.post(url.request_uri, data, headers)
     except Exception,e:
-        if e.errno == 10053 or e.errno == 10054:
-            print('encounter 10053 error, trying reconnecting...')
-            if method == 'get':
-                response = client.get(url.request_uri, headers)
-            elif method == 'put':
-                response = client.put(url.request_uri, data, headers)
-            elif method == 'delete':
-                response = client.delete(url.request_uri, data, headers)
-            elif method == 'post':
-                response = client.post(url.request_uri, data, headers)
+        idx = 0
+        e1 = e
+        while (e1.errno == 10053 or e1.errno == 10054) and idx < 4:
+            idx += 1
+            print('encounter 10053 error, trying %d reconnecting...' % idx)
+            try:
+                if method == 'get':
+                    response = client.get(url.request_uri, headers)
+                elif method == 'put':
+                    response = client.put(url.request_uri, data, headers)
+                elif method == 'delete':
+                    response = client.delete(url.request_uri, data, headers)
+                elif method == 'post':
+                    response = client.post(url.request_uri, data, headers)
+                break
+            except Exception,e2:
+                e1 = e2
+        if idx >= 4:
+            raise e1
     if response:
         if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
