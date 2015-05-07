@@ -3104,7 +3104,7 @@ def handle_combiz_platform(environ):
                     for i in form_data[k]:
                         item = Py3oItem()
                         for kk in i.keys():
-                            setattr(item, kk, i[kk])
+                            setattr(item, kk, chinese_date(i[kk]))
                         data[k].append(item)
                 elif check_is_image(form, k):
                     out_path1 = os.path.join(out_dir, form_data[k])
