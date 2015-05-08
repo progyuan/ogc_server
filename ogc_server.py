@@ -2837,10 +2837,11 @@ def handle_combiz_platform(environ):
             if querydict.has_key('_id'):
                 o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
             elif querydict.has_key('order_id'):
-                o = collection.find_one({'order_id':querydict['order_id']})
+                if '*' in querydict['order_id']:
+                    o = collection.find({'order_id': {'$regex':'^.*' + querydict['order_id'] + '.*$'}})
+                else:
+                    o = collection.find_one({'order_id':querydict['order_id']})
             else:
-                #token = md5.new('%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d'))).hexdigest()
-                #if token == str(querydict['token']):
                 o = collection.find({}, limit=10)
             if o:
                 ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
@@ -3244,13 +3245,21 @@ def handle_combiz_platform(environ):
     urls = gUrlMap.bind_to_environ(environ)
     querydict, buf = get_querydict_by_GET_POST(environ)
     is_token_pass = False
-    if querydict.has_key('token'):
-        token = md5.new('%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d'))).hexdigest()
-        if token == str(querydict['token']):
-            is_token_pass = True
-    if not is_token_pass:
-        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
-        return statuscode, headers, body
+    enable_url_md5_check = False
+    if gConfig['combiz_platform'].has_key('security') \
+       and gConfig['combiz_platform']['security'].has_key('enable_url_md5_check') \
+       and gConfig['combiz_platform']['security']['enable_url_md5_check'].lower() == 'true':
+        enable_url_md5_check = True
+    if enable_url_md5_check:
+        print('checking token...')
+        if querydict.has_key('_token'):
+            plain = '%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d%H'))
+            token = md5.new(plain).hexdigest()
+            if token == str(querydict['_token']):
+                is_token_pass = True
+        if not is_token_pass:
+            body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
+            return statuscode, headers, body
     endpoint = ''
     try:
         endpoint, args = urls.match()
