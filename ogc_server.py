@@ -109,6 +109,7 @@ gTcpReconnectCounter = 0
 gTcpSock = None
 gHttpClient = {}
 gFormTemplate = []
+gMd5Prefix = 'ruyvnvkjfgdgfs'
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -2780,7 +2781,7 @@ def get_querydict_by_GET_POST(environ):
     
 def handle_combiz_platform(environ):
     global ENCODING
-    global gConfig, gRequest, gFormTemplate
+    global gConfig, gRequest, gFormTemplate, gMd5Prefix
     
        
     def get_collection(collection):
@@ -2837,12 +2838,16 @@ def handle_combiz_platform(environ):
                 o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
             elif querydict.has_key('order_id'):
                 o = collection.find_one({'order_id':querydict['order_id']})
+            else:
+                #token = md5.new('%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d'))).hexdigest()
+                #if token == str(querydict['token']):
+                o = collection.find({}, limit=10)
             if o:
                 ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
             else:
                 ret = json.dumps({'result':u'workflow_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
-            if not querydict.has_key('_id') and not querydict.has_key('order_id'):
-                ret = json.dumps({'result':u'workflow_query_id_or_order_id_required' }, ensure_ascii=True, indent=4)
+            #if not querydict.has_key('_id') and not querydict.has_key('order_id'):
+                #ret = json.dumps({'result':u'workflow_query_id_or_order_id_required' }, ensure_ascii=True, indent=4)
         except:
             if hasattr(sys.exc_info()[1], 'message'):
                 ret = json.dumps({'result':u'workflow_query_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
@@ -3238,6 +3243,14 @@ def handle_combiz_platform(environ):
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
     querydict, buf = get_querydict_by_GET_POST(environ)
+    is_token_pass = False
+    if querydict.has_key('token'):
+        token = md5.new('%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d'))).hexdigest()
+        if token == str(querydict['token']):
+            is_token_pass = True
+    if not is_token_pass:
+        body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
+        return statuscode, headers, body
     endpoint = ''
     try:
         endpoint, args = urls.match()
