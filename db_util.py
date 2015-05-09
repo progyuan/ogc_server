@@ -8942,7 +8942,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
     global gClientMongo, gClientMongoTiles, gConfig
     try:
         if clienttype == 'webgis':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['webgis']['mongodb']['host']
                 if port is None:
@@ -8954,7 +8954,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'geofeature':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['webgis']['geofeature']['mongodb']['host']
                 if port is None:
@@ -8966,7 +8966,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'markdown':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['markdown']['mongodb']['host']
                 if port is None:
@@ -8978,7 +8978,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'authorize_platform':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['authorize_platform']['mongodb']['host']
                 if port is None:
@@ -8990,7 +8990,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'pay_platform':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['pay_platform']['mongodb']['host']
                 if port is None:
@@ -9002,7 +9002,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'combiz_platform':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['combiz_platform']['mongodb']['host']
                 if port is None:
@@ -9014,7 +9014,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif clienttype == 'chat_platform':
-            if not gClientMongo.has_key(clienttype) or gClientMongo[clienttype] is None:
+            if not gClientMongo.has_key(clienttype) :
                 if host is None:
                     host = gConfig['chat_platform']['mongodb']['host']
                 if port is None:

@@ -2833,16 +2833,34 @@ def handle_combiz_platform(environ):
         ret = ''
         o = None
         try:
+            print(querydict)
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
             if querydict.has_key('_id'):
                 o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
             elif querydict.has_key('order_id'):
                 if '*' in querydict['order_id']:
-                    o = collection.find({'order_id': {'$regex':'^.*' + querydict['order_id'] + '.*$'}})
+                    o = list(collection.find({'order_id': {'$regex':'^.*' + querydict['order_id'] + '.*$'}}))
                 else:
                     o = collection.find_one({'order_id':querydict['order_id']})
             else:
-                o = collection.find({}, limit=10)
+                limit = 10
+                skip = 0
+                ssort = None
+                cond = {}
+                if querydict.has_key('order'):
+                    ssort = []
+                    if querydict['order'] == 'asc':
+                        ssort = [('order_id', pymongo.ASCENDING),]
+                    if querydict['order'] == 'desc':
+                        ssort = [('order_id', pymongo.DESCENDING),]
+                if querydict.has_key('search'):
+                    cond = {'order_id': {'$regex':'^.*' + querydict['search'] + '.*$'}}
+                #print(cond)
+                if querydict.has_key('limit'):
+                    limit = int(querydict['limit'])
+                    skip = int(querydict['offset'])
+                o = list(collection.find(cond, skip=skip, limit=10, sort=ssort))
+                #print(o)
             if o:
                 ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
             else:
@@ -2864,7 +2882,7 @@ def handle_combiz_platform(environ):
                 existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                 if existone:
                     collection.update({'_id':existone['_id']}, {'$set': db_util.add_mongo_id(querydict)}, multi=False, upsert=False)
-                    one = collection.find_one({'_id':existone['_id']})
+                    one = collection.find_one(db_util.add_mongo_id({'_id':existone['_id']}))
                     ret = json.dumps(db_util.remove_mongo_id(one), ensure_ascii=True, indent=4)
                 else:
                     ret = json.dumps({'result':u'workflow_update_workflow_not_exist' }, ensure_ascii=True, indent=4)
@@ -2882,7 +2900,7 @@ def handle_combiz_platform(environ):
         try:
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
             if querydict.has_key('_id'):
-                existone = collection.find_one({'_id':querydict['_id']})
+                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                 if existone:
                     collection.remove({'_id':existone['_id']})
                     ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
@@ -3260,6 +3278,8 @@ def handle_combiz_platform(environ):
         if not is_token_pass:
             body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
             return statuscode, headers, body
+    if querydict.has_key('_token'):
+        del querydict['_token']
     endpoint = ''
     try:
         endpoint, args = urls.match()
