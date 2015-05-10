@@ -2835,32 +2835,42 @@ def handle_combiz_platform(environ):
         try:
             print(querydict)
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
+            limit = 10
+            skip = 0
+            ssort = None
+            cond = {}
+            if querydict.has_key('limit'):
+                limit = int(querydict['limit'])
+            if querydict.has_key('offset'):
+                skip = int(querydict['offset'])
+            if querydict.has_key('order'):
+                ssort = []
+                if querydict['order'] == 'asc':
+                    ssort = [('order_id', pymongo.ASCENDING),]
+                if querydict['order'] == 'desc':
+                    ssort = [('order_id', pymongo.DESCENDING),]
+            
             if querydict.has_key('_id'):
                 o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
             elif querydict.has_key('order_id'):
                 if '*' in querydict['order_id']:
-                    o = list(collection.find({'order_id': {'$regex':'^.*' + querydict['order_id'] + '.*$'}}))
+                    cond = {'order_id': {'$regex':'^.*' + querydict['order_id'].replace('*', '') + '.*$'}}
+                    #print(cond)
+                    o = list(collection.find(cond, skip=skip, limit=limit, sort=ssort))
+                    #print(o)
                 else:
                     o = collection.find_one({'order_id':querydict['order_id']})
             else:
-                limit = 10
-                skip = 0
                 ssort = None
-                cond = {}
+                if querydict.has_key('search_field') and querydict.has_key('search'):
+                    cond = {str(querydict['search_field']): {'$regex':'^.*' + querydict['search'].replace('*', '') + '.*$'}}
                 if querydict.has_key('order'):
                     ssort = []
                     if querydict['order'] == 'asc':
-                        ssort = [('order_id', pymongo.ASCENDING),]
+                        ssort = [(str(querydict['search_field']), pymongo.ASCENDING),]
                     if querydict['order'] == 'desc':
-                        ssort = [('order_id', pymongo.DESCENDING),]
-                if querydict.has_key('search'):
-                    cond = {'order_id': {'$regex':'^.*' + querydict['search'] + '.*$'}}
-                #print(cond)
-                if querydict.has_key('limit'):
-                    limit = int(querydict['limit'])
-                    skip = int(querydict['offset'])
-                o = list(collection.find(cond, skip=skip, limit=10, sort=ssort))
-                #print(o)
+                        ssort = [(str(querydict['search_field']), pymongo.DESCENDING),]
+                o = list(collection.find(cond, skip=skip, limit=limit, sort=ssort))
             if o:
                 ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
             else:
@@ -2900,12 +2910,18 @@ def handle_combiz_platform(environ):
         try:
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
             if querydict.has_key('_id'):
-                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
-                if existone:
-                    collection.remove({'_id':existone['_id']})
-                    ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'workflow_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                    if existone:
+                        collection.remove({'_id':existone['_id']})
+                        ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'workflow_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], list):
+                    ids = db_util.add_mongo_id(querydict['_id'])
+                    cond = {'_id':{'$in':ids}}
+                    collection.remove(cond)
+                    ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
             else:
                 ret = json.dumps({'result':u'workflow_delete_id_required' }, ensure_ascii=True, indent=4)
         except:
@@ -2948,19 +2964,45 @@ def handle_combiz_platform(environ):
         o = None
         try:
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow_template'])
-            if querydict.has_key('_id'):
+            o = None
+            limit = 10
+            skip = 0
+            ssort = None
+            cond = {}
+            if querydict.has_key('limit'):
+                limit = int(querydict['limit'])
+            if querydict.has_key('offset'):
+                skip = int(querydict['offset'])
+            if querydict.has_key('order'):
+                ssort = []
+                if querydict['order'] == 'asc':
+                    ssort = [('name', pymongo.ASCENDING),]
+                if querydict['order'] == 'desc':
+                    ssort = [('name', pymongo.DESCENDING),]
+            if querydict.has_key('name'):
+                if '*' in querydict['name']:
+                    cond = {'name': {'$regex':'^.*' + querydict['name'].replace('*', '') + '.*$'}}
+                    o = list(collection.find(cond, skip=skip, limit=limit, sort=ssort))
+                else:
+                    o = collection.find_one({'name':querydict['name']})
+            elif querydict.has_key('_id'):
                 o = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                 if o:
                     ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
                 else:
                     ret = json.dumps({'result':u'workflow_template_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
             else:
-                #ret = json.dumps({'result':u'workflow_template_query_id_required' }, ensure_ascii=True, indent=4)
-                cur = collection.find(querydict)
-                l = []
-                for i in cur:
-                    l.append(i)
-                ret = json.dumps(db_util.remove_mongo_id(l), ensure_ascii=True, indent=4)
+                ssort = None
+                if querydict.has_key('search_field') and querydict.has_key('search'):
+                    cond = {str(querydict['search_field']): {'$regex':'^.*' + querydict['search'].replace('*', '') + '.*$'}}
+                if querydict.has_key('order'):
+                    ssort = []
+                    if querydict['order'] == 'asc':
+                        ssort = [(str(querydict['search_field']), pymongo.ASCENDING),]
+                    if querydict['order'] == 'desc':
+                        ssort = [(str(querydict['search_field']), pymongo.DESCENDING),]
+                o = list(collection.find(cond, skip=skip, limit=limit, sort=ssort))
+                ret = json.dumps(db_util.remove_mongo_id(o), ensure_ascii=True, indent=4)
         except:
             if hasattr(sys.exc_info()[1], 'message'):
                 ret = json.dumps({'result':u'workflow_template_query_fail:%s' % sys.exc_info()[1].message}, ensure_ascii=True, indent=4)
@@ -2992,12 +3034,18 @@ def handle_combiz_platform(environ):
         try:
             collection = get_collection(gConfig['combiz_platform']['mongodb']['collection_workflow'])
             if querydict.has_key('_id'):
-                existone = collection.find_one({'_id':querydict['_id']})
-                if existone:
-                    collection.remove({'_id':existone['_id']})
-                    ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
-                else:
-                    ret = json.dumps({'result':u'workflow_template_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                    if existone:
+                        collection.remove({'_id':existone['_id']})
+                        ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'workflow_template_delete_workflow_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], list):
+                    ids = db_util.add_mongo_id(querydict['_id'])
+                    cond = {'_id':{'$in':ids}}
+                    collection.remove(cond)
+                    ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
             else:
                 ret = json.dumps({'result':u'workflow_template_delete_id_required' }, ensure_ascii=True, indent=4)
         except:
