@@ -2862,6 +2862,7 @@ def handle_combiz_platform(environ):
                     o = collection.find_one({'order_id':querydict['order_id']})
             else:
                 ssort = None
+                cond = {}
                 if querydict.has_key('search_field') and querydict.has_key('search'):
                     cond = {str(querydict['search_field']): {'$regex':'^.*' + querydict['search'].replace('*', '') + '.*$'}}
                 if querydict.has_key('order'):
@@ -2993,6 +2994,7 @@ def handle_combiz_platform(environ):
                     ret = json.dumps({'result':u'workflow_template_query_workflow_not_exist' }, ensure_ascii=True, indent=4)
             else:
                 ssort = None
+                cond = {}
                 if querydict.has_key('search_field') and querydict.has_key('search'):
                     cond = {str(querydict['search_field']): {'$regex':'^.*' + querydict['search'].replace('*', '') + '.*$'}}
                 if querydict.has_key('order'):
