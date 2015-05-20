@@ -2317,9 +2317,9 @@ def handle_pay_getinfo(environ):
     def query_pay_log(condition):
         ret = []
         collection = get_collection(gConfig['pay_platform']['mongodb']['collection_pay_log'])
-        cur = collection.find(condition)
-        for i in cur:
-            ret.append(i)
+        ret = list(collection.find(condition))
+        #for i in cur:
+            #ret.append(i)
         return ret
         
     
@@ -3401,7 +3401,7 @@ def handle_chat_platform(environ, session):
                 q['_id'] = db_util.add_mongo_id(querydict['_id'])
             if isinstance(querydict['_id'], list):
                 q['_id'] = {'$in': [db_util.add_mongo_id(i) for i in querydict['_id']]}
-        rec = collection.find(q)
+        rec = list(collection.find(q))
         keys = gWebSocketsMap.keys()
         for i in rec:
             if querydict.has_key('user_detail') and querydict['user_detail'] is True:
@@ -3426,9 +3426,7 @@ def handle_chat_platform(environ, session):
                 q['_id'] = querydict['_id']
             if isinstance(querydict['_id'], list):
                 q['_id'] = {'$in': querydict['_id']}
-        rec = collection.find(db_util.add_mongo_id(q))
-        for i in rec:
-            ret.append(i)
+        ret = list(collection.find(db_util.add_mongo_id(q)))
         if querydict.has_key('user_detail') and querydict['user_detail'] is True:
             keys = gWebSocketsMap.keys()
             for i in ret:
@@ -4138,20 +4136,20 @@ def handle_authorize_platform(environ, session):
     def get_all_functions():
         ret = []
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_functions'])
-        cur = collection.find({})
-        for i in cur:
-            ret.append(i)
+        ret = list(collection.find({}))
+        #for i in cur:
+            #ret.append(i)
         return ret
     
     def get_all_roles(exclude_template=False):
         ret = []
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_roles'])
         if exclude_template:
-            cur = collection.find({'name':{'$not':re.compile("template")}})
+            ret = list(collection.find({'name':{'$not':re.compile("template")}}))
         else:
-            cur = collection.find({})
-        for i in cur:
-            ret.append(i)
+            ret = list(collection.find({}))
+        #for i in cur:
+            #ret.append(i)
         return ret
     
     def check_role_can_be_delete(_id):
@@ -4351,11 +4349,11 @@ def handle_authorize_platform(environ, session):
         ret = []
         collection = get_collection(gConfig['authorize_platform']['mongodb']['collection_user_account'])
         if user:
-            cur = collection.find({'username':user})
+            ret = list(collection.find({'username':user}))
         else:
-            cur = collection.find({})
-        for i in cur:
-            ret.append(i)
+            ret = list(collection.find({}))
+        #for i in cur:
+            #ret.append(i)
         return ret
     
     def get_funclist_by_roles(roles):

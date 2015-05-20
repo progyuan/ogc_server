@@ -50,17 +50,23 @@ def query3():
         ret.append(i)
     return ret
     
+def query4():
+    client = MongoClient('localhost', 27017)
+    db = client['chat']
+    collection = db['users']
+    ret = list(collection.find({}))
+    return ret
+def query4():
+    client = MongoClient('localhost', 27017)
+    db = client['chat']
+    print(db.collection_names())
+    collection = db['users']
+    ret = list(collection.find({}))
+    return ret
 
 if __name__ == '__main__':
-    ret1 = query1()
-    #print(ret)
+    ret1 = query4()
     print(len(ret1))
-    ret2 = query2()
-    #print(ret)
-    print(len(ret2))
-    ret3 = query3()
-    print(ret3)
-    #print(testdb.collection_names())
     
     
     

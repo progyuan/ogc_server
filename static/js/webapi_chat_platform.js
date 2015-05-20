@@ -1,5 +1,5 @@
 $.chat_platform = {};
-$.chat_platform.HOST = 'yncaiyun1.com';
+$.chat_platform.HOST = 'localhost';
 $.chat_platform.PROTOCOL = 'http';
 $.chat_platform.WS_PROTOCOL = 'ws';
 $.chat_platform.PORT = '8092';
