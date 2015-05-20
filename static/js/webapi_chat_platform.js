@@ -2,16 +2,31 @@ $.chat_platform = {};
 $.chat_platform.HOST = 'yncaiyun1.com';
 $.chat_platform.PROTOCOL = 'http';
 $.chat_platform.WS_PROTOCOL = 'ws';
-$.chat_platform.PORT = '8091';
+$.chat_platform.PORT = '8092';
 $.chat_platform.DEBUG = true;
 $.chat_platform.ME_PREFIX = '我';
 $.chat_platform.SYSTEM_PREFIX = '[系统]';
 $.chat_platform.chat_options = {};
+$.chat_platform.security = {};
+$.chat_platform.security.url_hash_enable = true;
+$.chat_platform.security.md5prefix = 'ruyvnvkjfgdgfs';
 
+$.chat_platform.hash_object = function(obj)
+{
+	var plain = $.chat_platform.security.md5prefix + '_|_' + moment().format('YYYYMMDDHH');
+	var hash = CryptoJS.MD5(plain);
+	var token = hash.toString(CryptoJS.enc.Hex);
+	obj._token = token;
+	return obj;
+};
 
 $.chat_platform.post_cors = function(action, data, callback)
 {
     var url = $.chat_platform.PROTOCOL + '://' + $.chat_platform.HOST + ':' + $.chat_platform.PORT + '/' + action;
+    if($.chat_platform.security.url_hash_enable)
+	{
+		data = $.chat_platform.hash_object(data);
+	}
     $.ajax({
         url: url,
         type: "post",
@@ -63,6 +78,7 @@ $.chat_platform.user_update = function(data, callback)
     }
 	$.chat_platform.post_cors('user_update', data, callback);
 };
+
 $.chat_platform.user_remove = function(data, callback)
 {
     if(data['_id'] === undefined)
@@ -169,12 +185,12 @@ $.chat_platform.chat = function(data){
 		
 		if(d.to || d.to_group)
 		{
-			if(data.msg && data.msg.length>0)
+			if(data.msg)
 			{
 				$.chat_platform.websocket.send(JSON.stringify(d));
 			}else
 			{
-				throw "data.msg must be a non-blank string";
+				throw "data.msg must not be null";
 			}
 		}else
 		{
@@ -253,7 +269,7 @@ $.chat_platform.online = function(options){
 		s += "	data.from //user's id who send this message(string).\n";
 		s += "	data.to //user's id who recv this message(string).\n";
 		s += "	data.timestamp //message timestamp(datetime).\n";
-		s += "	data.msg //message body(string).\n";
+		s += "	data.msg //message body(string or object).\n";
 		s += "	data.op //it is 'chat/chat' in this case.\n";
 		s += "};\n";
 		throw s;
@@ -472,17 +488,20 @@ $.chat_platform.online = function(options){
 							var callback = options.on_request_contact_add;
 							callback(data1);
 							var check_contact_add = options.check_contact_add;
+							var o = {from:data1.to, to:data1.from};
 							if(check_contact_add(data1))
 							{
+								o.op = 'chat/response/contact/add/accept';
 								if($.chat_platform.websocket)
 								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/accept',from:data1.to, to:data1.from}));
+									$.chat_platform.websocket.send(JSON.stringify(o));
 								}
 							}else
 							{
+								o.op = 'chat/response/contact/add/reject';
 								if($.chat_platform.websocket)
 								{
-									$.chat_platform.websocket.send(JSON.stringify({op:'chat/response/contact/add/reject',from:data1.to, to:data1.from}));
+									$.chat_platform.websocket.send(JSON.stringify(o));
 								}
 							}
 						}

@@ -109,7 +109,6 @@ gTcpReconnectCounter = 0
 gTcpSock = None
 gHttpClient = {}
 gFormTemplate = []
-gMd5Prefix = 'ruyvnvkjfgdgfs'
 
 _SPECIAL = re.escape('()<>@,;:\\"/[]?={} \t')
 _RE_SPECIAL = re.compile('[%s]' % _SPECIAL)
@@ -2781,7 +2780,7 @@ def get_querydict_by_GET_POST(environ):
     
 def handle_combiz_platform(environ):
     global ENCODING
-    global gConfig, gRequest, gFormTemplate, gMd5Prefix
+    global gConfig, gRequest, gFormTemplate
     
        
     def get_collection(collection):
@@ -3314,6 +3313,11 @@ def handle_combiz_platform(environ):
     querydict, buf = get_querydict_by_GET_POST(environ)
     is_token_pass = False
     enable_url_md5_check = False
+    md5prefix = ''
+    if gConfig['combiz_platform'].has_key('security') \
+       and gConfig['combiz_platform']['security'].has_key('md5prefix'):
+        md5prefix = str(gConfig['combiz_platform']['security']['md5prefix'])
+    
     if gConfig['combiz_platform'].has_key('security') \
        and gConfig['combiz_platform']['security'].has_key('enable_url_md5_check') \
        and gConfig['combiz_platform']['security']['enable_url_md5_check'].lower() == 'true':
@@ -3321,7 +3325,7 @@ def handle_combiz_platform(environ):
     if enable_url_md5_check:
         print('checking token...')
         if querydict.has_key('_token'):
-            plain = '%s_|_%s' % (gMd5Prefix, time.strftime('%Y%m%d%H'))
+            plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
             token = md5.new(plain).hexdigest()
             if token == str(querydict['_token']):
                 is_token_pass = True
@@ -4057,6 +4061,29 @@ def handle_chat_platform(environ, session):
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
     querydict, buf = get_querydict_by_GET_POST(environ)
+    is_token_pass = False
+    enable_url_md5_check = False
+    md5prefix = ''
+    if gConfig['chat_platform'].has_key('security') \
+       and gConfig['chat_platform']['security'].has_key('md5prefix'):
+        md5prefix = str(gConfig['chat_platform']['security']['md5prefix'])
+    
+    if gConfig['chat_platform'].has_key('security') \
+       and gConfig['chat_platform']['security'].has_key('enable_url_md5_check') \
+       and gConfig['chat_platform']['security']['enable_url_md5_check'].lower() == 'true':
+        enable_url_md5_check = True
+    if enable_url_md5_check:
+        print('checking token...')
+        if querydict.has_key('_token'):
+            plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
+            token = md5.new(plain).hexdigest()
+            if token == str(querydict['_token']):
+                is_token_pass = True
+        if not is_token_pass:
+            body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
+            return statuscode, headers, body
+    if querydict.has_key('_token'):
+        del querydict['_token']
     endpoint = ''
     try:
         endpoint, args = urls.match()
