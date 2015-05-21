@@ -34,6 +34,7 @@ from gevent.local import local
 from gevent.subprocess import check_output
 
 import pymongo
+import gridfs
 from bson.objectid import ObjectId
 try:
     from geventhttpclient import HTTPClient, URL
@@ -196,6 +197,12 @@ gUrlMap = Map([
     Rule('/group_remove', endpoint='group_remove'),
     Rule('/user_group_get', endpoint='user_group_get'),
     Rule('/user_contact_get', endpoint='user_contact_get'),
+    Rule('/gridfs/upload', endpoint='gridfs_upload'),
+    Rule('/gridfs/get', endpoint='gridfs_get'),
+    Rule('/gridfs/get/<_id>', endpoint='gridfs_get'),
+    Rule('/gridfs/get/<_id>/thumbnail/<width>/<height>', endpoint='gridfs_get'),
+    Rule('/gridfs/delete', endpoint='gridfs_delete'),
+    Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -3599,7 +3606,7 @@ def handle_chat_platform(environ, session):
             ret = json.dumps({'result':u'user_update_fail_user_id_required'}, ensure_ascii=True, indent=4)
         return ret
 
-    def user_remove(session, querydict):
+    def user_delete(session, querydict):
         ret = ''
         if querydict.has_key('_id') and len(querydict['_id'])>0:
             try:
@@ -4107,17 +4114,34 @@ def handle_chat_platform(environ, session):
             body = group_remove(session, querydict)
         elif endpoint == 'handle_websocket':
             handle_websocket(environ)
+        elif endpoint == 'gridfs_upload':
+            body = gridfs_upload(environ)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
-        
-            
+
     except HTTPException, e:
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     if session:
         gSessionStore.save(session)
     return statuscode, headers, body
 
-    
+def gridfs_upload(environ):
+    global gConfig
+    app = gConfig['wsgi']['application']
+    body = ''
+    if gConfig.has_key(app):
+        collection = 'fs'
+        if gConfig[app].has_key('mongodb') and gConfig[app]['mongodb'].has_key('gridfs_collection'):
+            collection = str(gConfig[app]['mongodb']['gridfs_collection'])
+        if len(collection) == 0:
+            collection = 'fs'
+        db_util.mongo_init_client(app)
+        dbname = gConfig[app]['mongodb']['database']
+        db = db_util.gClientMongo[app][dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+    else:
+        body = json.dumps({'result':u'cannot find wsgi app [%s]' % app}, ensure_ascii=True, indent=4)
+    return body
     
 def handle_authorize_platform(environ, session):
     global ENCODING

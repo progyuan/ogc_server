@@ -566,7 +566,75 @@ $.chat_platform.online = function(options){
 	
 };
 
+$.chat_platform.show_avatar_uploader = function(container, additional_param){
+	if(!container)
+	{
+		container = document.body;
+	}
+    if(typeof(container) === 'string')
+	{
+		container = $('#' + container);
+	}
+	var s = '\
+		<div id="dialog-file-uploader" class="modal" tabindex="-1" role="dialog" aria-hidden="true">\
+			<div class="modal-dialog">\
+			  <div class="modal-content">\
+				  <div class="modal-header">\
+					  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>\
+					  <h1 class="text-center">图片上传</h1>\
+				  </div>\
+				  <div class="modal-body">\
+						<form id="image-uploader-form" class="form-horizontal" method="POST"  enctype="multipart/form-data">\
+							<div class="form-group">\
+								<label for="file-desc" class="control-label col-xs-3 col-sm-3 col-md-3 col-lg-3 input-lg">文件描述</label>\
+								<div class="col-xs-9 col-sm-9 col-md-9 col-lg-9">\
+									<input type="text" class="form-control input-lg" id="file-desc" placeholder="请输入文件描述">\
+								</div>\
+							</div>\
+							<div class="form-group">\
+								<label for="image-uploader" class="control-label col-xs-3 col-sm-3 col-md-3 col-lg-3 input-lg">文件路径</label>\
+								<div class="col-xs-9 col-sm-9 col-md-9 col-lg-9">\
+									<input id="image-uploader" class="form-control input-lg" type="file" multiple="false"  class="file">\
+								</div>\
+							</div>\
+						</form>\
+				  </div>\
+				<div class="btn-group-justified">\
+					<div class="btn-group">\
+						<a href="javascript:void(0);" id="btn-close" class="btn btn-lg alert-danger" ><div>关闭</div></a>\
+					</div>\
+				</div>\
+				</div>\
+			</div>\
+		</div>\
+	';
+	$(container).find('#dialog-file-uploader').remove();
+	if(!show)
+	{
+		return;
+	}
 
+	if(show)
+	{
+		$(container).append(s);
+		InitFileUploader(container, field_id, image_type);
+		$(container).find('button[data-dismiss=modal], a[id=btn-close]').on('click', function(){
+			//$(this).closest('.modal').removeClass('show');
+			//ShowImageUploader(container, field_id, image_type, false);
+			$(container).find('#dialog-file-uploader').remove();
+		});
+        $(container).find('#image-uploader').fileinput('reset');
+        $(container).find('#dialog-file-uploader').addClass('show');
+	}
+	//else
+	//{
+        ////$(container).find('#dialog-file-uploader').find('#file-desc').val('');
+        ////$(container).find('#dialog-file-uploader').find('#image-uploader').val('');
+        ////$(container).find('#dialog-file-uploader').removeClass('show');
+		//$(container).find('#dialog-file-uploader').remove();
+	//}
+
+};
 
 
 if($.chat_platform.DEBUG)
@@ -1024,7 +1092,9 @@ if($.chat_platform.DEBUG)
 				}
 			}
         });
-		
+		$('#btn_avatar_update').on('click', function(){
+			$.chat_platform.show_avatar_uploader();
+		});
 		
 		
 	});
