@@ -2758,6 +2758,53 @@ def handle_alipay_error_notify_url(environ):
         #g.join()
     
 def get_querydict_by_GET_POST(environ):
+
+    def parse_form_data(formdata):
+        def get_filename_contenttype(array):
+            filename = None
+            contenttype = None
+            rest_array = []
+            if len(array) == 5:
+                if len(array[2]) == 0:
+                    filename = dec(array[0].replace('"', ''))
+                    contenttype = array[1].replace('Content-Type:', '').strip()
+                    rest_array.append('\r\n'.join([array[3],array[4]]))
+            return filename, contenttype, rest_array
+        def get_key_value(array):
+            key = None
+            value = None
+            if len(array) == 5:
+                if len(array[1]) == 0:
+                    key = array[0].replace('"', '')
+                    value = dec(array[2])
+            return key, value
+        def get_array_data(array):
+            ret = None
+            if len(array) == 1:
+                if array[0] != '"file_data"':
+                    ret = array
+            return ret
+
+        ret_qb=  {}
+        ret_buf = None
+        body = []
+        for item in formdata:
+            arr = item[1].split('\r\n')
+            fn, ct, rest_arr = get_filename_contenttype(arr)
+            if fn and ct:
+                ret_qb['filename'] = fn
+                ret_qb['content_type'] = ct
+                body.extend(rest_arr)
+            arrdata = get_array_data(arr)
+            if arrdata:
+                body.extend(arrdata)
+            k, v = get_key_value(arr)
+            if k:
+                ret_qb[k] = v
+        if len(ret_qb.keys())>0:
+            ret_buf = ''.join(body)
+        return ret_qb, ret_buf
+
     querydict = {}
     buf = None
     if environ.has_key('QUERY_STRING'):
@@ -2782,7 +2829,16 @@ def get_querydict_by_GET_POST(environ):
         for k in obj.keys():
             querydict[k] = obj[k]
     except:
-        pass
+        try:
+            formdata = urlparse.parse_qsl(buf)
+            querydict1, buf1 = parse_form_data(formdata)
+            for k in querydict1.keys():
+                querydict[k] = querydict1[k]
+            if buf1:
+                buf = buf1
+        except Exception,e:
+            print(e)
+            pass
     return querydict, buf
     
 def handle_combiz_platform(environ):
@@ -4115,7 +4171,7 @@ def handle_chat_platform(environ, session):
         elif endpoint == 'handle_websocket':
             handle_websocket(environ)
         elif endpoint == 'gridfs_upload':
-            body = gridfs_upload(environ)
+            body = gridfs_upload(environ, querydict, buf)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
 
@@ -4125,7 +4181,7 @@ def handle_chat_platform(environ, session):
         gSessionStore.save(session)
     return statuscode, headers, body
 
-def gridfs_upload(environ):
+def gridfs_upload(environ, querydict, buf):
     global gConfig
     app = gConfig['wsgi']['application']
     body = ''
@@ -4138,7 +4194,12 @@ def gridfs_upload(environ):
         db_util.mongo_init_client(app)
         dbname = gConfig[app]['mongodb']['database']
         db = db_util.gClientMongo[app][dbname]
-        fs = gridfs.GridFS(db, collection=collection)
+        print(querydict)
+        print(buf)
+        with open('/home/xiejun/aaa.png', 'wb') as f:
+            f.write(buf)
+        # fs = gridfs.GridFS(db, collection=collection)
+        # fs.put(data, _id=_id, mimetype=mimetype, filename=filename, )
     else:
         body = json.dumps({'result':u'cannot find wsgi app [%s]' % app}, ensure_ascii=True, indent=4)
     return body
