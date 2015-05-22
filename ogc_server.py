@@ -63,7 +63,7 @@ except:
 
     
 
-
+import werkzeug
 from werkzeug.wrappers import Request, BaseResponse
 from werkzeug.local import LocalProxy
 from werkzeug.contrib.sessions import FilesystemSessionStore
@@ -2758,53 +2758,6 @@ def handle_alipay_error_notify_url(environ):
         #g.join()
     
 def get_querydict_by_GET_POST(environ):
-
-    def parse_form_data(formdata):
-        def get_filename_contenttype(array):
-            filename = None
-            contenttype = None
-            rest_array = []
-            if len(array) == 5:
-                if len(array[2]) == 0:
-                    filename = dec(array[0].replace('"', ''))
-                    contenttype = array[1].replace('Content-Type:', '').strip()
-                    rest_array.append('\r\n'.join([array[3],array[4]]))
-            return filename, contenttype, rest_array
-        def get_key_value(array):
-            key = None
-            value = None
-            if len(array) == 5:
-                if len(array[1]) == 0:
-                    key = array[0].replace('"', '')
-                    value = dec(array[2])
-            return key, value
-        def get_array_data(array):
-            ret = None
-            if len(array) == 1:
-                if array[0] != '"file_data"':
-                    ret = array
-            return ret
-
-        ret_qb=  {}
-        ret_buf = None
-        body = []
-        for item in formdata:
-            arr = item[1].split('\r\n')
-            fn, ct, rest_arr = get_filename_contenttype(arr)
-            if fn and ct:
-                ret_qb['filename'] = fn
-                ret_qb['content_type'] = ct
-                body.extend(rest_arr)
-            arrdata = get_array_data(arr)
-            if arrdata:
-                body.extend(arrdata)
-            k, v = get_key_value(arr)
-            if k:
-                ret_qb[k] = v
-        if len(ret_qb.keys())>0:
-            ret_buf = ''.join(body)
-        return ret_qb, ret_buf
-
     querydict = {}
     buf = None
     if environ.has_key('QUERY_STRING'):
@@ -2822,23 +2775,39 @@ def get_querydict_by_GET_POST(environ):
             for k in querydict.keys():
                 d[k] = querydict[k][0]
             querydict = d
-    try:
-        buf = environ['wsgi.input'].read()
-        ds_plus = urllib.unquote_plus(buf)
-        obj = json.loads(dec(ds_plus))
-        for k in obj.keys():
-            querydict[k] = obj[k]
-    except:
-        try:
-            formdata = urlparse.parse_qsl(buf)
-            querydict1, buf1 = parse_form_data(formdata)
-            for k in querydict1.keys():
-                querydict[k] = querydict1[k]
-            if buf1:
-                buf = buf1
-        except Exception,e:
-            print(e)
-            pass
+    # try:
+    #     # buf = environ['wsgi.input'].read()
+    #     buf = stream.read()
+    #     print('buf=')
+    #     print(buf)
+    #     ds_plus = urllib.unquote_plus(buf)
+    #     obj = json.loads(dec(ds_plus))
+    #     for k in obj.keys():
+    #         querydict[k] = obj[k]
+    # except:
+    #     pass
+    stream, form, files = werkzeug.formparser.parse_form_data(environ, charset='utf-8')
+    if len(form.keys()) > 0:
+        for key in form.keys():
+            try:
+                obj = json.loads(dec(key))
+                if isinstance(obj, dict):
+                    for k in obj.keys():
+                        querydict[k] = obj[k]
+            except:
+                querydict[key] = form[key]
+    file_storage_list = []
+    if len(files.keys()) > 0:
+        for key in files.keys():
+            file_storage_list.extend(files.getlist(key))
+    for file_storage in  file_storage_list:
+        if isinstance(file_storage, werkzeug.datastructures.FileStorage):
+            querydict['filename'] = file_storage.filename
+            querydict['content_type'] = file_storage.content_type
+            querydict['mimetype'] = file_storage.mimetype
+            # querydict['content_length'] = file_storage.content_length
+            buf = file_storage.read()
+            break
     return querydict, buf
     
 def handle_combiz_platform(environ):
@@ -4172,6 +4141,10 @@ def handle_chat_platform(environ, session):
             handle_websocket(environ)
         elif endpoint == 'gridfs_upload':
             body = gridfs_upload(environ, querydict, buf)
+        elif endpoint == 'gridfs_get':
+            if args.has_key('_id'):
+                querydict['_id'] = args['_id']
+            statuscode, headers, body = gridfs_get(environ, querydict)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
 
@@ -4179,6 +4152,37 @@ def handle_chat_platform(environ, session):
         body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
     if session:
         gSessionStore.save(session)
+    return statuscode, headers, body
+
+def gridfs_get(environ, querydict):
+    global gConfig, ENCODING
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    body = ''
+    statuscode = '200 OK'
+    if not querydict.has_key('_id'):
+        body = json.dumps({'result': u'gridfs_get_id_required'}, ensure_ascii=True, indent=4)
+        return statuscode, headers, body
+    app = gConfig['wsgi']['application']
+    if gConfig.has_key(app):
+        collection = 'fs'
+        if gConfig[app].has_key('mongodb') and gConfig[app]['mongodb'].has_key('gridfs_collection'):
+            collection = str(gConfig[app]['mongodb']['gridfs_collection'])
+        if len(collection) == 0:
+            collection = 'fs'
+        db_util.mongo_init_client(app)
+        dbname = gConfig[app]['mongodb']['database']
+        db = db_util.gClientMongo[app][dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        _id = db_util.add_mongo_id(querydict['_id'])
+        try:
+            f = fs.get(_id)
+            headers['Content-Type'] = str(f.content_type)
+            body = f.read()
+        except gridfs.errors.NoFile:
+            body = json.dumps({'result': u'gridfs_get_file_not_exist'}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result': u'gridfs_get_cannot_find_wsgi_app [%s]' % app}, ensure_ascii=True, indent=4)
     return statuscode, headers, body
 
 def gridfs_upload(environ, querydict, buf):
@@ -4194,12 +4198,18 @@ def gridfs_upload(environ, querydict, buf):
         db_util.mongo_init_client(app)
         dbname = gConfig[app]['mongodb']['database']
         db = db_util.gClientMongo[app][dbname]
-        print(querydict)
-        print(buf)
-        with open('/home/xiejun/aaa.png', 'wb') as f:
-            f.write(buf)
-        # fs = gridfs.GridFS(db, collection=collection)
-        # fs.put(data, _id=_id, mimetype=mimetype, filename=filename, )
+        if querydict.has_key('file_id'):
+            del querydict['file_id']
+        fs = gridfs.GridFS(db, collection=collection)
+        _id = None
+        try:
+            _id = fs.put(buf, **querydict)
+        except gridfs.errors.FileExists:
+            if querydict.has_key('_id'):
+                _id = db_util.add_mongo_id(querydict['_id'])
+                fs.delete(_id)
+                _id = fs.put(buf, **querydict)
+        body = json.dumps({'_id':db_util.remove_mongo_id(_id)}, ensure_ascii=True, indent=4)
     else:
         body = json.dumps({'result':u'cannot find wsgi app [%s]' % app}, ensure_ascii=True, indent=4)
     return body
