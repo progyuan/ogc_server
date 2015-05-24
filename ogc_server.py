@@ -45,13 +45,19 @@ try:
     from geventwebsocket.handler import WebSocketHandler
 except:
     print('geventwebsocket import error')
+# try:
+#     from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
+#     from pysimplesoap.client import SoapClient, SoapFault
+# except:
+#     print('pysimplesoap import error')
 try:
-    from pysimplesoap.server import SoapDispatcher, WSGISOAPHandler
-    from pysimplesoap.client import SoapClient, SoapFault
+    from PIL import Image
+except :
+    print('PIL import error')
+try:
+    from lxml import etree
 except:
-    print('pysimplesoap import error')
-    
-from lxml import etree
+    print('lxml import error')
 try:
     import czml
 except:
@@ -201,6 +207,8 @@ gUrlMap = Map([
     Rule('/gridfs/get', endpoint='gridfs_get'),
     Rule('/gridfs/get/<_id>', endpoint='gridfs_get'),
     Rule('/gridfs/get/<_id>/thumbnail/<width>/<height>', endpoint='gridfs_get'),
+    Rule('/gridfs/query/<width>/<height>', endpoint='gridfs_query'),
+    Rule('/gridfs/query/<width>/<height>/<limit>', endpoint='gridfs_query'),
     Rule('/gridfs/delete', endpoint='gridfs_delete'),
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
 ], converters={'bool': BooleanConverter})
@@ -4144,7 +4152,44 @@ def handle_chat_platform(environ, session):
         elif endpoint == 'gridfs_get':
             if args.has_key('_id'):
                 querydict['_id'] = args['_id']
+            if args.has_key('width'):
+                try:
+                    querydict['width'] = int(args['width'])
+                except:
+                    querydict['width'] = 64
+            if args.has_key('height'):
+                try:
+                    querydict['height'] = int(args['height'])
+                except:
+                    querydict['height'] = 64
             statuscode, headers, body = gridfs_get(environ, querydict)
+        elif endpoint == 'gridfs_delete':
+            if args.has_key('_id'):
+                querydict['_id'] = args['_id']
+            statuscode, headers, body = gridfs_delete(environ, querydict)
+        elif endpoint == 'gridfs_query':
+            if querydict.has_key('_id'):
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    if ',' in querydict['_id']:
+                        querydict['_id'] = querydict['_id'].split(',')
+                    else:
+                        querydict['_id'] = [querydict['_id'],]
+            if args.has_key('width'):
+                try:
+                    querydict['width'] = int(args['width'])
+                except:
+                    querydict['width'] = 64
+            if args.has_key('height'):
+                try:
+                    querydict['height'] = int(args['height'])
+                except:
+                    querydict['height'] = 64
+            if args.has_key('limit'):
+                try:
+                    querydict['limit'] = int(args['limit'])
+                except:
+                    querydict['limit'] = 10
+            statuscode, headers, body = gridfs_query(environ, querydict)
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
 
@@ -4156,6 +4201,20 @@ def handle_chat_platform(environ, session):
 
 def gridfs_get(environ, querydict):
     global gConfig, ENCODING
+    def thumbnail(fp, size, use_base64=False):
+        ret = None
+        if 'image/' in fp.mimetype:
+            im = Image.open(fp)
+            im.thumbnail(size)
+            buf = StringIO.StringIO()
+            #print(im.format)
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
+        return ret
+
+
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     body = ''
@@ -4178,12 +4237,122 @@ def gridfs_get(environ, querydict):
         try:
             f = fs.get(_id)
             headers['Content-Type'] = str(f.content_type)
-            body = f.read()
+            if querydict.has_key('width') and querydict.has_key('height') \
+                and querydict['width']>0 and querydict['width']<8192 \
+                and querydict['height']>0 and querydict['height']<8192 :
+                body = thumbnail(f, (querydict['width'], querydict['height']), False)
+                if body is None:
+                    body = json.dumps({'result': u'gridfs_get_error_invalid_image_format'}, ensure_ascii=True, indent=4)
+            else:
+                body = f.read()
         except gridfs.errors.NoFile:
             body = json.dumps({'result': u'gridfs_get_file_not_exist'}, ensure_ascii=True, indent=4)
+        except Exception,e:
+            body = json.dumps({'result': u'gridfs_get_error:%s' % e.message}, ensure_ascii=True, indent=4)
     else:
         body = json.dumps({'result': u'gridfs_get_cannot_find_wsgi_app [%s]' % app}, ensure_ascii=True, indent=4)
     return statuscode, headers, body
+
+def gridfs_delete(environ, querydict):
+    global gConfig, ENCODING
+
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    body = ''
+    statuscode = '200 OK'
+    if not querydict.has_key('_id'):
+        body = json.dumps({'result': u'gridfs_delete_id_required'}, ensure_ascii=True, indent=4)
+        return statuscode, headers, body
+    app = gConfig['wsgi']['application']
+    if gConfig.has_key(app):
+        collection = 'fs'
+        if gConfig[app].has_key('mongodb') and gConfig[app]['mongodb'].has_key('gridfs_collection'):
+            collection = str(gConfig[app]['mongodb']['gridfs_collection'])
+        if len(collection) == 0:
+            collection = 'fs'
+        db_util.mongo_init_client(app)
+        dbname = gConfig[app]['mongodb']['database']
+        db = db_util.gClientMongo[app][dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        arr = querydict['_id'].split(',')
+        ids = []
+        for i in arr:
+            ids.append(db_util.add_mongo_id(i))
+        try:
+            for i in ids:
+                fs.delete(i)
+            body = json.dumps(querydict, ensure_ascii=True, indent=4)
+        except Exception,e:
+            body = json.dumps({'result': u'gridfs_delete_error:%s' % e.message}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result': u'gridfs_delete_cannot_find_wsgi_app [%s]' % app}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+
+
+def gridfs_query(environ, querydict):
+    global gConfig, ENCODING
+    def thumbnail(fp, size, use_base64=False):
+        ret = None
+        if 'image/' in fp.mimetype:
+            im = Image.open(fp)
+            im.thumbnail(size)
+            buf = StringIO.StringIO()
+            #print(im.format)
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
+        return ret
+
+
+    headers = {}
+    headers['Content-Type'] = 'text/json;charset=' + ENCODING
+    body = '[]'
+    statuscode = '200 OK'
+    app = gConfig['wsgi']['application']
+    if gConfig.has_key(app):
+        collection = 'fs'
+        if gConfig[app].has_key('mongodb') and gConfig[app]['mongodb'].has_key('gridfs_collection'):
+            collection = str(gConfig[app]['mongodb']['gridfs_collection'])
+        if len(collection) == 0:
+            collection = 'fs'
+        db_util.mongo_init_client(app)
+        dbname = gConfig[app]['mongodb']['database']
+        db = db_util.gClientMongo[app][dbname]
+        fs = gridfs.GridFS(db, collection=collection)
+        limit = 10
+        if  querydict.has_key('limit'):
+            limit = querydict['limit']
+            del querydict['limit']
+        try:
+            if querydict.has_key('width') and querydict.has_key('height') \
+                and querydict['width']>0 and querydict['width']<8192 \
+                and querydict['height']>0 and querydict['height']<8192 :
+                w, h = querydict['width'], querydict['height']
+                del querydict['width']
+                del querydict['height']
+                cur = None
+                if querydict.has_key('_id'):
+                    ids = db_util.add_mongo_id(querydict['_id'])
+                    cur = fs.find({'_id':{'$in':ids}}).limit(limit)
+                else:
+                    cur = fs.find(querydict).limit(limit)
+                arr = []
+                for f in cur:
+                    b64str = thumbnail(f, (w, h), True)
+                    arr.append({'_id':db_util.remove_mongo_id(f._id), 'mimetype':f.mimetype, 'data': b64str})
+                body = json.dumps(arr, ensure_ascii=True, indent=4)
+            else:
+                 body = json.dumps({'result': u'gridfs_query_size_required'}, ensure_ascii=True, indent=4)
+        except gridfs.errors.NoFile:
+            body = json.dumps({'result': u'gridfs_query_file_not_exist'}, ensure_ascii=True, indent=4)
+        except Exception,e:
+            body = json.dumps({'result': u'gridfs_query_error:%s' % e.message}, ensure_ascii=True, indent=4)
+    else:
+        body = json.dumps({'result': u'gridfs_query_cannot_find_wsgi_app [%s]' % app}, ensure_ascii=True, indent=4)
+    return statuscode, headers, body
+
+
 
 def gridfs_upload(environ, querydict, buf):
     global gConfig
@@ -4203,12 +4372,32 @@ def gridfs_upload(environ, querydict, buf):
         fs = gridfs.GridFS(db, collection=collection)
         _id = None
         try:
+            if querydict.has_key('_uniqueIndex'):
+                uniqueIndex = querydict['_uniqueIndex']
+                cond = {}
+                if (isinstance(uniqueIndex, unicode) or isinstance(uniqueIndex, str)) and len(uniqueIndex)>0:
+                    arr = uniqueIndex.split(',')
+                    for indexName in arr:
+                        indexName = indexName.strip()
+                        if querydict.has_key(indexName):
+                            cond[indexName] = querydict[indexName]
+                    if len(cond.keys())>1:
+                        idlist = []
+                        cur = fs.find(cond)
+                        for i in cur:
+                            idlist.append(i._id)
+                        for i in idlist:
+                            fs.delete(i)
+                del querydict['_uniqueIndex']
             _id = fs.put(buf, **querydict)
         except gridfs.errors.FileExists:
             if querydict.has_key('_id'):
                 _id = db_util.add_mongo_id(querydict['_id'])
                 fs.delete(_id)
                 _id = fs.put(buf, **querydict)
+        except:
+            raise
+
         body = json.dumps({'_id':db_util.remove_mongo_id(_id)}, ensure_ascii=True, indent=4)
     else:
         body = json.dumps({'result':u'cannot find wsgi app [%s]' % app}, ensure_ascii=True, indent=4)
