@@ -2798,7 +2798,9 @@ def get_querydict_by_GET_POST(environ):
     if len(form.keys()) > 0:
         for key in form.keys():
             try:
-                obj = json.loads(dec(key))
+                if isinstance(key, str):
+                    key = dec(key)
+                obj = json.loads(key)
                 if isinstance(obj, dict):
                     for k in obj.keys():
                         querydict[k] = obj[k]
@@ -3431,20 +3433,36 @@ def handle_chat_platform(environ, session):
         ret = []
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
         q = {}
+        limit = 0
+        skip = 0
+        user_detail = False
+        if querydict.has_key('user_detail') and querydict['user_detail'] is True:
+            user_detail = True
+            del querydict['user_detail']
+        if querydict.has_key('limit'):
+            limit = int(querydict['limit'])
+            del querydict['limit']
+        if querydict.has_key('skip'):
+            skip = int(querydict['skip'])
+            del querydict['skip']
         if querydict.has_key('username'):
             if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode):
                 q['username'] = querydict['username']
             if isinstance(querydict['username'], list):
                 q['username'] = {'$in': querydict['username']}
+            if isinstance(querydict['username'], dict):
+                q['username'] = querydict['username']
         if querydict.has_key('_id'):
             if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
                 q['_id'] = db_util.add_mongo_id(querydict['_id'])
             if isinstance(querydict['_id'], list):
                 q['_id'] = {'$in': [db_util.add_mongo_id(i) for i in querydict['_id']]}
-        rec = list(collection.find(q))
+            if isinstance(querydict['_id'], dict):
+                q['_id'] = querydict['_id']
+        rec = list(collection.find(q).limit(limit).skip(skip))
         keys = gWebSocketsMap.keys()
         for i in rec:
-            if querydict.has_key('user_detail') and querydict['user_detail'] is True:
+            if user_detail:
                 if str(i['_id']) in keys:
                     i['online_status'] = 'online'
                 else:
@@ -3456,17 +3474,27 @@ def handle_chat_platform(environ, session):
         ret = []
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
         q = {}
+        limit = 0
+        skip = 0
+        if querydict.has_key('limit'):
+            limit = int(querydict['limit'])
+            del querydict['limit']
+        if querydict.has_key('skip'):
+            skip = int(querydict['skip'])
+            del querydict['skip']
         if querydict.has_key('group_name'):
             if isinstance(querydict['group_name'], str) or isinstance(querydict['group_name'], unicode):
                 q['group_name'] = querydict['group_name']
             if isinstance(querydict['group_name'], list):
                 q['group_name'] = {'$in': querydict['group_name']}
+            if isinstance(querydict['group_name'], dict):
+                q['group_name'] = querydict['group_name']
         if querydict.has_key('_id'):
             if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
                 q['_id'] = querydict['_id']
             if isinstance(querydict['_id'], list):
                 q['_id'] = {'$in': querydict['_id']}
-        ret = list(collection.find(db_util.add_mongo_id(q)))
+        ret = list(collection.find(db_util.add_mongo_id(q)).limit(limit).skip(skip))
         if querydict.has_key('user_detail') and querydict['user_detail'] is True:
             keys = gWebSocketsMap.keys()
             for i in ret:
@@ -3501,7 +3529,7 @@ def handle_chat_platform(environ, session):
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_groups'])
         q = {}
         if querydict.has_key('username'):
-            if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode):
+            if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode) or isinstance(querydict['username'], dict):
                 q['username'] = querydict['username']
         if querydict.has_key('_id'):
             if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
@@ -3532,17 +3560,46 @@ def handle_chat_platform(environ, session):
         if querydict.has_key('username'):
             if isinstance(querydict['username'], str) or isinstance(querydict['username'], unicode):
                 q['username'] = querydict['username']
+                del querydict['username']
         if querydict.has_key('_id'):
             if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
                 q['_id'] = db_util.add_mongo_id(querydict['_id'])
+                del querydict['_id']
         if len(q.keys())>0:
             contacts = []
+            selfid = None
             rec = collection.find_one(q)
             if rec and rec.has_key('contacts'):
-                contacts = rec['contacts']
+                # contacts = rec['contacts']
+                contacts = [db_util.add_mongo_id(i) for i in rec['contacts']]
                 ret = contacts
+                selfid = rec['_id']
+            limit = 0
+            skip = 0
+            user_detail = False
+
             if querydict.has_key('user_detail') and querydict['user_detail'] is True:
-                contactlist = user_query(session, {'_id':contacts})
+                user_detail = True
+                del querydict['user_detail']
+            if querydict.has_key('limit'):
+                try:
+                    limit = int(querydict['limit'])
+                except:
+                    pass
+                del querydict['limit']
+            if querydict.has_key('skip'):
+                try:
+                    skip = int(querydict['skip'])
+                except:
+                    pass
+                del querydict['skip']
+
+            if user_detail:
+                if querydict.has_key('filter'):
+                    contactlist = user_query(session, {'username':{'$regex': '^.*' + querydict['filter'] + '.*$'}, '_id': {'$in':contacts, '$ne':selfid}, 'limit':limit, 'skip':skip})
+                    del querydict['filter']
+                else:
+                    contactlist = user_query(session, {'_id':contacts, 'limit':limit, 'skip':skip})
                 ret = []
                 keys = gWebSocketsMap.keys()
                 for i in contactlist:
