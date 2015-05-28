@@ -5858,7 +5858,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
                 ret = response.read()
-                print(ret)
+                # print(ret)
                 header = {}
                 for k in response._headers_index.keys():
                     if  not k in ['transfer-encoding', ]:
@@ -6161,6 +6161,7 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_websocket(environ)
     elif len(path_info)>6 and path_info[:6] == '/proxy':
         statuscode, headers, body = proxy(environ)
+        headers['Cache-Control'] = 'no-cache'
     elif path_info == '/anti_bird_equip_list':
         statuscode, headers, body = anti_bird_equip_list(environ)
     elif path_info == '/anti_bird_equip_tower_mapping':
@@ -6238,9 +6239,9 @@ def application_webgis(environ, start_response):
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
-    # header['Cache-Control'] = 'no-cache'
-    headerslist = add_to_headerlist(headerslist, 'Cache-Control', 'no-cache')
-    print(headerslist)
+
+    # headerslist = add_to_headerlist(headerslist, 'Cache-Control', 'no-cache')
+    # print(headerslist)
     start_response(statuscode, headerslist)
     return [body]
 
@@ -6250,6 +6251,7 @@ def add_to_headerlist(headerslist, key, value):
     for i in ret:
         if i[0] == key:
             existidx = ret.index(i)
+            break
     if existidx < 0:
         ret.append((key, value))
     else:

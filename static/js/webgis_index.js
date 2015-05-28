@@ -7800,11 +7800,11 @@ function AntiBirdHeatmap(viewer, dict)
 	//console.log(dict);
 	if(dict.speed && dict.speed.length === 2 && dict.start && dict.start.length>0 && dict.end && dict.end.length>0)
 	{
-		var url= '/proxy/api/statistics/heatmap/' + dict.start + '/' + dict.end + '/' + dict.speed[0] + '/' + dict.speed[1]; 
+		var url= '/proxy/api/statistics/heatmap/' + dict.start + '/' + dict.end + '/' + dict.speed[0] + '/' + dict.speed[1] + '?random=' + Math.random();
 		console.log(url);
 		ShowProgressBar(true, 670, 200, '载入中', '正在查询统计数据，请稍候...');
 		$.get(url, {}, function( data1 ){
-			console.log(data1);
+			//console.log(data1);
 			if(data1 instanceof Array)
 			{
 				//var hid = 'heatmap_' + dict.start + '_' + dict.end + '_' + dict.speed[0] + '_' + dict.speed[1];
