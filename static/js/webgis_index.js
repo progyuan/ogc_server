@@ -1784,22 +1784,19 @@ function AntiBirdBadgeMessageListReload(data, filter)
 	for(i = data.length - 1; i>-1; i--)
 	{
 		var item = data[i];
-		//var liprefix = '<li id="' + item.uid + '@' + item.imei + '" class="ui-widget-content"><a id="anti_bird_msg_item_link_@' + item.imei + '" href="javascript:void(0);" class="anti-bird-msg-list-item">';
 		var liprefix = '<li id="' + item.uid + '@' + item.imei + '" class="ui-widget-content"><a  href="javascript:void(0);" class="anti-bird-msg-list-item">';
-		//var lipostfix = '</a><a id="anti_bird_msg_item_clear_@' + item.uid + '" href="javascript:void(0);" class="anti-bird-msg-list-item" style="float:right;">清除</a></li>';
 		var lipostfix = '</a></li>';
+
 		if(item.name)
 		{
 			if(filter && filter.length>0)
 			{
 				if(item.name.indexOf(filter)>-1 || item.imei.indexOf(filter)>-1)
 				{
-					//$('#anti_bird_msg_list_list ul').append(liprefix + item.imei + '(' + item.name + ')' + lipostfix);
 					$('#anti_bird_msg_list_list ul').append(liprefix +  '(' + item.name + ')' + lipostfix);
 				}
 			}else
 			{
-				//$('#anti_bird_msg_list_list ul').append(liprefix + item.imei + '(' + item.name + ')' + lipostfix);
 				$('#anti_bird_msg_list_list ul').append(liprefix +  '(' + item.name + ')' + lipostfix);
 			}
 		}else
@@ -1852,6 +1849,7 @@ function AntiBirdBadgeMessageArrival(viewer, message)
 		{
 			obj = $.extend(true, {}, $.webgis.data.antibird.anti_bird_equip_tower_mapping[message.imei]);
 		}
+		//console.log($.webgis.data.antibird.anti_bird_equip_tower_mapping);
 		obj.imei = message.imei;
 		obj.uid = $.uuid();
 		$.webgis.data.antibird.unread_msg_queue.push(obj);
@@ -2387,6 +2385,7 @@ function InitAntiBirdEquipListData(viewer)
 			var ret = JSON.parse(decodeURIComponent(data1));
 			$.webgis.data.antibird.anti_bird_equip_tower_mapping = ret;
 			//testheatmap(viewer);
+			//console.log(ret);
 		})
 		.fail(function (xhr, status, e){
 			ShowProgressBar(false);
@@ -7802,10 +7801,10 @@ function AntiBirdHeatmap(viewer, dict)
 	if(dict.speed && dict.speed.length === 2 && dict.start && dict.start.length>0 && dict.end && dict.end.length>0)
 	{
 		var url= '/proxy/api/statistics/heatmap/' + dict.start + '/' + dict.end + '/' + dict.speed[0] + '/' + dict.speed[1]; 
-		//console.log(url);
+		console.log(url);
 		ShowProgressBar(true, 670, 200, '载入中', '正在查询统计数据，请稍候...');
 		$.get(url, {}, function( data1 ){
-			//console.log(data1);
+			console.log(data1);
 			if(data1 instanceof Array)
 			{
 				//var hid = 'heatmap_' + dict.start + '_' + dict.end + '_' + dict.speed[0] + '_' + dict.speed[1];

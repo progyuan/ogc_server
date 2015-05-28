@@ -230,7 +230,7 @@ def init_global():
     
         
     gConfig = configobj.ConfigObj(CONFIGFILE, encoding='UTF8')
-    gClientMongo = {'webgis':None, 'geofeature':None,}
+    # gClientMongo = {'webgis':None, 'geofeature':None,}
     gClientMongoTiles = {}
     gClientMetadata = {}
     ODBC_STRING = {}
@@ -7778,21 +7778,22 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='webg
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
-                cur = db[collection_name].find(conds).limit(limit)
-                for i in cur:
-                    ret.append(remove_mongo_id(i))
-                    #ret.append(i)
+                ret = list(db[collection_name].find(conds).limit(limit))
+                # for i in cur:
+                #     ret.append(remove_mongo_id(i))
+                ret = remove_mongo_id(ret)
             elif collection_name == 'mongo_get_towers_by_line_name':
                 conds['properties.webgis_type'] = 'polyline_line'
-                lines = db['network'].find(conds)
+                lines = list(db['network'].find(conds))
                 towerids = []
                 for line in lines:
                     for t in line['properties']['nodes']:
                         #print(str(t))
                         towerids.append(t)
-                towers = db['features'].find({'_id':{'$in':towerids}}).limit(limit)
-                for i in towers:
-                    ret.append(remove_mongo_id(i))
+                towers = list(db['features'].find({'_id':{'$in':towerids}}).limit(limit))
+                # for i in towers:
+                #     ret.append(remove_mongo_id(i))
+                ret = remove_mongo_id(towers)
             elif collection_name == 'get_line_geojson':
                 line = remove_mongo_id(db['network'].find_one(conds))
                 obj = get_line_geojson(dbname, line)
@@ -8941,14 +8942,15 @@ def gridfs_delete(qsdict, clienttype='webgis'):
 def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, replicaset=None):
     global gClientMongo, gClientMongoTiles, gConfig
     try:
-        if clienttype == 'webgis':
+        app = gConfig['wsgi']['application']
+        if clienttype in ['webgis', 'markdown', 'authorize_platform', 'pay_platform', 'combiz_platform', 'chat_platform']:
             if not gClientMongo.has_key(clienttype) :
                 if host is None:
-                    host = gConfig['webgis']['mongodb']['host']
+                    host = gConfig[clienttype]['mongodb']['host']
                 if port is None:
-                    port = int(gConfig['webgis']['mongodb']['port'])
+                    port = int(gConfig[clienttype]['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig['webgis']['mongodb']['replicaset']
+                    replicaset = gConfig[clienttype]['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
@@ -8961,66 +8963,6 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     port = int(gConfig['webgis']['geofeature']['mongodb']['port'])
                 if replicaset is None:
                     replicaset = gConfig['webgis']['geofeature']['mongodb']['replicaset']
-                if len(replicaset) == 0:
-                    gClientMongo[clienttype] = MongoClient(host, port)
-                else:
-                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'markdown':
-            if not gClientMongo.has_key(clienttype) :
-                if host is None:
-                    host = gConfig['markdown']['mongodb']['host']
-                if port is None:
-                    port = int(gConfig['markdown']['mongodb']['port'])
-                if replicaset is None:
-                    replicaset = gConfig['markdown']['mongodb']['replicaset']
-                if len(replicaset) == 0:
-                    gClientMongo[clienttype] = MongoClient(host, port)
-                else:
-                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'authorize_platform':
-            if not gClientMongo.has_key(clienttype) :
-                if host is None:
-                    host = gConfig['authorize_platform']['mongodb']['host']
-                if port is None:
-                    port = int(gConfig['authorize_platform']['mongodb']['port'])
-                if replicaset is None:
-                    replicaset = gConfig['authorize_platform']['mongodb']['replicaset']
-                if len(replicaset) == 0:
-                    gClientMongo[clienttype] = MongoClient(host, port)
-                else:
-                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'pay_platform':
-            if not gClientMongo.has_key(clienttype) :
-                if host is None:
-                    host = gConfig['pay_platform']['mongodb']['host']
-                if port is None:
-                    port = int(gConfig['pay_platform']['mongodb']['port'])
-                if replicaset is None:
-                    replicaset = gConfig['pay_platform']['mongodb']['replicaset']
-                if len(replicaset) == 0:
-                    gClientMongo[clienttype] = MongoClient(host, port)
-                else:
-                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'combiz_platform':
-            if not gClientMongo.has_key(clienttype) :
-                if host is None:
-                    host = gConfig['combiz_platform']['mongodb']['host']
-                if port is None:
-                    port = int(gConfig['combiz_platform']['mongodb']['port'])
-                if replicaset is None:
-                    replicaset = gConfig['combiz_platform']['mongodb']['replicaset']
-                if len(replicaset) == 0:
-                    gClientMongo[clienttype] = MongoClient(host, port)
-                else:
-                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'chat_platform':
-            if not gClientMongo.has_key(clienttype) :
-                if host is None:
-                    host = gConfig['chat_platform']['mongodb']['host']
-                if port is None:
-                    port = int(gConfig['chat_platform']['mongodb']['port'])
-                if replicaset is None:
-                    replicaset = gConfig['chat_platform']['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
@@ -9046,9 +8988,7 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
     except:
         raise
 
-    
-    
-    
+
 def gridfs_find(qsdict, clienttype='webgis'):
     global gClientMongo, gConfig
     def thumbnail(fp, size, use_base64=False):

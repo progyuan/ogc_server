@@ -68,9 +68,33 @@ def query4():
     # ret = list(collection.find({'group_name': re.compile(u'^.*' + u'描述' + u'.*$')}))
     # ret = list(collection.find({'group_name': re.compile(u'^.*' + u'a' + u'.*$')}))
     return ret
+def query5():
+    client = MongoClient('yncaiyun.com', 27017)
+    db = client['kmgd']
+    collection = db['features']
+    ret = list(
+        collection.find({
+            "properties.webgis_type":"point_tower",
+            "properties.metals":{
+                "$elemMatch":{
+                    "type":u"超声波驱鸟装置",
+                },
+                "$size": 2
+            }
+            # "properties.metals":{"$size": 3},
+        })
+    )
+    return ret
+
 
 if __name__ == '__main__':
-    ret = query4()
-    print(ret)
+    ret = query5()
+    print(len(ret))
+    # for i in ret:
+    #     if i['properties'].has_key('metals'):
+    #         for j in i['properties']['metals']:
+    #             # if j['type'] == u'超声波驱鸟装置':
+    #             if u'驱鸟' in j['type'] :
+    #                 print(j)
     # print(re.compile(u'^.*' + u'描述' + u'.*$').findall(u'描述aaaa'))
 

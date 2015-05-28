@@ -5793,7 +5793,6 @@ def application_pay_platform(environ, start_response):
 
 def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', real_host='localhost', real_port='80',  token='', connection_timeout=5.0, network_timeout=10.0, request_headers={}):
     global ENCODING, gHttpClient, gRequest
-    #token = md5.new('bird%s' % time.strftime('%Y%m%d')).hexdigest()
     path_info = environ['PATH_INFO']
     if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
         path_info += '?' + environ['QUERY_STRING']
@@ -5805,7 +5804,6 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
     method = request.method.lower()
     data = request.get_data()
     headers = {}
-    #if len(request_headers.keys()) == 0:
     for i in request.headers:
         headers[i[0]] = enc(i[1])
     for k in request_headers.keys():
@@ -5820,7 +5818,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         href += '?';
     href += 'token=%s&random=%d' % ( token, random.randint(0,100000) )
     print('proxy to %s' % href)
-    header = {'Content-Type': 'text/json;charset=' + ENCODING}
+    header = {'Content-Type': 'text/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
     ret = ''
     url = URL(href)
     if not gHttpClient.has_key('http_proxy'):
@@ -5860,6 +5858,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         if hasattr(response, 'status_code'):
             if response.status_code == 200 or response.status_code == 304:
                 ret = response.read()
+                print(ret)
                 header = {}
                 for k in response._headers_index.keys():
                     if  not k in ['transfer-encoding', ]:
@@ -5869,6 +5868,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
                         else:
                             k = k.capitalize()
                         header[k] = v
+
             else:
                 msg = 'handle_http_proxy response error:%d' % response.status_code
                 ret = json.dumps({'result':msg}, ensure_ascii=True, indent=4)
@@ -6153,8 +6153,8 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_terrain(environ)
     #elif path_info[-8:] == '.terrain':
         #return handle_terrain1(environ)
-    elif path_info == '/wfs':
-        statuscode, headers, body = handle_wfs(environ)
+    # elif path_info == '/wfs':
+    #     statuscode, headers, body = handle_wfs(environ)
     elif path_info =='/create_cluster' or  path_info =='/kill_cluster':
         statuscode, headers, body = handle_cluster(environ)
     elif path_info == '/websocket':
@@ -6238,9 +6238,23 @@ def application_webgis(environ, start_response):
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
+    # header['Cache-Control'] = 'no-cache'
+    headerslist = add_to_headerlist(headerslist, 'Cache-Control', 'no-cache')
+    print(headerslist)
     start_response(statuscode, headerslist)
     return [body]
 
+def add_to_headerlist(headerslist, key, value):
+    ret = headerslist
+    existidx = -1
+    for i in ret:
+        if i[0] == key:
+            existidx = ret.index(i)
+    if existidx < 0:
+        ret.append((key, value))
+    else:
+        ret[existidx] = (key, value)
+    return ret
 
 def application_markdown(environ, start_response):
     global gConfig, gRequest, gSessionStore
