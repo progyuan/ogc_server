@@ -6570,6 +6570,10 @@ def chat_save_log(obj):
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
         #if obj.has_key('timestamp'):
             #obj['timestamp'] = datetime.datetime.fromtimestamp(obj['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
+        if obj['op'] == 'chat/online':
+            for k in obj.keys():
+                if not k in ['_id', 'update_date', 'op']:
+                    del obj[k]
         collection.save(db_util.add_mongo_id(obj))
 
                
