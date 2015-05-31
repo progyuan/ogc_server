@@ -4247,6 +4247,7 @@ def handle_chat_platform(environ, session):
                 except:
                     querydict['limit'] = 10
             statuscode, headers, body = gridfs_query(environ, querydict)
+
         else:
             body = json.dumps({'result':u'access_deny'}, ensure_ascii=True, indent=4)
 
