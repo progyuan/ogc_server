@@ -4094,6 +4094,7 @@ def handle_chat_platform(environ, session):
                         d['op'] = obj['op']
                         d['from'] = _id
                         d['to'] = _id
+                        d['timestamp'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                         gJoinableQueue.put(d)
                         #ws.send(json.dumps(d, ensure_ascii=True, indent=4))
                         if obj.has_key('inform_contact') and obj['inform_contact'] is True:
@@ -4110,7 +4111,7 @@ def handle_chat_platform(environ, session):
                             other_contacts = gWebSocketsMap.keys()[:]
                             if _id in other_contacts:
                                 other_contacts.remove(_id)
-                            broadcast(session, ws, other_contacts,  {'op':'chat/info/offline','from':_id})
+                            broadcast(session, ws, other_contacts,  {'op':'chat/info/offline','from':_id, 'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())})
                         offline(_id)
                     elif obj.has_key('username'):
                         rec = user_query(session, {'username':obj['username']})
@@ -6569,12 +6570,12 @@ def chat_save_log(obj):
         return ret
     if obj.has_key('op') and  obj['op'] in ['chat/chat', 'chat/online', 'chat/offline']:
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
-        #if obj.has_key('timestamp'):
-            #obj['timestamp'] = datetime.datetime.fromtimestamp(obj['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
-        if obj['op'] == 'chat/online':
-            for k in obj.keys():
-                if not k in ['_id', 'update_date', 'op']:
-                    del obj[k]
+        # if obj.has_key('timestamp'):
+        #     obj['timestamp'] = datetime.datetime.fromtimestamp(obj['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
+        # if obj['op'] in ['chat/online', 'chat/offline']:
+        #     for k in obj.keys():
+        #         if not k in ['_id', 'timestamp', 'op']:
+        #             del obj[k]
         collection.save(db_util.add_mongo_id(obj))
 
                
