@@ -25,6 +25,7 @@ import re
 import StringIO
 import cgi
 import uuid
+import copy
 from contextlib import contextmanager
 
 from gevent import pywsgi
@@ -3343,9 +3344,29 @@ def handle_combiz_platform(environ):
                 ret = f1.read()
         return ret, content_type
     
-    
-    
-    
+    def check_url_token(querydict):
+        is_token_pass = False
+        enable_url_md5_check = False
+        md5prefix = ''
+        if gConfig['combiz_platform'].has_key('security') \
+           and gConfig['combiz_platform']['security'].has_key('md5prefix'):
+            md5prefix = str(gConfig['combiz_platform']['security']['md5prefix'])
+
+        if gConfig['combiz_platform'].has_key('security') \
+           and gConfig['combiz_platform']['security'].has_key('enable_url_md5_check') \
+           and gConfig['combiz_platform']['security']['enable_url_md5_check'].lower() == 'true':
+            enable_url_md5_check = True
+        else:
+            is_token_pass = True
+        if enable_url_md5_check:
+            print('checking token...')
+            if querydict.has_key('_token'):
+                plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
+                token = md5.new(plain).hexdigest()
+                if token == str(querydict['_token']):
+                    is_token_pass = True
+        return is_token_pass
+
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     statuscode = '200 OK'
@@ -3353,35 +3374,16 @@ def handle_combiz_platform(environ):
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
     querydict, buf = get_querydict_by_GET_POST(environ)
-    is_token_pass = False
-    enable_url_md5_check = False
-    md5prefix = ''
-    if gConfig['combiz_platform'].has_key('security') \
-       and gConfig['combiz_platform']['security'].has_key('md5prefix'):
-        md5prefix = str(gConfig['combiz_platform']['security']['md5prefix'])
-    
-    if gConfig['combiz_platform'].has_key('security') \
-       and gConfig['combiz_platform']['security'].has_key('enable_url_md5_check') \
-       and gConfig['combiz_platform']['security']['enable_url_md5_check'].lower() == 'true':
-        enable_url_md5_check = True
-    if enable_url_md5_check:
-        print('checking token...')
-        if querydict.has_key('_token'):
-            plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
-            token = md5.new(plain).hexdigest()
-            if token == str(querydict['_token']):
-                is_token_pass = True
-        if not is_token_pass:
-            body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
-            return statuscode, headers, body
-    if querydict.has_key('_token'):
-        del querydict['_token']
-    endpoint = ''
     try:
         endpoint, args = urls.match()
         if args.has_key('_id'):
             querydict['_id'] = args['_id']
-            
+        if endpoint not in []:
+            if not check_url_token(querydict):
+                body = json.dumps({'result': u'invalid_token'}, ensure_ascii=True, indent=4)
+                return statuscode, headers, body
+        if querydict.has_key('_token'):
+            del querydict['_token']
         if endpoint == 'workflow_add':
             body = workflow_add(querydict)
         elif endpoint == 'workflow_query':
@@ -3820,6 +3822,11 @@ def handle_chat_platform(environ, session):
             for i in gWebSocketsMap[user_id]:
                 i.close()
             del gWebSocketsMap[user_id]
+            chat_save_log({
+                'op':'chat/offline',
+                'from':user_id,
+                'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            })
 
     def get_destination(session, from_id, _id):
         ret = []
@@ -4148,7 +4155,29 @@ def handle_chat_platform(environ, session):
         if ws and ws.closed:
             del ws
             
-        
+    def check_url_token(querydict):
+        is_token_pass = False
+        enable_url_md5_check = False
+        md5prefix = ''
+        if gConfig['chat_platform'].has_key('security') \
+           and gConfig['chat_platform']['security'].has_key('md5prefix'):
+            md5prefix = str(gConfig['chat_platform']['security']['md5prefix'])
+
+        if gConfig['chat_platform'].has_key('security') \
+           and gConfig['chat_platform']['security'].has_key('enable_url_md5_check') \
+           and gConfig['chat_platform']['security']['enable_url_md5_check'].lower() == 'true':
+            enable_url_md5_check = True
+        else:
+            is_token_pass = True
+        if enable_url_md5_check:
+            print('checking token...')
+            if querydict.has_key('_token'):
+                plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
+                token = md5.new(plain).hexdigest()
+                if token == str(querydict['_token']):
+                    is_token_pass = True
+        return is_token_pass
+
     
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
@@ -4157,32 +4186,16 @@ def handle_chat_platform(environ, session):
     isnew = False
     urls = gUrlMap.bind_to_environ(environ)
     querydict, buf = get_querydict_by_GET_POST(environ)
-    is_token_pass = False
-    enable_url_md5_check = False
-    md5prefix = ''
-    if gConfig['chat_platform'].has_key('security') \
-       and gConfig['chat_platform']['security'].has_key('md5prefix'):
-        md5prefix = str(gConfig['chat_platform']['security']['md5prefix'])
-    
-    if gConfig['chat_platform'].has_key('security') \
-       and gConfig['chat_platform']['security'].has_key('enable_url_md5_check') \
-       and gConfig['chat_platform']['security']['enable_url_md5_check'].lower() == 'true':
-        enable_url_md5_check = True
-    if enable_url_md5_check:
-        print('checking token...')
-        if querydict.has_key('_token'):
-            plain = '%s_|_%s' % (md5prefix, time.strftime('%Y%m%d%H'))
-            token = md5.new(plain).hexdigest()
-            if token == str(querydict['_token']):
-                is_token_pass = True
-        if not is_token_pass:
-            body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
-            return statuscode, headers, body
-    if querydict.has_key('_token'):
-        del querydict['_token']
     endpoint = ''
     try:
         endpoint, args = urls.match()
+        if endpoint not in ['handle_websocket', ]:
+            if not check_url_token(querydict):
+                body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
+                return statuscode, headers, body
+        if querydict.has_key('_token'):
+            del querydict['_token']
+
         if endpoint == 'user_add':
             body = user_add(session, querydict)
         elif endpoint == 'user_remove':
@@ -6572,11 +6585,16 @@ def chat_save_log(obj):
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
         # if obj.has_key('timestamp'):
         #     obj['timestamp'] = datetime.datetime.fromtimestamp(obj['timestamp']/1000).strftime('%Y-%m-%d %H:%M:%S')
-        # if obj['op'] in ['chat/online', 'chat/offline']:
-        #     for k in obj.keys():
-        #         if not k in ['_id', 'timestamp', 'op']:
-        #             del obj[k]
-        collection.save(db_util.add_mongo_id(obj))
+        if obj['op'] in ['chat/online', 'chat/offline']:
+            obj1 = copy.deepcopy(obj)
+            for k in obj1.keys():
+                if not k in ['from', 'timestamp', 'op']:
+                    del obj1[k]
+            if obj1.has_key('_id'):
+                del obj1['_id']
+            collection.save(db_util.add_mongo_id(obj1))
+        else:
+            collection.save(db_util.add_mongo_id(obj))
 
                
 def joinedqueue_consumer_chat():
