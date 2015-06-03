@@ -197,6 +197,7 @@ gUrlMap = Map([
     Rule('/workflow_form_blank', endpoint='workflow_form_blank'),
     Rule('/user_add', endpoint='user_add'),
     Rule('/user_get', endpoint='user_get'),
+    Rule('/all_user_get', endpoint='all_user_get'),
     Rule('/user_remove', endpoint='user_remove'),
     Rule('/group_add', endpoint='group_add'),
     Rule('/group_get', endpoint='group_get'),
@@ -3553,6 +3554,44 @@ def handle_chat_platform(environ, session):
             ret = json.dumps({'result':u'user_group_get_one_user_required'}, ensure_ascii=True, indent=4)
         return ret
 
+    def all_user_get(session, querydict):
+        limit = 0
+        skip = 0
+        filter_str = ''
+        if querydict.has_key('user_detail') and querydict['user_detail'] is True:
+            user_detail = True
+            del querydict['user_detail']
+        if querydict.has_key('limit'):
+            try:
+                limit = int(querydict['limit'])
+            except:
+                pass
+            del querydict['limit']
+        if querydict.has_key('skip'):
+            try:
+                skip = int(querydict['skip'])
+            except:
+                pass
+            del querydict['skip']
+
+        if querydict.has_key('filter'):
+            filter_str = querydict['filter']
+            del querydict['filter']
+
+        contactlist = user_query(session, {'username':{'$regex': '^.*' + filter_str + '.*$'}, 'limit':limit, 'skip':skip})
+        ret = []
+        keys = gWebSocketsMap.keys()
+        for i in contactlist:
+            for k in i.keys():
+                if not k in ['_id', 'username', 'display_name', 'avatar']:
+                    del i[k]
+            if str(i['_id']) in keys:
+                i['online_status'] = 'online'
+            else:
+                i['online_status'] = 'offline'
+            ret.append(i)
+        ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        return ret
 
     
     def user_contact_get(session, querydict):
@@ -3877,12 +3916,11 @@ def handle_chat_platform(environ, session):
         if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('msg') and len(obj['msg'])>0:
             if obj.has_key('to') and len(obj['to'])>0:
                 tolist = get_destination(session,  obj['from'], obj['to'])
-            if obj.has_key('to_group') and len(obj['to_group'])>0:
+            if obj.has_key('to_group') and len(obj['to_group']) > 0:
                 tolist = get_destination_group(session, obj['from'], obj['to_group'])
             for k in tolist:
                 try:
-                    #d  = {'op': 'chat/chat', 'from':obj['from'],'to':k, 'timestamp':time.time()*1000, 'msg':obj['msg']}
-                    d  = {'op': 'chat/chat', 'from':obj['from'],'to':k, 'timestamp':time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'msg':obj['msg']}
+                    d  = {'op': 'chat/chat', 'from': obj['from'], 'to': k, 'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'msg': obj['msg']}
                     gJoinableQueue.put(d)
                 except gevent.queue.Full:
                     print('chat queue is full')
@@ -4202,6 +4240,8 @@ def handle_chat_platform(environ, session):
             body = user_delete(session, querydict)
         elif endpoint == 'user_get':
             body = user_get(session, querydict)
+        elif endpoint == 'all_user_get':
+            body = all_user_get(session, querydict)
         elif endpoint == 'user_update':
             body = user_update(session, querydict)
         elif endpoint == 'group_add':
@@ -6588,7 +6628,7 @@ def chat_save_log(obj):
         if obj['op'] in ['chat/online', 'chat/offline']:
             obj1 = copy.deepcopy(obj)
             for k in obj1.keys():
-                if not k in ['from', 'timestamp', 'op']:
+                if not k in ['from', 'timestamp', 'op', 'to']:
                     del obj1[k]
             if obj1.has_key('_id'):
                 del obj1['_id']
