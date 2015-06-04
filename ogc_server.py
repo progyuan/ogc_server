@@ -3909,7 +3909,17 @@ def handle_chat_platform(environ, session):
             ret.append(id)
         return ret
                 
-                
+    def resend_offline_msg(session, to_id, limit=10):
+        offlinecol = 'chat_log_offline'
+        if gConfig['chat_platform']['mongodb'].has_key('collection_chat_log_offline'):
+            offlinecol = gConfig['chat_platform']['mongodb']['collection_chat_log_offline']
+        collection = get_collection(offlinecol)
+        arr = list(collection.find({'to':db_util.add_mongo_id(to_id)}).limit(limit).sort('timestamp', pymongo.DESCENDING))
+        ids = [i['_id'] for i in arr]
+        collection.remove({'_id':{'$in': ids}})
+        for i in arr:
+            gJoinableQueue.put(db_util.remove_mongo_id(i))
+
             
     def chat(session, websocket, obj={}):
         tolist = []
@@ -4147,6 +4157,13 @@ def handle_chat_platform(environ, session):
                             if _id in other_contacts:
                                 other_contacts.remove(_id)
                             broadcast(session, ws, other_contacts, {'op':'chat/info/online','from':_id})
+                        limit = 10
+                        if gConfig['chat_platform'].has_key('resend') and  gConfig['chat_platform']['resend'].has_key('max_resend_record_num'):
+                            try:
+                                limit = int(gConfig['chat_platform']['resend']['max_resend_record_num'])
+                            except:
+                                pass
+                        resend_offline_msg(session, _id, limit)
                     else:
                         ws.send(json.dumps({'result':'chat_online_user_not_exist'}, ensure_ascii=True, indent=4))
                 elif obj['op'] == 'chat/offline':
@@ -6608,7 +6625,27 @@ def joinedqueue_consumer_pay():
             try:
                 sign_and_send(item['thirdpay'], item['method'], item['url'], item['data'])
             finally:
-                gJoinableQueue.task_done() 
+                gJoinableQueue.task_done()
+
+def chat_offline_save_log(obj):
+    global gConfig, gClientMongo
+    def get_collection(collection):
+        ret = None
+        db_util.mongo_init_client('chat_platform')
+        db = db_util.gClientMongo['chat_platform'][gConfig['chat_platform']['mongodb']['database']]
+        if not collection in db.collection_names(False):
+            ret = db.create_collection(collection)
+        else:
+            ret = db[collection]
+        return ret
+    id = None
+    if obj['op'] not in ['chat/online', 'chat/offline', 'chat/info/online', 'chat/info/offline'] and obj.has_key('to'):
+        offlinecol = 'chat_log_offline'
+        if gConfig['chat_platform']['mongodb'].has_key('collection_chat_log_offline'):
+            offlinecol = gConfig['chat_platform']['mongodb']['collection_chat_log_offline']
+        collection = get_collection(offlinecol)
+        id = collection.save(db_util.add_mongo_id(obj))
+    return id
 
 def chat_save_log(obj):
     global gConfig, gClientMongo
@@ -6621,6 +6658,7 @@ def chat_save_log(obj):
         else:
             ret = db[collection]
         return ret
+    id = None
     if obj.has_key('op') and  obj['op'] in ['chat/chat', 'chat/online', 'chat/offline']:
         collection = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
         # if obj.has_key('timestamp'):
@@ -6632,19 +6670,15 @@ def chat_save_log(obj):
                     del obj1[k]
             if obj1.has_key('_id'):
                 del obj1['_id']
-            collection.save(db_util.add_mongo_id(obj1))
+            id = collection.save(db_util.add_mongo_id(obj1))
         else:
-            collection.save(db_util.add_mongo_id(obj))
+            id = collection.save(db_util.add_mongo_id(obj))
+    return id
 
                
 def joinedqueue_consumer_chat():
     global gConfig, gJoinableQueue, gWebSocketsMap
-    #def offline(user_id):
-        #if user_id and gWebSocketsMap.has_key(user_id):
-            #for i in gWebSocketsMap[user_id]:
-                #i.close()
-            #del gWebSocketsMap[user_id]
-        
+
     interval = float(gConfig['chat_platform']['queue']['queue_consume_interval'])
     while 1:
         gevent.sleep(interval)
@@ -6656,12 +6690,14 @@ def joinedqueue_consumer_chat():
         if item:
             try:
                 g = gevent.spawn(chat_save_log, item)
-                #g.join()
                 k = item['to']
                 if gWebSocketsMap.has_key(k):
                     for ws in gWebSocketsMap[k]:
                         if not ws.closed:
                             ws.send(json.dumps(item, ensure_ascii=True, indent=4))
+                else:
+                    gevent.spawn(chat_offline_save_log, item)
+
             finally:
                 gJoinableQueue.task_done()    
     
