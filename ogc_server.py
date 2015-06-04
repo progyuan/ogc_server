@@ -6639,7 +6639,7 @@ def chat_offline_save_log(obj):
             ret = db[collection]
         return ret
     id = None
-    if obj['op'] not in ['chat/online', 'chat/offline', 'chat/info/online', 'chat/info/offline'] and obj.has_key('to'):
+    if obj['op'] not in ['chat/online', 'chat/offline', 'chat/info/online', 'chat/info/offline', 'chat/request/contact/remove', 'chat/request/group/quit'] and obj.has_key('to'):
         offlinecol = 'chat_log_offline'
         if gConfig['chat_platform']['mongodb'].has_key('collection_chat_log_offline'):
             offlinecol = gConfig['chat_platform']['mongodb']['collection_chat_log_offline']
