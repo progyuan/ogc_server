@@ -278,7 +278,7 @@ def init_global():
         if len(l) == 0:
             gSecurityConfig = {}
     if gConfig['wsgi']['application'].lower() == 'chat_platform':
-        gJoinableQueue = gevent.queue.JoinableQueue(maxsize=int(gConfig['pay_platform']['queue']['max_queue_size']))
+        gJoinableQueue = gevent.queue.JoinableQueue(maxsize=int(gConfig['chat_platform']['queue']['max_queue_size']))
 
 
 def handle_static(environ, aUrl):
