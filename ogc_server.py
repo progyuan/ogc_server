@@ -4007,11 +4007,14 @@ def handle_chat_platform(environ, session):
                 if obj.has_key('from') and len(obj['from'])>0 and obj.has_key('to') and len(obj['to'])>0:
                     collection = get_collection(gConfig['chat_platform']['mongodb']['collection_users'])
                     userlist = user_query(session, {'_id':[obj['from'],  obj['to']]})
+                    remover, removee = None, None
                     for user in userlist:
                         if str(user['_id']) == obj['from'] and db_util.add_mongo_id(obj['to']) in user['contacts']:
                             user['contacts'].remove(db_util.add_mongo_id(obj['to']))
+                            remover = user['display_name']
                         if str(user['_id']) == obj['to'] and db_util.add_mongo_id(obj['from']) in user['contacts']:
                             user['contacts'].remove(db_util.add_mongo_id(obj['from']))
+                            removee = user['display_name']
                         user['update_date'] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                         collection.save(user)
                         
@@ -4020,6 +4023,9 @@ def handle_chat_platform(environ, session):
                     fromuser['_id'] = obj['from']
                     fromuser['from'] = obj['to']
                     fromuser['to'] = obj['from']
+                    fromuser['remover'] = remover
+                    fromuser['removee'] = removee
+                    fromuser['remove_type'] = 'remover'
                     fromuser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['from'], 'user_detail':True}))
                     gJoinableQueue.put(db_util.remove_mongo_id(fromuser))
                     
@@ -4028,6 +4034,9 @@ def handle_chat_platform(environ, session):
                     touser['_id'] = obj['to']
                     touser['from'] = obj['from']
                     touser['to'] = obj['to']
+                    touser['remover'] = remover
+                    touser['removee'] = removee
+                    touser['remove_type'] = 'removee'
                     touser['contacts'] = json.loads(user_contact_get(session, {'_id':obj['to'], 'user_detail':True}))
                     gJoinableQueue.put(db_util.remove_mongo_id(touser))
                     
