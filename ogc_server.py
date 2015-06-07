@@ -205,6 +205,9 @@ gUrlMap = Map([
     Rule('/group_remove', endpoint='group_remove'),
     Rule('/user_group_get', endpoint='user_group_get'),
     Rule('/user_contact_get', endpoint='user_contact_get'),
+    Rule('/chat_broadcast', endpoint='chat_broadcast'),
+    Rule('/chat_log_query', endpoint='chat_log_query'),
+    Rule('/chat_log_remove', endpoint='chat_log_remove'),
     Rule('/gridfs/upload', endpoint='gridfs_upload'),
     Rule('/gridfs/get', endpoint='gridfs_get'),
     Rule('/gridfs/get/<_id>', endpoint='gridfs_get'),
@@ -4242,6 +4245,73 @@ def handle_chat_platform(environ, session):
                     is_token_pass = True
         return is_token_pass
 
+    def chat_broadcast(session, querydict):
+        ret = '{}'
+        tolist = []
+        if querydict.has_key('from') and len(querydict['from'])>0:
+            if querydict.has_key('to'):
+                if isinstance(querydict['to'], str) or isinstance(querydict['to'], unicode):
+                    tolist.append(querydict['to'])
+                if isinstance(querydict['to'], list):
+                    tolist.extend(querydict['to'])
+            else:
+                ret = json.dumps({'result':u'chat_broadcast_to_required'}, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'chat_broadcast_from_required'}, ensure_ascii=True, indent=4)
+        if querydict.has_key('msg') and len(querydict['msg'])>0:
+            for k in tolist:
+                try:
+                    d  = {'op': 'chat/chat', 'from': querydict['from'], 'to': k, 'timestamp': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'msg': querydict['msg']}
+                    gJoinableQueue.put(d)
+                except gevent.queue.Full:
+                    print('chat queue is full')
+                    ret = json.dumps({'result':u'chat queue is full'}, ensure_ascii=True, indent=4)
+        else:
+            ret = json.dumps({'result':u'chat_broadcast_msg_required'}, ensure_ascii=True, indent=4)
+        return ret
+
+    def chat_log_query(session, querydict):
+        limit = 0
+        skip = 0
+        filter_str = ''
+        from_id, to_id = None, None
+        if querydict.has_key('from') and (isinstance(querydict['from'], str) or isinstance(querydict['from'], unicode)) and len(querydict['from'])>0:
+            from_id = querydict['from']
+        if querydict.has_key('to') and (isinstance(querydict['to'], str) or isinstance(querydict['to'], unicode)) and len(querydict['to'])>0:
+            to_id = querydict['to']
+        if from_id is None or to_id is None:
+            return json.dumps({'result':u'chat_log_query_from_and_to_required'}, ensure_ascii=True, indent=4)
+        if querydict.has_key('limit'):
+            try:
+                limit = int(querydict['limit'])
+            except:
+                pass
+            del querydict['limit']
+        if querydict.has_key('skip'):
+            try:
+                skip = int(querydict['skip'])
+            except:
+                pass
+            del querydict['skip']
+
+        if querydict.has_key('filter'):
+            filter_str = querydict['filter']
+            del querydict['filter']
+
+        # offlinecol = 'chat_log_offline'
+        # if gConfig['chat_platform']['mongodb'].has_key('collection_chat_log_offline'):
+        #     offlinecol = gConfig['chat_platform']['mongodb']['collection_chat_log_offline']
+
+        collection1 = get_collection(gConfig['chat_platform']['mongodb']['collection_chat_log'])
+        # collection2 = get_collection(offlinecol)
+        ret = list(collection1.find({'$or':[{'from':db_util.add_mongo_id(from_id), 'to':db_util.add_mongo_id(to_id)}, {'to':db_util.add_mongo_id(from_id), 'from':db_util.add_mongo_id(to_id)}]}).limit(limit).skip(skip).sort('timestamp', pymongo.DESCENDING))
+        # arr2 = list(collection2.find({'$or':[{'from':db_util.add_mongo_id(from_id), 'to':db_util.add_mongo_id(to_id)}, {'to':db_util.add_mongo_id(from_id), 'from':db_util.add_mongo_id(to_id)}]}).limit(limit).skip(skip).sort('timestamp', pymongo.DESCENDING))
+        ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        return ret
+
+    def chat_log_remove(session, querydict):
+        return ''
+
     
     headers = {}
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
@@ -4284,6 +4354,12 @@ def handle_chat_platform(environ, session):
             body = group_remove(session, querydict)
         elif endpoint == 'handle_websocket':
             handle_websocket(environ)
+        elif endpoint == 'chat_broadcast':
+            body = chat_broadcast(session, querydict)
+        elif endpoint == 'chat_log_query':
+            body = chat_log_query(session, querydict)
+        elif endpoint == 'chat_log_remove':
+            body = chat_log_remove(session, querydict)
         elif endpoint == 'gridfs_upload':
             body = gridfs_upload(environ, querydict, buf)
         elif endpoint == 'gridfs_get':
