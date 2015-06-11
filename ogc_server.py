@@ -4464,6 +4464,7 @@ def gridfs_get(environ, querydict):
         except gridfs.errors.NoFile:
             body = json.dumps({'result': u'gridfs_get_file_not_exist'}, ensure_ascii=True, indent=4)
         except Exception,e:
+            headers['Content-Type'] = 'text/json;charset=' + ENCODING
             body = json.dumps({'result': u'gridfs_get_error:%s' % e.message}, ensure_ascii=True, indent=4)
     else:
         body = json.dumps({'result': u'gridfs_get_cannot_find_wsgi_app [%s]' % app}, ensure_ascii=True, indent=4)
