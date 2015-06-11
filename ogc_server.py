@@ -4433,6 +4433,8 @@ def gridfs_get(environ, querydict):
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     body = ''
     statuscode = '200 OK'
+    if querydict.has_key('_random'):
+        del querydict['_random']
     if not querydict.has_key('_id'):
         body = json.dumps({'result': u'gridfs_get_id_required'}, ensure_ascii=True, indent=4)
         return statuscode, headers, body
@@ -4474,6 +4476,8 @@ def gridfs_delete(environ, querydict):
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     body = ''
     statuscode = '200 OK'
+    if querydict.has_key('_random'):
+        del querydict['_random']
     if not querydict.has_key('_id'):
         body = json.dumps({'result': u'gridfs_delete_id_required'}, ensure_ascii=True, indent=4)
         return statuscode, headers, body
@@ -4524,6 +4528,8 @@ def gridfs_query(environ, querydict):
     body = '[]'
     statuscode = '200 OK'
     app = gConfig['wsgi']['application']
+    if querydict.has_key('_random'):
+        del querydict['_random']
     if gConfig.has_key(app):
         collection = 'fs'
         if gConfig[app].has_key('mongodb') and gConfig[app]['mongodb'].has_key('gridfs_collection'):
