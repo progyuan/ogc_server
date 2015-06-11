@@ -4323,7 +4323,7 @@ def handle_chat_platform(environ, session):
     endpoint = ''
     try:
         endpoint, args = urls.match()
-        if endpoint not in ['handle_websocket', ]:
+        if endpoint not in ['handle_websocket', 'gridfs_get', 'gridfs_delete', 'gridfs_query']:
             if not check_url_token(querydict):
                 body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
                 return statuscode, headers, body
