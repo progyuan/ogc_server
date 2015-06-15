@@ -214,6 +214,7 @@ gUrlMap = Map([
     Rule('/gridfs/get/<_id>/thumbnail/<width>/<height>', endpoint='gridfs_get'),
     Rule('/gridfs/query/<width>/<height>', endpoint='gridfs_query'),
     Rule('/gridfs/query/<width>/<height>/<limit>', endpoint='gridfs_query'),
+    Rule('/gridfs/query/<width>/<height>/<limit>/<skip>', endpoint='gridfs_query'),
     Rule('/gridfs/delete', endpoint='gridfs_delete'),
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
 ], converters={'bool': BooleanConverter})
@@ -4323,7 +4324,7 @@ def handle_chat_platform(environ, session):
     endpoint = ''
     try:
         endpoint, args = urls.match()
-        if endpoint not in ['handle_websocket', 'gridfs_get', 'gridfs_delete', 'gridfs_query']:
+        if endpoint not in ['handle_websocket', 'gridfs_upload', 'gridfs_get', 'gridfs_delete', 'gridfs_query']:
             if not check_url_token(querydict):
                 body = json.dumps({'result':u'invalid_token'}, ensure_ascii=True, indent=4)
                 return statuscode, headers, body
@@ -4402,6 +4403,11 @@ def handle_chat_platform(environ, session):
                     querydict['limit'] = int(args['limit'])
                 except:
                     querydict['limit'] = 10
+            if args.has_key('skip'):
+                try:
+                    querydict['skip'] = int(args['skip'])
+                except:
+                    querydict['skip'] = 0
             statuscode, headers, body = gridfs_query(environ, querydict)
 
         else:
@@ -4414,7 +4420,7 @@ def handle_chat_platform(environ, session):
     return statuscode, headers, body
 
 def gridfs_get(environ, querydict):
-    global gConfig, ENCODING
+    global gConfig, ENCODING, STATICRESOURCE_DIR
     def thumbnail(fp, size, use_base64=False):
         ret = None
         if 'image/' in fp.mimetype:
@@ -4426,6 +4432,18 @@ def gridfs_get(environ, querydict):
             ret = buf.getvalue()
             if use_base64:
                 ret = base64.b64encode(ret)
+        if 'application/' in fp.mimetype or 'text/' in fp.mimetype:
+            thumpath = gConfig['web']['thumbnail']['application/octet-stream']
+            if gConfig['web']['thumbnail'].has_key(fp.mimetype):
+                thumpath = gConfig['web']['thumbnail'][fp.mimetype]
+            thumpath = os.path.join(STATICRESOURCE_DIR, 'img', 'thumbnail', thumpath)
+            im = Image.open(thumpath)
+            im.thumbnail(size)
+            buf = StringIO.StringIO()
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
         return ret
 
 
@@ -4433,11 +4451,14 @@ def gridfs_get(environ, querydict):
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     body = ''
     statuscode = '200 OK'
+    if querydict.has_key('_'):
+        del querydict['_']
     if querydict.has_key('_random'):
         del querydict['_random']
     if not querydict.has_key('_id'):
         body = json.dumps({'result': u'gridfs_get_id_required'}, ensure_ascii=True, indent=4)
         return statuscode, headers, body
+
     app = gConfig['wsgi']['application']
     if gConfig.has_key(app):
         collection = 'fs'
@@ -4456,11 +4477,18 @@ def gridfs_get(environ, querydict):
             if querydict.has_key('width') and querydict.has_key('height') \
                 and querydict['width']>0 and querydict['width']<8192 \
                 and querydict['height']>0 and querydict['height']<8192 :
-                body = thumbnail(f, (querydict['width'], querydict['height']), False)
+                if 'image/' in f.content_type:
+                    body = thumbnail(f, (querydict['width'], querydict['height']), False)
+                else:
+                    body = thumbnail(f, (128, 128), False)
+                    headers['Content-Type'] = 'image/png'
                 if body is None:
                     body = json.dumps({'result': u'gridfs_get_error_invalid_image_format'}, ensure_ascii=True, indent=4)
             else:
                 body = f.read()
+                if querydict.has_key('attachmentdownload'):
+                    headers['Content-Disposition'] = 'attachment;filename="' + enc(f.filename) + '"'
+
         except gridfs.errors.NoFile:
             body = json.dumps({'result': u'gridfs_get_file_not_exist'}, ensure_ascii=True, indent=4)
         except Exception,e:
@@ -4477,6 +4505,8 @@ def gridfs_delete(environ, querydict):
     headers['Content-Type'] = 'text/json;charset=' + ENCODING
     body = ''
     statuscode = '200 OK'
+    if querydict.has_key('_'):
+        del querydict['_']
     if querydict.has_key('_random'):
         del querydict['_random']
     if not querydict.has_key('_id'):
@@ -4509,7 +4539,7 @@ def gridfs_delete(environ, querydict):
 
 
 def gridfs_query(environ, querydict):
-    global gConfig, ENCODING
+    global gConfig, ENCODING, STATICRESOURCE_DIR
     def thumbnail(fp, size, use_base64=False):
         ret = None
         if 'image/' in fp.mimetype:
@@ -4517,6 +4547,18 @@ def gridfs_query(environ, querydict):
             im.thumbnail(size)
             buf = StringIO.StringIO()
             #print(im.format)
+            im.save(buf, im.format)
+            ret = buf.getvalue()
+            if use_base64:
+                ret = base64.b64encode(ret)
+        if 'application/' in fp.mimetype or 'text/' in fp.mimetype:
+            thumpath = gConfig['web']['thumbnail']['application/octet-stream']
+            if gConfig['web']['thumbnail'].has_key(fp.mimetype):
+                thumpath = gConfig['web']['thumbnail'][fp.mimetype]
+            thumpath = os.path.join(STATICRESOURCE_DIR, 'img', 'thumbnail', thumpath)
+            im = Image.open(thumpath)
+            im.thumbnail(size)
+            buf = StringIO.StringIO()
             im.save(buf, im.format)
             ret = buf.getvalue()
             if use_base64:
@@ -4529,6 +4571,8 @@ def gridfs_query(environ, querydict):
     body = '[]'
     statuscode = '200 OK'
     app = gConfig['wsgi']['application']
+    if querydict.has_key('_'):
+        del querydict['_']
     if querydict.has_key('_random'):
         del querydict['_random']
     if gConfig.has_key(app):
@@ -4542,9 +4586,13 @@ def gridfs_query(environ, querydict):
         db = db_util.gClientMongo[app][dbname]
         fs = gridfs.GridFS(db, collection=collection)
         limit = 10
+        skip = 0
         if  querydict.has_key('limit'):
             limit = querydict['limit']
             del querydict['limit']
+        if  querydict.has_key('skip'):
+            skip = querydict['skip']
+            del querydict['skip']
         try:
             if querydict.has_key('width') and querydict.has_key('height') \
                 and querydict['width']>0 and querydict['width']<8192 \
@@ -4555,13 +4603,15 @@ def gridfs_query(environ, querydict):
                 cur = None
                 if querydict.has_key('_id'):
                     ids = db_util.add_mongo_id(querydict['_id'])
-                    cur = fs.find({'_id':{'$in':ids}}).limit(limit)
+                    cur = fs.find({'_id':{'$in':ids}}).limit(limit).skip(skip)
                 else:
-                    cur = fs.find(querydict).limit(limit)
+                    cur = fs.find(db_util.add_mongo_id(querydict)).limit(limit).skip(skip)
                 arr = []
                 for f in cur:
                     b64str = thumbnail(f, (w, h), True)
-                    arr.append({'_id':db_util.remove_mongo_id(f._id), 'mimetype':f.mimetype, 'data': b64str})
+                    if 'application/' in f.content_type:
+                        f.mimetype = 'image/png'
+                    arr.append({'_id':db_util.remove_mongo_id(f._id), 'mimetype':f.mimetype,'filename':enc(f.filename), 'data': b64str})
                 body = json.dumps(arr, ensure_ascii=True, indent=4)
             else:
                  body = json.dumps({'result': u'gridfs_query_size_required'}, ensure_ascii=True, indent=4)
@@ -4593,6 +4643,7 @@ def gridfs_upload(environ, querydict, buf):
         fs = gridfs.GridFS(db, collection=collection)
         _id = None
         try:
+            querydict = db_util.add_mongo_id(querydict);
             if querydict.has_key('_uniqueIndex'):
                 uniqueIndex = querydict['_uniqueIndex']
                 cond = {}
