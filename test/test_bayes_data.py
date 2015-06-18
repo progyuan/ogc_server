@@ -33,6 +33,7 @@ XLS_FILES = [
              ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\2011年 全局输电线路设备状态评价统201108271.xls', 
              ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\2013状态评价统计表最终.xls', 
              ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\2014状态评价统计表.xls', 
+             ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\2015年上半年.xls', 
              ]
 
 def build_exist_dict():
@@ -165,6 +166,10 @@ def data_create():
             startcolinx = 12
             sheet = book.sheet_by_name(u'架空线路各部件评价情况表')
             #continue
+        if idx == 4:
+            startrowinx = 1
+            startcolinx = 17
+            sheet = book.sheet_by_name(u'Sheet1')
         for row in range(startrowinx, sheet.nrows):
             d = {}
             check_year = sheet.cell(row, startcolinx).value
