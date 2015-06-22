@@ -242,7 +242,7 @@ def init_global():
                 else:
                     ODBC_STRING[k] = "DRIVER={SQL Server Native Client 10.0};server=%s;Database=%s;TrustedConnection=no;Uid=%s;Pwd=%s;" % (gConfig['odbc'][k]['db_server'],  gConfig['odbc'][k]['db_name'], gConfig['odbc'][k]['db_username'], gConfig['odbc'][k]['db_password'])
     gFeatureslist = []
-    if gConfig.has_key('analyze'):
+    if gConfig.has_key('webgis') and gConfig['webgis'].has_key('analyze') and gConfig['webgis']['analyze'].has_key('feature_list'):
         for i in gConfig['webgis']['analyze']['feature_list']:
             gFeatureslist.append(str(i)) 
     return options
@@ -7504,10 +7504,14 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     linelist = mongo_find(dbname, 'network', {'_id':conditions['lineid']})
                     if len(linelist) > 0:
                         towers = linelist[0]['properties']['nodes']
-                        edges = mongo_find(dbname, 'edges', {'properties.webgis_type':'edge_tower'})
-                        for edge in edges:
-                            if edge['properties']['start'] in towers or edge['properties']['end'] in towers:
-                                ret.append(edge)
+                        # print('start:' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+                        edges = mongo_find(dbname, 'edges', {'properties.webgis_type':'edge_tower',
+                                                             '$or':[{'properties.start':{'$in':towers}},
+                                                                    {'properties.end':{'$in':towers}},
+                                                                    ]
+                                                             })
+                        ret.extend(edges)
+                    # print('end:' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
             elif action.lower() == 'markdown_name_list':
                 ret = []
                 cond = {}
@@ -7610,29 +7614,24 @@ def check_edge_exist(db_name, collection_name, data):
     return False
     
 def check_edge_ring(db_name, collection_name, data):
-    def get_next(id, alist):
+    def get_next(node_id):
         ret = []
-        for i in alist:
-            if i['properties']['start'] == id:
-                ret.append(i['properties']['end'])
+        if not isinstance(node_id, list):
+            node_id = [add_mongo_id(node_id),]
+        alist = mongo_find(db_name, collection_name, {'properties.start':{'$in':node_id}})
+        ret = [add_mongo_id(i['properties']['end']) for i in alist]
         return ret
-    step = 0   
+
+    iteration_step = 0
     if collection_name == 'edges':
-        alist = mongo_find(db_name, collection_name)
-        nl = get_next(data['properties']['end'], alist)
+        nl = get_next(data['properties']['end'])
         while len(nl)>0:
-            if data['properties']['start'] in nl:
-                print('found iteration:%d' % step)
+            if add_mongo_id(data['properties']['start']) in nl:
+                print('found iteration:%d' % iteration_step)
                 return True
-            l = []
-            for i in nl:
-                nextlist = get_next(i, alist)
-                for j in nextlist:
-                    if not j in l:
-                        l.append(j)
-            nl = l
-            step += len(nl)
-        print('not found iteration:%d' % step)
+            nl = get_next(nl)
+            iteration_step += 1
+        print('not found iteration:%d' % iteration_step)
     return False
 
 def calc_buffer_ogr(geojsonobj, dist):
@@ -9594,51 +9593,52 @@ def get_line_geojson(db_name, line):
     return ret
             
 def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_list=[]):
-    def get_prev(id, edgelist, nodeidlist):
+    def get_prev(id, nodeidlist):
         ret = None
-        for i in edgelist:
-            if i['properties']['end'] == id  and i['properties']['start'] in nodeidlist:
-                ret = i['properties']['start']
-                break
+        edgelist = mongo_find(db_name, 'edges', {'properties.webgis_type':edge_webgis_type, 'properties.end':add_mongo_id(id), 'properties.start':{'$in':add_mongo_id(nodeidlist)}})
+        ret = [i['properties']['start'] for i in edgelist]
+        if len(ret)>0:
+            ret = add_mongo_id(ret[0])
         return ret
-    def get_next(id, edgelist, nodeidlist):
+    def get_next(id,  nodeidlist):
         ret = None
-        for i in edgelist:
-            if i['properties']['start'] == id and i['properties']['end'] in nodeidlist:
-                ret = i['properties']['end']
-                break
+        edgelist = mongo_find(db_name, 'edges', {'properties.webgis_type':edge_webgis_type, 'properties.start':add_mongo_id(id), 'properties.end':{'$in':add_mongo_id(nodeidlist)}})
+        ret = [i['properties']['end'] for i in edgelist]
+        if len(ret)>0:
+            ret = add_mongo_id(ret[0])
         return ret
     
-    def get_start(id, edgelist, nodeidlist):
-        start = get_prev(id, edgelist, nodeidlist)
+    def get_start(id, nodeidlist):
+        start = get_prev(id, nodeidlist)
         startold = None
         while start:
             startold = start
-            start = get_prev(start, edgelist, nodeidlist)
+            start = get_prev(start, nodeidlist)
         return startold
     
-    def get_end(id, edgelist, nodeidlist):
-        end = get_next(id, edgelist, nodeidlist)
+    def get_end(id, nodeidlist):
+        end = get_next(id, nodeidlist)
         endold = None
         while end:
             endold = end
-            end = get_next(end, edgelist, nodeidlist)
+            end = get_next(end, nodeidlist)
         return endold
     
-    def get_path(endid, edgelist, nodeidlist):
+    def get_path(endid, nodeidlist):
         ret = []
         while endid:
             ret.append(endid)
-            endid = get_prev(endid, edgelist, nodeidlist)
+            endid = get_prev(endid, nodeidlist)
         ret.reverse()
         return ret
     
-    def get_node(id, alist):
+    def get_node(id):
         ret = None
-        for i in alist:
-            if i['_id'] == id or i[u'_id'] == id:
-                ret = i
-                break
+        # for i in alist:
+        #     if i['_id'] == id or i[u'_id'] == id:
+        #         ret = i
+        #         break
+        ret = mongo_find_one(db_name, 'features', {'_id':add_mongo_id(id)})
         return ret
                 
     def get_by_function_type(alist, typ):
@@ -9648,7 +9648,7 @@ def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_
                 ret.append(i)
         return ret
                 
-    edges = mongo_find(db_name, 'edges', {'properties.webgis_type':edge_webgis_type})
+    # edges = mongo_find(db_name, 'edges', {'properties.webgis_type':edge_webgis_type})
     cond = {'properties.webgis_type':node_webgis_type, }
     if len(node_id_list)>0:
         cond['_id'] = node_id_list
@@ -9656,18 +9656,14 @@ def get_orderlist_by_edges(db_name, edge_webgis_type, node_webgis_type, node_id_
     
     ret = []
     nodeidlist = [str(i) for i in node_id_list]
-    if len(edges)>0 and len(nodes)>0:
+    if len(nodes)>0:
         node0 = nodes[0]
-        end = get_end(node0['_id'], edges, nodeidlist)
+        end = get_end(node0['_id'], nodeidlist)
         if end is None:
             end = node0['_id']
-        path = get_path(end,  edges, nodeidlist)
-        #if len(path)>0:
-            #pathidlist = [str(i) for i in path]
-            #cond['_id'] = pathidlist
-        #nodes.extend(mongo_find(db_name, 'features', cond))
+        path = get_path(end,  nodeidlist)
         for i in path:
-            node = get_node(i, nodes)
+            node = get_node(i)
             if node:
                 ret.append(node)
     return ret
@@ -9815,9 +9811,13 @@ def test_edge_exist():
     
 def test_edge_ring():
     db_name, area = 'kmgd', 'km'
-    exist = check_edge_exist(db_name, 'edges', {'properties':{'start':'53f301e4ca49c822ece7663c','end':'53f2ff35ca49c822ece7663b'}})
-    print(exist)
-    ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a633','end':'533e88cbca49c8156025a61a'}})
+    # exist = check_edge_exist(db_name, 'edges', {'properties':{'start':'53f301e4ca49c822ece7663c','end':'53f2ff35ca49c822ece7663b'}})
+    # print(exist)
+    # ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a633','end':'533e88cbca49c8156025a61a'}})
+    # ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a6f8','end':'533e88cbca49c8156025a668'}})
+    ring = check_edge_ring(db_name, 'edges', {'properties':{'start':'533e88cbca49c8156025a642','end':'533e88cbca49c8156025a61c'}})
+    # '55883415ca49c80a7cbf78a7'
+
     print(ring)
 
 def get_missing_file(tiletype, subtype):
@@ -10127,7 +10127,7 @@ if __name__=="__main__":
     #merge_dem2()
     #test_generate_ODT(db_name)
     #test_bing_map()
-    #test_edge_ring()
+    test_edge_ring()
     #test_remove_blank_tile()
     #print(get_heatmap_tile_service_list('yn'))
     #test_import_userinfo()
@@ -10136,7 +10136,7 @@ if __name__=="__main__":
     #test_kml_import()
     #test_delete_anti_bird()
     #test_check_exist_line_towers()
-    test_import_all()
+    # test_import_all()
     #test_print_line_names()
     
     

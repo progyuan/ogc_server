@@ -7,7 +7,8 @@ from bson.son import SON
 from module_locator import dec, enc
 
 def test_average():
-    client = MongoClient('localhost',  27017,  slave_okay=True, replicaset='kmgdrs',  read_preference = ReadPreference.PRIMARY)
+    # client = MongoClient('localhost',  27017,  slave_okay=True, replicaset='kmgdrs',  read_preference = ReadPreference.PRIMARY)
+    client = MongoClient('localhost',  27017)
     db = client['test']
     if 'user_info' in db.collection_names(False):
         db.drop_collection('user_info')
@@ -84,6 +85,43 @@ def test_isolutor_count():
     for i in results.find():
         print('%s=%d' % (enc(i['_id']), i['value']['count']))
     
+def test_check_edge_ring():
+    client = MongoClient('localhost',  27017)
+    db = client['kmgd']
+    edges = db['edges']
+
+    startid = '533e88cbca49c8156025a61a'
+    mapfunc = Code("function() {"
+              "   if(this.properties.start === ObjectId(" + startid + ")){"
+              "       emit(this.properties.end);"
+              "   }"
+              "}"
+              )
+
+    reducefunc = Code("function(key,values){"
+                  "    var result={start:null, end:null};"
+                  "    for (var i = 0; i < values.length; i++) {"
+                  "       result.math += values[i].math;"
+                  "       result.english += values[i].english;"
+                  "       result.chinese += values[i].chinese;"
+                  "       result.count += 1;"
+                  "    }"
+                  "    return result;"
+                  "}"
+                 )
+    # finalizefunc = Code("function(key,values){"
+    #               "   var result={math:0,english:0,chinese:0};"
+    #               "   result.math = values.math/values.count;"
+    #               "   result.english = values.english/values.count;"
+    #               "   result.chinese = values.chinese/values.count;"
+    #               "   return result;"
+    #               "}"
+    #              )
+    results = {}
+    edges.map_reduce(mapfunc,reducefunc,results)
+    print(results)
+
+
 
 if __name__ == '__main__':
     test_isolutor_count()
