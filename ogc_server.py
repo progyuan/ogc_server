@@ -131,6 +131,7 @@ gSessionStore = None
 
 gRequests = None
 gRequest = None
+gProxyRequest = None
 gJoinableQueue = None
 
 class BooleanConverter(BaseConverter):
@@ -1905,31 +1906,7 @@ def check_session(environ, request, session_store):
     return sess, cookie, is_expire
 
 
-def session_handle(environ, request, session_store):
-    global gConfig
-    def set_cookie(key, value):
-        secure = False
-        if gConfig['listen_port']['enable_ssl'].lower() == 'true':
-            secure = True
-        max_age = int(gConfig['web']['cookie']['max_age'])
-        cookie = ('Set-Cookie', dump_cookie(key, value, max_age=max_age, secure=secure))
-        return cookie
-    
-    sid = request.cookies.get('session_id')
-    
-    is_expire = False
-    if sid is None:
-        request.session = session_store.new()
-        session_store.save(request.session)
-        is_expire = True
-    else:
-        request.session = session_store.get(sid)
-    cookie = set_cookie('session_id', request.session.sid)
-    if request.session.should_save:
-        #print('should_save')
-        session_store.save(request.session)
-    return cookie, is_expire
-        
+
 def get_token_from_env(environ):
     global gConfig, gLoginToken
     cookie = parse_cookie(environ)
@@ -5886,15 +5863,16 @@ def application_pay_platform(environ, start_response):
     
 
 def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', real_host='localhost', real_port='80',  token='', connection_timeout=5.0, network_timeout=10.0, request_headers={}):
-    global ENCODING, gHttpClient, gRequest
+    global ENCODING, gHttpClient, gRequest, gProxyRequest
     path_info = environ['PATH_INFO']
     if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING'])>0:
         path_info += '?' + environ['QUERY_STRING']
     request = None
-    if gRequest is None:
+
+    if gProxyRequest is None:
         request = Request(environ)
     else:
-        request = gRequest
+        request = gProxyRequest
     method = request.method.lower()
     data = request.get_data()
     headers = {}
@@ -6221,7 +6199,30 @@ def application_webgis(environ, start_response):
         ret = json.dumps(ret, ensure_ascii=True, indent=4)
         return  '200 OK', {}, ret
         
-    
+    def session_handle(environ, request, session_store):
+        def set_cookie(key, value):
+            secure = False
+            if gConfig['listen_port']['enable_ssl'].lower() == 'true':
+                secure = True
+            max_age = int(gConfig['web']['cookie']['max_age'])
+            cookie = ('Set-Cookie', dump_cookie(key, value, max_age=max_age, secure=secure))
+            return cookie
+
+        sid = request.cookies.get('session_id')
+
+        is_expire = False
+        if sid is None:
+            request.session = session_store.new()
+            session_store.save(request.session)
+            is_expire = True
+        else:
+            request.session = session_store.get(sid)
+        cookie = set_cookie('session_id', request.session.sid)
+        if request.session.should_save:
+            #print('should_save')
+            session_store.save(request.session)
+        return cookie, is_expire
+
     headers = {}
     headerslist = []
     cookie_header = None
@@ -6264,7 +6265,6 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = anti_bird_get_latest_records_by_imei(environ)
     else:
         if gConfig['web']['session']['enable_session'].lower() == 'true' :
-            #return handle_session(environ, start_response)
             if gSessionStore is None:
                 gSessionStore = FilesystemSessionStore()
             is_expire = False
@@ -6280,9 +6280,6 @@ def application_webgis(environ, start_response):
                     start_response('302 Redirect', headerslist)        
                     return ['']
                 if path_info == '/logout':
-                    #session_id, token = get_token_from_env(environ)
-                    #if session_id and gLoginToken.has_key(session_id):
-                        #del gLoginToken[session_id]
                     sess = get_session_from_env(environ)
                     if sess:
                         gSessionStore.delete(sess)
@@ -6296,7 +6293,6 @@ def application_webgis(environ, start_response):
                         sess = gSessionStore.new()
                     objlist = handle_login(environ)
                     if len(objlist)>0:
-                        #sess = gSessionStore.new()
                         sess = gSessionStore.session_class(objlist[0], sess.sid, False)
                         gSessionStore.save(sess)
                         start_response('200 OK', headerslist)
@@ -6309,7 +6305,6 @@ def application_webgis(environ, start_response):
                             
                         
                 if path_info == gConfig['web']['mainpage']:
-                    #session_id, token = get_token_from_env(environ)
                     sess = get_session_from_env(environ)
                     #401 Unauthorized
                     #if session_id is None or token is None:
