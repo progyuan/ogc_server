@@ -7370,21 +7370,21 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                 if data['properties'].has_key('line_names'):
                                     line_names = data['properties']['line_names']
                                     del data['properties']['line_names']
-                                if data['properties'].has_key('model'):
-                                    models = mongo_find(dbname, 'models', )
-                                    findmodel = False
-                                    for model in models:
-                                        if model['model_code'] == data['properties']['model']['model_code'] and model['model_code_height'] == data['properties']['model']['model_code_height']:
-                                            findmodel = True
-                                            break
-                                    if not findmodel:
+                                if data['properties'].has_key('model') and data['properties']['model'].has_key('model_code') and data['properties']['model'].has_key('model_code_height'):
+                                    findmodel = mongo_find_one(dbname, 'models', {'model_code':data['properties']['model']['model_code'], 'model_code_height':data['properties']['model']['model_code_height']})
+                                    # findmodel = False
+                                    # for model in models:
+                                    #     if model['model_code'] == data['properties']['model']['model_code'] and model['model_code_height'] == data['properties']['model']['model_code_height']:
+                                    #         findmodel = True
+                                    #         break
+                                    if findmodel:
                                         modeldata = {}
                                         modeldata['model_code'] = data['properties']['model']['model_code']
                                         modeldata['model_code_height'] = data['properties']['model']['model_code_height']
                                         modeldata['contact_points'] = []
                                         mongo_action(dbname, 'models','save', modeldata, )
                             _id = db[collection_name].save(data)
-                            #print(_id)
+
                             if _id is not None and line_names is not None:
                                 if isinstance(line_names, ObjectId):
                                     line_names = [line_names, ]

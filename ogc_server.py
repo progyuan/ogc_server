@@ -1641,110 +1641,15 @@ def create_pic_dir():
     if not os.path.exists(UPLOAD_PHOTOS_DIR):
         os.mkdir(UPLOAD_PHOTOS_DIR)
 
-def handle_upload_file(environ, qsdict, filedata):
+def handle_upload_file(querydict, buf):
     global STATICRESOURCE_DIR, UPLOAD_PHOTOS_DIR, UPLOAD_VOICE_DIR
-    
-    def parse_options_header(header, options=None):
-        if ';' not in header:
-            return header.lower().strip(), {}
-        ctype, tail = header.split(';', 1)
-        options = options or {}
-        for match in _RE_OPTION.finditer(tail):
-            key = match.group(1).lower()
-            value = header_unquote(match.group(2), key=='filename')
-            options[key] = value
-        return ctype, options
-    def header_quote(val):
-        if not _RE_SPECIAL.search(val):
-            return val
-        return '"' + val.replace('\\','\\\\').replace('"','\\"') + '"'
-    
-    def header_unquote(val, filename=False):
-        if val[0] == val[-1] == '"':
-            val = val[1:-1]
-            if val[1:3] == ':\\' or val[:2] == '\\\\': 
-                val = val.split('\\')[-1] # fix ie6 bug: full path --> filename
-            return val.replace('\\\\','\\').replace('\\"','"')
-        return val
-    
-    def tob(data, encode='utf8'): # Convert strings to bytes (py2 and py3)
-        return data.encode(encode) if isinstance(data, unicode) else data
-    def parse_form_data(environ, mimetype, filedata):
-        filename, ret = None, None
-        try:
-            if environ.get('REQUEST_METHOD','GET').upper() not in ('POST', 'PUT'):
-                raise Exception("Request method other than POST or PUT.")
-            content_length = int(environ.get('CONTENT_LENGTH', '-1'))
-            content_type = environ.get('CONTENT_TYPE', '')
-            if not content_type:
-                raise Exception("Missing Content-Type header.")
-            content_type, options = parse_options_header(content_type)
-            if content_type == 'multipart/form-data':
-                boundary = options.get('boundary','')
-            content_type_token = tob('Content-Type: ' + mimetype)
-            if boundary:
-                _bcrnl = tob('\r\n')
-                s = content_type_token + _bcrnl * 2
-                s1 = _bcrnl + tob('--') + boundary + tob('--') + _bcrnl
-                ret = filedata[filedata.index(s)+len(s):-len(s1)]
-                head = filedata[:filedata.index(s)]
-                arr = head.split(_bcrnl)
-                for i in arr:
-                    if 'Content-Disposition' in i:
-                        arr1 = i.split(';')
-                        for ii in arr1:
-                            if 'filename=' in ii:
-                                arr2 = ii.split('=')
-                                filename = dec(arr2[1].strip().replace('"',''))
-                                break
-                        break
-        except:
-            raise
-        return filename, ret
-    
     ret = False
-    root = os.path.abspath(STATICRESOURCE_DIR)
-    create_pic_dir()
-    create_voice_dir()
+    # root = os.path.abspath(STATICRESOURCE_DIR)
     try:
-        #task item picture
-        if qsdict.has_key('pic_file_name'):
-            fn = dec(qsdict['pic_file_name'])
-            dir_name = dec(qsdict['dir_name'])
-            
-            p = os.path.join(root, 'photos')
-            if not os.path.exists(p):
-                os.mkdir(p)
-            p = os.path.join(root, 'photos', 'upload')
-            if not os.path.exists(p):
-                os.mkdir(p)
-            save_file_to(UPLOAD_PHOTOS_DIR, dir_name,  fn, filedata)
+        if querydict.has_key('db'):
+            db_util.gridfs_save(querydict, querydict['filename'], buf)
             ret = True
-        elif qsdict.has_key('voice_file_name'):
-            fn = qsdict['voice_file_name']
-            p = os.path.join(root, 'voice')
-            if not os.path.exists(p):
-                os.mkdir(p)
-            save_file_to(UPLOAD_VOICE_DIR, None, fn, filedata)
-            ret = True
-        elif qsdict.has_key('import_xls'):
-            root = create_upload_xls_dir()
-            area = urllib.unquote_plus( qsdict['area'])
-            line_name = urllib.unquote_plus( qsdict['line_name'])
-            voltage = urllib.unquote_plus( qsdict['voltage'])
-            category = urllib.unquote_plus( qsdict['category'])
-            fn = str(uuid.uuid4()) + '.xls'
-            import_xls(os.path.join(root, fn), filedata, dec(area), dec(line_name), dec(voltage),  dec(category))
-            ret = True
-        elif qsdict.has_key('db'):
-            mimetype = urllib.unquote_plus(qsdict['mimetype'])
-            filename, filedata1 = parse_form_data(environ, mimetype, filedata)
-            #with open(ur'd:\aaa.png','wb') as f:
-                #f.write(filedata)
-            db_util.gridfs_save(qsdict, filename, filedata1)
-            ret = True
-    except:
-        #print(sys.exc_info()[1])
+    except Exception,e:
         raise
     return ret
 
@@ -1769,32 +1674,6 @@ def save_file_to(category, dir_id, filename, fileobj):
     with open(p, 'wb') as f:
         f1 = gevent.fileobject.FileObjectThread(f, 'wb')
         f1.write(fileobj)
-    
-    
-    
-    
-#def save_upload_file1(buf):
-    #ret = False
-    #try:
-        #arr = buf.split('\r\n')
-        #ds_plus = urllib.unquote_plus(arr[0])
-        #print(ds_plus)
-        #obj = json.loads(ds_plus)
-        #op = ''
-        #if obj.has_key('op'):
-            #op = obj['op']
-            #if op=='upload_task':
-                #filename = 'unknown.zip'
-                #if obj.has_key('filename'):
-                    #filename = obj['filename']
-                #save_upload_task(filename, buf[buf.index('\r\n')+2:], obj)
-        #if obj.has_key('filename') and op != 'upload_task':
-            #save_upload_image(obj['filename'], buf[buf.index('\r\n')+2:], obj)
-            #ret = True
-    #except:
-        #print(sys.exc_info()[1])
-    #return ret
-    
 
 def geojson_to_czml(aList):
     cz = czml.CZML()
@@ -1828,7 +1707,7 @@ def handle_post_method(environ):
     
     if buf is not None:
         try:
-            is_upload = handle_upload_file(environ, querydict, buf)
+            is_upload = handle_upload_file(querydict, buf)
         except:
             pass
     
