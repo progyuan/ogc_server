@@ -1815,37 +1815,37 @@ def handle_post_method(environ):
 
     
     
-def handle_login(environ):
-    global ENCODING
-    global gRequest
-    buf = environ['wsgi.input'].read()
-    ret = None
-    try:
-        ds_plus = urllib.unquote_plus(buf)
-        obj = json.loads(dec(ds_plus))
-        if obj.has_key(u'db') and obj.has_key(u'collection'):
-            is_mongo = True
-            dbname = obj[u'db']
-            collection = obj[u'collection']
-            action = None
-            data = None
-            if obj.has_key(u'action'):
-                action = obj[u'action']
-                del obj[u'action']
-            if obj.has_key(u'data'):
-                data = obj[u'data']
-                del obj[u'data']
-            if obj.has_key(u'url'):
-                del obj[u'url']
-            if obj.has_key(u'redirect'):
-                del obj[u'redirect']
-            del obj[u'db']
-            del obj[u'collection']
-            if action:
-                ret = db_util.mongo_action(dbname, collection, action, data, obj)
-    except:
-        raise
-    return ret
+# def handle_login(environ):
+#     global ENCODING
+#     global gRequest
+#     buf = environ['wsgi.input'].read()
+#     ret = None
+#     try:
+#         ds_plus = urllib.unquote_plus(buf)
+#         obj = json.loads(dec(ds_plus))
+#         if obj.has_key(u'db') and obj.has_key(u'collection'):
+#             is_mongo = True
+#             dbname = obj[u'db']
+#             collection = obj[u'collection']
+#             action = None
+#             data = None
+#             if obj.has_key(u'action'):
+#                 action = obj[u'action']
+#                 del obj[u'action']
+#             if obj.has_key(u'data'):
+#                 data = obj[u'data']
+#                 del obj[u'data']
+#             if obj.has_key(u'url'):
+#                 del obj[u'url']
+#             if obj.has_key(u'redirect'):
+#                 del obj[u'redirect']
+#             del obj[u'db']
+#             del obj[u'collection']
+#             if action:
+#                 ret = db_util.mongo_action(dbname, collection, action, data, obj)
+#     except:
+#         raise
+#     return ret
 
 def handle_thunder_soap(obj):
     ret = {}
@@ -1887,7 +1887,7 @@ def check_session(environ, request, session_store):
     is_expire = False
     sess = None
     
-    #session_store.delete_expired_list()
+
     if sid is None or len(sid)==0:
         request.session = session_store.new({})
         #session_store.save(request.session)
@@ -6204,24 +6204,45 @@ def application_webgis(environ, start_response):
             secure = False
             if gConfig['listen_port']['enable_ssl'].lower() == 'true':
                 secure = True
-            max_age = int(gConfig['web']['cookie']['max_age'])
-            cookie = ('Set-Cookie', dump_cookie(key, value, max_age=max_age, secure=secure))
+            max_age = 60
+            try:
+                session_age = int(gConfig['webgis']['session']['session_age'])
+            except:
+                pass
+            # cookie = ('Set-Cookie', dump_cookie(key, value, domain=str(gConfig['webgis']['session']['session_domain']), max_age=session_age, secure=secure))
+            cookie = ('Set-Cookie', dump_cookie(key, value,  max_age=session_age, secure=secure))
             return cookie
 
         sid = request.cookies.get('session_id')
 
         is_expire = False
-        if sid is None:
+        if sid is None or len(sid)==0:
             request.session = session_store.new()
-            session_store.save(request.session)
+            # session_store.save(request.session)
+            sess = request.session
+            cookie = set_cookie('session_id', request.session.sid )
             is_expire = True
         else:
             request.session = session_store.get(sid)
-        cookie = set_cookie('session_id', request.session.sid)
-        if request.session.should_save:
-            #print('should_save')
-            session_store.save(request.session)
-        return cookie, is_expire
+            if request.session:
+                cookie = set_cookie('session_id', request.session.sid)
+                session_store.save_if_modified(request.session)
+            else:
+                cookie = set_cookie('session_id', '')
+                is_expire = True
+        # if request.session.should_save:
+        #     session_store.save(request.session)
+            sess = request.session
+        return sess, cookie, is_expire
+    def handle_login(environ):
+        ret = None
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        if querydict.has_key('db') and querydict.has_key('collection') and querydict.has_key('username') and querydict.has_key('password'):
+            ret = db_util.mongo_find_one(querydict['db'],
+                                         querydict['collection'],
+                                         {'username':querydict['username'],
+                                          'password':querydict['password']})
+        return ret
 
     headers = {}
     headerslist = []
@@ -6264,37 +6285,51 @@ def application_webgis(environ, start_response):
     elif path_info == '/anti_bird_get_latest_records_by_imei':
         statuscode, headers, body = anti_bird_get_latest_records_by_imei(environ)
     else:
-        if gConfig['web']['session']['enable_session'].lower() == 'true' :
+        if path_info[-1:] == '/':
+            path_info = gConfig['web']['indexpage']
+        if gConfig['webgis']['session']['enable_session'].lower() == 'true' :
+            # and path_info in ['/login', '/logout', gConfig['web']['loginpage'], gConfig['web']['indexpage'], gConfig['web']['mainpage']]:
             if gSessionStore is None:
                 gSessionStore = FilesystemSessionStore()
             is_expire = False
             with session_manager(environ):
-                cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
-                
-                for k in headers:
-                    headerslist.append((k, headers[k]))
-                
-                if is_expire:
-                    headerslist.append(('Location', str(gConfig['web']['expirepage'])))
-                    headerslist.append(cookie_header)
-                    start_response('302 Redirect', headerslist)        
-                    return ['']
+                sess, cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
                 if path_info == '/logout':
-                    sess = get_session_from_env(environ)
-                    if sess:
-                        gSessionStore.delete(sess)
-                    headerslist.append(cookie_header)
+
+                    gSessionStore.delete(sess)
+                    # headerslist.append(cookie_header)
                     headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
-                    start_response('200 OK', headerslist)        
+                    start_response('200 OK', headerslist)
                     return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
+
+                    # headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
+                    # # headerslist.append(cookie_header)
+                    # statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
+                    # statuscode = '401 Unauthorized'
+                    # start_response(statuscode, headerslist)
+                    # return [body]
+                if is_expire:
+                    if  not sess.has_key('ip'):
+                        sess['ip'] = environ['REMOTE_ADDR']
+                    gSessionStore.save_if_modified(sess)
+                    headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
+                    # headerslist.append(('Location', str(gConfig['web']['expirepage'])))
+                    headerslist.append(cookie_header)
+                    # start_response('302 Redirect', headerslist)
+                    # return ['']
+                    statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
+                    start_response('401 Unauthorized', headerslist)
+                    return [body]
+                    # headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
+                    # statuscode = '200 OK'
+                    # body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
                 if path_info == '/login':
-                    sess = get_session_from_env(environ)
-                    if sess is None:
-                        sess = gSessionStore.new()
-                    objlist = handle_login(environ)
-                    if len(objlist)>0:
-                        sess = gSessionStore.session_class(objlist[0], sess.sid, False)
+                    user = handle_login(environ)
+                    if user:
+                        sess = gSessionStore.session_class(user, sess.sid, False)
                         gSessionStore.save(sess)
+                        headerslist.append(cookie_header)
+                        headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                         start_response('200 OK', headerslist)
                         return [json.dumps(sess, ensure_ascii=True, indent=4)]
                     else:
@@ -6302,24 +6337,24 @@ def application_webgis(environ, start_response):
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                         start_response('200 OK', headerslist)        
                         return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
-                            
-                        
+
                 if path_info == gConfig['web']['mainpage']:
-                    sess = get_session_from_env(environ)
                     #401 Unauthorized
                     #if session_id is None or token is None:
-                    if sess is None or len(sess.keys())==0:
+                    if sess is None or len(sess.keys())==0 or len(sess.sid)==0:
                         headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
                         headerslist.append(cookie_header)
                         statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
                         statuscode = '401 Unauthorized'
                         start_response(statuscode, headerslist) 
                         return [body]
-        if path_info[-1:] == '/':
-            path_info += gConfig['web']['indexpage']
-        if path_info == '/login' and not gConfig['web']['session']['enable_session'].lower() == 'true':
-            path_info = gConfig['web']['mainpage']
-        statuscode, headers, body =  handle_static(environ, path_info)
+                if not is_expire and len(sess.sid)>0:
+                    statuscode, headers, body =  handle_static(environ, path_info)
+
+        else:
+            if path_info == '/login' and gConfig['webgis']['session']['enable_session'].lower() != 'true':
+                path_info = gConfig['web']['mainpage']
+            statuscode, headers, body =  handle_static(environ, path_info)
         
     #headkeys = set([i[0] for i in headerslist])
     headers = CORS_header(headers)
