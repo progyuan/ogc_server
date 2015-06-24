@@ -6214,7 +6214,8 @@ def application_webgis(environ, start_response):
             return cookie
 
         sid = request.cookies.get('session_id')
-
+        sess = None
+        cookie = None
         is_expire = False
         if sid is None or len(sid)==0:
             request.session = session_store.new()
@@ -6294,32 +6295,36 @@ def application_webgis(environ, start_response):
             is_expire = False
             with session_manager(environ):
                 sess, cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
-                if path_info == '/logout':
+                if path_info == gConfig['web']['unauthorizedpage']:
+                    if  not sess.has_key('ip'):
+                        sess['ip'] = environ['REMOTE_ADDR']
+                    gSessionStore.save_if_modified(sess)
+                    headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
+                    headerslist.append(cookie_header)
+                    statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
+                    start_response('401 Unauthorized', headerslist)
+                    return [body]
 
+                if path_info == '/logout':
                     gSessionStore.delete(sess)
-                    # headerslist.append(cookie_header)
+                    sess, cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
+                    headerslist.append(cookie_header)
                     headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                     start_response('200 OK', headerslist)
                     return [json.dumps({'result':u'ok'}, ensure_ascii=True, indent=4)]
 
-                    # headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
-                    # # headerslist.append(cookie_header)
-                    # statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
-                    # statuscode = '401 Unauthorized'
-                    # start_response(statuscode, headerslist)
-                    # return [body]
                 if is_expire:
                     if  not sess.has_key('ip'):
                         sess['ip'] = environ['REMOTE_ADDR']
                     gSessionStore.save_if_modified(sess)
                     headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
-                    # headerslist.append(('Location', str(gConfig['web']['expirepage'])))
                     headerslist.append(cookie_header)
-                    # start_response('302 Redirect', headerslist)
-                    # return ['']
                     statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
                     start_response('401 Unauthorized', headerslist)
                     return [body]
+                    # headerslist.append(('Location', str(gConfig['web']['expirepage'])))
+                    # start_response('302 Redirect', headerslist)
+                    # return ['']
                     # headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                     # statuscode = '200 OK'
                     # body = json.dumps({'result':u'session_expired'}, ensure_ascii=True, indent=4)
@@ -6327,6 +6332,7 @@ def application_webgis(environ, start_response):
                     user = handle_login(environ)
                     if user:
                         sess = gSessionStore.session_class(user, sess.sid, False)
+                        sess['username'] = user['username']
                         gSessionStore.save(sess)
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
@@ -6341,7 +6347,7 @@ def application_webgis(environ, start_response):
                 if path_info == gConfig['web']['mainpage']:
                     #401 Unauthorized
                     #if session_id is None or token is None:
-                    if sess is None or len(sess.keys())==0 or len(sess.sid)==0:
+                    if sess is None or len(sess.keys())==0 or len(sess.sid)==0 or not sess.has_key('username'):
                         headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
                         headerslist.append(cookie_header)
                         statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
