@@ -9877,6 +9877,7 @@ def test_import_userinfo():
     mongo_action('ztgd', 'userinfo', 'save', uilist)
     
 def test_import_sysrole(db_name):
+    global  gConfig, gClientMongo
     l = []
     l.append({'name':'admin', 'displayname':u'管理员','users':[], 'permission':['all']})
     l.append({'name':'maintainresp', 
@@ -9894,7 +9895,13 @@ def test_import_sysrole(db_name):
               'users':[], 
               'permission':[ 'buffer_analyze'],
               })
-    mongo_action(db_name, 'sysrole', 'save', l)
+    mongo_init_client('webgis')
+    db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+    if 'sysrole' in db.collection_names(False):
+        db.drop_collection('sysrole')
+    if not 'sysrole' in db.collection_names(False):
+        db.create_collection('sysrole')
+        mongo_action(db_name, 'sysrole', 'save', l)
     
 def test_auth():
     global gClientMongo
@@ -10091,7 +10098,7 @@ if __name__=="__main__":
     #gen_geojson_by_lines('km')
     
     db_name, area = 'kmgd', 'km'
-    db_name, area = 'ztgd', 'zt'
+    # db_name, area = 'ztgd', 'zt'
     #alt = altitude_by_lgtlat(ur'H:\gis\demdata', 102.70294, 25.05077)
     #print('alt=%f' % alt)
     #create_id_mapping(db_name, area)
@@ -10127,11 +10134,11 @@ if __name__=="__main__":
     #merge_dem2()
     #test_generate_ODT(db_name)
     #test_bing_map()
-    test_edge_ring()
+    # test_edge_ring()
     #test_remove_blank_tile()
     #print(get_heatmap_tile_service_list('yn'))
     #test_import_userinfo()
-    #test_import_sysrole('ztgd')
+    # test_import_sysrole(db_name)
     #test_auth()
     #test_kml_import()
     #test_delete_anti_bird()

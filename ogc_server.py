@@ -6199,21 +6199,54 @@ def application_webgis(environ, start_response):
         ret = json.dumps(ret, ensure_ascii=True, indent=4)
         return  '200 OK', {}, ret
         
-    def session_handle(environ, request, session_store):
-        def set_cookie(key, value):
-            secure = False
-            if gConfig['listen_port']['enable_ssl'].lower() == 'true':
-                secure = True
-            max_age = 60
+    def set_cookie(key, value):
+        secure = False
+        if gConfig['listen_port']['enable_ssl'].lower() == 'true':
+            secure = True
+        max_age = 60
+        try:
+            session_age = int(gConfig['webgis']['session']['session_age'])
+        except:
+            pass
+        # cookie = ('Set-Cookie', dump_cookie(key, value, domain=str(gConfig['webgis']['session']['session_domain']), max_age=session_age, secure=secure))
+        cookie = ('Set-Cookie', dump_cookie(key, value,  max_age=session_age, secure=secure))
+        return cookie
+
+    def get_cookie_data(request, key=None):
+        string = '{}'
+        if request:
+            string = request.cookies.get('session_data')
+        ret = None
+        if string and len(string)>0:
             try:
-                session_age = int(gConfig['webgis']['session']['session_age'])
+                ret = json.loads(string)
+                if key and ret.has_key(key):
+                    ret = ret[key]
+                else:
+                    ret = None
             except:
                 pass
-            # cookie = ('Set-Cookie', dump_cookie(key, value, domain=str(gConfig['webgis']['session']['session_domain']), max_age=session_age, secure=secure))
-            cookie = ('Set-Cookie', dump_cookie(key, value,  max_age=session_age, secure=secure))
-            return cookie
+        return ret
 
-        sid = request.cookies.get('session_id')
+    def set_cookie_data(request, data):
+        string = '{}'
+        ret = None
+        if request:
+            string = request.cookies.get('session_data')
+        if string and len(string)>0:
+            try:
+                obj = json.loads(string)
+                if isinstance(obj, dict) and isinstance(data, dict):
+                    for key in data.keys():
+                        obj[key] = data[key]
+                    string = json.dumps(obj)
+                    ret = set_cookie('session_data', string)
+            except:
+                pass
+        return ret
+
+    def session_handle(environ, request, session_store):
+        sid = get_cookie_data(request, 'session_id')
         sess = None
         cookie = None
         is_expire = False
@@ -6221,15 +6254,15 @@ def application_webgis(environ, start_response):
             request.session = session_store.new()
             # session_store.save(request.session)
             sess = request.session
-            cookie = set_cookie('session_id', request.session.sid )
+            cookie = set_cookie_data(None, {'session_id': request.session.sid})
             is_expire = True
         else:
             request.session = session_store.get(sid)
             if request.session:
-                cookie = set_cookie('session_id', request.session.sid)
+                cookie = set_cookie_data(request, {'session_id': request.session.sid})
                 session_store.save_if_modified(request.session)
             else:
-                cookie = set_cookie('session_id', '')
+                cookie = set_cookie('session_data', '{}')
                 is_expire = True
         # if request.session.should_save:
         #     session_store.save(request.session)
@@ -6298,6 +6331,7 @@ def application_webgis(environ, start_response):
                 if path_info == gConfig['web']['unauthorizedpage']:
                     if  not sess.has_key('ip'):
                         sess['ip'] = environ['REMOTE_ADDR']
+
                     gSessionStore.save_if_modified(sess)
                     headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
                     headerslist.append(cookie_header)
@@ -6333,6 +6367,7 @@ def application_webgis(environ, start_response):
                     if user:
                         sess = gSessionStore.session_class(user, sess.sid, False)
                         sess['username'] = user['username']
+                        cookie_header = set_cookie_data(gRequest, {'_id':user['_id'], 'username': user['username'], 'displayname': user['displayname']})
                         gSessionStore.save(sess)
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
