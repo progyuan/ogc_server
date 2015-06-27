@@ -7685,7 +7685,8 @@ def calc_buffer(geojsonobj, dist, res=4):
 def extract_one_altitude(lng, lat):
     global gConfig
     ret = None
-    exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
+    # exe_path = os.path.join(module_path(), 'gdal-bin', 'gdallocationinfo.exe')
+    exe_path = gConfig['webgis']['terrain']['gdal-bin']['gdallocationinfo']
     dem_path = gConfig['webgis']['terrain']['dem_file']
     out = subprocess.check_output([exe_path, '-wgs84', "%s" % dem_path, "%f" % lng, "%f" % lat])
     t = 'Value:'
