@@ -1,0 +1,1 @@
+"/home/antibird/work/mongodb-linux-x86_64-debian71-3.0.4/bin/mongod" --storageEngine wiredTiger --port 27017 --dbpath "/home/antibird/work/mongodata" --logpath "/home/antibird/work/mongolog/mongo.log"
