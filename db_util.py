@@ -9896,7 +9896,7 @@ def test_import_sysrole(db_name):
               'users':[], 
               'permission':[ 'buffer_analyze'],
               })
-    mongo_init_client('webgis')
+    gClientMongo['webgis'] = MongoClient('localhost', 27017)
     db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
     if 'sysrole' in db.collection_names(False):
         db.drop_collection('sysrole')
@@ -10139,7 +10139,7 @@ if __name__=="__main__":
     #test_remove_blank_tile()
     #print(get_heatmap_tile_service_list('yn'))
     #test_import_userinfo()
-    # test_import_sysrole(db_name)
+    test_import_sysrole(db_name)
     #test_auth()
     #test_kml_import()
     #test_delete_anti_bird()
