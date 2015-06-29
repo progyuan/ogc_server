@@ -8967,6 +8967,18 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
+        elif clienttype == 'anti_bird':
+            if not gClientMongo.has_key(clienttype) :
+                if host is None:
+                    host = gConfig['webgis']['anti_bird']['mongodb']['host']
+                if port is None:
+                    port = int(gConfig['webgis']['anti_bird']['mongodb']['port'])
+                if replicaset is None:
+                    replicaset = gConfig['webgis']['anti_bird']['mongodb']['replicaset']
+                if len(replicaset) == 0:
+                    gClientMongo[clienttype] = MongoClient(host, port)
+                else:
+                    gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
         elif  'webgis/' in  clienttype:
             arr = clienttype.split('/')
             tiletype = arr[1]

@@ -6010,13 +6010,41 @@ def application_webgis(environ, start_response):
             request_headers['Content-Type'] = 'application/json'
         return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
 
+    def get_anti_bird_list_from_cache():
+        ret = '{"result":"get_anti_bird_list_from_cache_error:cannot connect to db"}'
+        arr = []
+        if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
+            db_util.mongo_init_client('anti_bird')
+            db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
+            collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
+            arr = db_util.remove_mongo_id(list(collection.find({})))
+            ret = json.dumps(arr, ensure_ascii=True, indent=4)
+        return ret
 
-    
+    def get_latest_records_from_cache():
+        ret = '{"result":"get_latest_records_from_cache_error:cannot connect to db"}'
+        arr = []
+        if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
+            db_util.mongo_init_client('anti_bird')
+            db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
+            collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
+            arr = db_util.remove_mongo_id(list(collection.find({})))
+            ret = json.dumps(arr, ensure_ascii=True, indent=4)
+        return ret
+
+
+
     def init_anti_bird_list(environ):
         ret = []
-        environ['PATH_INFO'] = '/proxy/api/detector'
-        environ['QUERY_STRING'] = ''
-        code, header, s = proxy(environ)
+        s = '{"result":"unknown how to get anti bird list"}'
+        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'true':
+        if True:
+            environ['PATH_INFO'] = '/proxy/api/detector'
+            environ['QUERY_STRING'] = ''
+            code, header, s = proxy(environ)
+        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'false':
+        if False:
+            s = get_anti_bird_list_from_cache()
         try:
             if len(s)>0:
                 obj = json.loads(s)
@@ -6042,21 +6070,23 @@ def application_webgis(environ, start_response):
                     ret = obj
         except Exception,e:
             raise
-            ##e = sys.exc_info()[1]
-            #if hasattr(e, 'message'):
-                #print('init_anti_bird_list error: %s' % e.message)
-            #else:
-                #print('init_anti_bird_list error: %s' % str(e))
-            #ret = []
         return ret
     
     def anti_bird_get_latest_records(environ, imei, records_num=1):
         global ENCODING
         ret = []
-        href = '/proxy/api/detector/%s/log/%d' %  (imei, records_num)
-        environ['PATH_INFO'] = href
-        environ['QUERY_STRING'] = ''
-        status, header, objstr = proxy(environ)
+        urlprifix = 'proxy'
+        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'true':
+        if True:
+            href = '/proxy/api/detector/%s/log/%d' % (imei, records_num)
+            environ['PATH_INFO'] = href
+            environ['QUERY_STRING'] = ''
+            status, header, objstr = proxy(environ)
+            urlprifix = 'proxy'
+        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'false':
+        if False:
+            objstr = get_latest_records_from_cache()
+            urlprifix = 'antibirdcache'
         if len(objstr)>0:
             try:
                 obj = json.loads(objstr)
@@ -6877,7 +6907,9 @@ def tcp_recv(sock=None):
                     print('send_to_client error:%s' % e.message)
                 else:
                     print('send_to_client error:%s' % str(e))
-        
+    def save_to_cache(astr):
+        pass
+
     MAX_MSGLEN = int(gConfig['webgis']['anti_bird']['max_msg_len'])
     tcp_reconnect_threshold = int(gConfig['webgis']['anti_bird']['tcp_reconnect_threshold'])
     recvstr = ''
@@ -6894,6 +6926,8 @@ def tcp_recv(sock=None):
                     gTcpReconnectCounter = 0;
                     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), recvstr))
                     packets, recvstr = get_packets(recvstr)
+                    if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('update_to_cache') and gConfig['webgis']['anti_bird']['update_to_cache'].lower() == 'true':
+                        save_to_cache(packets)
                     send_to_client(packets)
         except:
             recvstr = ''
