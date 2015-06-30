@@ -1,0 +1,14 @@
+[Unit]
+Description=KMGD WebGIS
+After=network.target
+
+[Service]
+Environment="VIRTUAL_ENV=/home/antibird/.virtualenvs" "WORKON_HOME=/home/antibird/.virtualenvs"
+WorkingDirectory=/home/antibird/work/python/CFTTP12_WEB_WSGI_GEVENT
+ExecStartPre=source /usr/local/bin/virtualenvwrapper.sh; workon py279
+ExecStart=/home/antibird/.virtualenvs/py279/bin/python ogc_server.py -c ogc-config-webgis-linux.ini
+ExecStop=deactivate 
+
+[Install]
+WantedBy=multi-user.target
+
