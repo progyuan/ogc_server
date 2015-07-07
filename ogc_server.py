@@ -6144,12 +6144,12 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{
                         "$elemMatch":{
-                            "type":u"超声波驱鸟装置"
+                            "type":u"多功能驱鸟装置"
                         }
                     }
                 },
@@ -6178,12 +6178,12 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{
                         "$elemMatch":{
-                            "type":u"超声波驱鸟装置",
+                            "type":u"多功能驱鸟装置",
                             "imei":querydict['imei']
                         }
                     }
@@ -6203,12 +6203,12 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{
                         "$elemMatch":{
-                            "type":u"超声波驱鸟装置",
+                            "type":u"多功能驱鸟装置",
                         }
                     }
                 },
@@ -6217,7 +6217,7 @@ def application_webgis(environ, start_response):
                 )
             for i in l:
                 for j in i['properties']['metals']:
-                    if j.has_key('type') and j['type'] == u'超声波驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
+                    if j.has_key('type') and j['type'] == u'多功能驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
                         obj = {}
                         obj['tower_id'] = i['_id']
                         obj['name'] = i['properties']['name']

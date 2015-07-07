@@ -7415,8 +7415,15 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     limit = conditions['limit']
                 for i in arr:
                     if len(tyarr)>0:
-                        #ret.extend(mongo_find(dbname, i, {'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}, 'properties.webgis_type':tyarr}, limit=limit))
-                        ret.extend(mongo_find(dbname, i, {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}, limit, ))
+                        condd = {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}
+                        if i == 'network':
+                            if gConfig['webgis'].has_key('anti_bird')\
+                                and gConfig['webgis']['anti_bird'].has_key('line_filter') \
+                                and len(gConfig['webgis']['anti_bird']['line_filter'])>0:
+                                arr = gConfig['webgis']['anti_bird']['line_filter']
+                                condd['properties.name'] = {'$in': arr}
+                        # print(condd)
+                        ret.extend(mongo_find(dbname, i, condd, limit, ))
                 for i in gFeatureslist:
                     if i in tyarr: 
                         tyarr.remove(i)   
@@ -7436,12 +7443,12 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                 ret = mongo_find(
                     gConfig['webgis']['mongodb']['database'],
                     'features',
-                    #{"properties.webgis_type":"point_tower","properties.metals.type":u"超声波驱鸟装置"},
+                    #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                     {
                         "properties.webgis_type":"point_tower",
                         "properties.metals":{
                             "$elemMatch":{
-                                "type":u"超声波驱鸟装置",
+                                "type":u"多功能驱鸟装置",
                             }
                         }
                     },
@@ -7778,6 +7785,12 @@ def mongo_find(dbname, collection_name, conditions={}, limit=0, clienttype='webg
             conditions = add_mongo_id(conditions)
             conds = build_mongo_conditions(conditions)
             if collection_name in db.collection_names():
+                if collection_name == 'network':
+                    if gConfig['webgis'].has_key('anti_bird')\
+                        and gConfig['webgis']['anti_bird'].has_key('line_filter') \
+                        and len(gConfig['webgis']['anti_bird']['line_filter'])>0:
+                        arr = gConfig['webgis']['anti_bird']['line_filter']
+                        conds['properties.name'] = {'$in': arr}
                 ret = list(db[collection_name].find(conds).limit(limit))
                 # for i in cur:
                 #     ret.append(remove_mongo_id(i))
@@ -9915,7 +9928,64 @@ def test_import_sysrole(db_name):
     if not 'sysrole' in db.collection_names(False):
         db.create_collection('sysrole')
         mongo_action(db_name, 'sysrole', 'save', l)
-    
+
+def test_antibird_tower_modify():
+    cond = {
+                "properties.webgis_type":"point_tower",
+                "properties.metals":{
+                    "$elemMatch":{
+                        "type":u"多功能驱鸟装置",
+                    }
+                }
+            }
+    gClientMongo['webgis'] = MongoClient('192.168.1.8', 27017)
+    db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+    collection = db['features']
+    l = list(collection.find(cond))
+    # for i in l:
+    #     idx = l.index(i)
+    #     for j in i['properties']['metals']:
+    #         idx1 = i['properties']['metals'].index(j)
+    #         if j['type'] == u'超声波驱鸟装置':
+    #             j['type'] = u'多功能驱鸟装置'
+    #             i['properties']['metals'][idx1] = j
+    #     l[idx] = i
+    # for i in l:
+    #     collection.save(i)
+    print(json.dumps(remove_mongo_id(l),  ensure_ascii=False, indent=4))
+
+def test_qinshiluxian():
+    q1 = '551a30a1ca49c81a6882a1f0'
+    q1t = '551a30a1ca49c81a6882a1f1'
+    n1 = u'青石路线#20'
+    n1t = u'青石路线T接#20.1'
+    gClientMongo['webgis'] = MongoClient('192.168.1.8', 27017)
+    db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+    collection = db['network']
+    collection.remove({"_id":ObjectId(q1t)})
+    # o1 = collection.find_one({'_id':ObjectId(q1)})
+    # # print(len(o1['properties']['nodes']))
+    o1t = collection.find_one({'_id':ObjectId(q1t)})
+    print(o1t)
+    # o1['properties']['nodes'].extend(o1t['properties']['nodes'])
+    # # collection.save(o1)
+    # # o1 = collection.find_one({'_id':ObjectId(q1)})
+    # print(len(o1['properties']['nodes']))
+    # collection = db['features']
+    # o1 = collection.find_one({"properties.name":n1})
+    # o1t = collection.find_one({"properties.name":n1t})
+    # id1 = o1['_id']
+    # id1t = o1t['_id']
+    # print(id1)
+    # print(id1t)
+    # collection = db['edges']
+    # o = collection.find_one({"properties.start":id1, "properties.end":id1t})
+    # print(o)
+    # # o = {"properties":{"start":id1,"end":id1t, "webgis_type":"edge_tower"}}
+    # # collection.save(o)
+    # # o = collection.find_one({"properties.start":id1, "properties.end":id1t})
+    # # print(o)
+
 def test_auth():
     global gClientMongo
     mongo_init_client('authorize_platform')
@@ -9945,7 +10015,7 @@ def test_kml_import():
                 "properties.webgis_type":"point_tower",
                 "properties.metals":{
                     "$elemMatch":{
-                        "type":u"超声波驱鸟装置"
+                        "type":u"多功能驱鸟装置"
                     }
                 }
             },
@@ -10151,12 +10221,14 @@ if __name__=="__main__":
     #test_remove_blank_tile()
     #print(get_heatmap_tile_service_list('yn'))
     #test_import_userinfo()
-    test_import_sysrole(db_name)
+    #test_import_sysrole(db_name)
     #test_auth()
     #test_kml_import()
     #test_delete_anti_bird()
     #test_check_exist_line_towers()
     # test_import_all()
     #test_print_line_names()
+    # test_antibird_tower_modify()
+    # test_qinshiluxian()
     
     
