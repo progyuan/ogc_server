@@ -6144,7 +6144,6 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{
@@ -6178,7 +6177,6 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{
@@ -6203,7 +6201,6 @@ def application_webgis(environ, start_response):
             l = db_util.mongo_find(
                 gConfig['webgis']['mongodb']['database'],
                 'features',
-                #{"properties.webgis_type":"point_tower","properties.metals.type":u"多功能驱鸟装置"},
                 {
                     "properties.webgis_type":"point_tower",
                     "properties.metals":{

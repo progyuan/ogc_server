@@ -9956,18 +9956,34 @@ def test_antibird_tower_modify():
 
 def test_qinshiluxian():
     q1 = '551a30a1ca49c81a6882a1f0'
-    q1t = '551a30a1ca49c81a6882a1f1'
-    n1 = u'青石路线#20'
-    n1t = u'青石路线T接#20.1'
+    # q1t = '551a30a1ca49c81a6882a1f1'
+    # n1 = u'青石路线#20'
+    # n1t = u'青石路线T接#20.1'
     gClientMongo['webgis'] = MongoClient('192.168.1.8', 27017)
     db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
-    collection = db['network']
-    collection.remove({"_id":ObjectId(q1t)})
-    # o1 = collection.find_one({'_id':ObjectId(q1)})
-    # # print(len(o1['properties']['nodes']))
-    o1t = collection.find_one({'_id':ObjectId(q1t)})
-    print(o1t)
+    # collection1 = db['network']
+    collection2 = db['features']
+    # collection.remove({"_id":ObjectId(q1t)})
+    # o = collection1.find_one({'_id':ObjectId(q1)})
+    l = list(collection2.find({"properties.name":{"$in":["花青II回#43","七花I回#28"]}}))
+    # o1t = collection.find_one({'_id':ObjectId(q1t)})
+    # for i in l:
+    #     idx = l.index(i)
+    #     for j in i['properties']['metals']:
+    #         idx1 = i['properties']['metals'].index(j)
+    #         if j['type'] == u'驱鸟装置':
+    #             j['type'] = u'多功能驱鸟装置'
+    #             i['properties']['metals'][idx1] = j
+    #     l[idx] = i
+    # for i in l:
+    #     collection2.save(i)
+    print(json.dumps( remove_mongo_id(l), ensure_ascii=False, indent=4))
     # o1['properties']['nodes'].extend(o1t['properties']['nodes'])
+    # for i in l:
+    #     if u'T接' in i['properties']['name']:
+    #         print(i['properties']['name'])
+    #         i['properties']['name'] = i['properties']['name'].replace(u'T接', '')
+    #         collection2.save(i)
     # # collection.save(o1)
     # # o1 = collection.find_one({'_id':ObjectId(q1)})
     # print(len(o1['properties']['nodes']))
