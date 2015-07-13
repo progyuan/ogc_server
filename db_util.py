@@ -9954,6 +9954,20 @@ def test_antibird_tower_modify():
     #     collection.save(i)
     print(json.dumps(remove_mongo_id(l),  ensure_ascii=False, indent=4))
 
+def test_birdfamily():
+    l = os.listdir(ur'F:\work\html\webgis\img\birds')
+    ll = []
+    for i in l:
+        o = {}
+        o['img'] = 'img/birds/%s' % i
+        o['full'] = 'img/birds/%s' % i
+        o['thumb'] = 'img/birds/%s' % i
+        o['caption'] = i.replace('.jpg', '')
+        o['mimetype'] = 'image/jpeg'
+        ll.append(o)
+    ret = json.dumps(ll, ensure_ascii=False, indent=4, encoding='utf-8')
+    print ('aaa')
+
 def test_qinshiluxian():
     q1 = '551a30a1ca49c81a6882a1f0'
     # q1t = '551a30a1ca49c81a6882a1f1'
@@ -10246,5 +10260,6 @@ if __name__=="__main__":
     #test_print_line_names()
     # test_antibird_tower_modify()
     # test_qinshiluxian()
+    # test_birdfamily()
     
     
