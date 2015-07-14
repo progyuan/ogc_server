@@ -9308,6 +9308,12 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'], params['y'], params['level']
+                if isinstance(x, list) and len(x)>0:
+                    x = x[0]
+                if isinstance(y, list) and len(y)>0:
+                    y = y[0]
+                if isinstance(level, list) and len(level)>0:
+                    level = level[0]
                 s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 href = None
                 mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
