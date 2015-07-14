@@ -9141,7 +9141,7 @@ def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
         xtile = int((lon_deg + 180.0) / 360.0 * n)
         ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
         return (xtile, ytile)
-    # arr = tiletype.split('/')
+    arr = tiletype.split('/')
     pathlist = []
     for zoom in zoomrange:
         startx, starty = deg2num(westsouth[0], westsouth[1], zoom)
@@ -9152,7 +9152,7 @@ def batch_tile_download(tiletype, subtype, westsouth, eastnorth, zoomrange):
             starty, endy = endy, starty
         for i in range(startx, endx+1):
             for j in range(starty, endy+1):
-                path = '%d/%d/%d%s' % (zoom, i, j, gConfig['webgis'][tiletype][subtype]['mimetype'])
+                path = '%d/%d/%d%s' % (zoom, i, j, gConfig['webgis'][arr[1]][subtype]['mimetype'])
                 param = {}
                 param['x'] = ['%d' % i]
                 param['y'] = ['%d' % j]
