@@ -1,0 +1,1 @@
+python ogc_server.py --batch_download_tile_enable --tiletype tiles --subtype amap_map --west 99.82 --east 105.54 --north 26.24 --south 22.81 --num_cocurrent 5 --wait_sec 2 --zoom_max 16 --save_to_db True
