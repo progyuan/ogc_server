@@ -9190,13 +9190,15 @@ def command_batch_tile_download(options):
     if not gConfig.has_key('webgis'):
         print('Wrong webgis config file, now exit.')
         return
-    
-    if not gConfig['webgis'].has_key(options.tiletype):
+    tiletype = options.tiletype
+    if '/' in tiletype:
+        tiletype = tiletype.split('/')[1]
+    if not gConfig['webgis'].has_key(tiletype):
         print('please use correct tiletype in config file, now exit.')
         return
         
-    if not gConfig['webgis'][options.tiletype].has_key(options.subtype):
-        print('please use correct subtype in config file section[webgis][%s], now exit.' % options.tiletype)
+    if not gConfig['webgis'][tiletype].has_key(options.subtype):
+        print('please use correct subtype in config file section[webgis][%s], now exit.' % tiletype)
         return
     
     if options.num_cocurrent < 1 or options.num_cocurrent > 10:
