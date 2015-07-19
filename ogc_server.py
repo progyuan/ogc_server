@@ -5890,7 +5890,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         href += '?';
     href += 'token=%s&random=%d' % ( token, random.randint(0,100000) )
     print('proxy to %s' % href)
-    header = {'Content-Type': 'text/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
+    header = {'Content-Type': 'application/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
     ret = ''
     url = URL(href)
     if not gHttpClient.has_key('http_proxy'):
