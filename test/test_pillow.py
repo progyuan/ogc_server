@@ -13,6 +13,7 @@ from bson.timestamp import Timestamp
 ROOT_DIR = ur'F:\work\html\webgis\img\birds'
 OUT_DIR = os.path.join(ROOT_DIR,'crop')
 OUT_DIR = ur'J:\bird\cropfiles'
+OUT_DIR1 = ur'J:\bird\cropfiles1'
 
 def add_mongo_id(obj, objidkeys = ['_id', u'_id',]):
     if isinstance(obj, str) or isinstance(obj, unicode):
@@ -77,7 +78,7 @@ def crop_one(path, option):
         return
     right, bottom = option['left'] + option['width'], option['top'] + option['height']
     im = im.crop((option['left'], option['top'], right, bottom))
-    # im = im.resize((128, 128), Image.BICUBIC)
+    im = im.resize((30, 30), Image.BICUBIC)
     # ext = get_ext(path)
     ext = '.jpg'
     # p = '%s_%d_%d_%d_%d%s' % (os.path.basename(path).replace(ext, ''), option['left'],option['top'],option['width'],option['height'], ext)
@@ -141,6 +142,48 @@ def extract():
                 print ('error in %s-%d:' % (_id, idx))
     client.close()
 
+def random_extract(num):
+    client = pymongo.MongoClient('localhost', 27017)
+    db = client['bird']
+    collection = db['tmp']
+    l1 = list(collection.find({}))
+    collection1 = db['tmp1']
+    l2 = list(collection1.find({}))
+    l = []
+    l.extend(l1)
+    l.extend(l2)
+    ids = []
+    for i in l:
+        ids.extend(i['picture'][-num:])
+    ids1 = [ObjectId(i) for i in ids]
+    fs = gridfs.GridFS(db, collection='log')
+    cur = fs.find({'_id':{'$in':ids1}})
+    cnt = 0
+    success = 0
+    failed = []
+    for f in cur:
+        cnt += 1
+        try:
+            f.seek(0)
+            im = Image.open(f)
+            p = '%s.jpg' % str(f._id)
+            if not os.path.exists(OUT_DIR1):
+                os.mkdir(OUT_DIR1)
+            p = os.path.join(OUT_DIR1, p)
+            # print(p)
+            im.save(p, im.format)
+            success += 1
+        except Exception,e:
+            failed.append(str(f._id))
+            print('failed id = %s' % str(f._id))
+    print('total:%d, success:%d' % (cnt, success))
+    print('failed:%s' % str(failed))
+
+    client.close()
+
+
+
+
 if __name__=="__main__":
     # crop_many(ROOT_DIR)
-    extract()
+    random_extract(50)

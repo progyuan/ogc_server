@@ -218,6 +218,10 @@ gUrlMap = Map([
     Rule('/gridfs/query/<width>/<height>/<limit>/<skip>', endpoint='gridfs_query'),
     Rule('/gridfs/delete', endpoint='gridfs_delete'),
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
+    Rule('/state_examination/save', endpoint='state_examination_save'),
+    Rule('/state_examination/query', endpoint='state_examination_query'),
+    Rule('/state_examination/delete', endpoint='state_examination_delete'),
+    Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -2666,6 +2670,8 @@ def get_querydict_by_GET_POST(environ):
                 if isinstance(obj, dict):
                     for k in obj.keys():
                         querydict[k] = obj[k]
+                if isinstance(obj, list):
+                    querydict = obj
             except:
                 querydict[key] = form[key]
     file_storage_list = []
@@ -6305,6 +6311,74 @@ def application_webgis(environ, start_response):
                                           'password':querydict['password']})
         return ret
 
+    def handle_state_examination(environ):
+        def get_collection(collection):
+            ret = None
+            db_util.mongo_init_client('webgis')
+            db = db_util.gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+            if not collection in db.collection_names(False):
+                ret = db.create_collection(collection)
+            else:
+                ret = db[collection]
+            return ret
+        def state_examination_save(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
+                existone = collection.find_one({'line_name':querydict['line_name'], 'check_year':querydict['check_year']})
+                if existone:
+                    querydict['_id'] = str(existone['_id'])
+                _id = collection.save(db_util.add_mongo_id(querydict))
+                ret = collection.find_one({'_id':_id})
+                if ret:
+                    ret = db_util.remove_mongo_id(ret)
+            if isinstance(querydict, list):
+                for i in querydict:
+                    existone = collection.find_one({'line_name':i['line_name'], 'check_year':i['check_year']})
+                    if existone:
+                        i['_id'] = str(existone['_id'])
+                    collection.save(db_util.add_mongo_id(i))
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+
+        def state_examination_query(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict):
+                # print(querydict)
+                ret = list(collection.find(db_util.add_mongo_id(querydict)))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def state_examination_delete(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict):
+                if querydict.has_key('_id'):
+                    if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                        existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                        if existone:
+                            collection.remove({'_id':existone['_id']})
+                            ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                        else:
+                            ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
+                    if isinstance(querydict['_id'], list):
+                        ids = db_util.add_mongo_id(querydict['_id'])
+                        cond = {'_id':{'$in':ids}}
+                        collection.remove(cond)
+                        ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if endpoint == 'state_examination_save':
+            body = state_examination_save(querydict)
+        elif endpoint == 'state_examination_query':
+            body = state_examination_query(querydict)
+        elif endpoint == 'state_examination_delete':
+            body = state_examination_delete(querydict)
+        return statuscode, headers, body
+
     headers = {}
     headerslist = []
     cookie_header = None
@@ -6417,7 +6491,10 @@ def application_webgis(environ, start_response):
                         start_response(statuscode, headerslist) 
                         return [body]
                 if not is_expire and len(sess.sid)>0:
-                    statuscode, headers, body =  handle_static(environ, path_info)
+                    if 'state_examination' in path_info:
+                        statuscode, headers, body = handle_state_examination(environ)
+                    else:
+                        statuscode, headers, body = handle_static(environ, path_info)
 
         else:
             if path_info == '/login' and gConfig['webgis']['session']['enable_session'].lower() != 'true':

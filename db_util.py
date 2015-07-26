@@ -8980,14 +8980,14 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'anti_bird':
+        elif clienttype in [ 'anti_bird', 'state_examination']:
             if not gClientMongo.has_key(clienttype) :
                 if host is None:
-                    host = gConfig['webgis']['anti_bird']['mongodb']['host']
+                    host = gConfig['webgis'][clienttype]['mongodb']['host']
                 if port is None:
-                    port = int(gConfig['webgis']['anti_bird']['mongodb']['port'])
+                    port = int(gConfig['webgis'][clienttype]['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig['webgis']['anti_bird']['mongodb']['replicaset']
+                    replicaset = gConfig['webgis'][clienttype]['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
@@ -9976,6 +9976,16 @@ def test_birdfamily():
     ret = json.dumps(ll, ensure_ascii=False, indent=4, encoding='utf-8')
     print ('aaa')
 
+def test_linename_add_huixian():
+    gClientMongo['webgis'] = MongoClient('192.168.1.8', 27017)
+    db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+    collection = db['network']
+    l = list(collection.find({"properties.name":{"$regex":"^.*回$"}}))
+    for i in l:
+        i['properties']['name'] += u'线'
+        print(i['properties']['name'])
+        # collection.save(i)
+
 def test_qinshiluxian():
     q1 = '551a30a1ca49c81a6882a1f0'
     # q1t = '551a30a1ca49c81a6882a1f1'
@@ -10269,5 +10279,6 @@ if __name__=="__main__":
     # test_antibird_tower_modify()
     # test_qinshiluxian()
     # test_birdfamily()
+    # test_linename_add_huixian()
     
     
