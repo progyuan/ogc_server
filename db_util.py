@@ -9252,7 +9252,13 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
     arr = tiletype.split('/')
     dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
     collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
-    
+    params1 = {}
+    for k in params.keys():
+        if isinstance(params[k], list) and len(params[k])>0:
+            params1[k] = params[k][0]
+        else:
+            params1[k] = params[k]
+    params = params1
     
     host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     mimetype, ret = None, None
@@ -9308,12 +9314,12 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'], params['y'], params['level']
-                if isinstance(x, list) and len(x)>0:
-                    x = x[0]
-                if isinstance(y, list) and len(y)>0:
-                    y = y[0]
-                if isinstance(level, list) and len(level)>0:
-                    level = level[0]
+                # if isinstance(x, list) and len(x)>0:
+                #     x = x[0]
+                # if isinstance(y, list) and len(y)>0:
+                #     y = y[0]
+                # if isinstance(level, list) and len(level)>0:
+                #     level = level[0]
                 s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 href = None
                 mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
