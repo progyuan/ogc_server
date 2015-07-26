@@ -9335,15 +9335,14 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                         #http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
                         if not gHttpClient.has_key('tiles'):
                             gHttpClient['tiles'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
-                        #g = gevent.spawn(http.get, url.request_uri)
-                        #g.join()
-                        #response = g.value
-                        response = gHttpClient['tiles'].get(url.request_uri)
+                        headers = {}
+                        if '.terrain' in tilepath:
+                            headers['Accept'] = 'application/vnd.quantized-mesh,application/octet-stream;q=0.9'
+                        response = gHttpClient['tiles'].get(url.request_uri, headers)
                         if response and response.status_code == 200:
                             if '.terrain' in tilepath:
                                 with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
                                     ret1 = f1.read()
-                                    #print(len(ret1))
                                 if gIsSaveTileToDB:
                                     gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
                             else:
