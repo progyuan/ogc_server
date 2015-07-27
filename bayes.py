@@ -1,8 +1,33 @@
 # -*- coding: utf-8 -*-
+import os, sys, codecs
+import itertools
+import json
 import bayesian
 from bayesian.bbn import *
 from bayesian.factor_graph import *
-# from bayesian.examples.bbns.cancer import *
+import pymongo
+from bson.objectid import ObjectId
+
+
+
+ENCODING = 'utf-8'
+ENCODING1 = 'gb18030'
+def dec(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    text, length = gb18030_decode(aStr, 'replace')
+    return text
+def enc(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    text, length = gb18030_encode(aStr, 'replace')
+    return text
+def dec1(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    text, length = gb18030_decode(aStr, 'replace')
+    return text
+def enc1(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    text, length = gb18030_encode(aStr, 'replace')
+    return text
 
 class BBNPlus(BBN):
     def __init__(self, nodes_dict, name=None, domains={}):
@@ -243,7 +268,7 @@ def test(cancer_graph):
     assert close_enough(result[('D', False)], 0)
 
 def build_cancer_condition():
-    data = {
+    cond = {
         'P':[
             [[],{'high':0.1,'low':0.9}]
         ],
@@ -289,11 +314,132 @@ def build_cancer_condition():
             }],
         ],
     }
-    return data
+    return cond
+
+def get_collection(collection):
+    ret = None
+    client = pymongo.MongoClient('192.168.1.8', 27017)
+    db = client['kmgd']
+    if not collection in db.collection_names(False):
+        ret = db.create_collection(collection)
+    else:
+        ret = db[collection]
+    return ret
+
+def get_state_examination_data_by_line_name(line_name):
+    collection = get_collection('state_examination')
+    return list(collection.find({'line_name':line_name}))
+
+def build_state_examination_condition(line_name):
+    def calc_probability1(data, field_name, field_value):
+        def filterfunc(item):
+            return item[field_name] == field_value
+        ret = 0.0
+        cnt = len(data)
+        l = filter(filterfunc, data)
+        if cnt > 0:
+            ret = float(len(l))/float(cnt)
+        return ret
+
+    def calc_probability2(data, *args):#[{'name':'aaa', 'value':'I'},{'name':'bbb', 'value':'II'}]
+        def filterfunc(item):
+            ret = True
+            for i in args:
+                ret = ret and (item[i['name']] == i['value'])
+            return ret
+        ret = 0.0
+        cnt = len(data)
+        l = filter(filterfunc, data)
+        if cnt > 0:
+            ret = float(len(l))/float(cnt)
+        return ret
 
 
+    def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'III', 'IV']}{'name':'bbb', 'range':['I', 'II', 'III', 'IV']}]
+        def pairwise(iterable):
+            for (i, thing) in enumerate(iterable):
+                if i % 2 == 0:
+                    yield [thing, iterable[i+1]]
+        def dictwise(iterable):
+            for (i, thing) in enumerate(iterable):
+                if i % 2 == 0:
+                    yield {'name':thing, 'value':iterable[i+1]}
+        retname, retlist = '', []
+        args = list(args)
+        name0 = args[0]['name']
+        range0 = args[0]['range']
+        args1 = args[:]
+        del args1[0]
+        namelist1 = [[i['name'],] for i in args1]
+        rangelist1 = [i['range'] for i in args1]
+        for i in args:
+            retname += '%s$' % i['name']
+        retname = retname[:-1]
+        t = zip(namelist1, rangelist1)
+        t = list(itertools.chain.from_iterable(t))
+        # print(t)
+        iterlist = itertools.product(*t)
+        for i in iterlist:
+            l = []
+            p = pairwise(i)
+            # pp = list(p)
+            # print(pp)
+            l.append(list(p))
+            d = dictwise(i)
+            o = {}
+            for j in range0:
+                dd = [{'name':name0, 'value':j}]
+                for k in d:
+                    dd.append(k)
+                print(dd)
+                o[j] = calc_probability2(data, *dd)
+            l.append(o)
+            retlist.append(l)
 
-if __name__ == '__main__':
+
+        return retname, retlist
+
+    def calc_probability_combo_line_unit(data, unit_index):
+        return calc_probability_combo(data, {'name':'line_state', 'range':['I', 'II', 'III', 'IV']}, {'name':'unit_%d' % unit_index, 'range':['I', 'II', 'III', 'IV']})
+
+    data = get_state_examination_data_by_line_name(line_name)
+    cond = {}
+    for i in range(1, 9):
+        cond['unit_%d' % i] = [
+            [[],{
+                'I':  calc_probability1(data, 'unit_%d' % i, 'I'),
+                'II': calc_probability1(data, 'unit_%d' % i, 'II'),
+                'III':calc_probability1(data, 'unit_%d' % i, 'III'),
+                'IV': calc_probability1(data, 'unit_%d' % i, 'IV'),
+                 }
+             ]
+        ]
+    cond['line_state'] = [
+        [[],{
+            'I':  calc_probability1(data, 'line_state', 'I'),
+            'II': calc_probability1(data, 'line_state', 'II'),
+            'III':calc_probability1(data, 'line_state', 'III'),
+            'IV': calc_probability1(data, 'line_state', 'IV'),
+             }
+         ]
+    ]
+    for i in range(1, 9):
+        retname, retlist = calc_probability_combo_line_unit(data, i)
+        cond[retname] = retlist
+    return cond
+
+
+def test_se():
+    cond = build_state_examination_condition(u'七罗I回线')
+    # print(cond.keys())
+    s = json.dumps(cond,  ensure_ascii=True, indent=4)
+    print(s)
+    g = build_bbn_from_conditionals_plus(cond)
+    print(g.get_graphviz_source_plus())
+    # fg = build_graph_from_conditionals_plus(cond)
+    # print(fg.export_plus(None))
+
+def test_bayes():
     cond = build_cancer_condition()
     g = build_bbn_from_conditionals_plus(cond)
     # test(g)
@@ -321,3 +467,6 @@ if __name__ == '__main__':
     # print(g.get_graphviz_source())
     # g.q()
 
+
+if __name__ == '__main__':
+    test_se()

@@ -229,15 +229,7 @@ def test():
         f.write(ret)
     split_xml()
     
-    
+
 
 if __name__ == "__main__":
-    #print(get_params_from_xml(XML))
-    #root = etree.XML(XML)
-    #print(etree.tostring(root, pretty_print=True))
-    #merge_xml1()
-    #d = build_dict()
-    #print_dict(d)
-    test()
-    #print(data_create())
-    
+    pass

@@ -1449,108 +1449,108 @@ def handle_get_method(environ):
         isgrid = True
     if querydict.has_key('area'):
         area = querydict['area']
-    if querydict.has_key('geojson'):
-        if querydict['geojson']=='line_towers':
-            data = db_util.gen_geojson_by_lines(area)
-            s = json.dumps(data, ensure_ascii=True, indent=4)        
-        elif querydict['geojson']=='tracks':
-            data = db_util.gen_geojson_tracks(area)
-            s = json.dumps(data, ensure_ascii=True, indent=4)        
-        else:
-            k = querydict['geojson']
-            p = os.path.abspath(STATICRESOURCE_DIR)
-            if k == 'potential_risk':
-                k = 'geojson_%s_%s' % (k, area)
-            p = os.path.join(p, 'geojson', area, '%s.json' % k)
-            #print(p)
-            if os.path.exists(p):
-                with open(p) as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, 'r')
-                    s = f1.read()
-            else:
-                p = os.path.abspath(STATICRESOURCE_DIR)
-                p = os.path.join(p, 'geojson', '%s.json' % k)
-                if os.path.exists(p):
-                    with open(p) as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'r')
-                        s = f1.read()
+    # if querydict.has_key('geojson'):
+    #     if querydict['geojson']=='line_towers':
+    #         data = db_util.gen_geojson_by_lines(area)
+    #         s = json.dumps(data, ensure_ascii=True, indent=4)
+    #     elif querydict['geojson']=='tracks':
+    #         data = db_util.gen_geojson_tracks(area)
+    #         s = json.dumps(data, ensure_ascii=True, indent=4)
+    #     else:
+    #         k = querydict['geojson']
+    #         p = os.path.abspath(STATICRESOURCE_DIR)
+    #         if k == 'potential_risk':
+    #             k = 'geojson_%s_%s' % (k, area)
+    #         p = os.path.join(p, 'geojson', area, '%s.json' % k)
+    #         #print(p)
+    #         if os.path.exists(p):
+    #             with open(p) as f:
+    #                 f1 = gevent.fileobject.FileObjectThread(f, 'r')
+    #                 s = f1.read()
+    #         else:
+    #             p = os.path.abspath(STATICRESOURCE_DIR)
+    #             p = os.path.join(p, 'geojson', '%s.json' % k)
+    #             if os.path.exists(p):
+    #                 with open(p) as f:
+    #                     f1 = gevent.fileobject.FileObjectThread(f, 'r')
+    #                     s = f1.read()
+    #
+    #
+    #
+    # if querydict.has_key('table'):
+    #     table = querydict['table']
+    #     dbtype = 'odbc'
+    #     if querydict.has_key('dbtype'):
+    #         dbtype = querydict['dbtype']
+    #
+    #     if dbtype == 'pg':
+    #         data = db_util.pg_get_records(table, get_condition_from_dict(querydict))
+    #     else:
+    #         data = db_util.odbc_get_records(table, get_condition_from_dict(querydict), area)
+    #         if table in ['TABLE_TOWER']:
+    #             if querydict.has_key('line_id'):
+    #                 data = db_util.odbc_get_sorted_tower_by_line(querydict['line_id'], area)
+    #
+    #     if isgrid:
+    #         data = {'Rows':data}
+    #     s = json.dumps(data, ensure_ascii=True, indent=4)
         
-        
-        
-    if querydict.has_key('table'):
-        table = querydict['table']
-        dbtype = 'odbc'
-        if querydict.has_key('dbtype'):
-            dbtype = querydict['dbtype']
-            
-        if dbtype == 'pg':
-            data = db_util.pg_get_records(table, get_condition_from_dict(querydict))
-        else:
-            data = db_util.odbc_get_records(table, get_condition_from_dict(querydict), area)
-            if table in ['TABLE_TOWER']:
-                if querydict.has_key('line_id'):
-                    data = db_util.odbc_get_sorted_tower_by_line(querydict['line_id'], area)
-                
-        if isgrid:
-            data = {'Rows':data}
-        s = json.dumps(data, ensure_ascii=True, indent=4)
-        
-    if querydict.has_key('check_file'):
-        fn = querydict['check_file']
-        dir_name = querydict['dir_name']
-        ret["result"] = {}
-        ret["result"]["filename"] = fn
-        if dir_name == 'voice':
-            if check_voice_file_by_fault(fn):
-                ret["result"]["exist"] = "true"
-            else:
-                ret["result"]["exist"] = "false"
-        else:
-            if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
-                ret["result"]["exist"] = "true"
-            else:
-                ret["result"]["exist"] = "false"
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('delete_file'):
-        fn = querydict['delete_file']
-        dir_name = querydict['dir_name']
-        ret["result"] = {}
-        ret["result"]["filename"] = fn
-        if dir_name == 'voice':
-            pl = get_voice_file_by(fn)
-            if len(pl)>0:
-                for i in pl:
-                    p = os.path.join(UPLOAD_VOICE_DIR, fn)
-                    if os.path.exists(p):
-                        os.remove(p)
-                ret["result"]["removed"] = "true"
-            else:
-                ret["result"]["removed"] = "false"
-                
-        else:
-            p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
-            if os.path.exists(p):
-                os.remove(p)
-                ret["result"]["removed"] = "true"
-            else:
-                ret["result"]["removed"] = "false"
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('list_file_dir_name'):
-        dir_name = querydict['list_file_dir_name']
-        ret["result"] = {}
-        ret["result"]["dirs"] = [dir_name, ]
-        p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name)
-        if os.path.exists(p):
-            l = os.listdir(p)
-            ret["result"]["files"] = l
-        else:
-            ret["result"]["files"] = []
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('get_voice_files'):
-        get_voice_files = querydict['get_voice_files']
-        ret["result"] = {}
-        ret["result"]["ids"] = get_voice_file_all()
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('check_file'):
+    #     fn = querydict['check_file']
+    #     dir_name = querydict['dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["filename"] = fn
+    #     if dir_name == 'voice':
+    #         if check_voice_file_by_fault(fn):
+    #             ret["result"]["exist"] = "true"
+    #         else:
+    #             ret["result"]["exist"] = "false"
+    #     else:
+    #         if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
+    #             ret["result"]["exist"] = "true"
+    #         else:
+    #             ret["result"]["exist"] = "false"
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('delete_file'):
+    #     fn = querydict['delete_file']
+    #     dir_name = querydict['dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["filename"] = fn
+    #     if dir_name == 'voice':
+    #         pl = get_voice_file_by(fn)
+    #         if len(pl)>0:
+    #             for i in pl:
+    #                 p = os.path.join(UPLOAD_VOICE_DIR, fn)
+    #                 if os.path.exists(p):
+    #                     os.remove(p)
+    #             ret["result"]["removed"] = "true"
+    #         else:
+    #             ret["result"]["removed"] = "false"
+    #
+    #     else:
+    #         p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
+    #         if os.path.exists(p):
+    #             os.remove(p)
+    #             ret["result"]["removed"] = "true"
+    #         else:
+    #             ret["result"]["removed"] = "false"
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('list_file_dir_name'):
+    #     dir_name = querydict['list_file_dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["dirs"] = [dir_name, ]
+    #     p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name)
+    #     if os.path.exists(p):
+    #         l = os.listdir(p)
+    #         ret["result"]["files"] = l
+    #     else:
+    #         ret["result"]["files"] = []
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('get_voice_files'):
+    #     get_voice_files = querydict['get_voice_files']
+    #     ret["result"] = {}
+    #     ret["result"]["ids"] = get_voice_file_all()
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
     if querydict.has_key('op'):
         op = querydict['op']
         if op == "gridfs":
