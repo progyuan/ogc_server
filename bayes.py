@@ -9,7 +9,7 @@ import pymongo
 from bson.objectid import ObjectId
 
 
-
+gP_LINE_UNIT = {}
 ENCODING = 'utf-8'
 ENCODING1 = 'gb18030'
 def dec(aStr):
@@ -414,6 +414,9 @@ def build_state_examination_condition(line_name):
                  }
              ]
         ]
+    # o = calc_probability_line()
+    # if o.has_key('line_state'):
+    #     cond['line_state'] = o['line_state']
     cond['line_state'] = [
         [[],{
             'I':  calc_probability1(data, 'line_state', 'I'),
@@ -423,9 +426,10 @@ def build_state_examination_condition(line_name):
              }
          ]
     ]
-    for i in range(1, 9):
-        retname, retlist = calc_probability_combo_line_unit(data, i)
-        cond[retname] = retlist
+    o1 = calc_probability_line_unit()
+    for k in o1.keys():
+        # retname, retlist = calc_probability_combo_line_unit(data, i)
+        cond[k] = o1[k]
     return cond
 
 
@@ -467,6 +471,122 @@ def test_bayes():
     # print(g.get_graphviz_source())
     # g.q()
 
+def calc_probability_line():
+    def get_max_level(alist):
+        l = [int(i) for i in alist]
+        return max(l)
+    def get_level(idx):
+        ret = ''
+        if idx == 1:
+            ret = 'I'
+        if idx == 2:
+            ret = 'II'
+        if idx == 3:
+            ret = 'III'
+        if idx == 4:
+            ret = 'IV'
+        return ret
+    retname, retlist = 'line_state', []
+    ret = {}
+    l = []
+    for i in range(8):
+        l.append(['1', '2', '3', '4'])
+    iterator = itertools.product(*l)
+    total = 0
+    total_map = {}
+
+    for it in iterator:
+        for i in range(1, 5):
+            if get_max_level(it) == i:
+                if not total_map.has_key(str(i)):
+                    total_map[str(i)] = 0
+                total_map[str(i)] += 1
+        total += 1
+    o = {}
+    for i in range(1, 5):
+        p = float(total_map[str(i)])/float(total)
+        o[get_level(i)] = p
+        print('%f' % p)
+
+    retlist.append([[], o])
+    ret[retname] = retlist
+    return ret
+
+
+def calc_probability_line_unit():
+    def get_max_level(alist):
+        l = [int(i) for i in alist]
+        return max(l)
+    def check_is_equal(alist, *args):
+        ret = True
+        for i in args:
+            if isinstance(i, dict):
+                ret = ret and (alist[i['unit_index']-1] == i['unit_level'])
+            else:
+                raise Exception('args must be tuple of dict')
+        return ret
+    def get_level(idx):
+        ret = ''
+        if idx == 1:
+            ret = 'I'
+        if idx == 2:
+            ret = 'II'
+        if idx == 3:
+            ret = 'III'
+        if idx == 4:
+            ret = 'IV'
+        return ret
+    # retname, retlist = 'line_state$unit_%d' % unit_index, []
+    ret = {}
+    l = []
+    for i in range(8):
+        l.append(['1', '2', '3', '4'])
+    iterator = itertools.product(*l)
+    total = 0
+    total_map = {}
+
+    unit_index = 1
+    for it in iterator:
+        max_line_level = get_max_level(it)
+        for unit_level in range(1, 5):
+            key_unit_level = 'unit|%d' %  unit_level
+            if not total_map.has_key(key_unit_level):
+                total_map[key_unit_level] = 0
+            if check_is_equal(it, {'unit_index':unit_index, 'unit_level':str(unit_level)}):
+                total_map[key_unit_level] += 1
+            for line_level in range(1, 5):
+                key = 'line|%d|unit|%d' % (line_level,  unit_level)
+                if not total_map.has_key(key):
+                    total_map[key] = 0
+                if line_level == max_line_level:
+                    if check_is_equal(it, {'unit_index':unit_index, 'unit_level':str(unit_level)}):
+                        total_map[key] += 1
+        total += 1
+
+    for unit_index in range(1, 9):
+        list1 = []
+        for unit_level in range(1, 5):
+            list2 = []
+            list2.append([['unit_%d' % unit_index, get_level(unit_level)]])
+            o = {}
+            for line_level in range(1, 5):
+                key_unit_level = 'unit|%d' % unit_level
+                key = 'line|%d|unit|%d' % (line_level,  unit_level)
+                if total_map.has_key(key):
+                    o[get_level(line_level)] = float(total_map[key])/float(total_map[key_unit_level])
+                else:
+                    o[get_level(line_level)] = 0.0
+            list2.append(o)
+            list1.append(list2)
+        ret['line_state$unit_%d' % unit_index] = list1
+    return ret
 
 if __name__ == '__main__':
     test_se()
+    # n, l = calc_probability_line()
+    # print(json.dumps(l, ensure_ascii=True, indent=4))
+    # o = calc_probability_line_unit()
+    # print(json.dumps(o, ensure_ascii=True, indent=4))
+
+
+
