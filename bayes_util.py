@@ -9,7 +9,7 @@ import pymongo
 from bson.objectid import ObjectId
 
 
-gP_LINE_UNIT = {}
+P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
 ENCODING = 'utf-8'
 ENCODING1 = 'gb18030'
 def dec(aStr):
@@ -395,12 +395,8 @@ def build_state_examination_condition(line_name):
                 o[j] = calc_probability2(data, *dd)
             l.append(o)
             retlist.append(l)
-
-
         return retname, retlist
 
-    def calc_probability_combo_line_unit(data, unit_index):
-        return calc_probability_combo(data, {'name':'line_state', 'range':['I', 'II', 'III', 'IV']}, {'name':'unit_%d' % unit_index, 'range':['I', 'II', 'III', 'IV']})
 
     data = get_state_examination_data_by_line_name(line_name)
     cond = {}
@@ -417,18 +413,17 @@ def build_state_examination_condition(line_name):
     # o = calc_probability_line()
     # if o.has_key('line_state'):
     #     cond['line_state'] = o['line_state']
-    cond['line_state'] = [
-        [[],{
-            'I':  calc_probability1(data, 'line_state', 'I'),
-            'II': calc_probability1(data, 'line_state', 'II'),
-            'III':calc_probability1(data, 'line_state', 'III'),
-            'IV': calc_probability1(data, 'line_state', 'IV'),
-             }
-         ]
-    ]
+    # cond['line_state'] = [
+    #     [[],{
+    #         'I':  calc_probability1(data, 'line_state', 'I'),
+    #         'II': calc_probability1(data, 'line_state', 'II'),
+    #         'III':calc_probability1(data, 'line_state', 'III'),
+    #         'IV': calc_probability1(data, 'line_state', 'IV'),
+    #          }
+    #      ]
+    # ]
     o1 = calc_probability_line_unit()
     for k in o1.keys():
-        # retname, retlist = calc_probability_combo_line_unit(data, i)
         cond[k] = o1[k]
     return cond
 
@@ -436,10 +431,11 @@ def build_state_examination_condition(line_name):
 def test_se():
     cond = build_state_examination_condition(u'七罗I回线')
     # print(cond.keys())
-    s = json.dumps(cond,  ensure_ascii=True, indent=4)
-    print(s)
+    # s = json.dumps(cond,  ensure_ascii=True, indent=4)
+    # print(s)
     g = build_bbn_from_conditionals_plus(cond)
     print(g.get_graphviz_source_plus())
+    # g.q(line_state='II')
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
 
@@ -472,20 +468,6 @@ def test_bayes():
     # g.q()
 
 def calc_probability_line():
-    def get_max_level(alist):
-        l = [int(i) for i in alist]
-        return max(l)
-    def get_level(idx):
-        ret = ''
-        if idx == 1:
-            ret = 'I'
-        if idx == 2:
-            ret = 'II'
-        if idx == 3:
-            ret = 'III'
-        if idx == 4:
-            ret = 'IV'
-        return ret
     retname, retlist = 'line_state', []
     ret = {}
     l = []
@@ -505,88 +487,119 @@ def calc_probability_line():
     o = {}
     for i in range(1, 5):
         p = float(total_map[str(i)])/float(total)
-        o[get_level(i)] = p
+        o[get_level_name(i)] = p
         print('%f' % p)
 
     retlist.append([[], o])
     ret[retname] = retlist
     return ret
 
+def get_max_level(alist):
+    l = [int(i) for i in alist]
+    return max(l)
+def check_is_equal(alist, *args):
+    ret = True
+    for i in args:
+        if isinstance(i, dict):
+            ret = ret and (alist[i['unit_index']-1] == i['unit_level'])
+        else:
+            raise Exception('args must be tuple of dict')
+    return ret
+def get_level_name(idx):
+    if isinstance(idx, str) or isinstance(idx, unicode):
+        idx = int(idx)
+    ret = ''
+    if idx == 1:
+        ret = 'I'
+    if idx == 2:
+        ret = 'II'
+    if idx == 3:
+        ret = 'III'
+    if idx == 4:
+        ret = 'IV'
+    return ret
+
 
 def calc_probability_line_unit():
-    def get_max_level(alist):
-        l = [int(i) for i in alist]
-        return max(l)
-    def check_is_equal(alist, *args):
-        ret = True
-        for i in args:
-            if isinstance(i, dict):
-                ret = ret and (alist[i['unit_index']-1] == i['unit_level'])
-            else:
-                raise Exception('args must be tuple of dict')
-        return ret
-    def get_level(idx):
-        ret = ''
-        if idx == 1:
-            ret = 'I'
-        if idx == 2:
-            ret = 'II'
-        if idx == 3:
-            ret = 'III'
-        if idx == 4:
-            ret = 'IV'
-        return ret
-    # retname, retlist = 'line_state$unit_%d' % unit_index, []
     ret = {}
-    l = []
-    for i in range(8):
-        l.append(['1', '2', '3', '4'])
-    iterator = itertools.product(*l)
-    total = 0
-    total_map = {}
-
-    unit_index = 1
-    for it in iterator:
-        max_line_level = get_max_level(it)
-        for unit_level in range(1, 5):
-            key_unit_level = 'unit|%d' %  unit_level
-            if not total_map.has_key(key_unit_level):
-                total_map[key_unit_level] = 0
-            if check_is_equal(it, {'unit_index':unit_index, 'unit_level':str(unit_level)}):
-                total_map[key_unit_level] += 1
-            for line_level in range(1, 5):
-                key = 'line|%d|unit|%d' % (line_level,  unit_level)
-                if not total_map.has_key(key):
-                    total_map[key] = 0
-                if line_level == max_line_level:
-                    if check_is_equal(it, {'unit_index':unit_index, 'unit_level':str(unit_level)}):
-                        total_map[key] += 1
-        total += 1
-
-    for unit_index in range(1, 9):
+    if os.path.exists(P_LINE_UNIT_PATH):
+        with open(P_LINE_UNIT_PATH) as f:
+            ret = json.load(f)
+    else:
+        l = []
+        for i in range(8):
+            l.append(['1', '2', '3', '4'])
+        iterator = itertools.product(*l)
+        total = 0
+        total_map = {}
         list1 = []
-        for unit_level in range(1, 5):
+        for it in iterator:
+            max_line_level = get_max_level(it)
             list2 = []
-            list2.append([['unit_%d' % unit_index, get_level(unit_level)]])
+            list3 = []
+            idx = 0
+            for i in it:
+                list3.append(['unit_%d' % (idx+1), get_level_name(i)])
+                idx += 1
+            list2.append(list3)
             o = {}
-            for line_level in range(1, 5):
-                key_unit_level = 'unit|%d' % unit_level
-                key = 'line|%d|unit|%d' % (line_level,  unit_level)
-                if total_map.has_key(key):
-                    o[get_level(line_level)] = float(total_map[key])/float(total_map[key_unit_level])
-                else:
-                    o[get_level(line_level)] = 0.0
+            for i in range(1, 5):
+                o[get_level_name(i)] = 0.0
+            o[get_level_name(max_line_level)] = 1.0
             list2.append(o)
             list1.append(list2)
-        ret['line_state$unit_%d' % unit_index] = list1
+            total += 1
+        ret['line_state'] = list1
+        with open(P_LINE_UNIT_PATH, 'w') as f:
+            json.dump(ret, f, ensure_ascii=True)
     return ret
+
+
+
+def get_all_combinations(max_num):
+    def filter_func(item):
+        ret = False
+        if len(item) == 1:
+            ret = True
+        elif len(item) > 1:
+            names = []
+            for i in item:
+                if i[0] in names:
+                    ret = False
+                    break
+                else:
+                    names.append(i[0])
+            if len(item) == len(names):
+                ret = True
+        return ret
+    ret = []
+    # p = list(itertools.product(['unit_1','unit_2','unit_3','unit_4','unit_5','unit_6','unit_7','unit_8'], ['1', '2', '3', '4']))
+    p = list(itertools.product(['1','2','3','4','5','6','7','8'], ['1', '2', '3', '4']))
+    for i in range(1, max_num+1):
+        list1 = []
+        for j in itertools.combinations(p, i):
+            if filter_func(j):
+                list1.append(j)
+        ret.extend(list1)
+        # print('%d:%d' % (i, len(ret)))
+    return ret
+
+
 
 if __name__ == '__main__':
     test_se()
+    # test_bayes()
     # n, l = calc_probability_line()
     # print(json.dumps(l, ensure_ascii=True, indent=4))
     # o = calc_probability_line_unit()
     # print(json.dumps(o, ensure_ascii=True, indent=4))
+    # o = get_all_combinations()
+    # print(len(o))
+    # print(o)
+    # with open(ur'd:\aaa.json', 'w') as f:
+    #     f.write(json.dumps(o, ensure_ascii=True, indent=4))
+
+
 
 
 
