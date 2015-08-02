@@ -10,32 +10,32 @@ from bson.objectid import ObjectId
 
 
 P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
-ENCODING = 'utf-8'
-ENCODING1 = 'gb18030'
-def dec(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_decode(aStr, 'replace')
-    return text
-def enc(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
-def dec1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_decode(aStr, 'replace')
-    return text
-def enc1(aStr):
-    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-    text, length = gb18030_encode(aStr, 'replace')
-    return text
+# ENCODING = 'utf-8'
+# ENCODING1 = 'gb18030'
+# def dec(aStr):
+#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+#     text, length = gb18030_decode(aStr, 'replace')
+#     return text
+# def enc(aStr):
+#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+#     text, length = gb18030_encode(aStr, 'replace')
+#     return text
+# def dec1(aStr):
+#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+#     text, length = gb18030_decode(aStr, 'replace')
+#     return text
+# def enc1(aStr):
+#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+#     text, length = gb18030_encode(aStr, 'replace')
+#     return text
 
 class BBNPlus(BBN):
     def __init__(self, nodes_dict, name=None, domains={}):
         BBN.__init__(self, nodes_dict, name=None, domains={})
-    def get_graphviz_source_plus(self):
+    def get_graphviz_source_plus(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('digraph G {\n')
-        fh.write('  graph [ dpi = 100 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in sorted(self.nodes, key=lambda x: x.name):
             fh.write('  %s [ shape="ellipse" color="blue"];\n' % node.name)
@@ -330,110 +330,102 @@ def get_state_examination_data_by_line_name(line_name):
     collection = get_collection('state_examination')
     return list(collection.find({'line_name':line_name}))
 
-def build_state_examination_condition(line_name):
-    def calc_probability1(data, field_name, field_value):
-        def filterfunc(item):
-            return item[field_name] == field_value
-        ret = 0.0
-        cnt = len(data)
-        l = filter(filterfunc, data)
-        if cnt > 0:
-            ret = float(len(l))/float(cnt)
-        return ret
 
-    def calc_probability2(data, *args):#[{'name':'aaa', 'value':'I'},{'name':'bbb', 'value':'II'}]
-        def filterfunc(item):
-            ret = True
-            for i in args:
-                ret = ret and (item[i['name']] == i['value'])
-            return ret
-        ret = 0.0
-        cnt = len(data)
-        l = filter(filterfunc, data)
-        if cnt > 0:
-            ret = float(len(l))/float(cnt)
-        return ret
+def calc_probability1(data, field_name, field_value):
+    def filterfunc(item):
+        return item[field_name] == field_value
+    ret = 0.0
+    cnt = len(data)
+    l = filter(filterfunc, data)
+    if cnt > 0:
+        ret = float(len(l))/float(cnt)
+    return ret
 
-
-    def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'III', 'IV']}{'name':'bbb', 'range':['I', 'II', 'III', 'IV']}]
-        def pairwise(iterable):
-            for (i, thing) in enumerate(iterable):
-                if i % 2 == 0:
-                    yield [thing, iterable[i+1]]
-        def dictwise(iterable):
-            for (i, thing) in enumerate(iterable):
-                if i % 2 == 0:
-                    yield {'name':thing, 'value':iterable[i+1]}
-        retname, retlist = '', []
-        args = list(args)
-        name0 = args[0]['name']
-        range0 = args[0]['range']
-        args1 = args[:]
-        del args1[0]
-        namelist1 = [[i['name'],] for i in args1]
-        rangelist1 = [i['range'] for i in args1]
+def calc_probability2(data, *args):#[{'name':'aaa', 'value':'I'},{'name':'bbb', 'value':'II'}]
+    def filterfunc(item):
+        ret = True
         for i in args:
-            retname += '%s$' % i['name']
-        retname = retname[:-1]
-        t = zip(namelist1, rangelist1)
-        t = list(itertools.chain.from_iterable(t))
-        # print(t)
-        iterlist = itertools.product(*t)
-        for i in iterlist:
-            l = []
-            p = pairwise(i)
-            # pp = list(p)
-            # print(pp)
-            l.append(list(p))
-            d = dictwise(i)
-            o = {}
-            for j in range0:
-                dd = [{'name':name0, 'value':j}]
-                for k in d:
-                    dd.append(k)
-                print(dd)
-                o[j] = calc_probability2(data, *dd)
-            l.append(o)
-            retlist.append(l)
-        return retname, retlist
+            ret = ret and (item[i['name']] == i['value'])
+        return ret
+    ret = 0.0
+    cnt = len(data)
+    l = filter(filterfunc, data)
+    if cnt > 0:
+        ret = float(len(l))/float(cnt)
+    return ret
 
 
+def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'III', 'IV']}{'name':'bbb', 'range':['I', 'II', 'III', 'IV']}]
+    def pairwise(iterable):
+        for (i, thing) in enumerate(iterable):
+            if i % 2 == 0:
+                yield [thing, iterable[i+1]]
+    def dictwise(iterable):
+        for (i, thing) in enumerate(iterable):
+            if i % 2 == 0:
+                yield {'name':thing, 'value':iterable[i+1]}
+    retname, retlist = '', []
+    args = list(args)
+    name0 = args[0]['name']
+    range0 = args[0]['range']
+    args1 = args[:]
+    del args1[0]
+    namelist1 = [[i['name'],] for i in args1]
+    rangelist1 = [i['range'] for i in args1]
+    for i in args:
+        retname += '%s$' % i['name']
+    retname = retname[:-1]
+    t = zip(namelist1, rangelist1)
+    t = list(itertools.chain.from_iterable(t))
+    # print(t)
+    iterlist = itertools.product(*t)
+    for i in iterlist:
+        l = []
+        p = pairwise(i)
+        # pp = list(p)
+        # print(pp)
+        l.append(list(p))
+        d = dictwise(i)
+        o = {}
+        for j in range0:
+            dd = [{'name':name0, 'value':j}]
+            for k in d:
+                dd.append(k)
+            print(dd)
+            o[j] = calc_probability2(data, *dd)
+        l.append(o)
+        retlist.append(l)
+    return retname, retlist
+
+def build_state_examination_condition(line_name):
     data = get_state_examination_data_by_line_name(line_name)
     cond = {}
-    for i in range(1, 9):
-        cond['unit_%d' % i] = [
-            [[],{
-                'I':  calc_probability1(data, 'unit_%d' % i, 'I'),
-                'II': calc_probability1(data, 'unit_%d' % i, 'II'),
-                'III':calc_probability1(data, 'unit_%d' % i, 'III'),
-                'IV': calc_probability1(data, 'unit_%d' % i, 'IV'),
-                 }
-             ]
-        ]
-    # o = calc_probability_line()
-    # if o.has_key('line_state'):
-    #     cond['line_state'] = o['line_state']
-    # cond['line_state'] = [
-    #     [[],{
-    #         'I':  calc_probability1(data, 'line_state', 'I'),
-    #         'II': calc_probability1(data, 'line_state', 'II'),
-    #         'III':calc_probability1(data, 'line_state', 'III'),
-    #         'IV': calc_probability1(data, 'line_state', 'IV'),
-    #          }
-    #      ]
-    # ]
-    o1 = calc_probability_line_unit()
-    for k in o1.keys():
-        cond[k] = o1[k]
+    o = calc_probability_unit(data)
+    for k in o.keys():
+        cond[k] = o[k]
+    o = calc_probability_line()
+    for k in o.keys():
+        cond[k] = o[k]
     return cond
 
+def build_additional_condition(line_name, cond):
+    ret = cond
+    collection = get_collection('bayesian_nodes')
+    l = list(collection.find({'line_name':line_name}))
+    for node in l:
+        # name = node['name']
+        # domains = node['domains']
+        ret[node['name']] = node['conditions']
+    return ret
+
+def create_bbn_by_line_name(line_name):
+    cond = build_state_examination_condition(line_name)
+    cond = build_additional_condition(line_name, cond)
+    g = build_bbn_from_conditionals_plus(cond)
+    return g
 
 def test_se():
-    cond = build_state_examination_condition(u'七罗I回线')
-    # print(cond.keys())
-    # s = json.dumps(cond,  ensure_ascii=True, indent=4)
-    # print(s)
-    g = build_bbn_from_conditionals_plus(cond)
+    g = create_bbn_by_line_name(u'七罗I回线')
     print(g.get_graphviz_source_plus())
     # g.q(line_state='II')
     # fg = build_graph_from_conditionals_plus(cond)
@@ -467,32 +459,32 @@ def test_bayes():
     # print(g.get_graphviz_source())
     # g.q()
 
-def calc_probability_line():
-    retname, retlist = 'line_state', []
-    ret = {}
-    l = []
-    for i in range(8):
-        l.append(['1', '2', '3', '4'])
-    iterator = itertools.product(*l)
-    total = 0
-    total_map = {}
-
-    for it in iterator:
-        for i in range(1, 5):
-            if get_max_level(it) == i:
-                if not total_map.has_key(str(i)):
-                    total_map[str(i)] = 0
-                total_map[str(i)] += 1
-        total += 1
-    o = {}
-    for i in range(1, 5):
-        p = float(total_map[str(i)])/float(total)
-        o[get_level_name(i)] = p
-        print('%f' % p)
-
-    retlist.append([[], o])
-    ret[retname] = retlist
-    return ret
+# def calc_probability_line():
+#     retname, retlist = 'line_state', []
+#     ret = {}
+#     l = []
+#     for i in range(8):
+#         l.append(['1', '2', '3', '4'])
+#     iterator = itertools.product(*l)
+#     total = 0
+#     total_map = {}
+#
+#     for it in iterator:
+#         for i in range(1, 5):
+#             if get_max_level(it) == i:
+#                 if not total_map.has_key(str(i)):
+#                     total_map[str(i)] = 0
+#                 total_map[str(i)] += 1
+#         total += 1
+#     o = {}
+#     for i in range(1, 5):
+#         p = float(total_map[str(i)])/float(total)
+#         o[get_level_name(i)] = p
+#         print('%f' % p)
+#
+#     retlist.append([[], o])
+#     ret[retname] = retlist
+#     return ret
 
 def get_max_level(alist):
     l = [int(i) for i in alist]
@@ -520,7 +512,22 @@ def get_level_name(idx):
     return ret
 
 
-def calc_probability_line_unit():
+def calc_probability_unit(data):
+    ret = {}
+    for i in range(1, 9):
+        ret['unit_%d' % i] = [
+            [[],{
+                'I':  calc_probability1(data, 'unit_%d' % i, 'I'),
+                'II': calc_probability1(data, 'unit_%d' % i, 'II'),
+                'III':calc_probability1(data, 'unit_%d' % i, 'III'),
+                'IV': calc_probability1(data, 'unit_%d' % i, 'IV'),
+                 }
+             ]
+        ]
+    return ret
+
+
+def calc_probability_line():
     ret = {}
     if os.path.exists(P_LINE_UNIT_PATH):
         with open(P_LINE_UNIT_PATH) as f:
@@ -554,8 +561,6 @@ def calc_probability_line_unit():
             json.dump(ret, f, ensure_ascii=True)
     return ret
 
-
-
 def get_all_combinations(max_num):
     def filter_func(item):
         ret = False
@@ -573,7 +578,6 @@ def get_all_combinations(max_num):
                 ret = True
         return ret
     ret = []
-    # p = list(itertools.product(['unit_1','unit_2','unit_3','unit_4','unit_5','unit_6','unit_7','unit_8'], ['1', '2', '3', '4']))
     p = list(itertools.product(['1','2','3','4','5','6','7','8'], ['1', '2', '3', '4']))
     for i in range(1, max_num+1):
         list1 = []
@@ -587,7 +591,8 @@ def get_all_combinations(max_num):
 
 
 if __name__ == '__main__':
-    test_se()
+    # test_se()
+    pass
     # test_bayes()
     # n, l = calc_probability_line()
     # print(json.dumps(l, ensure_ascii=True, indent=4))

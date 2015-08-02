@@ -81,6 +81,7 @@ from werkzeug.routing import Map, Rule, BaseConverter, ValidationError, HTTPExce
 from sessions import MongoClient, MongodbSessionStore
 import configobj
 import db_util
+import bayes_util
 from module_locator import module_path, dec, dec1, enc, enc1
 
 
@@ -222,6 +223,11 @@ gUrlMap = Map([
     Rule('/state_examination/query', endpoint='state_examination_query'),
     Rule('/state_examination/delete', endpoint='state_examination_delete'),
     Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
+    Rule('/bayesian/query/graphiz', endpoint='bayesian_query_graphiz'),
+    Rule('/bayesian/query/node', endpoint='bayesian_query_node'),
+    Rule('/bayesian/save/node', endpoint='bayesian_save_node'),
+    Rule('/bayesian/delete/node', endpoint='bayesian_delete_node'),
+    Rule('/bayesian/delete/node/<_id>', endpoint='bayesian_delete_node'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -6379,6 +6385,55 @@ def application_webgis(environ, start_response):
             body = state_examination_delete(querydict)
         return statuscode, headers, body
 
+    def handle_bayesian(environ):
+        def get_collection(collection):
+            ret = None
+            db_util.mongo_init_client('webgis')
+            db = db_util.gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+            if not collection in db.collection_names(False):
+                ret = db.create_collection(collection)
+            else:
+                ret = db[collection]
+            return ret
+        def bayesian_query_node(querydict):
+            ret = ''
+            return ret
+        def bayesian_query_graphiz(querydict):
+            ret = ''
+            if querydict.has_key('line_name') and len(querydict['line_name']):
+                g = bayes_util.create_bbn_by_line_name(querydict['line_name'])
+                dpi = 100
+                rankdir = 'LL'
+                if querydict.has_key('dpi') and len(querydict['dpi']):
+                    dpi = int(querydict['dpi'])
+                if querydict.has_key('rankdir') and len(querydict['rankdir']):
+                    rankdir = querydict['rankdir']
+                ret = g.get_graphviz_source_plus(dpi, rankdir)
+            return enc(ret)
+        def bayesian_save_node(querydict):
+            ret = ''
+            return ret
+        def bayesian_delete_node(querydict):
+            ret = ''
+            return ret
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if endpoint == 'bayesian_query_node':
+            body = bayesian_query_node(querydict)
+        elif endpoint == 'bayesian_save_node':
+            body = bayesian_save_node(querydict)
+        elif endpoint == 'bayesian_query_graphiz':
+            body = bayesian_query_graphiz(querydict)
+            headers['Content-Type'] = 'text/plain'
+        elif endpoint == 'bayesian_delete_node':
+            body = bayesian_delete_node(querydict)
+        return statuscode, headers, body
+
+
     headers = {}
     headerslist = []
     cookie_header = None
@@ -6493,6 +6548,8 @@ def application_webgis(environ, start_response):
                 if not is_expire and len(sess.sid)>0:
                     if 'state_examination' in path_info:
                         statuscode, headers, body = handle_state_examination(environ)
+                    elif 'bayesian' in path_info:
+                        statuscode, headers, body = handle_bayesian(environ)
                     else:
                         statuscode, headers, body = handle_static(environ, path_info)
 
