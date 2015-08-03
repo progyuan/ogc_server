@@ -1,2 +1,2 @@
-"F:\mongodb-win32-x86_64-2008plus-3.0.0\bin\mongod.exe" --storageEngine wiredTiger --port 27017 --dbpath "I:\mongodata\wiredtiger" --logpath "I:\mongodata\wiredtiger_log\mongo.log" --serviceName "Mongo3-wiredtiger-27017" --serviceDisplayName "Mongo3-wiredtiger-27017" --serviceDescription "Mongo storage engine wiredtiger listening port at 27017" --install
+"E:\Program Files\MongoDB\Server\3.0\bin\mongod.exe" --storageEngine wiredTiger --port 27017 --dbpath "E:\mongodata\localhostdb_wiredtiger" --logpath "E:\mongodata\localhostlog_wiredtiger\mongo.log" --serviceName "Mongo3-wiredtiger-27017" --serviceDisplayName "Mongo3-wiredtiger-27017" --serviceDescription "Mongo storage engine wiredtiger listening port at 27017" --install
 pause
