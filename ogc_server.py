@@ -81,6 +81,7 @@ from werkzeug.routing import Map, Rule, BaseConverter, ValidationError, HTTPExce
 from sessions import MongoClient, MongodbSessionStore
 import configobj
 import db_util
+import bayes_util
 from module_locator import module_path, dec, dec1, enc, enc1
 
 
@@ -218,6 +219,15 @@ gUrlMap = Map([
     Rule('/gridfs/query/<width>/<height>/<limit>/<skip>', endpoint='gridfs_query'),
     Rule('/gridfs/delete', endpoint='gridfs_delete'),
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
+    Rule('/state_examination/save', endpoint='state_examination_save'),
+    Rule('/state_examination/query', endpoint='state_examination_query'),
+    Rule('/state_examination/delete', endpoint='state_examination_delete'),
+    Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
+    Rule('/bayesian/query/graphiz', endpoint='bayesian_query_graphiz'),
+    Rule('/bayesian/query/node', endpoint='bayesian_query_node'),
+    Rule('/bayesian/save/node', endpoint='bayesian_save_node'),
+    Rule('/bayesian/delete/node', endpoint='bayesian_delete_node'),
+    Rule('/bayesian/delete/node/<_id>', endpoint='bayesian_delete_node'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -1445,108 +1455,108 @@ def handle_get_method(environ):
         isgrid = True
     if querydict.has_key('area'):
         area = querydict['area']
-    if querydict.has_key('geojson'):
-        if querydict['geojson']=='line_towers':
-            data = db_util.gen_geojson_by_lines(area)
-            s = json.dumps(data, ensure_ascii=True, indent=4)        
-        elif querydict['geojson']=='tracks':
-            data = db_util.gen_geojson_tracks(area)
-            s = json.dumps(data, ensure_ascii=True, indent=4)        
-        else:
-            k = querydict['geojson']
-            p = os.path.abspath(STATICRESOURCE_DIR)
-            if k == 'potential_risk':
-                k = 'geojson_%s_%s' % (k, area)
-            p = os.path.join(p, 'geojson', area, '%s.json' % k)
-            #print(p)
-            if os.path.exists(p):
-                with open(p) as f:
-                    f1 = gevent.fileobject.FileObjectThread(f, 'r')
-                    s = f1.read()
-            else:
-                p = os.path.abspath(STATICRESOURCE_DIR)
-                p = os.path.join(p, 'geojson', '%s.json' % k)
-                if os.path.exists(p):
-                    with open(p) as f:
-                        f1 = gevent.fileobject.FileObjectThread(f, 'r')
-                        s = f1.read()
+    # if querydict.has_key('geojson'):
+    #     if querydict['geojson']=='line_towers':
+    #         data = db_util.gen_geojson_by_lines(area)
+    #         s = json.dumps(data, ensure_ascii=True, indent=4)
+    #     elif querydict['geojson']=='tracks':
+    #         data = db_util.gen_geojson_tracks(area)
+    #         s = json.dumps(data, ensure_ascii=True, indent=4)
+    #     else:
+    #         k = querydict['geojson']
+    #         p = os.path.abspath(STATICRESOURCE_DIR)
+    #         if k == 'potential_risk':
+    #             k = 'geojson_%s_%s' % (k, area)
+    #         p = os.path.join(p, 'geojson', area, '%s.json' % k)
+    #         #print(p)
+    #         if os.path.exists(p):
+    #             with open(p) as f:
+    #                 f1 = gevent.fileobject.FileObjectThread(f, 'r')
+    #                 s = f1.read()
+    #         else:
+    #             p = os.path.abspath(STATICRESOURCE_DIR)
+    #             p = os.path.join(p, 'geojson', '%s.json' % k)
+    #             if os.path.exists(p):
+    #                 with open(p) as f:
+    #                     f1 = gevent.fileobject.FileObjectThread(f, 'r')
+    #                     s = f1.read()
+    #
+    #
+    #
+    # if querydict.has_key('table'):
+    #     table = querydict['table']
+    #     dbtype = 'odbc'
+    #     if querydict.has_key('dbtype'):
+    #         dbtype = querydict['dbtype']
+    #
+    #     if dbtype == 'pg':
+    #         data = db_util.pg_get_records(table, get_condition_from_dict(querydict))
+    #     else:
+    #         data = db_util.odbc_get_records(table, get_condition_from_dict(querydict), area)
+    #         if table in ['TABLE_TOWER']:
+    #             if querydict.has_key('line_id'):
+    #                 data = db_util.odbc_get_sorted_tower_by_line(querydict['line_id'], area)
+    #
+    #     if isgrid:
+    #         data = {'Rows':data}
+    #     s = json.dumps(data, ensure_ascii=True, indent=4)
         
-        
-        
-    if querydict.has_key('table'):
-        table = querydict['table']
-        dbtype = 'odbc'
-        if querydict.has_key('dbtype'):
-            dbtype = querydict['dbtype']
-            
-        if dbtype == 'pg':
-            data = db_util.pg_get_records(table, get_condition_from_dict(querydict))
-        else:
-            data = db_util.odbc_get_records(table, get_condition_from_dict(querydict), area)
-            if table in ['TABLE_TOWER']:
-                if querydict.has_key('line_id'):
-                    data = db_util.odbc_get_sorted_tower_by_line(querydict['line_id'], area)
-                
-        if isgrid:
-            data = {'Rows':data}
-        s = json.dumps(data, ensure_ascii=True, indent=4)
-        
-    if querydict.has_key('check_file'):
-        fn = querydict['check_file']
-        dir_name = querydict['dir_name']
-        ret["result"] = {}
-        ret["result"]["filename"] = fn
-        if dir_name == 'voice':
-            if check_voice_file_by_fault(fn):
-                ret["result"]["exist"] = "true"
-            else:
-                ret["result"]["exist"] = "false"
-        else:
-            if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
-                ret["result"]["exist"] = "true"
-            else:
-                ret["result"]["exist"] = "false"
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('delete_file'):
-        fn = querydict['delete_file']
-        dir_name = querydict['dir_name']
-        ret["result"] = {}
-        ret["result"]["filename"] = fn
-        if dir_name == 'voice':
-            pl = get_voice_file_by(fn)
-            if len(pl)>0:
-                for i in pl:
-                    p = os.path.join(UPLOAD_VOICE_DIR, fn)
-                    if os.path.exists(p):
-                        os.remove(p)
-                ret["result"]["removed"] = "true"
-            else:
-                ret["result"]["removed"] = "false"
-                
-        else:
-            p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
-            if os.path.exists(p):
-                os.remove(p)
-                ret["result"]["removed"] = "true"
-            else:
-                ret["result"]["removed"] = "false"
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('list_file_dir_name'):
-        dir_name = querydict['list_file_dir_name']
-        ret["result"] = {}
-        ret["result"]["dirs"] = [dir_name, ]
-        p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name)
-        if os.path.exists(p):
-            l = os.listdir(p)
-            ret["result"]["files"] = l
-        else:
-            ret["result"]["files"] = []
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
-    if querydict.has_key('get_voice_files'):
-        get_voice_files = querydict['get_voice_files']
-        ret["result"] = {}
-        ret["result"]["ids"] = get_voice_file_all()
-        s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('check_file'):
+    #     fn = querydict['check_file']
+    #     dir_name = querydict['dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["filename"] = fn
+    #     if dir_name == 'voice':
+    #         if check_voice_file_by_fault(fn):
+    #             ret["result"]["exist"] = "true"
+    #         else:
+    #             ret["result"]["exist"] = "false"
+    #     else:
+    #         if os.path.exists(os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)):
+    #             ret["result"]["exist"] = "true"
+    #         else:
+    #             ret["result"]["exist"] = "false"
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('delete_file'):
+    #     fn = querydict['delete_file']
+    #     dir_name = querydict['dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["filename"] = fn
+    #     if dir_name == 'voice':
+    #         pl = get_voice_file_by(fn)
+    #         if len(pl)>0:
+    #             for i in pl:
+    #                 p = os.path.join(UPLOAD_VOICE_DIR, fn)
+    #                 if os.path.exists(p):
+    #                     os.remove(p)
+    #             ret["result"]["removed"] = "true"
+    #         else:
+    #             ret["result"]["removed"] = "false"
+    #
+    #     else:
+    #         p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name, fn)
+    #         if os.path.exists(p):
+    #             os.remove(p)
+    #             ret["result"]["removed"] = "true"
+    #         else:
+    #             ret["result"]["removed"] = "false"
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('list_file_dir_name'):
+    #     dir_name = querydict['list_file_dir_name']
+    #     ret["result"] = {}
+    #     ret["result"]["dirs"] = [dir_name, ]
+    #     p = os.path.join(UPLOAD_PHOTOS_DIR, dir_name)
+    #     if os.path.exists(p):
+    #         l = os.listdir(p)
+    #         ret["result"]["files"] = l
+    #     else:
+    #         ret["result"]["files"] = []
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
+    # if querydict.has_key('get_voice_files'):
+    #     get_voice_files = querydict['get_voice_files']
+    #     ret["result"] = {}
+    #     ret["result"]["ids"] = get_voice_file_all()
+    #     s = json.dumps(ret, ensure_ascii=True, indent=4)
     if querydict.has_key('op'):
         op = querydict['op']
         if op == "gridfs":
@@ -2666,6 +2676,8 @@ def get_querydict_by_GET_POST(environ):
                 if isinstance(obj, dict):
                     for k in obj.keys():
                         querydict[k] = obj[k]
+                if isinstance(obj, list):
+                    querydict = obj
             except:
                 querydict[key] = form[key]
     file_storage_list = []
@@ -5890,7 +5902,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
         href += '?';
     href += 'token=%s&random=%d' % ( token, random.randint(0,100000) )
     print('proxy to %s' % href)
-    header = {'Content-Type': 'text/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
+    header = {'Content-Type': 'application/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
     ret = ''
     url = URL(href)
     if not gHttpClient.has_key('http_proxy'):
@@ -6305,6 +6317,123 @@ def application_webgis(environ, start_response):
                                           'password':querydict['password']})
         return ret
 
+    def handle_state_examination(environ):
+        def get_collection(collection):
+            ret = None
+            db_util.mongo_init_client('webgis')
+            db = db_util.gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+            if not collection in db.collection_names(False):
+                ret = db.create_collection(collection)
+            else:
+                ret = db[collection]
+            return ret
+        def state_examination_save(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
+                existone = collection.find_one({'line_name':querydict['line_name'], 'check_year':querydict['check_year']})
+                if existone:
+                    querydict['_id'] = str(existone['_id'])
+                _id = collection.save(db_util.add_mongo_id(querydict))
+                ret = collection.find_one({'_id':_id})
+                if ret:
+                    ret = db_util.remove_mongo_id(ret)
+            if isinstance(querydict, list):
+                for i in querydict:
+                    existone = collection.find_one({'line_name':i['line_name'], 'check_year':i['check_year']})
+                    if existone:
+                        i['_id'] = str(existone['_id'])
+                    collection.save(db_util.add_mongo_id(i))
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+
+        def state_examination_query(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict):
+                # print(querydict)
+                ret = list(collection.find(db_util.add_mongo_id(querydict)))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def state_examination_delete(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            if isinstance(querydict, dict):
+                if querydict.has_key('_id'):
+                    if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                        existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                        if existone:
+                            collection.remove({'_id':existone['_id']})
+                            ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                        else:
+                            ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
+                    if isinstance(querydict['_id'], list):
+                        ids = db_util.add_mongo_id(querydict['_id'])
+                        cond = {'_id':{'$in':ids}}
+                        collection.remove(cond)
+                        ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if endpoint == 'state_examination_save':
+            body = state_examination_save(querydict)
+        elif endpoint == 'state_examination_query':
+            body = state_examination_query(querydict)
+        elif endpoint == 'state_examination_delete':
+            body = state_examination_delete(querydict)
+        return statuscode, headers, body
+
+    def handle_bayesian(environ):
+        def get_collection(collection):
+            ret = None
+            db_util.mongo_init_client('webgis')
+            db = db_util.gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+            if not collection in db.collection_names(False):
+                ret = db.create_collection(collection)
+            else:
+                ret = db[collection]
+            return ret
+        def bayesian_query_node(querydict):
+            ret = ''
+            return ret
+        def bayesian_query_graphiz(querydict):
+            ret = ''
+            if querydict.has_key('line_name') and len(querydict['line_name']):
+                g = bayes_util.create_bbn_by_line_name(querydict['line_name'])
+                dpi = 100
+                rankdir = 'LL'
+                if querydict.has_key('dpi') and len(querydict['dpi']):
+                    dpi = int(querydict['dpi'])
+                if querydict.has_key('rankdir') and len(querydict['rankdir']):
+                    rankdir = querydict['rankdir']
+                ret = g.get_graphviz_source_plus(dpi, rankdir)
+            return enc(ret)
+        def bayesian_save_node(querydict):
+            ret = ''
+            return ret
+        def bayesian_delete_node(querydict):
+            ret = ''
+            return ret
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if endpoint == 'bayesian_query_node':
+            body = bayesian_query_node(querydict)
+        elif endpoint == 'bayesian_save_node':
+            body = bayesian_save_node(querydict)
+        elif endpoint == 'bayesian_query_graphiz':
+            body = bayesian_query_graphiz(querydict)
+            headers['Content-Type'] = 'text/plain'
+        elif endpoint == 'bayesian_delete_node':
+            body = bayesian_delete_node(querydict)
+        return statuscode, headers, body
+
+
     headers = {}
     headerslist = []
     cookie_header = None
@@ -6417,7 +6546,12 @@ def application_webgis(environ, start_response):
                         start_response(statuscode, headerslist) 
                         return [body]
                 if not is_expire and len(sess.sid)>0:
-                    statuscode, headers, body =  handle_static(environ, path_info)
+                    if 'state_examination' in path_info:
+                        statuscode, headers, body = handle_state_examination(environ)
+                    elif 'bayesian' in path_info:
+                        statuscode, headers, body = handle_bayesian(environ)
+                    else:
+                        statuscode, headers, body = handle_static(environ, path_info)
 
         else:
             if path_info == '/login' and gConfig['webgis']['session']['enable_session'].lower() != 'true':

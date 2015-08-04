@@ -8980,14 +8980,14 @@ def mongo_init_client(clienttype='webgis', subtype=None, host=None, port=None, r
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
                     gClientMongo[clienttype] = MongoClient(host, port, replicaSet=str(replicaset),  read_preference = ReadPreference.PRIMARY)
-        elif clienttype == 'anti_bird':
+        elif clienttype in [ 'anti_bird', 'state_examination']:
             if not gClientMongo.has_key(clienttype) :
                 if host is None:
-                    host = gConfig['webgis']['anti_bird']['mongodb']['host']
+                    host = gConfig['webgis'][clienttype]['mongodb']['host']
                 if port is None:
-                    port = int(gConfig['webgis']['anti_bird']['mongodb']['port'])
+                    port = int(gConfig['webgis'][clienttype]['mongodb']['port'])
                 if replicaset is None:
-                    replicaset = gConfig['webgis']['anti_bird']['mongodb']['replicaset']
+                    replicaset = gConfig['webgis'][clienttype]['mongodb']['replicaset']
                 if len(replicaset) == 0:
                     gClientMongo[clienttype] = MongoClient(host, port)
                 else:
@@ -9190,13 +9190,15 @@ def command_batch_tile_download(options):
     if not gConfig.has_key('webgis'):
         print('Wrong webgis config file, now exit.')
         return
-    
-    if not gConfig['webgis'].has_key(options.tiletype):
+    tiletype = options.tiletype
+    if '/' in tiletype:
+        tiletype = tiletype.split('/')[1]
+    if not gConfig['webgis'].has_key(tiletype):
         print('please use correct tiletype in config file, now exit.')
         return
         
-    if not gConfig['webgis'][options.tiletype].has_key(options.subtype):
-        print('please use correct subtype in config file section[webgis][%s], now exit.' % options.tiletype)
+    if not gConfig['webgis'][tiletype].has_key(options.subtype):
+        print('please use correct subtype in config file section[webgis][%s], now exit.' % tiletype)
         return
     
     if options.num_cocurrent < 1 or options.num_cocurrent > 10:
@@ -9250,7 +9252,13 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
     arr = tiletype.split('/')
     dbname = gConfig['webgis'][arr[1]][subtype]['mongodb']['database']
     collection = gConfig['webgis'][arr[1]][subtype]['mongodb']['gridfs_collection']
-    
+    params1 = {}
+    for k in params.keys():
+        if isinstance(params[k], list) and len(params[k])>0:
+            params1[k] = params[k][0]
+        else:
+            params1[k] = params[k]
+    params = params1
     
     host, port, replicaset = gConfig['webgis'][arr[1]][subtype]['mongodb']['host'], int(gConfig['webgis'][arr[1]][subtype]['mongodb']['port']), gConfig['webgis'][arr[1]][subtype]['mongodb']['replicaset']
     mimetype, ret = None, None
@@ -9306,6 +9314,12 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                 #mimetype, ret = arcgis_tile1(tiletype, subtype, tilepath, x, y, level)
             else:
                 x, y, level = params['x'], params['y'], params['level']
+                # if isinstance(x, list) and len(x)>0:
+                #     x = x[0]
+                # if isinstance(y, list) and len(y)>0:
+                #     y = y[0]
+                # if isinstance(level, list) and len(level)>0:
+                #     level = level[0]
                 s = gConfig['webgis'][arr[1]][subtype]['url_template']
                 href = None
                 mimetype = str(gConfig['mime_type'][gConfig['webgis'][arr[1]][subtype]['mimetype']])
@@ -9327,15 +9341,14 @@ def gridfs_tile_find(tiletype, subtype, tilepath, params):
                         #http = HTTPClient.from_url(url, concurrency=30, connection_timeout=connection_timeout, network_timeout=network_timeout, )
                         if not gHttpClient.has_key('tiles'):
                             gHttpClient['tiles'] = HTTPClient(url.host, port=url.port, connection_timeout=connection_timeout, network_timeout=network_timeout, concurrency=200)
-                        #g = gevent.spawn(http.get, url.request_uri)
-                        #g.join()
-                        #response = g.value
-                        response = gHttpClient['tiles'].get(url.request_uri)
+                        headers = {}
+                        if '.terrain' in tilepath:
+                            headers['Accept'] = 'application/vnd.quantized-mesh,application/octet-stream;q=0.9'
+                        response = gHttpClient['tiles'].get(url.request_uri, headers)
                         if response and response.status_code == 200:
                             if '.terrain' in tilepath:
                                 with gzip.GzipFile(fileobj=StringIO.StringIO(response.read())) as f1:
                                     ret1 = f1.read()
-                                    #print(len(ret1))
                                 if gIsSaveTileToDB:
                                     gevent.spawn(gridfs_tile_save, tiletype, subtype, tilepath, mimetype, ret1).join()
                             else:
@@ -9954,6 +9967,30 @@ def test_antibird_tower_modify():
     #     collection.save(i)
     print(json.dumps(remove_mongo_id(l),  ensure_ascii=False, indent=4))
 
+def test_birdfamily():
+    l = os.listdir(ur'F:\work\html\webgis\img\birds')
+    ll = []
+    for i in l:
+        o = {}
+        o['img'] = 'img/birds/%s' % i
+        o['full'] = 'img/birds/%s' % i
+        o['thumb'] = 'img/birds/%s' % i
+        o['caption'] = i.replace('.jpg', '')
+        o['mimetype'] = 'image/jpeg'
+        ll.append(o)
+    ret = json.dumps(ll, ensure_ascii=False, indent=4, encoding='utf-8')
+    print ('aaa')
+
+def test_linename_add_huixian():
+    gClientMongo['webgis'] = MongoClient('192.168.1.8', 27017)
+    db = gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+    collection = db['network']
+    l = list(collection.find({"properties.name":{"$regex":"^.*回$"}}))
+    for i in l:
+        i['properties']['name'] += u'线'
+        print(i['properties']['name'])
+        # collection.save(i)
+
 def test_qinshiluxian():
     q1 = '551a30a1ca49c81a6882a1f0'
     # q1t = '551a30a1ca49c81a6882a1f1'
@@ -10246,5 +10283,7 @@ if __name__=="__main__":
     #test_print_line_names()
     # test_antibird_tower_modify()
     # test_qinshiluxian()
+    # test_birdfamily()
+    # test_linename_add_huixian()
     
     
