@@ -221,6 +221,7 @@ gUrlMap = Map([
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
     Rule('/state_examination/save', endpoint='state_examination_save'),
     Rule('/state_examination/query', endpoint='state_examination_query'),
+    Rule('/state_examination/query/line_names', endpoint='state_examination_query_line_names'),
     Rule('/state_examination/delete', endpoint='state_examination_delete'),
     Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
     Rule('/bayesian/query/graphiz', endpoint='bayesian_query_graphiz'),
@@ -6331,7 +6332,8 @@ def application_webgis(environ, start_response):
             ret = []
             collection = get_collection('state_examination')
             if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
-                existone = collection.find_one({'line_name':querydict['line_name'], 'check_year':querydict['check_year']})
+                querydict['line_name'] = querydict['line_name'].strip()
+                existone = collection.find_one({'line_name':querydict['line_name'].strip(), 'check_year':querydict['check_year']})
                 if existone:
                     querydict['_id'] = str(existone['_id'])
                 _id = collection.save(db_util.add_mongo_id(querydict))
@@ -6340,11 +6342,23 @@ def application_webgis(environ, start_response):
                     ret = db_util.remove_mongo_id(ret)
             if isinstance(querydict, list):
                 for i in querydict:
+                    i['line_name'] = i['line_name'].strip()
                     existone = collection.find_one({'line_name':i['line_name'], 'check_year':i['check_year']})
                     if existone:
                         i['_id'] = str(existone['_id'])
                     collection.save(db_util.add_mongo_id(i))
             return json.dumps(ret, ensure_ascii=True, indent=4)
+
+        def state_examination_query_line_names(querydict):
+            ret = []
+            collection = get_collection('state_examination')
+            pipeline = [
+                # {'$unwind':'$line_name'},
+                {"$group": {"_id": "$line_name", "count": {"$sum": 1}}},
+            ]
+            ret = list(collection.aggregate(pipeline))
+            ret = map(lambda x:x['_id'], ret)
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
         def state_examination_query(querydict):
             ret = []
@@ -6383,6 +6397,8 @@ def application_webgis(environ, start_response):
             body = state_examination_query(querydict)
         elif endpoint == 'state_examination_delete':
             body = state_examination_delete(querydict)
+        elif endpoint == 'state_examination_query_line_names':
+            body = state_examination_query_line_names(querydict)
         return statuscode, headers, body
 
     def handle_bayesian(environ):
@@ -6396,7 +6412,11 @@ def application_webgis(environ, start_response):
                 ret = db[collection]
             return ret
         def bayesian_query_node(querydict):
-            ret = ''
+            ret = []
+            if querydict.has_key('line_name') and len(querydict['line_name']):
+                collection = get_collection('bayesian_nodes')
+                ret = list(collection.find({'line_name':querydict['line_name']}))
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
             return ret
         def bayesian_query_graphiz(querydict):
             ret = ''
@@ -6411,10 +6431,38 @@ def application_webgis(environ, start_response):
                 ret = g.get_graphviz_source_plus(dpi, rankdir)
             return enc(ret)
         def bayesian_save_node(querydict):
-            ret = ''
+            ret = []
+            collection = get_collection('bayesian_nodes')
+            if isinstance(querydict, list):
+                ids = []
+                for i in querydict:
+                    if i['_id'] is None:
+                        del i['_id']
+                    id = collection.save(db_util.add_mongo_id(i))
+                    if id:
+                        ids.append(id)
+                ret = list(collection.find({'_id':{'$in':ids}}))
+            elif isinstance(querydict, dict):
+                id = collection.save(db_util.add_mongo_id(querydict))
+                ret = collection.find_one({'_id':id})
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
             return ret
         def bayesian_delete_node(querydict):
             ret = ''
+            collection = get_collection('bayesian_nodes')
+            if querydict.has_key('_id'):
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                    if existone:
+                        collection.remove({'_id':existone['_id']})
+                        ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], list):
+                    ids = db_util.add_mongo_id(querydict['_id'])
+                    cond = {'_id':{'$in':ids}}
+                    collection.remove(cond)
+                    ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
             return ret
         statuscode, headers, body =  '200 OK', {}, ''
         urls = gUrlMap.bind_to_environ(environ)
@@ -6556,7 +6604,12 @@ def application_webgis(environ, start_response):
         else:
             if path_info == '/login' and gConfig['webgis']['session']['enable_session'].lower() != 'true':
                 path_info = gConfig['web']['mainpage']
-            statuscode, headers, body =  handle_static(environ, path_info)
+            if 'state_examination/' in path_info:
+                statuscode, headers, body = handle_state_examination(environ)
+            elif 'bayesian/' in path_info:
+                statuscode, headers, body = handle_bayesian(environ)
+            else:
+                statuscode, headers, body =  handle_static(environ, path_info)
         
     #headkeys = set([i[0] for i in headerslist])
     headers = CORS_header(headers)
