@@ -1,14 +1,27 @@
 # -*- coding: utf-8 -*-
 import os, sys, codecs
 import itertools
+from collections import OrderedDict
 import json
 import bayesian
 from bayesian.bbn import *
 from bayesian.factor_graph import *
 import pymongo
+from bson.code import Code
 from bson.objectid import ObjectId
+import xlrd, xlwt
+from module_locator import enc, enc1, dec, dec1
 
-
+UNIT_NAME_MAPPING = {
+    'unit_1': u'基础',
+    'unit_2': u'杆塔',
+    'unit_3': u'导地线',
+    'unit_4': u'绝缘子串',
+    'unit_5': u'金具',
+    'unit_6': u'接地装置',
+    'unit_7': u'附属设施',
+    'unit_8': u'通道环境',
+}
 P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
 # ENCODING = 'utf-8'
 # ENCODING1 = 'gb18030'
@@ -333,6 +346,8 @@ def get_state_examination_data_by_line_name(line_name):
 
 def calc_probability1(data, field_name, field_value):
     def filterfunc(item):
+        if not item.has_key(field_name):
+            return False
         return item[field_name] == field_value
     ret = 0.0
     cnt = len(data)
@@ -400,9 +415,9 @@ def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'II
 def build_state_examination_condition(line_name):
     data = get_state_examination_data_by_line_name(line_name)
     cond = {}
-    o = calc_probability_unit(data)
-    for k in o.keys():
-        cond[k] = o[k]
+    # o = calc_probability_unit(data)
+    # for k in o.keys():
+    #     cond[k] = o[k]
     o = calc_probability_line()
     for k in o.keys():
         cond[k] = o[k]
@@ -588,11 +603,180 @@ def get_all_combinations(max_num):
         # print('%d:%d' % (i, len(ret)))
     return ret
 
+def test_aggregation():
+    collection = get_collection('state_examination')
+    pipeline = [
+        # {'$unwind':'$line_name'},
+        {"$group": {"_id": "$line_name", "count": {"$sum": 1}}},
+    ]
+    ret = list(collection.aggregate(pipeline))
+    ret = map(lambda x:x['_id'], ret)
+    print(ret)
+
+def test_import_unit_probability_map_reduce():
+    collection = get_collection('state_examination')
+    mapfunc = Code("function() {"
+              "   emit(this.line_name, {line_state:this.line_state});"
+              "}"
+              )
+
+    reducefunc = Code("function(key,values){"
+                  "    var result={I:0, II:0, III:0, IV:0, total:0};"
+                  "    for (var i = 0; i < values.length; i++) {"
+                  "       if(values[i].line_state === 'I')"
+                  "            result.I += 1;"
+                  "       if(values[i].line_state === 'II')"
+                  "            result.II += 1;"
+                  "       if(values[i].line_state === 'III')"
+                  "            result.III += 1;"
+                  "       if(values[i].line_state === 'IV')"
+                  "            result.IV += 1;"
+                  "       result.total += 1;"
+                  "    }"
+                  "    return result;"
+                  "}"
+                 )
+    finalizefunc = Code("function(key,values){"
+                  "   var result={I_probability:0.0, II_probability:0.0, III_probability:0.0, IV_probability:0.0};"
+                  "   result.I_probability = values.I/values.total;"
+                  "   result.II_probability = values.II/values.total;"
+                  "   result.III_probability = values.III/values.total;"
+                  "   result.IV_probability = values.IV/values.total;"
+                  "   return result;"
+                  "}"
+                 )
+    results = collection.map_reduce(mapfunc,reducefunc, 'tmp', finalize=finalizefunc)
+    print(results)
+
+def test_trim_name():
+    collection = get_collection('state_examination')
+    for i in list(collection.find({})):
+        i['line_name'] = i['line_name'].strip()
+        collection.save(i)
+
+
+def generate_unit_probability(db):
+    def get_domains(alist):
+        d = OrderedDict(alist[0][1])
+        return d.keys()
+
+    def get_desc(alist, name):
+        ret = []
+        for i in alist:
+            if i['parent'] == name:
+                ret.append(i['name'])
+        return ';\n'.join(ret)
+
+    # client = pymongo.MongoClient('192.168.1.8', 27017)
+    # db = client['kmgd']
+    if 'bayesian_nodes' in db.collection_names(False):
+        db.drop_collection('bayesian_nodes')
+
+    path = ur'jiakongztpj.json'
+    std = None
+    with open(path) as f:
+        std = json.loads(f.read())
+    collection = get_collection('state_examination')
+    pipeline = [
+        # {'$unwind':'$line_name'},
+        {"$group": {"_id": "$line_name", "count": {"$sum": 1}}},
+    ]
+    lines = list(collection.aggregate(pipeline))
+    linenames = map(lambda x:x['_id'], lines)
+    i = 0
+    l = []
+    for line_name in linenames:
+        data = get_state_examination_data_by_line_name(line_name)
+        # print('%s:%d' % (enc1(line_name), len(data) ) )
+        o = calc_probability_unit(data)
+        # print (o)
+        for k in o.keys():
+            o1 = {}
+            o1['name'] = k
+            o1['display_name'] = UNIT_NAME_MAPPING[k]
+            o1['line_name'] = line_name
+            o1['description'] = get_desc(std, UNIT_NAME_MAPPING[k])
+            o1['conditions'] = o[k]
+            o1['domains'] = get_domains(o[k])
+            l.append(o1)
+            i += 1
+        # if i > 30:
+        #     break
+    # with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig') as f:
+    #     f.write(json.dumps(l, ensure_ascii=False, indent=4))
+    collection = get_collection('bayesian_nodes')
+    for i in l:
+        collection.save(i)
+
+
+def test_import_2015txt():
+    path = ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\输电管理所2015年第一次状态评价报告.txt'
+    lines = []
+    l = []
+    with open(path) as f:
+        idx = 0
+        for line in f.readlines():
+            # if idx < 8:
+            #     idx += 1
+            #     continue
+            lines.append(line.strip())
+            # idx += 1
+
+    for i in range(0, len(lines), 12):
+        o = {}
+        # o['index'] = dec(lines[i+1])
+        # print(enc1(dec(lines[i+3])))
+        o['check_year'] = 2015
+        o['line_state'] = dec(lines[i+2]).replace(u'严重',u'IV').replace(u'异常',u'III').replace(u'注意',u'II').replace(u'正常',u'I')
+        o['line_name'] = dec(lines[i+3]).replace(u'500kV', '').replace(u'220kV', '').replace(u'110kV', '').replace(u'Ⅰ', 'I').replace(u'Ⅱ', 'II')
+        if o['line_name'][-1] == u'回':
+            o['line_name'] = o['line_name'].replace(u'回', u'回线')
+        o['voltage'] = dec(lines[i+4])
+        o['description'] = dec(lines[i+9])
+        o['suggestion'] = dec(lines[i+11])
+        l.append(o)
+        # print(o)
+        # if i>100:
+        #     break
+    print(len(l))
+    with codecs.open(path+'.json', 'w', 'utf-8-sig' ) as f:
+        f.write(json.dumps(l, ensure_ascii=False, indent=4))
+    export_xls(l)
+
+def export_xls(alist):
+    path = ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\输电管理所2015年第一次.xls'
+    book = xlwt.Workbook()
+    sheet = book.add_sheet('Sheet1')
+    sheet.write(0, 0, u'line_name')
+    sheet.write(0, 1, u'voltage')
+    sheet.write(0, 2, u'check_year')
+    sheet.write(0, 3, u'description')
+    sheet.write(0, 4, u'suggestion')
+    sheet.write(0, 5, u'line_state')
+    for i in range(1, 9):
+        sheet.write(0, i + 6, u'unit_%d' % i)
+    row = 1
+    for i in alist:
+        # print(enc1(i['line_name']))
+        # print(row)
+        sheet.write(row, 0, i['line_name'])
+        sheet.write(row, 1, i['voltage'])
+        sheet.write(row, 2, i['check_year'])
+        sheet.write(row, 3, i['description'])
+        sheet.write(row, 4, i['suggestion'])
+        sheet.write(row, 5, i['line_state'])
+        row += 1
+    book.save(path)
 
 
 if __name__ == '__main__':
-    # test_se()
     pass
+    # test_import_2015txt()
+    # test_se()
+    # test_aggregation()
+    # test_trim_name()
+    # test_import_unit_probability_map_reduce()
+    # test_import_unit_probability()
     # test_bayes()
     # n, l = calc_probability_line()
     # print(json.dumps(l, ensure_ascii=True, indent=4))
