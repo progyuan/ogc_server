@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#from gevent import monkey; monkey.patch_socket()
+
 import codecs
 import os, sys
 import copy
@@ -229,6 +229,10 @@ gUrlMap = Map([
     Rule('/bayesian/save/node', endpoint='bayesian_save_node'),
     Rule('/bayesian/delete/node', endpoint='bayesian_delete_node'),
     Rule('/bayesian/delete/node/<_id>', endpoint='bayesian_delete_node'),
+    Rule('/bayesian/query/domains_range', endpoint='bayesian_query_domains_range'),
+    Rule('/bayesian/save/domains_range', endpoint='bayesian_save_domains_range'),
+    Rule('/bayesian/delete/domains_range', endpoint='bayesian_delete_domains_range'),
+    Rule('/bayesian/delete/domains_range/<_id>', endpoint='bayesian_delete_domains_range'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -6411,6 +6415,54 @@ def application_webgis(environ, start_response):
             else:
                 ret = db[collection]
             return ret
+
+        def save_by_id(querydict, collection_name):
+            ret = []
+            collection = get_collection(collection_name)
+            if isinstance(querydict, list):
+                ids = []
+                for i in querydict:
+                    if i['_id'] is None:
+                        del i['_id']
+                    id = collection.save(db_util.add_mongo_id(i))
+                    if id:
+                        ids.append(id)
+                ret = list(collection.find({'_id':{'$in':ids}}))
+            elif isinstance(querydict, dict):
+                id = collection.save(db_util.add_mongo_id(querydict))
+                ret = collection.find_one({'_id':id})
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+            return ret
+        def delete_by_id(querydict, collection_name):
+            ret = ''
+            collection = get_collection(collection_name)
+            if querydict.has_key('_id'):
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                    if existone:
+                        collection.remove({'_id':existone['_id']})
+                        ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
+                    else:
+                        ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
+                if isinstance(querydict['_id'], list):
+                    ids = db_util.add_mongo_id(querydict['_id'])
+                    cond = {'_id':{'$in':ids}}
+                    collection.remove(cond)
+                    ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
+            return ret
+
+        def bayesian_query_domains_range(querydict):
+            ret = []
+            collection = get_collection('bayesian_domains_range')
+            ret = list(collection.find({}))
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+            return ret
+        def bayesian_save_domains_range(querydict):
+            return save_by_id(querydict, 'bayesian_domains_range')
+        def bayesian_delete_domains_range(querydict):
+            return delete_by_id(querydict, 'bayesian_domains_range')
+
+
         def bayesian_query_node(querydict):
             ret = []
             if querydict.has_key('line_name') and len(querydict['line_name']):
@@ -6431,39 +6483,11 @@ def application_webgis(environ, start_response):
                 ret = g.get_graphviz_source_plus(dpi, rankdir)
             return enc(ret)
         def bayesian_save_node(querydict):
-            ret = []
-            collection = get_collection('bayesian_nodes')
-            if isinstance(querydict, list):
-                ids = []
-                for i in querydict:
-                    if i['_id'] is None:
-                        del i['_id']
-                    id = collection.save(db_util.add_mongo_id(i))
-                    if id:
-                        ids.append(id)
-                ret = list(collection.find({'_id':{'$in':ids}}))
-            elif isinstance(querydict, dict):
-                id = collection.save(db_util.add_mongo_id(querydict))
-                ret = collection.find_one({'_id':id})
-            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
-            return ret
+            return save_by_id(querydict, 'bayesian_nodes')
         def bayesian_delete_node(querydict):
-            ret = ''
-            collection = get_collection('bayesian_nodes')
-            if querydict.has_key('_id'):
-                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
-                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
-                    if existone:
-                        collection.remove({'_id':existone['_id']})
-                        ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
-                    else:
-                        ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
-                if isinstance(querydict['_id'], list):
-                    ids = db_util.add_mongo_id(querydict['_id'])
-                    cond = {'_id':{'$in':ids}}
-                    collection.remove(cond)
-                    ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
-            return ret
+            return delete_by_id(querydict, 'bayesian_nodes')
+
+
         statuscode, headers, body =  '200 OK', {}, ''
         urls = gUrlMap.bind_to_environ(environ)
         querydict, buf = get_querydict_by_GET_POST(environ)
@@ -6479,6 +6503,12 @@ def application_webgis(environ, start_response):
             headers['Content-Type'] = 'text/plain'
         elif endpoint == 'bayesian_delete_node':
             body = bayesian_delete_node(querydict)
+        elif endpoint == 'bayesian_save_domains_range':
+            body = bayesian_save_domains_range(querydict)
+        elif endpoint == 'bayesian_delete_domains_range':
+            body = bayesian_delete_domains_range(querydict)
+        elif endpoint == 'bayesian_query_domains_range':
+            body = bayesian_query_domains_range(querydict)
         return statuscode, headers, body
 
 
