@@ -768,9 +768,26 @@ def export_xls(alist):
         row += 1
     book.save(path)
 
+def test_insert_domains_range():
+    data =  [
+        {'value':True, 'name': u'真'},
+        {'value':False, 'name': u'假'},
+        {'value':'I', 'name': u'I级'},
+        {'value':'II', 'name': u'II级'},
+        {'value':'III', 'name': u'III级'},
+        {'value':'IV', 'name': u'IV级'},
+        {'value':'high', 'name': u'高'},
+        {'value':'low', 'name': u'低'},
+        {'value':'medium', 'name': u'中'},
+    ]
+    collection = get_collection('bayesian_domains_range')
+    for i in data:
+        collection.save(i)
+
 
 if __name__ == '__main__':
     pass
+    # test_insert_domains_range()
     # test_import_2015txt()
     # test_se()
     # test_aggregation()

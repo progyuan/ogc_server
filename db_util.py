@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from gevent import monkey; monkey.patch_all()
 import codecs
 import os, sys, time, datetime
 import traceback

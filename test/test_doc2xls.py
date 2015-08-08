@@ -30,6 +30,7 @@ def enc1(aStr):
 #DIR_ROOT = ur'D:\TDDOWNLOAD\附件3：安规学习资料'
 LIBREOFFICE_EXECUTEABLE = ur'E:\Program Files (x86)\LibreOffice\program\soffice.exe'
 DIR_ROOT = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题'
+DIR_ROOT = ur'D:\客观题\客观题'
 TXT_DIR = ur'D:\TDDOWNLOAD\附件5 昆明供电局2015年安全工作规程考试复习题\txt'
 EXPORT_PATH = os.path.join(DIR_ROOT, u'result.xls')
 EXPORT_PATH = os.path.join(DIR_ROOT, u'result.json')
@@ -230,8 +231,72 @@ def main():
     with open(EXPORT_PATH, 'w') as f:
         f.write(enc(body))
     json_to_mongodb_import(EXPORT_PATH)
-    
-    
+
+def get_xls_files(adir):
+    ret = []
+    for root, dirs, files  in os.walk(adir, topdown=False):
+        for name in files:
+            ext = name[-4:]
+            if ext == '.xls':
+                p = os.path.join(root, name)
+                ret.append( p)
+    return ret
+
+def parse_one_sheet(sheet):
+    ret = []
+    for row in range(1, sheet.nrows):
+        o = {}
+        o['question'] = sheet.cell_value(row,  1).strip()
+        o['answer'] = []
+        ans = sheet.cell_value(row,  6).strip().upper()
+        if len(ans) == 1:
+            o['type'] = 'single'
+        else:
+            o['type'] = 'multi'
+        for i in range(2, 6):
+            o1 = {}
+            v = sheet.cell_value(row,  i)
+            if isinstance(v, float) or isinstance(v, int):
+                v = str(v)
+            o1['text'] = v.strip()
+            o1['correct'] = False
+            choice = ''
+            if i == 2:
+                choice = u'A'
+            if i == 3:
+                choice = u'B'
+            if i == 4:
+                choice = u'C'
+            if i == 5:
+                choice = u'D'
+            if choice in ans:
+                o1['correct'] = True
+            o['answer'].append(o1)
+        ret.append(o)
+    return ret
+
+def parse_one_book(path):
+    ret = []
+    print('processing %s...' % enc1(path))
+    book = xlrd.open_workbook(path)
+    for sheet in  book.sheets():
+        ret.extend(parse_one_sheet(sheet))
+        # break
+    return ret
+
+
+
+def exam():
+    l = get_xls_files(DIR_ROOT)
+    ret = []
+    for path in l:
+        ret.extend(parse_one_book(path))
+        # break
+    print(len(ret))
+    with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig' ) as f:
+        f.write(json.dumps(ret, ensure_ascii=False, indent=4))
+
+
 if __name__ == "__main__":
-    main()
+    exam()
     
