@@ -6333,6 +6333,21 @@ def application_webgis(environ, start_response):
                 ret = db[collection]
             return ret
         def state_examination_save(querydict):
+            def modifier(adict = {}):
+                for k in adict.keys():
+                    if not k in ['_id', 'check_year']:
+                        adict[k] = adict[k].strip()
+                    if k == 'line_name':
+                        adict[k] = adict[k].replace('-', '')\
+                            .replace('500kV', '').replace('220kV', '').replace('110kV', '').replace('35kV', '').replace('10kV', '')\
+                            .replace(u'Ⅱ', 'II').replace(u'Ⅰ', 'I')
+                        if adict[k][-1] == u'回':
+                            adict[k] = adict[k].replace( u'回', u'回线')
+                        if not adict[k][-1] == u'线':
+                            adict[k] = adict[k] + u'线'
+                    if k == 'line_state' or 'unit_' in k:
+                        adict[k] = adict[k].replace(u'正常', 'I').replace(u'注意', 'II').replace(u'异常', 'III').replace(u'严重', 'IV')
+                return adict
             ret = []
             collection = get_collection('state_examination')
             if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
@@ -6340,13 +6355,14 @@ def application_webgis(environ, start_response):
                 existone = collection.find_one({'line_name':querydict['line_name'].strip(), 'check_year':querydict['check_year']})
                 if existone:
                     querydict['_id'] = str(existone['_id'])
+                querydict = modifier(querydict)
                 _id = collection.save(db_util.add_mongo_id(querydict))
                 ret = collection.find_one({'_id':_id})
                 if ret:
                     ret = db_util.remove_mongo_id(ret)
             if isinstance(querydict, list):
                 for i in querydict:
-                    i['line_name'] = i['line_name'].strip()
+                    i = modifier(i)
                     existone = collection.find_one({'line_name':i['line_name'], 'check_year':i['check_year']})
                     if existone:
                         i['_id'] = str(existone['_id'])

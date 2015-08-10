@@ -1,4 +1,5 @@
 '''Generic Graph Classes'''
+import sys
 from StringIO import StringIO
 
 class Node(object):
