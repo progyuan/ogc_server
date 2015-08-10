@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os, sys, codecs
+import time
 import itertools
 from collections import OrderedDict
 import json
@@ -23,6 +24,7 @@ UNIT_NAME_MAPPING = {
     'unit_8': u'通道环境',
 }
 P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
+P_LINE_UNIT_PATH1 = ur'PROBABILITY_LINE_UNIT1.json'
 # ENCODING = 'utf-8'
 # ENCODING1 = 'gb18030'
 # def dec(aStr):
@@ -418,9 +420,11 @@ def build_state_examination_condition(line_name):
     # o = calc_probability_unit(data)
     # for k in o.keys():
     #     cond[k] = o[k]
+    cond['line_state'] = []
+    # o1 = calc_probability_line1()
+    # cond['line_state'].extend(o1['line_state'])
     o = calc_probability_line()
-    for k in o.keys():
-        cond[k] = o[k]
+    cond['line_state'].extend(o['line_state'])
     return cond
 
 def build_additional_condition(line_name, cond):
@@ -439,12 +443,53 @@ def create_bbn_by_line_name(line_name):
     g = build_bbn_from_conditionals_plus(cond)
     return g
 
+def query_bbn_condition(g, querydict):
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start'))
+    d = g.query(**querydict)
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'end'))
+    ret = []
+    for k, v in d.iteritems():
+        # if v < 1.0 and v > 0.0:
+        # if v > 0.0:
+        if True:
+            o = {}
+            o['%s:%s' % (k[0], k[1])] = v
+            ret.append(o)
+    return ret
+
+
 def test_se():
-    g = create_bbn_by_line_name(u'七罗I回线')
+    g = create_bbn_by_line_name(u'厂口七甸I回线')
     print(g.get_graphviz_source_plus())
     # g.q(line_state='II')
+    # ret = query_bbn_condition(g, {'line_state':'IV'})
+    ret = query_bbn_condition(g, {'unit_8':'II'})
+    print (ret)
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
+
+def test_find_abnormal():
+    collection = get_collection('state_examination')
+    ids = []
+    for i in list(collection.find({})):
+        for j in range(1, 9):
+            if i.has_key('unit_%d' % j):
+                if ' ' in i['unit_%d' % j]:
+                    print('%s:%d' % (enc1(i['line_name']), i['check_year']))
+        if i.has_key('line_state' ):
+            if ' ' in i['line_state']:
+                print('line_state%s:%d' % (enc1(i['line_name']), i['check_year']))
+        if '-' in i['line_name']:
+            print('%s:%d' % (enc1(i['line_name']), i['check_year']))
+            ids.append(i['_id'])
+        if not i['line_name'][-1] == u'线':
+            print('%s:%d' % (enc1(i['line_name']), i['check_year']))
+            ids.append(i['_id'])
+
+    # collection.remove({'_id':{'$in':ids}})
+
+
+
 
 def test_bayes():
     cond = build_cancer_condition()
@@ -576,6 +621,76 @@ def calc_probability_line():
             json.dump(ret, f, ensure_ascii=True)
     return ret
 
+def calc_probability_line1():
+    ret = {}
+    if os.path.exists(P_LINE_UNIT_PATH1):
+        print(u'existing probability file [%s], reading...' % P_LINE_UNIT_PATH1)
+        with open(P_LINE_UNIT_PATH1) as f:
+            ret = json.load(f)
+    else:
+        print(u'not found probability file, generating...')
+        l = []
+        for i in range(8):
+            l.append(['1', '2', '3', '4'])
+        iterator = itertools.product(*l)
+        total = 0
+        total_map = {}
+        for it in iterator:
+            max_lev = get_max_level(it)
+            # for line_lev in range(1, 5):
+            #     if max_lev == line_lev:
+            #         key_line = 'line:%d' % line_lev
+            #         if not total_map.has_key(key_line):
+            #             total_map[key_line] = 0
+            #         total_map[key_line] += 1
+            #         break
+            unit_lev = int(it[0])
+            if unit_lev <= max_lev:
+                key_line_unit = 'line:%d|unit:%d' % (max_lev,  unit_lev)
+                if not total_map.has_key(key_line_unit):
+                    total_map[key_line_unit] = 0
+                total_map[key_line_unit] += 1
+            total += 1
+        # p_line = {}
+        p_line_unit = {}
+        for i in range(1, 5):
+            key_unit = 'unit:%d' % i
+            total_map[key_unit] = pow(4, 7)
+            for j in range(1, 5):
+                key_line_unit = 'line:%d|unit:%d' % (i,  j)
+                if total_map.has_key(key_line_unit):
+                    p_line_unit[key_line_unit] = float(total_map[key_line_unit])/float(total_map[key_unit])
+                else:
+                    p_line_unit[key_line_unit] = 0.0
+
+
+
+        # for i in range(1, 5):
+        #     # p = float(total_map[str(i)])/float(total)
+        #     key_line = 'line:%d' % i
+        #     p = float(total_map[key_line])/float(total)
+        #     p_line[get_level_name(i)] = p
+
+        ret['line_state'] = []
+        for unit_idx in range(1, 9):
+            for unit_lev in range(1, 5):
+                list1 = []
+                list1.append([['unit_%d' % unit_idx, get_level_name(unit_lev)],])
+                o = {}
+                for line_lev in range(1, 5):
+                    key_line_unit = 'line:%d|unit:%d' % (line_lev,  unit_lev)
+                    o[get_level_name(line_lev)] = p_line_unit[key_line_unit]
+                list1.append(o)
+                ret['line_state'].append(list1)
+
+        with open(P_LINE_UNIT_PATH1, 'w') as f:
+            json.dump(ret, f, ensure_ascii=True)
+        # with codecs.open(P_LINE_UNIT_PATH1, 'w', 'utf-8-sig') as f:
+        #     f.write(json.dumps(ret, ensure_ascii=False, indent=4))
+    return ret
+
+
+
 def get_all_combinations(max_num):
     def filter_func(item):
         ret = False
@@ -654,6 +769,10 @@ def test_trim_name():
         i['line_name'] = i['line_name'].strip()
         collection.save(i)
 
+def test_regenarate_unit():
+    client = pymongo.MongoClient('192.168.1.8', 27017)
+    db = client['kmgd']
+    generate_unit_probability(db)
 
 def generate_unit_probability(db):
     def get_domains(alist):
@@ -687,7 +806,7 @@ def generate_unit_probability(db):
     l = []
     for line_name in linenames:
         data = get_state_examination_data_by_line_name(line_name)
-        # print('%s:%d' % (enc1(line_name), len(data) ) )
+        print('%s:%d' % (enc1(line_name), len(data) ) )
         o = calc_probability_unit(data)
         # print (o)
         for k in o.keys():
@@ -784,12 +903,34 @@ def test_insert_domains_range():
     for i in data:
         collection.save(i)
 
+def test_combinations():
+    l = calc_probability_line1()['line_state']
+    m = {}
+    for i in l:
+        key = '%s:%s' % (i[0][0][0], i[0][0][1])
+        if not m.has_key(key):
+            m[key] = i[1]
+    print(m)
+    # l = []
+    # cnt = 0
+    # for i in range(1, 9):
+    #     iterator = itertools.combinations(range(1, 9), i)
+    #     for it in iterator:
+    #         l.append(it)
+    #         cnt += pow(4, len(it))
+    #         # print(it)
+    # print (len(l))
+    # print (cnt)
+
 
 if __name__ == '__main__':
-    pass
+    # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    # test_se()
+    test_se()
+    # test_combinations()
+    # calc_probability_line1()
+    # test_find_abnormal()
     # test_aggregation()
     # test_trim_name()
     # test_import_unit_probability_map_reduce()

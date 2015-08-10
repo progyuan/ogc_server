@@ -1,6 +1,6 @@
 from __future__ import division
 '''Data Structures to represent a BBN as a DAG.'''
-import sys
+import sys, time
 import copy
 import heapq
 
@@ -75,7 +75,7 @@ class BBN(Graph):
         jt = self.build_join_tree()
         assignments = jt.assign_clusters(self)
         jt.initialize_potentials(assignments, self, kwds)
-
+        # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after initialize_potentials'))
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
@@ -92,6 +92,7 @@ class BBN(Graph):
                 # not evidenced.
                 if kwds:
                     normalizers[k[0][0]] += v
+        # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after for node in self.nodes'))
 
         if kwds:
             for k, v in marginals.iteritems():
@@ -972,14 +973,15 @@ def build_join_tree(dag, clique_priority_func=priority_func):
         # Adding in name to make this sort deterministic
         deco = [(s, -1 * s.mass, s.cost, s.__repr__()) for s in S]
         deco.sort(key=lambda x: x[1:])
-        candidate_sepset = deco[0][0]
-        for candidate_sepset, _, _, _ in deco:
-            if candidate_sepset.insertable(forest):
-                # Insert into forest and remove the sepset
-                candidate_sepset.insert(forest)
-                S.remove(candidate_sepset)
-                sepsets_inserted += 1
-                break
+        if len(deco) > 0:
+            candidate_sepset = deco[0][0]
+            for candidate_sepset, _, _, _ in deco:
+                if candidate_sepset.insertable(forest):
+                    # Insert into forest and remove the sepset
+                    candidate_sepset.insert(forest)
+                    S.remove(candidate_sepset)
+                    sepsets_inserted += 1
+                    break
 
     assert len(forest) == 1
     jt = list(forest)[0]
