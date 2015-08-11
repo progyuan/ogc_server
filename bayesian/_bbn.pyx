@@ -79,7 +79,6 @@ class BBN(Graph):
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
-
         for node in self.nodes:
             for k, v in jt.marginal(node).items():
                 # For a single node the

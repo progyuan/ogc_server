@@ -415,7 +415,7 @@ def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'II
     return retname, retlist
 
 def build_state_examination_condition(line_name):
-    data = get_state_examination_data_by_line_name(line_name)
+    # data = get_state_examination_data_by_line_name(line_name)
     cond = {}
     # o = calc_probability_unit(data)
     # for k in o.keys():
@@ -438,7 +438,9 @@ def build_additional_condition(line_name, cond):
     return ret
 
 def create_bbn_by_line_name(line_name):
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start json'))
     cond = build_state_examination_condition(line_name)
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'end json'))
     cond = build_additional_condition(line_name, cond)
     g = build_bbn_from_conditionals_plus(cond)
     return g
@@ -463,7 +465,7 @@ def test_se():
     print(g.get_graphviz_source_plus())
     # g.q(line_state='II')
     # ret = query_bbn_condition(g, {'line_state':'IV'})
-    ret = query_bbn_condition(g, {'unit_8':'II'})
+    ret = query_bbn_condition(g, {'line_state':'II'})
     print (ret)
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
@@ -494,7 +496,7 @@ def test_find_abnormal():
 def test_bayes():
     cond = build_cancer_condition()
     g = build_bbn_from_conditionals_plus(cond)
-    # test(g)
+    test(g)
     # g = build_bbn_plus(
     #     fP, fS, fC, fX, fD,
     #     domains={
@@ -507,8 +509,8 @@ def test_bayes():
     #         'P': ['low', 'high']})
     print(fg.export_plus(None))
     # # g.q()
-    # # g.q(P='high')
-    # # g.q(D=True)
+    # g.q(P='high')
+    # g.q(D=True)
     # # g.q(S=True)
     # # g.q(C=True, S=True)
     # # g.q(D=True, S=True)
@@ -960,11 +962,11 @@ def base64_img():
 
 
 if __name__ == '__main__':
-    pass
+    # pass
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    # test_se()
+    test_se()
     # test_format_json()
     # base64_img()
     # test_combinations()

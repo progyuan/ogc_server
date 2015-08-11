@@ -3,6 +3,7 @@ from __future__ import division
 import sys, time
 import copy
 import heapq
+import numpy as np
 
 from random import random, choice
 from StringIO import StringIO
@@ -987,3 +988,4 @@ def build_join_tree(dag, clique_priority_func=priority_func):
     assert len(forest) == 1
     jt = list(forest)[0]
     return jt
+

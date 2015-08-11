@@ -22,7 +22,7 @@ cdef unicode _ustring(s):
     else:
         raise TypeError('unknown string type')
 
-
+# @cython.boundscheck(False)
 cdef class Node(object):
 
     # def __init__(self, name, parents=[], children=[]):
@@ -30,8 +30,8 @@ cdef class Node(object):
     #     self.parents = parents[:]
     #     self.children = children[:]
     cdef char*  name
-    cdef Node[:] parents = np.array([None] * 100000, dtype=Node)
-    cdef Node[:] children = np.array([None] * 100000, dtype=Node)
+    cdef Node[:] parents = np.empty((100000,), dtype=Node)
+    cdef Node[:] children = np.empty((100000,), dtype=Node)
     @cython.nonecheck(False)
     def __cinit__(self, char* name, Node[:] parents, Node[:] children):
         self.name = name
