@@ -922,12 +922,51 @@ def test_combinations():
     # print (len(l))
     # print (cnt)
 
+def test_format_json():
+    l = []
+    with codecs.open(ur'd:\768.json', 'r', 'utf-8-sig' ) as f:
+        l = json.loads(f.read())
+    with codecs.open(ur'd:\768_1.json', 'w', 'utf-8-sig' ) as f:
+        f.write(json.dumps(l, ensure_ascii=False))
+
+def base64_img():
+    import base64
+    DIR_ROOT = ur'F:\work\html\webgis\css\ligerui-skins\Aqua\images'
+    d = {}
+    names = [
+        'loading.gif',
+        'popup-line.gif',
+        'header-bg.gif',
+        'bar-bg.gif',
+        'icon-first.gif',
+        'icon-prev.gif',
+        'icon-next.gif',
+        'icon-last.gif',
+        'icon-load.gif',
+        'bar-button-over.gif',
+    ]
+    for root, dirs, files  in os.walk(DIR_ROOT, topdown=False):
+        for name in files:
+            ext = name[name.rindex('.'):]
+            if ext == '.%s' % 'gif':
+                p = os.path.join(root, name)
+                if name  in names:
+                    print('converting to base64: %s ...' % p)
+                    with open(p, 'rb') as f:
+                        d[name] = base64.encodestring(f.read())
+                        print(d[name])
+    with open(ur'd:\aaa.json', 'w') as f:
+        f.write(json.dumps(d, ensure_ascii=True, indent=4))
+
 
 if __name__ == '__main__':
+    pass
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    test_se()
+    # test_se()
+    # test_format_json()
+    # base64_img()
     # test_combinations()
     # calc_probability_line1()
     # test_find_abnormal()
