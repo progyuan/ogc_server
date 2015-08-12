@@ -440,9 +440,23 @@ def build_additional_condition(line_name, cond):
 
 def create_bbn_by_line_name(line_name):
     cond = build_state_examination_condition(line_name)
-    cond = build_additional_condition(line_name, cond)
+    # cond = build_additional_condition(line_name, cond)
+    cond = build_additional_condition_fake( cond)
     g = build_bbn_from_conditionals_plus(cond)
     return g
+
+def build_additional_condition_fake(cond):
+    ret = cond
+    for i in range(1, 9):
+        ret['unit_%d' % i] = [
+            [[],{
+                'I': 0.0,
+                'II': 0.0,
+                'III': 0.0,
+                'IV': 0.0,
+            }]
+        ]
+    return ret
 
 def query_bbn_condition(g, querydict):
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start'))
