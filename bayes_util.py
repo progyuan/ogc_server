@@ -4,8 +4,9 @@ import time
 import itertools
 from collections import OrderedDict
 import json
+import numpy as np
 import bayesian
-from bayesian.bbn import *
+from bayesian.bbn_np import *
 from bayesian.factor_graph import *
 import pymongo
 from bson.code import Code
@@ -438,9 +439,7 @@ def build_additional_condition(line_name, cond):
     return ret
 
 def create_bbn_by_line_name(line_name):
-    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start json'))
     cond = build_state_examination_condition(line_name)
-    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'end json'))
     cond = build_additional_condition(line_name, cond)
     g = build_bbn_from_conditionals_plus(cond)
     return g
@@ -960,6 +959,41 @@ def base64_img():
     with open(ur'd:\aaa.json', 'w') as f:
         f.write(json.dumps(d, ensure_ascii=True, indent=4))
 
+def cartesian_product(arrays):
+    broadcastable = np.ix_(*arrays)
+    broadcasted = np.broadcast_arrays(*broadcastable)
+    rows, cols = reduce(np.multiply, broadcasted[0].shape), len(broadcasted)
+    out = np.empty(rows * cols, dtype=broadcasted[0].dtype)
+    start, end = 0, rows
+    for a in broadcasted:
+        out[start:end] = a.reshape(-1)
+        start, end = end, end + rows
+    return out.reshape(cols, rows).T
+
+def array3d_creation(alist, w, h):
+    l = []
+    for i in alist:
+        l1 = []
+        for j in i:
+            l1.append({j[0]:j[1]})
+        l.append(np.array(l1))
+    # print(l)
+    p = cartesian_product(l)
+    ret = np.array((len(p), w, h), dtype=object)
+    # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start'))
+    # permutations = product(*l)
+    # print(len(list(permutations)))
+    # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'end'))
+    return ret
+
+def test_numpy():
+    w = 9
+    h = 9
+
+    arr = [[('line_state', u'I'), ('line_state', u'II'), ('line_state', u'III'), ('line_state', u'IV')], [(u'unit_1', u'I'), (u'unit_1', u'II'), (u'unit_1', u'III'), (u'unit_1', u'IV')], [(u'unit_2', u'I'), (u'unit_2', u'II'), (u'unit_2', u'III'), (u'unit_2', u'IV')], [(u'unit_3', u'I'), (u'unit_3', u'II'), (u'unit_3', u'III'), (u'unit_3', u'IV')], [(u'unit_4', u'I'), (u'unit_4', u'II'), (u'unit_4', u'III'), (u'unit_4', u'IV')], [(u'unit_5', u'I'), (u'unit_5', u'II'), (u'unit_5', u'III'), (u'unit_5', u'IV')], [(u'unit_6', u'I'), (u'unit_6', u'II'), (u'unit_6', u'III'), (u'unit_6', u'IV')], [(u'unit_7', u'I'), (u'unit_7', u'II'), (u'unit_7', u'III'), (u'unit_7', u'IV')], [(u'unit_8', u'I'), (u'unit_8', u'II'), (u'unit_8', u'III'), (u'unit_8', u'IV')]]
+    a = array3d_creation(arr, w, h)
+
+
 
 if __name__ == '__main__':
     # pass
@@ -967,6 +1001,7 @@ if __name__ == '__main__':
     # test_insert_domains_range()
     # test_import_2015txt()
     test_se()
+    # test_numpy()
     # test_format_json()
     # base64_img()
     # test_combinations()

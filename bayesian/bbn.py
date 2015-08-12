@@ -74,13 +74,10 @@ class BBN(Graph):
     def query(self, **kwds):
         jt = self.build_join_tree()
         assignments = jt.assign_clusters(self)
-        print('1 -- %d' % len(self.nodes))
         jt.initialize_potentials(assignments, self, kwds)
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after initialize_potentials'))
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
-        print('2 -- %d' % len(self.nodes))
         for node in self.nodes:
             for k, v in jt.marginal(node).items():
                 # For a single node the
@@ -93,7 +90,6 @@ class BBN(Graph):
                 # not evidenced.
                 if kwds:
                     normalizers[k[0][0]] += v
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after for node in self.nodes'))
 
         if kwds:
             for k, v in marginals.iteritems():

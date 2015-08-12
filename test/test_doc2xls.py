@@ -247,6 +247,9 @@ def parse_one_sheet(sheet):
     for row in range(1, sheet.nrows):
         o = {}
         o['question'] = sheet.cell_value(row,  1).strip()
+        if len(o['question']) == 0:
+            print('blank')
+            continue
         o['answer'] = []
         ans = sheet.cell_value(row,  6).strip().upper()
         if len(ans) == 1:
