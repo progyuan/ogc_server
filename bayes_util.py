@@ -440,8 +440,8 @@ def build_additional_condition(line_name, cond):
 
 def create_bbn_by_line_name(line_name):
     cond = build_state_examination_condition(line_name)
-    # cond = build_additional_condition(line_name, cond)
-    cond = build_additional_condition_fake( cond)
+    cond = build_additional_condition(line_name, cond)
+    # cond = build_additional_condition_fake( cond)
     g = build_bbn_from_conditionals_plus(cond)
     return g
 

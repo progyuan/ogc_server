@@ -3,6 +3,9 @@ from __future__ import division
 import sys, time
 import copy
 import heapq
+import inspect
+cimport cython
+import cython
 
 from random import random, choice
 from StringIO import StringIO
@@ -12,15 +15,189 @@ from collections import defaultdict
 from prettytable import PrettyTable
 
 from bayesian import GREEN, NORMAL
-from bayesian.graph import Node, UndirectedNode, connect
-from bayesian.graph import Graph, UndirectedGraph
-from bayesian.utils import get_args, named_base_type_factory
+# from bayesian.graph import Node, UndirectedNode, connect
+# from bayesian.graph import Graph, UndirectedGraph
+# from bayesian.utils import get_args, named_base_type_factory
+# from bayesian.utils import get_original_factors
+# from bayesian._graph import Node, UndirectedNode, connect
+# from bayesian._graph import Graph, UndirectedGraph
 from bayesian.utils import get_original_factors
 
 
-class BBNNode(Node):
 
-    def __init__(self, factor):
+
+cdef class Node(object):
+    cdef unicode name
+    cdef list parents
+    cdef list children
+    def __cinit__(self, unicode name, list parents=[], list children=[]):
+        self.name = name
+        self.parents = parents[:]
+        self.children = children[:]
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, unicode name ):
+            self.name = name
+    property parents:
+        def __get__(self):
+            return self.parents
+        def __set__(self, list parents):
+            self.parents = parents
+    property children:
+        def __get__(self):
+            return self.children
+        def __set__(self, list children):
+            self.children = children
+
+    def __repr__(self):
+        return '<Node %s>' % self.name
+
+
+cdef class UndirectedNode(object):
+    cdef unicode name
+    cdef list neighbours
+    def __cinit__(self, unicode name, list neighbours=[]):
+        self.name = name
+        self.neighbours = neighbours[:]
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, unicode name ):
+            self.name = name
+    property neighbours:
+        def __get__(self):
+            return self.neighbours
+        def __set__(self, list neighbours):
+            self.neighbours = neighbours
+
+    def __repr__(self):
+        return '<UndirectedNode %s>' % self.name
+
+
+cdef class Graph(object):
+
+    def export(self, filename=None, format='graphviz'):
+        '''Export the graph in GraphViz dot language.'''
+        if format != 'graphviz':
+            raise 'Unsupported Export Format.'
+        if filename:
+            fh = open(filename, 'w')
+        else:
+            fh = sys.stdout
+        fh.write(self.get_graphviz_source())
+
+    def get_topological_sort(self):
+        '''In order to make this sort
+        deterministic we will use the
+        variable name as a secondary sort'''
+        l = []
+        l_set = set() # For speed
+        s = [n for n in self.nodes.values() if not n.parents]
+        s.sort(reverse=True, key=lambda x:x.variable_name)
+        while s:
+            n = s.pop()
+            l.append(n)
+            l_set.add(n)
+            # Now some of n's children may be
+            # added to s if all their parents
+            # are already accounted for.
+            for m in n.children:
+                if set(m.parents).issubset(l_set):
+                    s.append(m)
+                    s.sort(reverse=True, key=lambda x:x.variable_name)
+        if len(l) == len(self.nodes):
+            return l
+        raise "Graph Has Cycles"
+
+
+cdef class UndirectedGraph(object):
+    cdef unicode name
+    cdef list nodes
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, list nodes):
+            self.nodes = nodes
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, unicode name):
+            self.name = name
+
+    def __cinit__(self, list nodes, unicode name=None):
+        self.nodes = nodes
+        self.name = name
+
+    def get_graphviz_source(self):
+        fh = StringIO()
+        fh.write('graph G {\n')
+        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        edges = set()
+        for node in self.nodes:
+            fh.write('  %s [ shape="ellipse" color="blue"];\n' % node.name)
+            for neighbour in node.neighbours:
+                edge = [node.name, neighbour.name]
+                edges.add(tuple(sorted(edge)))
+        for source, target in edges:
+            fh.write('  %s -- %s;\n' % (source, target))
+        fh.write('}\n')
+        return fh.getvalue()
+
+    def export(self, filename=None, format='graphviz'):
+        '''Export the graph in GraphViz dot language.'''
+        if format != 'graphviz':
+            raise 'Unsupported Export Format.'
+        if filename:
+            fh = open(filename, 'w')
+        else:
+            fh = sys.stdout
+        fh.write(self.get_graphviz_source())
+
+
+cdef connect(Node parent, Node child):
+    '''
+    Make an edge between a parent
+    node and a child node.
+    a - parent
+    b - child
+    '''
+    parent.children.append(child)
+    child.parents.append(parent)
+
+
+cdef list get_args(object func):
+    '''
+    Return the names of the arguments
+    of a function as a list of strings.
+    This is so that we can omit certain
+    variables when we marginalize.
+    Note that functions created by
+    make_product_func do not return
+    an argspec, so we add a argspec
+    attribute at creation time.
+    '''
+    if hasattr(func, 'argspec'):
+        return func.argspec
+    return inspect.getargspec(func).args
+
+
+cdef class BBNNode(Node):
+    cdef unicode name
+    cdef object factor
+    cdef list argspec
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, unicode name):
+            self.name = name
+    property argspec:
+        def __get__(self):
+            return self.argspec
+        def __set__(self, list argspec):
+            self.argspec = argspec
+
+    def __cinit__(self, object factor):
         super(BBNNode, self).__init__(factor.__name__)
         self.func = factor
         self.argspec = get_args(factor)
@@ -28,13 +205,16 @@ class BBNNode(Node):
     def __repr__(self):
         return '<BBNNode %s (%s)>' % (
             self.name,
-            self.argspec)
+            str(self.argspec))
 
 
 cdef class BBN(Graph):
     '''A Directed Acyclic Graph'''
 
-    def __init__(self, nodes_dict, name=None, domains={}):
+    cdef dict nodes_dict
+    cdef unicode name
+    cdef dict domains
+    def __cinit__(self, dict nodes_dict, unicode name=None, dict domains={}):
         self.nodes = nodes_dict.values()
         self.vars_to_nodes = nodes_dict
         self.domains = domains
@@ -75,6 +255,7 @@ cdef class BBN(Graph):
         jt = self.build_join_tree()
         assignments = jt.assign_clusters(self)
         jt.initialize_potentials(assignments, self, kwds)
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '1'))
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
@@ -90,6 +271,7 @@ cdef class BBN(Graph):
                 # not evidenced.
                 if kwds:
                     normalizers[k[0][0]] += v
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '2'))
 
         if kwds:
             for k, v in marginals.iteritems():
@@ -146,7 +328,7 @@ cdef class BBN(Graph):
         return samples
 
 
-class JoinTree(UndirectedGraph):
+cdef class JoinTree(UndirectedGraph):
 
     def __init__(self, nodes, name=None):
         super(JoinTree, self).__init__(
@@ -178,8 +360,16 @@ class JoinTree(UndirectedGraph):
         fh.write('}\n')
         return fh.getvalue()
 
-    def initialize_potentials(self, assignments, bbn, evidence={}):
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    cdef initialize_potentials(self, object assignments, object bbn, dict evidence={}):
         # Step 1, assign 1 to each cluster and sepset
+        cdef dict tt
+        cdef list vals
+        cdef list variables
+        cdef set domain
+        cdef dict argvals
+        cdef double potential
         for node in self.nodes:
             tt = dict()
             vals = []
@@ -367,7 +557,9 @@ class JoinTree(UndirectedGraph):
                     sender=neighbouring_clique,
                     receiver=sender)
 
-    def marginal(self, bbn_node):
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    cdef dict marginal(self, object bbn_node):
         '''Remember that the original
         variables that we are interested in
         are actually in the bbn. However
@@ -388,7 +580,9 @@ class JoinTree(UndirectedGraph):
         # Note that for efficiency we
         # should probably have an index
         # cached in the bbn and/or the jt.
-        containing_nodes = []
+        cdef tuple entry
+        cdef list containing_nodes = []
+        cdef dict ret
 
         for node in self.clique_nodes:
             if bbn_node.name in [n.name for n in node.clique.nodes]:
@@ -411,7 +605,8 @@ class JoinTree(UndirectedGraph):
         # Now if this node was evidenced we need to normalize
         # over the values...
         # TODO: It will be safer to copy the defaultdict to a regular dict
-        return tt
+        ret = <dict>tt
+        return ret
 
 
 class Clique(object):
@@ -424,7 +619,7 @@ class Clique(object):
         return 'Clique_%s' % ''.join([v.upper() for v in vars])
 
 
-def transform(x, X, R):
+cdef tuple transform(tuple x, list X, list R):
     '''Transform a Potential Truth Table
     Entry into a different variable space.
     For example if we have the
@@ -438,7 +633,8 @@ def transform(x, X, R):
     the argument list for the sepset.
     This implies that R is always a subset
     of X'''
-    entry = []
+    cdef list entry = []
+    cdef int pos
     for r in R:
         pos = X.index(r)
         entry.append(x[pos])

@@ -232,10 +232,7 @@ class JoinTree(UndirectedGraph):
                 domain = bbn.domains.get(variable, [True, False])
                 vals.append(list(product([variable], domain)))
 
-            # permutations = product(*vals)
-            # for permutation in permutations:
-            #     print(permutation)
-
+            '''
             l = []
             for i in vals:
                 l1 = []
@@ -266,14 +263,12 @@ class JoinTree(UndirectedGraph):
                 it.iternext()
             clique.potential_tt = tt
             print('[%s]arg_list=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'np'))
-
             '''
+
             permutations = product(*vals)
             for permutation in permutations:
                 argvals = dict(permutation)
-                print('[%s]argvals=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), str(argvals)))
                 potential = 1
-                print('[%s]len(bbn_nodes)=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), str(len(bbn_nodes))))
                 for bbn_node in bbn_nodes:
                     bbn_node.clique = clique
                     # We could handle evidence here
@@ -285,11 +280,12 @@ class JoinTree(UndirectedGraph):
                     for arg_name in get_args(bbn_node.func):
                         arg_list.append(argvals[arg_name])
 
-                    print('[%s]arg_list=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), str(arg_list)))
+                    # print('[%s]arg_list=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), str(arg_list)))
                     potential *= bbn_node.func(*arg_list)
                 tt[permutation] = potential
             clique.potential_tt = tt
-            '''
+            # print('[%s]len(bbn_nodes)=%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), str(len(bbn_nodes))))
+
 
         if not evidence:
             # We dont need to deal with likelihoods
