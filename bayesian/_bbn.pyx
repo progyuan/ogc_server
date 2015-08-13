@@ -21,7 +21,7 @@ from bayesian import GREEN, NORMAL
 # from bayesian.utils import get_original_factors
 # from bayesian._graph import Node, UndirectedNode, connect
 # from bayesian._graph import Graph, UndirectedGraph
-from bayesian.utils import get_original_factors
+# from bayesian.utils import get_original_factors
 
 
 
@@ -75,7 +75,7 @@ cdef class UndirectedNode(object):
         return '<UndirectedNode %s>' % self.name
 
 
-cdef class Graph(object):
+class Graph(object):
 
     def export(self, filename=None, format='graphviz'):
         '''Export the graph in GraphViz dot language.'''
@@ -183,14 +183,8 @@ cdef list get_args(object func):
 
 
 cdef class BBNNode(Node):
-    cdef unicode name
-    cdef object factor
+    cdef object func
     cdef list argspec
-    property name:
-        def __get__(self):
-            return self.name
-        def __set__(self, unicode name):
-            self.name = name
     property argspec:
         def __get__(self):
             return self.argspec
@@ -208,12 +202,29 @@ cdef class BBNNode(Node):
             str(self.argspec))
 
 
+
 cdef class BBN(Graph):
     '''A Directed Acyclic Graph'''
-
+    cdef list nodes
     cdef dict nodes_dict
     cdef unicode name
     cdef dict domains
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, unicode name):
+            self.name = name
+    property domains:
+        def __get__(self):
+            return self.domains
+        def __set__(self, dict domains):
+            self.domains = domains
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, list nodes):
+            self.nodes = nodes
+
     def __cinit__(self, dict nodes_dict, unicode name=None, dict domains={}):
         self.nodes = nodes_dict.values()
         self.vars_to_nodes = nodes_dict
@@ -251,11 +262,15 @@ cdef class BBN(Graph):
         jt = build_join_tree(self)
         return jt
 
-    cdef query(self, **kwds):
-        jt = self.build_join_tree()
-        assignments = jt.assign_clusters(self)
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    # def query(self, **kwds):
+    cdef dict query(self, dict kwds):
+        cdef JoinTree jt = self.build_join_tree()
+        cdef dict assignments = jt.assign_clusters(self)
+        cdef dict marginals
         jt.initialize_potentials(assignments, self, kwds)
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '1'))
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after initialize_potentials'))
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
@@ -271,20 +286,20 @@ cdef class BBN(Graph):
                 # not evidenced.
                 if kwds:
                     normalizers[k[0][0]] += v
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '2'))
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after phase2'))
 
         if kwds:
             for k, v in marginals.iteritems():
                 if normalizers[k[0]] != 0:
                     marginals[k] /= normalizers[k[0]]
-
         return marginals
 
     def q(self, **kwds):
         '''Interactive user friendly wrapper
         around query()
         '''
-        result = self.query(**kwds)
+        # result = self.query(**kwds)
+        result = self.query(kwds)
         tab = PrettyTable(['Node', 'Value', 'Marginal'], sortby='Node')
         tab.align = 'l'
         tab.align['Marginal'] = 'r'
@@ -312,7 +327,8 @@ cdef class BBN(Graph):
                                     node.variable_name not in sample])
                 key = tuple(sorted(sample.items()))
                 if key not in result_cache:
-                    result_cache[key] = self.query(**sample)
+                    # result_cache[key] = self.query(**sample)
+                    result_cache[key] = self.query(sample)
                 result = result_cache[key]
                 var_density = [r for r in result.items()
                                if r[0][0]==next_node.variable_name]
@@ -330,7 +346,7 @@ cdef class BBN(Graph):
 
 cdef class JoinTree(UndirectedGraph):
 
-    def __init__(self, nodes, name=None):
+    def __cinit__(self, list nodes, unicode name=None):
         super(JoinTree, self).__init__(
             nodes, name)
 
@@ -362,7 +378,7 @@ cdef class JoinTree(UndirectedGraph):
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    cdef initialize_potentials(self, object assignments, object bbn, dict evidence={}):
+    cdef initialize_potentials(self, dict assignments, BBN bbn, dict evidence={}):
         # Step 1, assign 1 to each cluster and sepset
         cdef dict tt
         cdef list vals
@@ -407,7 +423,7 @@ cdef class JoinTree(UndirectedGraph):
             permutations = product(*vals)
             for permutation in permutations:
                 argvals = dict(permutation)
-                potential = 1
+                potential = 1.0
                 for bbn_node in bbn_nodes:
                     bbn_node.clique = clique
                     # We could handle evidence here
@@ -452,7 +468,8 @@ cdef class JoinTree(UndirectedGraph):
                     l[(node.variable_name, value)] = 1
         return l
 
-    def assign_clusters(self, bbn):
+    cdef dict assign_clusters(self, BBN bbn):
+        cdef dict ret
         assignments_by_family = dict()
         assignments_by_clique = defaultdict(list)
         assigned = set()
@@ -502,7 +519,9 @@ cdef class JoinTree(UndirectedGraph):
                 assignments_by_clique[clique].append(node)
                 assigned.add(node)
             assignments_by_family[tuple(family)] = containing_cliques
-        return assignments_by_clique
+        ret = <dict> assignments_by_clique
+        # return assignments_by_clique
+        return ret
 
     def propagate(self, starting_clique=None):
         '''Refer to H&D pg. 20'''
@@ -609,9 +628,9 @@ cdef class JoinTree(UndirectedGraph):
         return ret
 
 
-class Clique(object):
-
-    def __init__(self, cluster):
+cdef class Clique(object):
+    cdef list nodes
+    def __cinit__(self, list cluster):
         self.nodes = cluster
 
     def __repr__(self):
@@ -641,9 +660,9 @@ cdef tuple transform(tuple x, list X, list R):
     return tuple(entry)
 
 
-class JoinTreeCliqueNode(UndirectedNode):
-
-    def __init__(self, clique):
+cdef class JoinTreeCliqueNode(UndirectedNode):
+    cdef Clique clique
+    def __cinit__(self, Clique clique):
         super(JoinTreeCliqueNode, self).__init__(
             clique.__repr__())
         self.clique = clique
@@ -763,9 +782,11 @@ class JoinTreeCliqueNode(UndirectedNode):
         return '<JoinTreeCliqueNode: %s>' % self.clique
 
 
-class SepSet(object):
-
-    def __init__(self, X, Y):
+cdef class SepSet(object):
+    cdef Clique X
+    cdef Clique Y
+    cdef list label
+    def __cinit__(self, Clique X, Clique Y):
         '''X and Y are cliques represented as sets.'''
         self.X = X
         self.Y = Y
@@ -881,15 +902,19 @@ class JoinTreeSepSetNode(UndirectedNode):
         return '<JoinTreeSepSetNode: %s>' % self.sepset
 
 
-def build_bbn(*args, **kwds):
+cdef BBN build_bbn(list args, dict kwds):
     '''Builds a BBN Graph from
     a list of functions and domains'''
-    variables = set()
-    domains = kwds.get('domains', {})
-    name = kwds.get('name')
-    variable_nodes = dict()
-    factor_nodes = dict()
-
+    cdef set variables = set()
+    cdef dict domains = kwds.get('domains', {})
+    cdef unicode name = kwds.get('name')
+    cdef dict variable_nodes = dict()
+    cdef dict factor_nodes = dict()
+    cdef list factor_args
+    # cdef BBNNode bbn_node
+    cdef dict original_factors
+    cdef list parents
+    cdef BBN bbn
     if isinstance(args[0], list):
         # Assume the functions were all
         # passed in a list in the first
@@ -903,8 +928,8 @@ def build_bbn(*args, **kwds):
     for factor in args:
         factor_args = get_args(factor)
         variables.update(factor_args)
-        bbn_node = BBNNode(factor)
-        factor_nodes[factor.__name__] = bbn_node
+        # bbn_node = BBNNode(factor.__name__, [], [], factor)
+        factor_nodes[factor.__name__] = BBNNode(factor.__name__, [], [], factor)
 
     # Now lets create the connections
     # To do this we need to find the
@@ -928,6 +953,79 @@ def build_bbn(*args, **kwds):
 
     return bbn
 
+# def build_bbn(*args, **kwds):
+#     '''Builds a BBN Graph from
+#     a list of functions and domains'''
+#     variables = set()
+#     domains = kwds.get('domains', {})
+#     name = kwds.get('name')
+#     variable_nodes = dict()
+#     factor_nodes = dict()
+#
+#     if isinstance(args[0], list):
+#         # Assume the functions were all
+#         # passed in a list in the first
+#         # argument. This makes it possible
+#         # to build very large graphs with
+#         # more than 255 functions, since
+#         # Python functions are limited to
+#         # 255 arguments.
+#         args = args[0]
+#
+#     for factor in args:
+#         factor_args = get_args(factor)
+#         variables.update(factor_args)
+#         bbn_node = BBNNode(factor)
+#         factor_nodes[factor.__name__] = bbn_node
+#
+#     # Now lets create the connections
+#     # To do this we need to find the
+#     # factor node representing the variables
+#     # in a child factors argument and connect
+#     # it to the child node.
+#
+#     # Note that calling original_factors
+#     # here can break build_bbn if the
+#     # factors do not correctly represent
+#     # a BBN.
+#     original_factors = get_original_factors(factor_nodes.values())
+#     for factor_node in factor_nodes.values():
+#         factor_args = get_args(factor_node)
+#         parents = [original_factors[arg] for arg in
+#                    factor_args if original_factors[arg] != factor_node]
+#         for parent in parents:
+#             connect(parent, factor_node)
+#     bbn = BBN(original_factors, name=name)
+#     bbn.domains = domains
+#
+#     return bbn
+
+
+
+cdef dict get_original_factors(list factors):
+    '''
+    For a set of factors, we want to
+    get a mapping of the variables to
+    the factor which first introduces the
+    variable to the set.
+    To do this without enforcing a special
+    naming convention such as 'f_' for factors,
+    or a special ordering, such as the last
+    argument is always the new variable,
+    we will have to discover the 'original'
+    factor that introduces the variable
+    iteratively.
+    '''
+    cdef dict original_factors = dict()
+    cdef list args
+    cdef list unaccounted_args
+    while len(original_factors) < len(factors):
+        for factor in factors:
+            args = get_args(factor)
+            unaccounted_args = [a for a in args if a not in original_factors]
+            if len(unaccounted_args) == 1:
+                original_factors[unaccounted_args[0]] = factor
+    return original_factors
 
 def make_node_func(variable_name, conditions):
     # We will enforce the following
@@ -976,12 +1074,15 @@ def build_bbn_from_conditionals(conds):
         node_funcs.append(node_func)
         domains[variable_name] = node_func._domain
     return build_bbn(*node_funcs, domains=domains)
+    # return build_bbn(node_funcs, {'domains':domains})
 
 
-def make_undirected_copy(dag):
+cdef UndirectedGraph make_undirected_copy(BBN dag):
     '''Returns an exact copy of the dag
     except that direction of edges are dropped.'''
-    nodes = dict()
+    cdef dict nodes = dict()
+    cdef UndirectedNode undirected_node
+    cdef UndirectedGraph g
     for node in dag.nodes:
         undirected_node = UndirectedNode(
             name=node.name)

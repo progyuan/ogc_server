@@ -6,7 +6,8 @@ from collections import OrderedDict
 import json
 import numpy as np
 import bayesian
-from bayesian.bbn_np import *
+# from bayesian.bbn_np import *
+from bayesian._bbn import *
 from bayesian.factor_graph import *
 import pymongo
 from bson.code import Code
@@ -442,7 +443,8 @@ def create_bbn_by_line_name(line_name):
     cond = build_state_examination_condition(line_name)
     cond = build_additional_condition(line_name, cond)
     # cond = build_additional_condition_fake( cond)
-    g = build_bbn_from_conditionals_plus(cond)
+    # g = build_bbn_from_conditionals_plus(cond)
+    g = build_bbn_from_conditionals(cond)
     return g
 
 def build_additional_condition_fake(cond):
