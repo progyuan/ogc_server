@@ -442,8 +442,12 @@ def build_additional_condition(line_name, cond):
 def create_bbn_by_line_name(line_name):
     cond = build_state_examination_condition(line_name)
     cond = build_additional_condition(line_name, cond)
-    # cond = build_additional_condition_fake( cond)
-    # g = build_bbn_from_conditionals_plus(cond)
+    g = build_bbn_from_conditionals_plus(cond)
+    return g
+
+def _create_bbn_by_line_name(line_name):
+    cond = build_state_examination_condition(line_name)
+    cond = build_additional_condition(line_name, cond)
     g = build_bbn_from_conditionals(cond)
     return g
 
@@ -460,7 +464,7 @@ def build_additional_condition_fake(cond):
         ]
     return ret
 
-def query_bbn_condition(g, querydict):
+def query_bbn_condition(g, **querydict):
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start'))
     d = g.query(**querydict)
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'end'))
@@ -480,8 +484,19 @@ def test_se():
     print(g.get_graphviz_source_plus())
     # g.q(line_state='II')
     # ret = query_bbn_condition(g, {'line_state':'IV'})
-    ret = query_bbn_condition(g, {'line_state':'II'})
+    ret = query_bbn_condition(g, line_state='II')
     print (ret)
+    # fg = build_graph_from_conditionals_plus(cond)
+    # print(fg.export_plus(None))
+
+def _test_se():
+    g = _create_bbn_by_line_name(u'厂口七甸I回线')
+    # print(g.get_graphviz_source())
+    # ret = query_bbn_condition(g, line_state='II')
+    # print (ret)
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q start'))
+    g.q(line_state='III', unit_8='III')
+    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q end'))
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
 
@@ -510,13 +525,13 @@ def test_find_abnormal():
 
 def test_bayes():
     cond = build_cancer_condition()
-    g = build_bbn_from_conditionals_plus(cond)
+    g = build_bbn_from_conditionals(cond)
     test(g)
     # g = build_bbn_plus(
     #     fP, fS, fC, fX, fD,
     #     domains={
     #         'P': ['low', 'high']})
-    print(g.get_graphviz_source_plus())
+    print(g.get_graphviz_source())
     fg = build_graph_from_conditionals_plus(cond)
     # fg = build_graph_plus(
     #     fP, fS, fC, fX, fD,
@@ -1016,7 +1031,8 @@ if __name__ == '__main__':
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    test_se()
+    # test_se()
+    _test_se()
     # test_numpy()
     # test_format_json()
     # base64_img()

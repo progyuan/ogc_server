@@ -6,6 +6,7 @@ import heapq
 import inspect
 cimport cython
 import cython
+from cpython cimport bool
 
 from random import random, choice
 from StringIO import StringIO
@@ -27,17 +28,17 @@ from bayesian import GREEN, NORMAL
 
 
 cdef class Node(object):
-    cdef unicode name
+    cdef str name
     cdef list parents
     cdef list children
-    def __cinit__(self, unicode name, list parents=[], list children=[]):
+    def __cinit__(self, str name, list parents=[], list children=[]):
         self.name = name
         self.parents = parents[:]
         self.children = children[:]
     property name:
         def __get__(self):
             return self.name
-        def __set__(self, unicode name ):
+        def __set__(self, str name ):
             self.name = name
     property parents:
         def __get__(self):
@@ -55,27 +56,66 @@ cdef class Node(object):
 
 
 cdef class UndirectedNode(object):
-    cdef unicode name
+    cdef str name
     cdef list neighbours
-    def __cinit__(self, unicode name, list neighbours=[]):
+    cdef object func
+    cdef str variable_name
+    cdef list argspec
+
+    def __cinit__(self, str name, list neighbours=[]):
         self.name = name
         self.neighbours = neighbours[:]
     property name:
         def __get__(self):
             return self.name
-        def __set__(self, unicode name ):
+        def __set__(self, str name ):
             self.name = name
     property neighbours:
         def __get__(self):
             return self.neighbours
         def __set__(self, list neighbours):
             self.neighbours = neighbours
+    property func:
+        def __get__(self):
+            return self.func
+        def __set__(self, object func):
+            self.func = func
+    property argspec:
+        def __get__(self):
+            return self.argspec
+        def __set__(self, list argspec):
+            self.argspec = argspec
+    property variable_name:
+        def __get__(self):
+            return self.variable_name
+        def __set__(self, str variable_name ):
+            self.variable_name = variable_name
+
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls, self.name, self.neighbours)
+        result.__dict__.update(self.__dict__)
+        return result
+
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls, self.name, self.neighbours)
+        memo[id(self)] = result
+        # for k, v in self.__dict__.items():
+        for k, v in [('name', self.name),
+                     ('neighbours', self.neighbours),
+                     ('variable_name', self.variable_name),
+                     ('argspec', self.argspec),
+                     ('func', self.func),
+                     ]:
+            setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
     def __repr__(self):
         return '<UndirectedNode %s>' % self.name
 
 
-class Graph(object):
+cdef class Graph(object):
 
     def export(self, filename=None, format='graphviz'):
         '''Export the graph in GraphViz dot language.'''
@@ -112,7 +152,7 @@ class Graph(object):
 
 
 cdef class UndirectedGraph(object):
-    cdef unicode name
+    cdef str name
     cdef list nodes
     property nodes:
         def __get__(self):
@@ -122,17 +162,31 @@ cdef class UndirectedGraph(object):
     property name:
         def __get__(self):
             return self.name
-        def __set__(self, unicode name):
+        def __set__(self, str name):
             self.name = name
 
-    def __cinit__(self, list nodes, unicode name=None):
+    def __cinit__(self, list nodes, str name=None):
         self.nodes = nodes
         self.name = name
+    def __copy__(self):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        return result
 
-    def get_graphviz_source(self):
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls, self.nodes, self.name)
+        memo[id(self)] = result
+        # for k, v in self.__dict__.items():
+        for k, v in [('name', self.name),('nodes', self.nodes)]:
+            setattr(result, k, copy.deepcopy(v, memo))
+        return result
+
+    def get_graphviz_source(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('graph G {\n')
-        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in self.nodes:
             fh.write('  %s [ shape="ellipse" color="blue"];\n' % node.name)
@@ -155,7 +209,7 @@ cdef class UndirectedGraph(object):
         fh.write(self.get_graphviz_source())
 
 
-cdef connect(Node parent, Node child):
+cdef connect(BBNNode parent, BBNNode child):
     '''
     Make an edge between a parent
     node and a child node.
@@ -182,19 +236,56 @@ cdef list get_args(object func):
     return inspect.getargspec(func).args
 
 
-cdef class BBNNode(Node):
+cdef class BBNNode(object):
+    cdef str name
+    cdef str variable_name
+    cdef list parents
+    cdef list children
     cdef object func
     cdef list argspec
+    cdef JoinTreeCliqueNode clique
     property argspec:
         def __get__(self):
             return self.argspec
         def __set__(self, list argspec):
             self.argspec = argspec
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, str name ):
+            self.name = name
+    property variable_name:
+        def __get__(self):
+            return self.variable_name
+        def __set__(self, str variable_name ):
+            self.variable_name = variable_name
+    property parents:
+        def __get__(self):
+            return self.parents
+        def __set__(self, list parents):
+            self.parents = parents
+    property children:
+        def __get__(self):
+            return self.children
+        def __set__(self, list children):
+            self.children = children
+    property func:
+        def __get__(self):
+            return self.func
+        def __set__(self, object func):
+            self.func = func
+    property clique:
+        def __get__(self):
+            return self.clique
+        def __set__(self, JoinTreeCliqueNode clique):
+            self.clique = clique
 
-    def __cinit__(self, object factor):
-        super(BBNNode, self).__init__(factor.__name__)
+    def __cinit__(self, str name, object factor, list parents=[], list children=[]):
+        self.name = name
         self.func = factor
         self.argspec = get_args(factor)
+        self.parents = parents[:]
+        self.children = children[:]
 
     def __repr__(self):
         return '<BBNNode %s (%s)>' % (
@@ -203,29 +294,34 @@ cdef class BBNNode(Node):
 
 
 
-cdef class BBN(Graph):
+cdef class BBN(object):
     '''A Directed Acyclic Graph'''
     cdef list nodes
-    cdef dict nodes_dict
-    cdef unicode name
+    cdef dict vars_to_nodes
+    cdef str name
     cdef dict domains
     property name:
         def __get__(self):
             return self.name
-        def __set__(self, unicode name):
+        def __set__(self, str name):
             self.name = name
     property domains:
         def __get__(self):
             return self.domains
         def __set__(self, dict domains):
             self.domains = domains
+    property vars_to_nodes:
+        def __get__(self):
+            return self.vars_to_nodes
+        def __set__(self, dict vars_to_nodes):
+            self.vars_to_nodes = vars_to_nodes
     property nodes:
         def __get__(self):
             return self.nodes
         def __set__(self, list nodes):
             self.nodes = nodes
 
-    def __cinit__(self, dict nodes_dict, unicode name=None, dict domains={}):
+    def __cinit__(self, dict nodes_dict, str name=None, dict domains={}):
         self.nodes = nodes_dict.values()
         self.vars_to_nodes = nodes_dict
         self.domains = domains
@@ -241,12 +337,49 @@ cdef class BBN(Graph):
         # by the function. (Unless there
         # is only one argument)
         for variable_name, node in nodes_dict.items():
+            if isinstance(variable_name, unicode):
+                variable_name = variable_name.encode('utf-8')
             node.variable_name = variable_name
 
-    def get_graphviz_source(self):
+    def export(self, filename=None, format='graphviz'):
+        '''Export the graph in GraphViz dot language.'''
+        if format != 'graphviz':
+            raise 'Unsupported Export Format.'
+        if filename:
+            fh = open(filename, 'w')
+        else:
+            fh = sys.stdout
+        fh.write(self.get_graphviz_source())
+
+    def get_topological_sort(self):
+        '''In order to make this sort
+        deterministic we will use the
+        variable name as a secondary sort'''
+        l = []
+        l_set = set() # For speed
+        s = [n for n in self.nodes.values() if not n.parents]
+        s.sort(reverse=True, key=lambda x:x.variable_name)
+        while s:
+            n = s.pop()
+            l.append(n)
+            l_set.add(n)
+            # Now some of n's children may be
+            # added to s if all their parents
+            # are already accounted for.
+            for m in n.children:
+                if set(m.parents).issubset(l_set):
+                    s.append(m)
+                    s.sort(reverse=True, key=lambda x:x.variable_name)
+        if len(l) == len(self.nodes):
+            return l
+        raise "Graph Has Cycles"
+
+
+
+    def get_graphviz_source(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('digraph G {\n')
-        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in sorted(self.nodes, key=lambda x: x.name):
             fh.write('  %s [ shape="ellipse" color="blue"];\n' % node.name)
@@ -262,15 +395,16 @@ cdef class BBN(Graph):
         jt = build_join_tree(self)
         return jt
 
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    # def query(self, **kwds):
-    cdef dict query(self, dict kwds):
+    def query(self, **kwds):
+        return self._query(kwds)
+    # @cython.boundscheck(False)
+    # @cython.wraparound(False)
+    cdef dict _query(self, dict kwds):
         cdef JoinTree jt = self.build_join_tree()
         cdef dict assignments = jt.assign_clusters(self)
         cdef dict marginals
         jt.initialize_potentials(assignments, self, kwds)
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after initialize_potentials'))
+        # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after initialize_potentials'))
         jt.propagate()
         marginals = dict()
         normalizers = defaultdict(float)
@@ -286,7 +420,7 @@ cdef class BBN(Graph):
                 # not evidenced.
                 if kwds:
                     normalizers[k[0][0]] += v
-        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after phase2'))
+        # print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'after phase2'))
 
         if kwds:
             for k, v in marginals.iteritems():
@@ -298,8 +432,7 @@ cdef class BBN(Graph):
         '''Interactive user friendly wrapper
         around query()
         '''
-        # result = self.query(**kwds)
-        result = self.query(kwds)
+        result = self.query(**kwds)
         tab = PrettyTable(['Node', 'Value', 'Marginal'], sortby='Node')
         tab.align = 'l'
         tab.align['Marginal'] = 'r'
@@ -344,24 +477,53 @@ cdef class BBN(Graph):
         return samples
 
 
-cdef class JoinTree(UndirectedGraph):
+cdef class JoinTree(object):
+    cdef str name
+    cdef list nodes
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, list nodes):
+            self.nodes = nodes
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, str name):
+            self.name = name
 
-    def __cinit__(self, list nodes, unicode name=None):
-        super(JoinTree, self).__init__(
-            nodes, name)
+    def __cinit__(self, list nodes, str name=None):
+        self.nodes = nodes
+        self.name = name
 
-    @property
-    def sepset_nodes(self):
-        return [n for n in self.nodes if isinstance(n, JoinTreeSepSetNode)]
 
-    @property
-    def clique_nodes(self):
-        return [n for n in self.nodes if isinstance(n, JoinTreeCliqueNode)]
+    def export(self, filename=None, format='graphviz'):
+        '''Export the graph in GraphViz dot language.'''
+        if format != 'graphviz':
+            raise 'Unsupported Export Format.'
+        if filename:
+            fh = open(filename, 'w')
+        else:
+            fh = sys.stdout
+        fh.write(self.get_graphviz_source())
 
-    def get_graphviz_source(self):
+    property sepset_nodes:
+        def __get__(self):
+            return [n for n in self.nodes if isinstance(n, JoinTreeSepSetNode)]
+    # @property
+    # def sepset_nodes(self):
+    #     return [n for n in self.nodes if isinstance(n, JoinTreeSepSetNode)]
+
+    property clique_nodes:
+        def __get__(self):
+            return [n for n in self.nodes if isinstance(n, JoinTreeCliqueNode)]
+    # @property
+    # def clique_nodes(self):
+    #     return [n for n in self.nodes if isinstance(n, JoinTreeCliqueNode)]
+
+    def get_graphviz_source(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('graph G {\n')
-        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in self.nodes:
             if isinstance(node, JoinTreeSepSetNode):
@@ -578,7 +740,7 @@ cdef class JoinTree(UndirectedGraph):
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    cdef dict marginal(self, object bbn_node):
+    cdef dict marginal(self, BBNNode bbn_node):
         '''Remember that the original
         variables that we are interested in
         are actually in the bbn. However
@@ -629,12 +791,31 @@ cdef class JoinTree(UndirectedGraph):
 
 
 cdef class Clique(object):
-    cdef list nodes
-    def __cinit__(self, list cluster):
+    cdef set nodes
+    cdef JoinTreeCliqueNode node
+    cdef dict potential_tt
+    def __cinit__(self, set cluster):
         self.nodes = cluster
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, set nodes ):
+            self.nodes = nodes
+    property node:
+        def __get__(self):
+            return self.node
+        def __set__(self, JoinTreeCliqueNode node ):
+            self.node = node
+    property potential_tt:
+        def __get__(self):
+            return self.potential_tt
+        def __set__(self, dict potential_tt ):
+            self.potential_tt = potential_tt
 
     def __repr__(self):
         vars = sorted([n.variable_name for n in self.nodes])
+        # for n in self.nodes:
+        #     print('%s:%s' % (n.name, str(n.variable_name)))
         return 'Clique_%s' % ''.join([v.upper() for v in vars])
 
 
@@ -660,49 +841,96 @@ cdef tuple transform(tuple x, list X, list R):
     return tuple(entry)
 
 
-cdef class JoinTreeCliqueNode(UndirectedNode):
+cdef class JoinTreeCliqueNode(object):
     cdef Clique clique
-    def __cinit__(self, Clique clique):
-        super(JoinTreeCliqueNode, self).__init__(
-            clique.__repr__())
+    cdef str name
+    cdef list neighbours
+    cdef dict potential_tt
+    cdef dict potential_tt_old
+    cdef bool marked
+    def __cinit__(self,  Clique clique, list neighbours=[]):
+        self.name = clique.__repr__()
         self.clique = clique
-        # Now we create a pointer to
-        # this clique node as the "parent" clique
-        # node of each node in the cluster.
-        #for node in self.clique.nodes:
-        #    node.parent_clique = self
-        # This is not quite correct, the
-        # parent cluster as defined by H&D
-        # is *a* cluster than is a superset
-        # of Family(v)
+        self.neighbours = neighbours[:]
+    property clique:
+        def __get__(self):
+            return self.clique
+        def __set__(self, Clique clique ):
+            self.clique = clique
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, str name ):
+            self.name = name
+    property neighbours:
+        def __get__(self):
+            return self.neighbours
+        def __set__(self, list neighbours):
+            self.neighbours = neighbours
+    property potential_tt:
+        def __get__(self):
+            return self.potential_tt
+        def __set__(self, dict potential_tt):
+            self.potential_tt = potential_tt
+    property potential_tt_old:
+        def __get__(self):
+            return self.potential_tt_old
+        def __set__(self, dict potential_tt_old):
+            self.potential_tt_old = potential_tt_old
+    property marked:
+        def __get__(self):
+            return self.marked
+        def __set__(self, bool marked):
+            self.marked = marked
 
-    @property
-    def variable_names(self):
-        '''Return the set of variable names
-        that this clique represents'''
-        var_names = []
-        for node in self.clique.nodes:
-            var_names.append(node.variable_name)
-        return sorted(var_names)
+    property variable_names:
+        def __get__(self):
+            var_names = []
+            for node in self.clique.nodes:
+                var_names.append(node.variable_name)
+            return sorted(var_names)
 
-    @property
-    def neighbouring_cliques(self):
-        '''Return the neighbouring cliques
-        this is used during the propagation algorithm.
+    # @property
+    # def variable_names(self):
+    #     '''Return the set of variable names
+    #     that this clique represents'''
+    #     var_names = []
+    #     for node in self.clique.nodes:
+    #         var_names.append(node.variable_name)
+    #     return sorted(var_names)
+    property neighbouring_cliques:
+        def __get__(self):
+            neighbours = set()
+            for sepset_node in self.neighbours:
+                # All *immediate* neighbours will
+                # be sepset nodes, its the neighbours of
+                # these sepsets that form the nodes
+                # clique neighbours (excluding itself)
+                for clique_node in sepset_node.neighbours:
+                    if clique_node is not self:
+                        neighbours.add(clique_node)
+            return neighbours
 
-        '''
-        neighbours = set()
-        for sepset_node in self.neighbours:
-            # All *immediate* neighbours will
-            # be sepset nodes, its the neighbours of
-            # these sepsets that form the nodes
-            # clique neighbours (excluding itself)
-            for clique_node in sepset_node.neighbours:
-                if clique_node is not self:
-                    neighbours.add(clique_node)
-        return neighbours
+    # @property
+    # def neighbouring_cliques(self):
+    #     '''Return the neighbouring cliques
+    #     this is used during the propagation algorithm.
+    #
+    #     '''
+    #     neighbours = set()
+    #     for sepset_node in self.neighbours:
+    #         # All *immediate* neighbours will
+    #         # be sepset nodes, its the neighbours of
+    #         # these sepsets that form the nodes
+    #         # clique neighbours (excluding itself)
+    #         for clique_node in sepset_node.neighbours:
+    #             if clique_node is not self:
+    #                 neighbours.add(clique_node)
+    #     return neighbours
 
     def pass_message(self, target):
+        self._pass_message(target)
+    cdef _pass_message(self, JoinTreeCliqueNode target):
         '''Pass a message from this node to the
         recipient node during propagation.
 
@@ -716,6 +944,7 @@ cdef class JoinTreeCliqueNode(UndirectedNode):
         and since the semantics are already
         worked out it would be easier.'''
 
+        cdef JoinTreeSepSetNode sepset_node
         # Find the sepset node between the
         # source and target nodes.
         sepset_node = list(set(self.neighbours).intersection(
@@ -728,16 +957,19 @@ cdef class JoinTreeCliqueNode(UndirectedNode):
         self.absorb(sepset_node, target)
 
     def project(self, sepset_node):
+        self._project(sepset_node)
+    cdef _project(self, JoinTreeSepSetNode sepset_node):
         '''See page 20 of PPTC.
         We assign a new potential tt to
         the sepset which consists of the
         potential of the source node
         with all variables not in R marginalized.
         '''
+        cdef tuple entry
         assert sepset_node in self.neighbours
         # First we make a copy of the
         # old potential tt
-        sepset_node.potential_tt_old = copy.deepcopy(
+        sepset_node.potential_tt_old = <dict>copy.deepcopy(
             sepset_node.potential_tt)
 
         # Now we assign a new potential tt
@@ -749,13 +981,15 @@ cdef class JoinTreeCliqueNode(UndirectedNode):
             entry = transform(k, self.variable_names,
                               sepset_node.variable_names)
             tt[entry] += v
-        sepset_node.potential_tt = tt
+        sepset_node.potential_tt = <dict>tt
 
     def absorb(self, sepset, target):
+        self._absorb( sepset, target)
+    cdef _absorb(self, JoinTreeSepSetNode sepset, JoinTreeCliqueNode target):
         # Assign a new potential tt to
         # Y (the target)
-        tt = dict()
-
+        cdef dict tt = dict()
+        cdef tuple entry
         for k, v in target.potential_tt.items():
             # For each entry we multiply by
             # sepsets new value and divide
@@ -791,25 +1025,33 @@ cdef class SepSet(object):
         self.X = X
         self.Y = Y
         self.label = list(X.nodes.intersection(Y.nodes))
+    property mass:
+        def __get__(self):
+            return len(self.label)
 
-    @property
-    def mass(self):
-        return len(self.label)
+    # @property
+    # def mass(self):
+    #     return len(self.label)
+    property cost:
+        def __get__(self):
+            return 2 ** len(self.X.nodes) + 2 ** len(self.Y.nodes)
 
-    @property
-    def cost(self):
-        '''Since cost is used as a tie-breaker
-        and is an optimization for inference time
-        we will punt on it for now. Instead we
-        will just use the assumption that all
-        variables in X and Y are binary and thus
-        use a weight of 2.
-        TODO: come back to this and compute
-        actual weights
-        '''
-        return 2 ** len(self.X.nodes) + 2 ** len(self.Y.nodes)
+    # @property
+    # def cost(self):
+    #     '''Since cost is used as a tie-breaker
+    #     and is an optimization for inference time
+    #     we will punt on it for now. Instead we
+    #     will just use the assumption that all
+    #     variables in X and Y are binary and thus
+    #     use a weight of 2.
+    #     TODO: come back to this and compute
+    #     actual weights
+    #     '''
+    #     return 2 ** len(self.X.nodes) + 2 ** len(self.Y.nodes)
 
     def insertable(self, forest):
+        return self._insertable(forest)
+    cdef bool _insertable(self, set forest):
         '''A sepset can only be inserted
         into the JT if the cliques it
         separates are NOT already on
@@ -817,9 +1059,9 @@ cdef class SepSet(object):
         NOTE: For efficiency we should
         add an index that indexes cliques
         into the trees in the forest.'''
-        X_trees = [t for t in forest if self.X in
+        cdef list X_trees = [t for t in forest if self.X in
                    [n.clique for n in t.clique_nodes]]
-        Y_trees = [t for t in forest if self.Y in
+        cdef list Y_trees = [t for t in forest if self.Y in
                    [n.clique for n in t.clique_nodes]]
         assert len(X_trees) == 1
         assert len(Y_trees) == 1
@@ -828,6 +1070,8 @@ cdef class SepSet(object):
         return False
 
     def insert(self, forest):
+        self._insert(forest)
+    cdef _insert(self, set forest):
         '''Inserting this sepset into
         a forest, providing the two
         cliques are in different trees,
@@ -843,13 +1087,13 @@ cdef class SepSet(object):
         as it is now joined to the
         first.
         '''
-        X_tree = [t for t in forest if self.X in
+        cdef JoinTree X_tree = [t for t in forest if self.X in
                   [n.clique for n in t.clique_nodes]][0]
-        Y_tree = [t for t in forest if self.Y in
+        cdef JoinTree Y_tree = [t for t in forest if self.Y in
                   [n.clique for n in t.clique_nodes]][0]
 
         # Now create and insert a sepset node into the Xtree
-        ss_node = JoinTreeSepSetNode(self, self)
+        cdef JoinTreeSepSetNode ss_node = JoinTreeSepSetNode(self.__repr__(), self)
         X_tree.nodes.append(ss_node)
 
         # And connect them
@@ -879,35 +1123,77 @@ cdef class SepSet(object):
             [x.variable_name.upper() for x in list(self.label)])
 
 
-class JoinTreeSepSetNode(UndirectedNode):
-
-    def __init__(self, name, sepset):
-        super(JoinTreeSepSetNode, self).__init__(name)
+cdef class JoinTreeSepSetNode(object):
+    cdef str name
+    cdef list neighbours
+    cdef SepSet sepset
+    cdef dict potential_tt
+    cdef dict potential_tt_old
+    cdef bool marked
+    def __cinit__(self, str name, SepSet sepset, list neighbours=[]):
+        self.name = name
         self.sepset = sepset
+        self.neighbours = neighbours[:]
+    property name:
+        def __get__(self):
+            return self.name
+        def __set__(self, str name ):
+            self.name = name
+    property sepset:
+        def __get__(self):
+            return self.sepset
+        def __set__(self, SepSet sepset ):
+            self.sepset = sepset
+    property neighbours:
+        def __get__(self):
+            return self.neighbours
+        def __set__(self, list neighbours):
+            self.neighbours = neighbours
+    property potential_tt:
+        def __get__(self):
+            return self.potential_tt
+        def __set__(self, dict potential_tt):
+            self.potential_tt = potential_tt
+    property potential_tt_old:
+        def __get__(self):
+            return self.potential_tt_old
+        def __set__(self, dict potential_tt_old):
+            self.potential_tt_old = potential_tt_old
+    property marked:
+        def __get__(self):
+            return self.marked
+        def __set__(self, bool marked):
+            self.marked = marked
 
-    @property
-    def variable_names(self):
-        '''Return the set of variable names
-        that this sepset represents'''
-        # TODO: we are assuming here
-        # that X and Y are each separate
-        # variables from the BBN which means
-        # we are assuming that the sepsets
-        # always contain only 2 nodes.
-        # Need to check whether this is
-        # the case.
-        return sorted([x.variable_name for x in self.sepset.label])
+    property variable_names:
+        def __get__(self):
+            return sorted([x.variable_name for x in self.sepset.label])
+
+    # @property
+    # def variable_names(self):
+    #     '''Return the set of variable names
+    #     that this sepset represents'''
+    #     # TODO: we are assuming here
+    #     # that X and Y are each separate
+    #     # variables from the BBN which means
+    #     # we are assuming that the sepsets
+    #     # always contain only 2 nodes.
+    #     # Need to check whether this is
+    #     # the case.
+    #     return sorted([x.variable_name for x in self.sepset.label])
 
     def __repr__(self):
         return '<JoinTreeSepSetNode: %s>' % self.sepset
 
+def build_bbn(*args, **kwds):
+    return _build_bbn(args, kwds)
 
-cdef BBN build_bbn(list args, dict kwds):
+cdef BBN _build_bbn(tuple args, dict kwds):
     '''Builds a BBN Graph from
     a list of functions and domains'''
     cdef set variables = set()
     cdef dict domains = kwds.get('domains', {})
-    cdef unicode name = kwds.get('name')
+    cdef str name = kwds.get('name')
     cdef dict variable_nodes = dict()
     cdef dict factor_nodes = dict()
     cdef list factor_args
@@ -929,7 +1215,7 @@ cdef BBN build_bbn(list args, dict kwds):
         factor_args = get_args(factor)
         variables.update(factor_args)
         # bbn_node = BBNNode(factor.__name__, [], [], factor)
-        factor_nodes[factor.__name__] = BBNNode(factor.__name__, [], [], factor)
+        factor_nodes[factor.__name__] = BBNNode(factor.__name__, factor)
 
     # Now lets create the connections
     # To do this we need to find the
@@ -953,56 +1239,12 @@ cdef BBN build_bbn(list args, dict kwds):
 
     return bbn
 
-# def build_bbn(*args, **kwds):
-#     '''Builds a BBN Graph from
-#     a list of functions and domains'''
-#     variables = set()
-#     domains = kwds.get('domains', {})
-#     name = kwds.get('name')
-#     variable_nodes = dict()
-#     factor_nodes = dict()
-#
-#     if isinstance(args[0], list):
-#         # Assume the functions were all
-#         # passed in a list in the first
-#         # argument. This makes it possible
-#         # to build very large graphs with
-#         # more than 255 functions, since
-#         # Python functions are limited to
-#         # 255 arguments.
-#         args = args[0]
-#
-#     for factor in args:
-#         factor_args = get_args(factor)
-#         variables.update(factor_args)
-#         bbn_node = BBNNode(factor)
-#         factor_nodes[factor.__name__] = bbn_node
-#
-#     # Now lets create the connections
-#     # To do this we need to find the
-#     # factor node representing the variables
-#     # in a child factors argument and connect
-#     # it to the child node.
-#
-#     # Note that calling original_factors
-#     # here can break build_bbn if the
-#     # factors do not correctly represent
-#     # a BBN.
-#     original_factors = get_original_factors(factor_nodes.values())
-#     for factor_node in factor_nodes.values():
-#         factor_args = get_args(factor_node)
-#         parents = [original_factors[arg] for arg in
-#                    factor_args if original_factors[arg] != factor_node]
-#         for parent in parents:
-#             connect(parent, factor_node)
-#     bbn = BBN(original_factors, name=name)
-#     bbn.domains = domains
-#
-#     return bbn
 
 
 
-cdef dict get_original_factors(list factors):
+def get_original_factors(factors):
+    return _get_original_factors(factors)
+cdef dict _get_original_factors(list factors):
     '''
     For a set of factors, we want to
     get a mapping of the variables to
@@ -1073,8 +1315,8 @@ def build_bbn_from_conditionals(conds):
         node_func = make_node_func(variable_name, cond_tt)
         node_funcs.append(node_func)
         domains[variable_name] = node_func._domain
+    node_funcs = tuple(node_funcs)
     return build_bbn(*node_funcs, domains=domains)
-    # return build_bbn(node_funcs, {'domains':domains})
 
 
 cdef UndirectedGraph make_undirected_copy(BBN dag):
@@ -1104,11 +1346,11 @@ cdef UndirectedGraph make_undirected_copy(BBN dag):
     return g
 
 
-def make_moralized_copy(gu, dag):
+cdef UndirectedGraph make_moralized_copy(UndirectedGraph gu, BBN dag):
     '''gu is an undirected graph being
     a copy of dag.'''
-    gm = copy.deepcopy(gu)
-    gm_nodes = dict(
+    cdef UndirectedGraph gm = copy.deepcopy(gu)
+    cdef dict gm_nodes = dict(
         [(node.name, node) for node in gm.nodes])
     for node in dag.nodes:
         for parent_1, parent_2 in combinations(
@@ -1147,15 +1389,16 @@ def priority_func(node):
     return [introduced_arcs, 2]  # TODO: Fix this to look at domains
 
 
-def construct_priority_queue(nodes, priority_func=priority_func):
-    pq = []
+cdef list construct_priority_queue(dict nodes, object priority_func=priority_func):
+    cdef list pq = []
+    cdef list entry
     for node_name, node in nodes.iteritems():
         entry = priority_func(node) + [node.name]
         heapq.heappush(pq, entry)
     return pq
 
 
-def record_cliques(cliques, cluster):
+cdef record_cliques(list cliques, set cluster):
     '''We only want to save the cluster
     if it is not a subset of any clique
     already saved.
@@ -1165,13 +1408,12 @@ def record_cliques(cliques, cluster):
     cliques.append(Clique(cluster))
 
 
-def triangulate(gm, priority_func=priority_func):
+cdef tuple triangulate(UndirectedGraph gm, object priority_func=priority_func):
     '''Triangulate the moralized Graph. (in Place)
     and return the cliques of the triangulated
     graph as well as the elimination ordering.'''
-
     # First we will make a copy of gm...
-    gm_ = copy.deepcopy(gm)
+    cdef UndirectedGraph gm_ = copy.deepcopy(gm)
 
     # Now we will construct a priority q using
     # the standard library heapq module.
@@ -1183,9 +1425,12 @@ def triangulate(gm, priority_func=priority_func):
     #   - Pointer to node in gm_
     # Note that its unclear from Huang and Darwiche
     # what is meant by the "number of values of V"
-    gmnodes = dict([(node.name, node) for node in gm.nodes])
-    elimination_ordering = []
-    cliques = []
+    cdef dict gmnodes = dict([(node.name, node) for node in gm.nodes])
+    cdef list elimination_ordering = []
+    cdef list cliques = []
+    cdef dict gm_nodes
+    cdef list pq
+    cdef set gmcluster
     while True:
         gm_nodes = dict([(node.name, node) for node in gm_.nodes])
         if not gm_nodes:
@@ -1219,17 +1464,24 @@ def triangulate(gm, priority_func=priority_func):
     return cliques, elimination_ordering
 
 
-def build_join_tree(dag, clique_priority_func=priority_func):
+cdef JoinTree build_join_tree(BBN dag, object clique_priority_func=priority_func):
 
     # First we will create an undirected copy
     # of the dag
-    gu = make_undirected_copy(dag)
+    cdef UndirectedGraph gu = make_undirected_copy(dag)
 
     # Now we create a copy of the undirected graph
     # and connect all pairs of parents that are
     # not already parents called the 'moralized' graph.
-    gm = make_moralized_copy(gu, dag)
-
+    cdef UndirectedGraph gm = make_moralized_copy(gu, dag)
+    cdef list cliques
+    cdef list elimination_ordering
+    cdef set forest
+    cdef JoinTreeCliqueNode jt_node
+    cdef set S
+    cdef long sepsets_inserted
+    cdef list deco
+    cdef JoinTree jt
     # Now we triangulate the moralized graph...
     cliques, elimination_ordering = triangulate(gm, clique_priority_func)
 
