@@ -452,16 +452,18 @@ def create_bbn_by_line_name(line_name):
     cond = build_additional_condition(line_name, cond)
     g = None
     if USE_C_MODULE:
+        print('using c-accelerate module...')
         g = build_bbn_from_conditionals(cond)
     else:
+        print('using pure-python module...')
         g = build_bbn_from_conditionals_plus(cond)
     return g
 
-def _create_bbn_by_line_name(line_name):
-    cond = build_state_examination_condition(line_name)
-    cond = build_additional_condition(line_name, cond)
-    g = build_bbn_from_conditionals(cond)
-    return g
+# def _create_bbn_by_line_name(line_name):
+#     cond = build_state_examination_condition(line_name)
+#     cond = build_additional_condition(line_name, cond)
+#     g = build_bbn_from_conditionals(cond)
+#     return g
 
 def build_additional_condition_fake(cond):
     ret = cond
@@ -492,25 +494,25 @@ def query_bbn_condition(g, **querydict):
 
 
 def test_se():
-    g = create_bbn_by_line_name(u'厂口七甸I回线')
-    print(g.get_graphviz_source_plus())
-    # g.q(line_state='II')
-    # ret = query_bbn_condition(g, {'line_state':'IV'})
-    ret = query_bbn_condition(g, line_state='II')
-    print (ret)
+    if USE_C_MODULE:
+        g = create_bbn_by_line_name(u'厂口七甸I回线')
+        print(g.get_graphviz_source())
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q start'))
+        # g.q(line_state='II')
+        ret = query_bbn_condition(g,  line_state='II')
+        print (ret)
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q end'))
+    else:
+        g = create_bbn_by_line_name(u'厂口七甸I回线')
+        print(g.get_graphviz_source_plus())
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q start'))
+        # g.q(line_state='II')
+        ret = query_bbn_condition(g, line_state='II')
+        print (ret)
+        print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q end'))
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
 
-def _test_se():
-    g = _create_bbn_by_line_name(u'厂口七甸I回线')
-    # print(g.get_graphviz_source())
-    # ret = query_bbn_condition(g, line_state='II')
-    # print (ret)
-    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q start'))
-    g.q(line_state='II', unit_8='II')
-    print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q end'))
-    # fg = build_graph_from_conditionals_plus(cond)
-    # print(fg.export_plus(None))
 
 def test_find_abnormal():
     collection = get_collection('state_examination')
@@ -1043,8 +1045,7 @@ if __name__ == '__main__':
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    # test_se()
-    _test_se()
+    test_se()
     # test_numpy()
     # test_format_json()
     # base64_img()
