@@ -6,14 +6,21 @@ from collections import OrderedDict
 import json
 import numpy as np
 import bayesian
-# from bayesian.bbn_np import *
-from bayesian._bbn import *
+#
+
 from bayesian.factor_graph import *
 import pymongo
 from bson.code import Code
 from bson.objectid import ObjectId
 import xlrd, xlwt
 from module_locator import enc, enc1, dec, dec1
+
+USE_C_MODULE = False
+try:
+    from bayesian._bbn import *
+    USE_C_MODULE = True
+except:
+    from bayesian.bbn import *
 
 UNIT_NAME_MAPPING = {
     'unit_1': u'基础',
@@ -335,7 +342,8 @@ def build_cancer_condition():
 
 def get_collection(collection):
     ret = None
-    client = pymongo.MongoClient('192.168.1.8', 27017)
+    # client = pymongo.MongoClient('192.168.1.8', 27017)
+    client = pymongo.MongoClient('localhost', 27017)
     db = client['kmgd']
     if not collection in db.collection_names(False):
         ret = db.create_collection(collection)
@@ -442,7 +450,11 @@ def build_additional_condition(line_name, cond):
 def create_bbn_by_line_name(line_name):
     cond = build_state_examination_condition(line_name)
     cond = build_additional_condition(line_name, cond)
-    g = build_bbn_from_conditionals_plus(cond)
+    g = None
+    if USE_C_MODULE:
+        g = build_bbn_from_conditionals(cond)
+    else:
+        g = build_bbn_from_conditionals_plus(cond)
     return g
 
 def _create_bbn_by_line_name(line_name):
@@ -495,7 +507,7 @@ def _test_se():
     # ret = query_bbn_condition(g, line_state='II')
     # print (ret)
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q start'))
-    g.q(line_state='III', unit_8='III')
+    g.q(line_state='II', unit_8='II')
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'q end'))
     # fg = build_graph_from_conditionals_plus(cond)
     # print(fg.export_plus(None))
