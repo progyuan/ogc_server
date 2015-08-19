@@ -6303,7 +6303,11 @@ def application_webgis(environ, start_response):
         else:
             request.session = session_store.get(sid)
             if request.session:
-                cookie = set_cookie_data(request, {'session_id': request.session.sid})
+                o = {'session_id': request.session.sid}
+                for k in request.session.keys():
+                    if not k in [u'password',]:
+                        o[k] = request.session[k]
+                cookie = set_cookie_data(request, o)
                 session_store.save_if_modified(request.session)
             else:
                 cookie = set_cookie('session_data', '{}')
@@ -6618,7 +6622,7 @@ def application_webgis(environ, start_response):
                         sess = gSessionStore.session_class(user, sess.sid, False)
                         sess['username'] = user['username']
                         cookie_header = set_cookie_data(gRequest, {'_id':user['_id'], 'username': user['username'], 'displayname': user['displayname']})
-                        gSessionStore.save(sess)
+                        gSessionStore.save_if_modified(sess)
                         headerslist.append(cookie_header)
                         headerslist.append(('Content-Type', 'text/json;charset=' + ENCODING))
                         start_response('200 OK', headerslist)
@@ -6632,9 +6636,9 @@ def application_webgis(environ, start_response):
                 if path_info == gConfig['web']['mainpage']:
                     #401 Unauthorized
                     #if session_id is None or token is None:
+                    headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
+                    headerslist.append(cookie_header)
                     if sess is None or len(sess.keys())==0 or len(sess.sid)==0 or not sess.has_key('username'):
-                        headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
-                        headerslist.append(cookie_header)
                         statuscode, headers, body =  handle_static(environ, gConfig['web']['unauthorizedpage'])
                         statuscode = '401 Unauthorized'
                         start_response(statuscode, headerslist) 
@@ -6642,7 +6646,7 @@ def application_webgis(environ, start_response):
                 if not is_expire and len(sess.sid)>0:
                     if 'state_examination' in path_info:
                         statuscode, headers, body = handle_state_examination(environ)
-                    elif 'bayesian' in path_info:
+                    elif 'bayesian/' in path_info:
                         statuscode, headers, body = handle_bayesian(environ)
                     else:
                         statuscode, headers, body = handle_static(environ, path_info)
