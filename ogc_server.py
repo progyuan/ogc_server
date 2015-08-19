@@ -6500,7 +6500,7 @@ def application_webgis(environ, start_response):
                     dpi = int(querydict['dpi'])
                 if querydict.has_key('rankdir') and len(querydict['rankdir']):
                     rankdir = querydict['rankdir']
-                ret = g.get_graphviz_source_plus(dpi, rankdir)
+                ret = g.get_graphviz_source(dpi, rankdir)
             return enc(ret)
         def bayesian_save_node(querydict):
             return save_by_id(querydict, 'bayesian_nodes')
