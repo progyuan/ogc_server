@@ -226,6 +226,7 @@ gUrlMap = Map([
     Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
     Rule('/bayesian/query/graphiz', endpoint='bayesian_query_graphiz'),
     Rule('/bayesian/query/node', endpoint='bayesian_query_node'),
+    Rule('/bayesian/query/predict', endpoint='bayesian_query_predict'),
     Rule('/bayesian/save/node', endpoint='bayesian_save_node'),
     Rule('/bayesian/delete/node', endpoint='bayesian_delete_node'),
     Rule('/bayesian/delete/node/<_id>', endpoint='bayesian_delete_node'),
@@ -233,6 +234,7 @@ gUrlMap = Map([
     Rule('/bayesian/save/domains_range', endpoint='bayesian_save_domains_range'),
     Rule('/bayesian/delete/domains_range', endpoint='bayesian_delete_domains_range'),
     Rule('/bayesian/delete/domains_range/<_id>', endpoint='bayesian_delete_domains_range'),
+    Rule('/bayesian/reset/unit', endpoint='bayesian_reset_unit'),
 ], converters={'bool': BooleanConverter})
 
 
@@ -6506,6 +6508,57 @@ def application_webgis(environ, start_response):
             return save_by_id(querydict, 'bayesian_nodes')
         def bayesian_delete_node(querydict):
             return delete_by_id(querydict, 'bayesian_nodes')
+        def bayesian_query_predict(querydict):
+            ret = []
+            if querydict.has_key('line_name') and len(querydict['line_name']):
+                g = create_bbn_by_line_name(querydict['line_name'])
+                del querydict['line_name']
+                qd = {}
+                for k in querydict.keys():
+                    if isinstance(querydict[k], unicode):
+                        qd[str(k)] = str(querydict[k])
+                    else:
+                        qd[str(k)] = querydict[k]
+                ret = bayes_util.query_bbn_condition(g,  **qd)
+            ret = json.dumps(ret, ensure_ascii=True, indent=4)
+            return ret
+        def reset_unit_by_line_name(line_name):
+            collection = get_collection('bayesian_nodes')
+            units = list(collection.find({'line_name':line_name, 'name':{'$regex':'^unit_[0-9]$'}}))
+            data = bayes_util.get_state_examination_data_by_line_name(line_name)
+            o = bayes_util.calc_probability_unit(data)
+            for unit in units:
+                if o.has_key(unit['name']):
+                    unit['conditions'] = o[unit['name']]
+                    # print(unit['name'])
+                    # print(unit['conditions'])
+                    collection.save(unit)
+            ret = list(collection.find({'line_name':line_name}).sort('name', pymongo.ASCENDING))
+            return ret
+        def bayesian_reset_unit(querydict):
+            ret = []
+            if querydict.has_key('line_name') and len(querydict['line_name']):
+                ret = reset_unit_by_line_name(querydict['line_name'])
+            ret = json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+            return ret
+        def build_additional_condition(line_name, cond):
+            ret = cond
+            collection = get_collection('bayesian_nodes')
+            l = list(collection.find({'line_name':line_name}))
+            for node in l:
+                ret[node['name']] = node['conditions']
+            return ret
+        def create_bbn_by_line_name(line_name):
+            cond = bayes_util.build_state_examination_condition(line_name)
+            cond = build_additional_condition(line_name, cond)
+            g = None
+            if bayes_util.USE_C_MODULE:
+                print('using c-accelerate module...')
+                g = bayes_util.build_bbn_from_conditionals(cond)
+            else:
+                print('using pure-python module...')
+                g = bayes_util.build_bbn_from_conditionals_plus(cond)
+            return g
 
 
         statuscode, headers, body =  '200 OK', {}, ''
@@ -6518,6 +6571,10 @@ def application_webgis(environ, start_response):
             body = bayesian_query_node(querydict)
         elif endpoint == 'bayesian_save_node':
             body = bayesian_save_node(querydict)
+        elif endpoint == 'bayesian_query_predict':
+            body = bayesian_query_predict(querydict)
+        elif endpoint == 'bayesian_reset_unit':
+            body = bayesian_reset_unit(querydict)
         elif endpoint == 'bayesian_query_graphiz':
             body = bayesian_query_graphiz(querydict)
             headers['Content-Type'] = 'text/plain'

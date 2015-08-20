@@ -486,10 +486,12 @@ def query_bbn_condition(g, **querydict):
     for k, v in d.iteritems():
         # if v < 1.0 and v > 0.0:
         # if v > 0.0:
-        if True:
-            o = {}
-            o['%s:%s' % (k[0], k[1])] = v
-            ret.append(o)
+        o = {}
+        # o['%s:%s' % (k[0], k[1])] = v
+        o['name'] = k[0]
+        o['value'] = k[1]
+        o['p'] = v
+        ret.append(o)
     return ret
 
 
@@ -873,6 +875,9 @@ def generate_unit_probability(db):
     for i in l:
         collection.save(i)
 
+    # print(o)
+
+
 
 def test_import_2015txt():
     path = ur'D:\2014项目\贝叶斯\贝叶斯隐形故障系统状态评价数据(2010-2015)\输电管理所2015年第一次状态评价报告.txt'
@@ -1041,11 +1046,12 @@ def test_numpy():
 
 
 if __name__ == '__main__':
-    # pass
+    pass
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
-    test_se()
+    # test_se()
+    # reset_unit_by_line_name(u'厂口七甸I回线')
     # test_numpy()
     # test_format_json()
     # base64_img()

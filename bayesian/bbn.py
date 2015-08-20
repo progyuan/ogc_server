@@ -52,10 +52,10 @@ class BBN(Graph):
         for variable_name, node in nodes_dict.items():
             node.variable_name = variable_name
 
-    def get_graphviz_source(self):
+    def get_graphviz_source(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('digraph G {\n')
-        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in sorted(self.nodes, key=lambda x: x.name):
             fh.write('  %s [ shape="ellipse" color="blue"];\n' % node.name)
@@ -160,10 +160,10 @@ class JoinTree(UndirectedGraph):
     def clique_nodes(self):
         return [n for n in self.nodes if isinstance(n, JoinTreeCliqueNode)]
 
-    def get_graphviz_source(self):
+    def get_graphviz_source(self, dpi=200, rankdir='LL'):
         fh = StringIO()
         fh.write('graph G {\n')
-        fh.write('  graph [ dpi = 300 bgcolor="transparent" rankdir="LR"];\n')
+        fh.write('  graph [ dpi = %d bgcolor="transparent" rankdir="%s"];\n' % (dpi, rankdir))
         edges = set()
         for node in self.nodes:
             if isinstance(node, JoinTreeSepSetNode):
