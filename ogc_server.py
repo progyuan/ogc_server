@@ -219,6 +219,9 @@ gUrlMap = Map([
     Rule('/gridfs/query/<width>/<height>/<limit>/<skip>', endpoint='gridfs_query'),
     Rule('/gridfs/delete', endpoint='gridfs_delete'),
     Rule('/gridfs/delete/<_id>', endpoint='gridfs_delete'),
+    Rule('/antibird/get_equip_list', endpoint='get_equip_list'),
+    Rule('/antibird/get_latest_records_by_imei', endpoint='get_latest_records_by_imei'),
+    Rule('/antibird/equip_tower_mapping', endpoint='equip_tower_mapping'),
     Rule('/state_examination/save', endpoint='state_examination_save'),
     Rule('/state_examination/query', endpoint='state_examination_query'),
     Rule('/state_examination/query/line_names', endpoint='state_examination_query_line_names'),
@@ -6029,222 +6032,31 @@ def application_webgis(environ, start_response):
             request_headers['Content-Type'] = 'application/json'
         return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
 
-    def get_anti_bird_list_from_cache():
-        ret = '{"result":"get_anti_bird_list_from_cache_error:cannot connect to db"}'
-        arr = []
-        if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
-            db_util.mongo_init_client('anti_bird')
-            db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
-            collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
-            arr = db_util.remove_mongo_id(list(collection.find({})))
-            ret = json.dumps(arr, ensure_ascii=True, indent=4)
-        return ret
+    # def get_anti_bird_list_from_cache():
+    #     ret = '{"result":"get_anti_bird_list_from_cache_error:cannot connect to db"}'
+    #     arr = []
+    #     if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
+    #         db_util.mongo_init_client('anti_bird')
+    #         db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
+    #         collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
+    #         arr = db_util.remove_mongo_id(list(collection.find({})))
+    #         ret = json.dumps(arr, ensure_ascii=True, indent=4)
+    #     return ret
+    #
+    # def get_latest_records_from_cache():
+    #     ret = '{"result":"get_latest_records_from_cache_error:cannot connect to db"}'
+    #     arr = []
+    #     if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
+    #         db_util.mongo_init_client('anti_bird')
+    #         db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
+    #         collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
+    #         arr = db_util.remove_mongo_id(list(collection.find({})))
+    #         ret = json.dumps(arr, ensure_ascii=True, indent=4)
+    #     return ret
 
-    def get_latest_records_from_cache():
-        ret = '{"result":"get_latest_records_from_cache_error:cannot connect to db"}'
-        arr = []
-        if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('mongodb'):
-            db_util.mongo_init_client('anti_bird')
-            db = db_util.gClientMongo['anti_bird'][gConfig['webgis']['anti_bird']['mongodb']['database']]
-            collection = db[gConfig['webgis']['anti_bird']['mongodb']['detector_collection']]
-            arr = db_util.remove_mongo_id(list(collection.find({})))
-            ret = json.dumps(arr, ensure_ascii=True, indent=4)
-        return ret
 
 
 
-    def init_anti_bird_list(environ):
-        ret = []
-        s = '{"result":"unknown how to get anti bird list"}'
-        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'true':
-        if True:
-            environ['PATH_INFO'] = '/proxy/api/detector'
-            environ['QUERY_STRING'] = ''
-            code, header, s = proxy(environ)
-        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'false':
-        if False:
-            s = get_anti_bird_list_from_cache()
-        try:
-            if len(s)>0:
-                obj = json.loads(s)
-                if isinstance(obj, dict) :
-                    if obj.has_key('result'):
-                        print('init_anti_bird_list error:%s' % obj['result'])
-                    else:
-                        if obj.has_key('_id'):
-                            if obj.has_key('imei'):
-                                obj['label'] = obj['imei']
-                                obj['value'] = obj['imei']
-                            ret = [obj, ]
-                        else:
-                            print('init_anti_bird_list error: unknown error')
-                            ret = []
-                elif isinstance(obj, list) :
-                    for i in obj:
-                        idx = obj.index(i)
-                        if i.has_key('imei'):
-                            i['label'] = i['imei']
-                            i['value'] = i['imei']
-                        obj[idx] = i
-                    ret = obj
-        except Exception,e:
-            raise
-        return ret
-    
-    def anti_bird_get_latest_records(environ, imei, records_num=1):
-        global ENCODING
-        ret = []
-        urlprifix = 'proxy'
-        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'true':
-        if True:
-            href = '/proxy/api/detector/%s/log/%d' % (imei, records_num)
-            environ['PATH_INFO'] = href
-            environ['QUERY_STRING'] = ''
-            status, header, objstr = proxy(environ)
-            urlprifix = 'proxy'
-        # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'false':
-        if False:
-            objstr = get_latest_records_from_cache()
-            urlprifix = 'antibirdcache'
-        if len(objstr)>0:
-            try:
-                obj = json.loads(objstr)
-                if isinstance(obj, dict) :
-                    if obj.has_key('result'):
-                        print('anti_bird_get_latest_records error:%s' % obj['result'])
-                    else:
-                        if obj.has_key('_id'):
-                            ret = [obj, ]
-                        else:
-                            print('anti_bird_get_latest_records error: unknown error')
-                            ret = []
-                elif isinstance(obj, list) :
-                    ret = obj
-            except:
-                e = sys.exc_info()[1]
-                if hasattr(e, 'message'):
-                    print('anti_bird_get_latest_records error:%s' % e.message)
-                else:
-                    print('anti_bird_get_latest_records error:%s' % str(e))
-        for item in ret:
-            idx = ret.index(item)
-            if item.has_key('picture') and isinstance(item['picture'], list):
-                for i in item['picture']:
-                    idx1 = item['picture'].index(i)
-                    item['picture'][idx1] = '/proxy/api/image/%s' % i
-            ret[idx] = item    
-        return ret
-
-        
-    def anti_bird_get_latest_records_by_imei(environ):
-        querydict, buf = get_querydict_by_GET_POST(environ)
-        ret = []
-        if querydict.has_key('imei'):
-            records_num = 1
-            try:
-                records_num = int(querydict['records_num'])
-            except:
-                pass
-            ret = anti_bird_get_latest_records(environ, querydict['imei'], records_num)
-        return  '200 OK', {}, json.dumps(ret, ensure_ascii=True, indent=4)
-    
-    
-    def anti_bird_equip_list(environ):
-        ret = ''
-        is_filter_used=False
-        querydict, buf = get_querydict_by_GET_POST(environ)
-        if querydict.has_key('is_filter_used') and querydict['is_filter_used'] is True:
-            is_filter_used = True
-        equip_list = init_anti_bird_list(environ)
-        if not is_filter_used:
-            ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
-        else:
-            exist = []
-            l = db_util.mongo_find(
-                gConfig['webgis']['mongodb']['database'],
-                'features',
-                {
-                    "properties.webgis_type":"point_tower",
-                    "properties.metals":{
-                        "$elemMatch":{
-                            "type":u"多功能驱鸟装置"
-                        }
-                    }
-                },
-                0,
-                'webgis'
-                )
-            for i in l:
-                for j in i['properties']['metals']:
-                    if isinstance(j, dict) and j.has_key('imei'):
-                        if not j['imei'] in exist:
-                            exist.append(j['imei'])
-            while len(exist)>0:
-                i0 = exist[0]
-                for i in equip_list:
-                    if i['imei'] == i0:
-                        equip_list.remove(i)
-                        exist.remove(i0)
-                        break
-            ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
-        return  '200 OK', {}, ret
-    
-    def anti_bird_equip_tower_mapping(environ):
-        querydict, buf = get_querydict_by_GET_POST(environ)
-        ret = {}
-        if querydict.has_key('imei'):
-            l = db_util.mongo_find(
-                gConfig['webgis']['mongodb']['database'],
-                'features',
-                {
-                    "properties.webgis_type":"point_tower",
-                    "properties.metals":{
-                        "$elemMatch":{
-                            "type":u"多功能驱鸟装置",
-                            "imei":querydict['imei']
-                        }
-                    }
-                },
-                0,
-                'webgis'
-                )
-            if len(l)>0:
-                obj = {}
-                obj['tower_id'] = l[0]['_id']
-                obj['name'] = l[0]['properties']['name']
-                obj['lng'] = l[0]['geometry']['coordinates'][0]
-                obj['lat'] = l[0]['geometry']['coordinates'][1]
-                obj['alt'] = l[0]['geometry']['coordinates'][2]
-                ret[querydict['imei']] = obj
-        else:
-            l = db_util.mongo_find(
-                gConfig['webgis']['mongodb']['database'],
-                'features',
-                {
-                    "properties.webgis_type":"point_tower",
-                    "properties.metals":{
-                        "$elemMatch":{
-                            "type":u"多功能驱鸟装置",
-                        }
-                    }
-                },
-                0,
-                'webgis'
-                )
-            for i in l:
-                for j in i['properties']['metals']:
-                    if j.has_key('type') and j['type'] == u'多功能驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
-                        obj = {}
-                        obj['tower_id'] = i['_id']
-                        obj['name'] = i['properties']['name']
-                        obj['lng'] = i['geometry']['coordinates'][0]
-                        obj['lat'] = i['geometry']['coordinates'][1]
-                        obj['alt'] = i['geometry']['coordinates'][2]
-                        ret[j['imei']] = obj
-            
-        ret = json.dumps(ret, ensure_ascii=True, indent=4)
-        return  '200 OK', {}, ret
-        
     def set_cookie(key, value):
         secure = False
         if gConfig['listen_port']['enable_ssl'].lower() == 'true':
@@ -6425,6 +6237,204 @@ def application_webgis(environ, start_response):
             body = state_examination_delete(querydict)
         elif endpoint == 'state_examination_query_line_names':
             body = state_examination_query_line_names(querydict)
+        return statuscode, headers, body
+
+    def handle_antibird(environ):
+        global gConfig, gUrlMap, ENCODING
+        def init_list(environ):
+            ret = []
+            s = '{"result":"unknown how to get anti bird list"}'
+            # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'true':
+            if True:
+                environ['PATH_INFO'] = '/proxy/api/detector'
+                environ['QUERY_STRING'] = ''
+                code, header, s = proxy(environ)
+            # if gConfig['webgis'].has_key('anti_bird') and gConfig['webgis']['anti_bird'].has_key('fetch_from_www') and gConfig['webgis']['anti_bird']['fetch_from_www'].lower() == 'false':
+            # if False:
+            #     s = get_anti_bird_list_from_cache()
+            try:
+                if len(s)>0:
+                    obj = json.loads(s)
+                    if isinstance(obj, dict) :
+                        if obj.has_key('result'):
+                            print('antibird/init_list error:%s' % obj['result'])
+                        else:
+                            if obj.has_key('_id'):
+                                if obj.has_key('imei'):
+                                    obj['label'] = obj['imei']
+                                    obj['value'] = obj['imei']
+                                ret = [obj, ]
+                            else:
+                                print('antibird/init_list error: unknown error')
+                                ret = []
+                    elif isinstance(obj, list) :
+                        for i in obj:
+                            idx = obj.index(i)
+                            if i.has_key('imei'):
+                                i['label'] = i['imei']
+                                i['value'] = i['imei']
+                            obj[idx] = i
+                        ret = obj
+            except Exception,e:
+                raise
+            return ret
+
+        def get_latest_records(environ, querydict):
+            ret = []
+            objstr = ''
+            if querydict.has_key('imei') and len(querydict['imei'])>0:
+                records_num = 1
+                if querydict.has_key('records_num') and len(querydict['records_num'])>0:
+                    records_num = int(querydict['records_num'])
+                href = '/proxy/api/detector/%s/log/%d' % (querydict['imei'], records_num)
+                environ['PATH_INFO'] = href
+                environ['QUERY_STRING'] = ''
+                status, header, objstr = proxy(environ)
+            if len(objstr)>0:
+                try:
+                    obj = json.loads(objstr)
+                    if isinstance(obj, dict) :
+                        if obj.has_key('result'):
+                            print('antibird/get_latest_records error:%s' % obj['result'])
+                        else:
+                            if obj.has_key('_id'):
+                                ret = [obj, ]
+                            else:
+                                print('antibird/get_latest_records error: unknown error')
+                                ret = []
+                    elif isinstance(obj, list) :
+                        ret = obj
+                except:
+                    e = sys.exc_info()[1]
+                    if hasattr(e, 'message'):
+                        print('antibird/get_latest_records error:%s' % e.message)
+                    else:
+                        print('antibird/get_latest_records error:%s' % str(e))
+            for item in ret:
+                idx = ret.index(item)
+                if item.has_key('picture') and isinstance(item['picture'], list):
+                    for i in item['picture']:
+                        idx1 = item['picture'].index(i)
+                        item['picture'][idx1] = '/proxy/api/image/%s' % i
+                ret[idx] = item
+            return ret
+
+
+        def get_latest_records_by_imei(environ, querydict):
+            ret = get_latest_records(environ, querydict)
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+
+
+        def get_equip_list(environ, querydict):
+            ret = ''
+            is_filter_used=False
+            if querydict.has_key('is_filter_used') and querydict['is_filter_used'] is True:
+                is_filter_used = True
+            equip_list = init_list(environ)
+            if not is_filter_used:
+                ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
+            else:
+                exist = []
+                l = db_util.mongo_find(
+                    gConfig['webgis']['mongodb']['database'],
+                    'features',
+                    {
+                        "properties.webgis_type":"point_tower",
+                        "properties.metals":{
+                            "$elemMatch":{
+                                "type":u"多功能驱鸟装置"
+                            }
+                        }
+                    },
+                    0,
+                    'webgis'
+                    )
+                for i in l:
+                    for j in i['properties']['metals']:
+                        if isinstance(j, dict) and j.has_key('imei'):
+                            if not j['imei'] in exist:
+                                exist.append(j['imei'])
+                while len(exist)>0:
+                    i0 = exist[0]
+                    for i in equip_list:
+                        if i['imei'] == i0:
+                            equip_list.remove(i)
+                            exist.remove(i0)
+                            break
+                ret = json.dumps(equip_list, ensure_ascii=True, indent=4)
+            return  ret
+
+        def equip_tower_mapping(querydict):
+            ret = {}
+            if querydict.has_key('imei'):
+                l = db_util.mongo_find(
+                    gConfig['webgis']['mongodb']['database'],
+                    'features',
+                    {
+                        "properties.webgis_type":"point_tower",
+                        "properties.metals":{
+                            "$elemMatch":{
+                                "type":u"多功能驱鸟装置",
+                                "imei":querydict['imei']
+                            }
+                        }
+                    },
+                    0,
+                    'webgis'
+                    )
+                if len(l)>0:
+                    obj = {}
+                    obj['tower_id'] = l[0]['_id']
+                    obj['name'] = l[0]['properties']['name']
+                    obj['lng'] = l[0]['geometry']['coordinates'][0]
+                    obj['lat'] = l[0]['geometry']['coordinates'][1]
+                    obj['alt'] = l[0]['geometry']['coordinates'][2]
+                    ret[querydict['imei']] = obj
+            else:
+                l = db_util.mongo_find(
+                    gConfig['webgis']['mongodb']['database'],
+                    'features',
+                    {
+                        "properties.webgis_type":"point_tower",
+                        "properties.metals":{
+                            "$elemMatch":{
+                                "type":u"多功能驱鸟装置",
+                            }
+                        }
+                    },
+                    0,
+                    'webgis'
+                    )
+                for i in l:
+                    for j in i['properties']['metals']:
+                        if j.has_key('type') and j['type'] == u'多功能驱鸟装置' and j.has_key('imei') and len(j['imei'])>0:
+                            obj = {}
+                            obj['tower_id'] = i['_id']
+                            obj['name'] = i['properties']['name']
+                            obj['lng'] = i['geometry']['coordinates'][0]
+                            obj['lat'] = i['geometry']['coordinates'][1]
+                            obj['alt'] = i['geometry']['coordinates'][2]
+                            ret[j['imei']] = obj
+
+            ret = json.dumps(ret, ensure_ascii=True, indent=4)
+            return  ret
+
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if args.has_key('imei') and isinstance(querydict, dict):
+            querydict['imei'] = args['imei']
+        if args.has_key('records_num') and isinstance(querydict, dict):
+            querydict['records_num'] = args['records_num']
+        if endpoint == 'get_equip_list':
+            body = get_equip_list(environ, querydict)
+        elif endpoint == 'get_latest_records_by_imei':
+            body = get_latest_records_by_imei(environ, querydict)
+        elif endpoint == 'equip_tower_mapping':
+            body = equip_tower_mapping(querydict)
         return statuscode, headers, body
 
     def handle_bayesian(environ):
@@ -6623,23 +6633,23 @@ def application_webgis(environ, start_response):
     elif len(path_info)>6 and path_info[:6] == '/proxy':
         statuscode, headers, body = proxy(environ)
         headers['Cache-Control'] = 'no-cache'
-    elif path_info == '/anti_bird_equip_list':
-        statuscode, headers, body = anti_bird_equip_list(environ)
-    elif path_info == '/anti_bird_equip_tower_mapping':
-        statuscode, headers, body = anti_bird_equip_tower_mapping(environ)
-    elif path_info == '/anti_bird_get_latest_records_by_imei':
-        statuscode, headers, body = anti_bird_get_latest_records_by_imei(environ)
+    # elif path_info == '/anti_bird_equip_list':
+    #     statuscode, headers, body = anti_bird_equip_list(environ)
+    # elif path_info == '/anti_bird_equip_tower_mapping':
+    #     statuscode, headers, body = anti_bird_equip_tower_mapping(environ)
+    # elif path_info == '/anti_bird_get_latest_records_by_imei':
+    #     statuscode, headers, body = anti_bird_get_latest_records_by_imei(environ)
     else:
         if path_info[-1:] == '/':
             path_info = gConfig['web']['indexpage']
-        if gConfig['webgis']['session']['enable_session'].lower() == 'true' :
+        if str(gConfig['webgis']['session']['enable_session'].lower()) == 'true' :
             # and path_info in ['/login', '/logout', gConfig['web']['loginpage'], gConfig['web']['indexpage'], gConfig['web']['mainpage']]:
             if gSessionStore is None:
                 gSessionStore = FilesystemSessionStore()
             is_expire = False
             with session_manager(environ):
                 sess, cookie_header, is_expire = session_handle(environ, gRequest, gSessionStore)
-                if path_info == gConfig['web']['unauthorizedpage']:
+                if path_info == str(gConfig['web']['unauthorizedpage']):
                     if  not sess.has_key('ip'):
                         sess['ip'] = environ['REMOTE_ADDR']
 
@@ -6690,7 +6700,7 @@ def application_webgis(environ, start_response):
                         start_response('200 OK', headerslist)        
                         return [json.dumps({'result':u'用户名或密码错误'}, ensure_ascii=True, indent=4)]
 
-                if path_info == gConfig['web']['mainpage']:
+                if path_info == str(gConfig['web']['mainpage']):
                     #401 Unauthorized
                     #if session_id is None or token is None:
                     headerslist.append(('Content-Type', str(gConfig['mime_type']['.html'])))
@@ -6705,14 +6715,18 @@ def application_webgis(environ, start_response):
                         statuscode, headers, body = handle_state_examination(environ)
                     elif 'bayesian/' in path_info:
                         statuscode, headers, body = handle_bayesian(environ)
+                    elif 'antibird/' in path_info:
+                        statuscode, headers, body = handle_antibird(environ)
                     else:
                         statuscode, headers, body = handle_static(environ, path_info)
 
         else:
-            if path_info == '/login' and gConfig['webgis']['session']['enable_session'].lower() != 'true':
+            if path_info == '/login' and str(gConfig['webgis']['session']['enable_session'].lower()) != 'true':
                 path_info = gConfig['web']['mainpage']
             if 'state_examination/' in path_info:
                 statuscode, headers, body = handle_state_examination(environ)
+            elif 'antibird/' in path_info:
+                statuscode, headers, body = handle_antibird(environ)
             elif 'bayesian/' in path_info:
                 statuscode, headers, body = handle_bayesian(environ)
             else:
