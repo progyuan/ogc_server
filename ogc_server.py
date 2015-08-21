@@ -2688,7 +2688,8 @@ def get_querydict_by_GET_POST(environ):
                         querydict[k] = obj[k]
                 if isinstance(obj, list):
                     querydict = obj
-            except:
+            except Exception,e:
+                print(e)
                 querydict[key] = form[key]
     file_storage_list = []
     if len(files.keys()) > 0:
@@ -6447,7 +6448,23 @@ def application_webgis(environ, start_response):
             else:
                 ret = db[collection]
             return ret
+        def convert_strkey_to_bool(obj):
+            if isinstance(obj, list):
+                for i in range(0, len(obj)):
+                    obj[i] = convert_strkey_to_bool(obj[i])
+            if isinstance(obj, dict):
+                for k in obj.keys():
+                    if k in ['true', u'true']:
+                        obj[True] = obj[k]
+                        del obj['true']
+                        del obj[u'true']
+                    elif k in ['false', u'false']:
+                        obj[False] = obj[k]
+                        del obj['false']
+                        del obj[u'false']
+                    obj[k] = convert_strkey_to_bool(obj[k])
 
+            return obj
         def save_by_id(querydict, collection_name):
             ret = []
             collection = get_collection(collection_name)
