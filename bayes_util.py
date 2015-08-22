@@ -940,8 +940,8 @@ def export_xls(alist):
 
 def test_insert_domains_range():
     data =  [
-        {'value':True, 'name': u'真'},
-        {'value':False, 'name': u'假'},
+        {'value':'true', 'name': u'真'},
+        {'value':'false', 'name': u'假'},
         {'value':'I', 'name': u'I级'},
         {'value':'II', 'name': u'II级'},
         {'value':'III', 'name': u'III级'},
@@ -950,6 +950,10 @@ def test_insert_domains_range():
         {'value':'low', 'name': u'低'},
         {'value':'medium', 'name': u'中'},
     ]
+    client = pymongo.MongoClient('localhost', 27017)
+    db = client['kmgd']
+    if 'bayesian_domains_range' in db.collection_names(False):
+        db.drop_collection('bayesian_domains_range')
     collection = get_collection('bayesian_domains_range')
     for i in data:
         collection.save(i)
