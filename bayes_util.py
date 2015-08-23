@@ -34,6 +34,7 @@ UNIT_NAME_MAPPING = {
 }
 P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
 P_LINE_UNIT_PATH1 = ur'PROBABILITY_LINE_UNIT1.json'
+g_LINE_PROB = None
 # ENCODING = 'utf-8'
 # ENCODING1 = 'gb18030'
 # def dec(aStr):
@@ -342,8 +343,8 @@ def build_cancer_condition():
 
 def get_collection(collection):
     ret = None
-    # client = pymongo.MongoClient('192.168.1.8', 27017)
-    client = pymongo.MongoClient('localhost', 27017)
+    client = pymongo.MongoClient('192.168.1.8', 27017)
+    # client = pymongo.MongoClient('localhost', 27017)
     db = client['kmgd']
     if not collection in db.collection_names(False):
         ret = db.create_collection(collection)
@@ -351,9 +352,14 @@ def get_collection(collection):
         ret = db[collection]
     return ret
 
-def get_state_examination_data_by_line_name(line_name):
+def get_state_examination_data_by_line_name(line_name, check_year_list = []):
+    ret = []
     collection = get_collection('state_examination')
-    return list(collection.find({'line_name':line_name}))
+    if len(check_year_list)>0:
+        ret = list(collection.find({'line_name':line_name, 'check_year':{'$in':check_year_list}}))
+    else:
+        ret = list(collection.find({'line_name':line_name}))
+    return ret
 
 
 def calc_probability1(data, field_name, field_value):
@@ -636,10 +642,14 @@ def calc_probability_unit(data):
 
 
 def calc_probability_line():
+    global  g_LINE_PROB
     ret = {}
-    if os.path.exists(P_LINE_UNIT_PATH):
+    if g_LINE_PROB:
+        ret = g_LINE_PROB
+    elif os.path.exists(P_LINE_UNIT_PATH):
         with open(P_LINE_UNIT_PATH) as f:
             ret = json.load(f)
+            g_LINE_PROB = ret
     else:
         l = []
         for i in range(8):
@@ -665,6 +675,7 @@ def calc_probability_line():
             list1.append(list2)
             total += 1
         ret['line_state'] = list1
+        g_LINE_PROB = ret
         with open(P_LINE_UNIT_PATH, 'w') as f:
             json.dump(ret, f, ensure_ascii=True)
     return ret
@@ -950,7 +961,7 @@ def test_insert_domains_range():
         {'value':'low', 'name': u'低'},
         {'value':'medium', 'name': u'中'},
     ]
-    client = pymongo.MongoClient('localhost', 27017)
+    client = pymongo.MongoClient('192.168.1.8', 27017)
     db = client['kmgd']
     if 'bayesian_domains_range' in db.collection_names(False):
         db.drop_collection('bayesian_domains_range')
@@ -1048,9 +1059,119 @@ def test_numpy():
     a = array3d_creation(arr, w, h)
 
 
+def test_get_pastyears_bbn_data():
+    p = ur'd:\2010_2014.json'
+    ret = []
+    with codecs.open(p, 'r', 'utf-8-sig') as f:
+        ret = json.loads(f.read())
+    return ret
+
+def test_get_st_by_year(line_name, year):
+    collection = get_collection('state_examination')
+    ret = list(collection.find({'line_name':line_name, 'check_year':year}))
+    return ret
+
+def test_compare_precision():
+    data = test_get_pastyears_bbn_data()
+    ok_count = 0
+    total_count = 0
+    for i in data:
+        line_name = i['line_name']
+        actual = test_get_st_by_year(line_name, 2015)
+        line_state = ''
+        unitkey = ''
+        if len(actual)>0:
+            line_state = actual[0]['line_state']
+            print('%s' % line_name)
+            print('    actual:2015')
+            print('        line is state %s:' % line_state)
+            ll = actual[0].keys()
+            ll.sort()
+            for k in ll:
+                if not  k in ['_id', 'line_id', 'voltage', 'line_state', 'line_name', 'check_year','description', 'suggestion' ]:
+                     if actual[0][k] == line_state:
+                        print('            %s: %s' % (k, actual[0][k]))
+                        unitkey = '%s:%s' % (k, actual[0][k])
+            print('    predict:%s' % str(i['check_year']))
+            for j in [u'II', u'III', u'IV']:
+                if j == line_state:
+                    print('        line in state %s:' % j)
+                    ll = i[j].keys()
+                    ll.sort()
+                    for k in ll:
+                        if not 'line_state' in k:
+                            if i[j][k]>0 and k == unitkey:
+                                print('            %s: %.2f' % (k, i[j][k]))
+                                ok_count += 1
+            if 2014 in i['check_year']:
+                total_count += 1
+    print('total:%d, right:%d, percentage:%.2f' % (total_count, ok_count,  float(ok_count)/float(total_count)))
+
+
+def test_calc_past_year(past_years_list=[]):
+    def get_domains(alist):
+        d = OrderedDict(alist[0][1])
+        return d.keys()
+    def convert_tuple(adict):
+        ret = {}
+        for k in adict.keys():
+            key = ':'.join([k[0], k[1]])
+            ret[key] = adict[k]
+        return ret
+    collection = get_collection('state_examination')
+    pipeline = [
+        # {'$unwind':'$line_name'},
+        {"$group": {"_id": "$line_name", "count": {"$sum": 1}}},
+    ]
+    lines = list(collection.aggregate(pipeline))
+    linenames = map(lambda x:x['_id'], lines)
+    i = 0
+    ret = []
+    for line_name in linenames:
+        l = []
+        result = {}
+        data = get_state_examination_data_by_line_name(line_name, past_years_list)
+        check_year = []
+        for i in data:
+            check_year.append(i['check_year'])
+        print('%s:%d:%s' % (enc1(line_name), len(data), str(check_year) ) )
+        if len(check_year)>1:
+            o = calc_probability_unit(data)
+            result['line_name'] = line_name
+            result['check_year'] = check_year
+            for k in o.keys():
+                o1 = {}
+                o1['name'] = k
+                # o1['display_name'] = UNIT_NAME_MAPPING[k]
+                # o1['line_name'] = line_name
+                o1['conditions'] = o[k]
+                o1['domains'] = get_domains(o[k])
+                l.append(o1)
+            cond = {}
+            cond['line_state'] = []
+            o = calc_probability_line()
+            cond['line_state'].extend(o['line_state'])
+            for node in l:
+                # name = node['name']
+                # domains = node['domains']
+                cond[node['name']] = node['conditions']
+            g = build_bbn_from_conditionals(cond)
+            result['II'] =  convert_tuple(g.query(line_state = 'II'))
+            result['III'] =  convert_tuple(g.query(line_state = 'III'))
+            result['IV'] =  convert_tuple(g.query(line_state = 'IV'))
+            ret.append(result)
+            # break
+        else:
+            print('need 2 years or more')
+
+    with codecs.open(ur'd:\2010_2014.json', 'w', 'utf-8-sig') as f:
+        f.write(json.dumps(ret, ensure_ascii=False, indent=4))
+
+
+
 
 if __name__ == '__main__':
-    pass
+    # pass
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
@@ -1067,15 +1188,8 @@ if __name__ == '__main__':
     # test_import_unit_probability_map_reduce()
     # test_import_unit_probability()
     # test_bayes()
-    # n, l = calc_probability_line()
-    # print(json.dumps(l, ensure_ascii=True, indent=4))
-    # o = calc_probability_line_unit()
-    # print(json.dumps(o, ensure_ascii=True, indent=4))
-    # o = get_all_combinations()
-    # print(len(o))
-    # print(o)
-    # with open(ur'd:\aaa.json', 'w') as f:
-    #     f.write(json.dumps(o, ensure_ascii=True, indent=4))
+    # test_calc_past_year(range(2010, 2015))
+    test_compare_precision()
 
 
 
