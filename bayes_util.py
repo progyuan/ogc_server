@@ -1171,7 +1171,7 @@ def test_calc_past_year(past_years_list=[]):
 
 
 if __name__ == '__main__':
-    # pass
+    pass
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()
@@ -1189,7 +1189,7 @@ if __name__ == '__main__':
     # test_import_unit_probability()
     # test_bayes()
     # test_calc_past_year(range(2010, 2015))
-    test_compare_precision()
+    # test_compare_precision()
 
 
 
