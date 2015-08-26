@@ -431,14 +431,8 @@ def calc_probability_combo(data, *args):#[{'name':'aaa', 'range':['I', 'II', 'II
     return retname, retlist
 
 def build_state_examination_condition(line_name):
-    # data = get_state_examination_data_by_line_name(line_name)
     cond = {}
-    # o = calc_probability_unit(data)
-    # for k in o.keys():
-    #     cond[k] = o[k]
     cond['line_state'] = []
-    # o1 = calc_probability_line1()
-    # cond['line_state'].extend(o1['line_state'])
     o = calc_probability_line()
     cond['line_state'].extend(o['line_state'])
     return cond
@@ -1167,11 +1161,49 @@ def test_calc_past_year(past_years_list=[]):
     with codecs.open(ur'd:\2010_2014.json', 'w', 'utf-8-sig') as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))
 
+def test_change_data():
+    collection = get_collection('state_examination')
+    l = list(collection.find({'voltage':u'501kV'}))
+    for i in l:
+        i['voltage'] = u'500kV'
+        collection.save(i)
+def test_delete_data():
+    querydict = {'names':[u'd']}
+    collection = get_collection('bayesian_nodes')
+    # l = list(collection.find({'name':u'd'}))
+    if querydict.has_key('names'):
+        if isinstance(querydict['names'], list):
+            # names = [str(i) for i in querydict['names']]
+            names = querydict['names']
+            l = list(collection.find({'conditions': {'$elemMatch': {'$elemMatch': {'$elemMatch': {'$elemMatch':{'$in': names}}}}}}))
+            for i in l:
+                existlist = []
+                conditions = []
+                for ii in i['conditions']:
+                    idx = i['conditions'].index(ii)
+                    tmp = []
+                    for iii in ii[0]:
+                        # idx1 = ii[0].index(iii)
+                        if not iii[0] in names:
+                            tmp.append(iii)
+                    ii[0] = tmp
+                    i['conditions'][idx] = ii
+                for ii in i['conditions']:
+                    key = ''
+                    for iii in ii[0]:
+                        key += iii[0] + ':' + iii[1] + '|'
+                    if not key in existlist:
+                        existlist.append(key)
+                        conditions.append(ii)
+                i['conditions'] = conditions
+                collection.save(i)
 
+    # print(l)
 
 
 if __name__ == '__main__':
     pass
+    # test_delete_data()
     # test_regenarate_unit()
     # test_insert_domains_range()
     # test_import_2015txt()

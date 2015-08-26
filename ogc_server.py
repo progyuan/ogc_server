@@ -6522,7 +6522,7 @@ def application_webgis(environ, start_response):
         def bayesian_query_graphiz(querydict):
             ret = ''
             if querydict.has_key('line_name') and len(querydict['line_name']):
-                g = bayes_util.create_bbn_by_line_name(querydict['line_name'])
+                g = create_bbn_by_line_name(querydict['line_name'])
                 dpi = 100
                 rankdir = 'LL'
                 if querydict.has_key('dpi') and len(querydict['dpi']):
@@ -6534,7 +6534,40 @@ def application_webgis(environ, start_response):
         def bayesian_save_node(querydict):
             return save_by_id(querydict, 'bayesian_nodes')
         def bayesian_delete_node(querydict):
-            return delete_by_id(querydict, 'bayesian_nodes')
+            ret = '[]'
+            delete_by_id(querydict, 'bayesian_nodes')
+            collection = get_collection('bayesian_nodes')
+            if querydict.has_key('names'):
+                if isinstance(querydict['names'], list):
+                    # names = [str(i) for i in querydict['names']]
+                    names = querydict['names']
+                    l = list(collection.find({'conditions': {'$elemMatch': {'$elemMatch': {'$elemMatch': {'$elemMatch':{'$in': names}}}}}}))
+                    for i in l:
+                        existlist = []
+                        conditions = []
+                        for ii in i['conditions']:
+                            idx = i['conditions'].index(ii)
+                            tmp = []
+                            for iii in ii[0]:
+                                # idx1 = ii[0].index(iii)
+                                if not iii[0] in names:
+                                    tmp.append(iii)
+                            ii[0] = tmp
+                            i['conditions'][idx] = ii
+                        for ii in i['conditions']:
+                            key = ''
+                            for iii in ii[0]:
+                                key += iii[0] + ':' + iii[1] + '|'
+                            if not key in existlist:
+                                existlist.append(key)
+                                conditions.append(ii)
+                        i['conditions'] = conditions
+                        collection.save(i)
+            if querydict.has_key('line_name') and len(querydict['line_name'])>0:
+                ret = bayesian_query_node(querydict)
+            return ret
+
+
         def bayesian_query_predict(querydict):
             ret = []
             if querydict.has_key('line_name') and len(querydict['line_name']):
