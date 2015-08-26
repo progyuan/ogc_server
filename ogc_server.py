@@ -6574,12 +6574,20 @@ def application_webgis(environ, start_response):
                 g = create_bbn_by_line_name(querydict['line_name'])
                 del querydict['line_name']
                 qd = {}
+                querymulti = False
                 for k in querydict.keys():
                     if isinstance(querydict[k], unicode):
                         qd[str(k)] = str(querydict[k])
+                    elif isinstance(querydict[k], list) and k == u'line_state':
+                        querymulti = True
                     else:
                         qd[str(k)] = querydict[k]
-                ret = bayes_util.query_bbn_condition(g,  **qd)
+                if querymulti:
+                    for i in querydict['line_state']:
+                        qd['line_state'] = str(i)
+                        ret.append({'line_state':i, 'result':bayes_util.query_bbn_condition(g,  **qd)})
+                else:
+                    ret = bayes_util.query_bbn_condition(g,  **qd)
             ret = json.dumps(ret, ensure_ascii=True, indent=4)
             return ret
         def reset_unit_by_line_name(line_name):
