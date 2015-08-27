@@ -1198,11 +1198,38 @@ def test_delete_data():
                 i['conditions'] = conditions
                 collection.save(i)
 
-    # print(l)
+def test_read_all_records():
+    collection = get_collection('state_examination')
+    l = list(collection.find({}))
+    namesmap = {}
+    for i in l:
+        if i.has_key('line_state') and i['line_state'] in ['III', 'IV']:
+            if not namesmap.has_key(i['line_name']):
+                namesmap[i['line_name']] = []
+            else:
+                namesmap[i['line_name']].append(i)
+    m1 = {}
+    for k in namesmap.keys():
+        if len(namesmap[k])>3:
+            m1[k] = namesmap[k]
+    for k in m1.keys():
+        print('%s:%d,%s' % (enc1(k), len(m1[k]), str([i['line_state'] for i in m1[k]])))
+
+def test_read_one(line_name):
+    l = get_state_examination_data_by_line_name(line_name)
+    print(enc1(line_name))
+    print 'check_year      unit_1    unit_2    unit_3    unit_4   unit_5    unit_6    unit_7    unit_8    line_state'
+    for i in  l:
+        print '     %d      %05s     %05s     %05s     %05s     %05s     %05s     %05s     %05s       %05s' % \
+        (i['check_year'], i['unit_1'], i['unit_2'], i['unit_3'], i['unit_4'], i['unit_5'], i['unit_6'], i['unit_7'], i['unit_8'], i['line_state'])
 
 
 if __name__ == '__main__':
-    pass
+    # pass
+    test_read_all_records()
+    test_read_one(u'东大茨线')
+    test_read_one(u'马海I回线')
+    test_read_one(u'普茨线')
     # test_delete_data()
     # test_regenarate_unit()
     # test_insert_domains_range()
