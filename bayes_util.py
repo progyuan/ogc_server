@@ -34,6 +34,7 @@ UNIT_NAME_MAPPING = {
 }
 P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
 P_LINE_UNIT_PATH1 = ur'PROBABILITY_LINE_UNIT1.json'
+P_LINE_UNIT_PATH2 = ur'PROBABILITY_LINE_UNIT2.json'
 g_LINE_PROB = None
 # ENCODING = 'utf-8'
 # ENCODING1 = 'gb18030'
@@ -742,6 +743,44 @@ def calc_probability_line1():
         #     f.write(json.dumps(ret, ensure_ascii=False, indent=4))
     return ret
 
+def calc_probability_line2():
+    global  g_LINE_PROB
+    ret = {}
+    if g_LINE_PROB:
+        ret = g_LINE_PROB
+    elif os.path.exists(P_LINE_UNIT_PATH2):
+        with open(P_LINE_UNIT_PATH2) as f:
+            ret = json.load(f)
+            g_LINE_PROB = ret
+    else:
+        l = []
+        for i in range(8):
+            l.append([ '2', '3', '4'])
+        iterator = itertools.product(*l)
+        total = 0
+        list1 = []
+        list1.append([[["unit_1", "I"], ["unit_2", "I"], ["unit_3", "I"], ["unit_4", "I"], ["unit_5", "I"], ["unit_6", "I"], ["unit_7", "I"], ["unit_8", "I"]], {"I": 1.0, "II": 0.0, "III": 0.0, "IV": 0.0}])
+        for it in iterator:
+            max_line_level = get_max_level(it)
+            list2 = []
+            list3 = []
+            idx = 0
+            for i in it:
+                list3.append(['unit_%d' % (idx+1), get_level_name(i)])
+                idx += 1
+            list2.append(list3)
+            o = {}
+            for i in range(1, 5):
+                o[get_level_name(i)] = 0.0
+            o[get_level_name(max_line_level)] = 1.0
+            list2.append(o)
+            list1.append(list2)
+            total += 1
+        ret['line_state'] = list1
+        g_LINE_PROB = ret
+        with open(P_LINE_UNIT_PATH2, 'w') as f:
+            json.dump(ret, f, ensure_ascii=True)
+    return ret
 
 
 def get_all_combinations(max_num):
@@ -1225,11 +1264,12 @@ def test_read_one(line_name):
 
 
 if __name__ == '__main__':
-    # pass
-    test_read_all_records()
-    test_read_one(u'东大茨线')
-    test_read_one(u'马海I回线')
-    test_read_one(u'普茨线')
+    pass
+    # calc_probability_line2()
+    # test_read_all_records()
+    # test_read_one(u'东大茨线')
+    # test_read_one(u'马海I回线')
+    # test_read_one(u'普茨线')
     # test_delete_data()
     # test_regenarate_unit()
     # test_insert_domains_range()
