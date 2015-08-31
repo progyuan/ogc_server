@@ -991,14 +991,25 @@ def test_insert_domains_range():
         {'value':'III', 'name': u'III级'},
         {'value':'IV', 'name': u'IV级'},
         {'value':'high', 'name': u'高'},
-        {'value':'low', 'name': u'低'},
         {'value':'medium', 'name': u'中'},
+        {'value':'low', 'name': u'低'},
+        {'value':'0', 'name': u'0'},
+        {'value':'1', 'name': u'1'},
+        {'value':'2', 'name': u'2'},
+        {'value':'3', 'name': u'3'},
+        {'value':'4', 'name': u'4'},
+        {'value':'5', 'name': u'5'},
+        {'value':'6', 'name': u'6'},
+        {'value':'7', 'name': u'7'},
+        {'value':'8', 'name': u'8'},
+        {'value':'9', 'name': u'9'},
     ]
-    client = pymongo.MongoClient('192.168.1.8', 27017)
+    # client = pymongo.MongoClient('192.168.1.8', 27017)
+    client = pymongo.MongoClient('localhost', 27017)
     db = client['kmgd']
     if 'bayesian_domains_range' in db.collection_names(False):
         db.drop_collection('bayesian_domains_range')
-    collection = get_collection('bayesian_domains_range')
+    collection = db['bayesian_domains_range']
     for i in data:
         collection.save(i)
 
@@ -1264,7 +1275,7 @@ def test_read_one(line_name):
 
 
 if __name__ == '__main__':
-    pass
+    # pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1272,7 +1283,7 @@ if __name__ == '__main__':
     # test_read_one(u'普茨线')
     # test_delete_data()
     # test_regenarate_unit()
-    # test_insert_domains_range()
+    test_insert_domains_range()
     # test_import_2015txt()
     # test_se()
     # reset_unit_by_line_name(u'厂口七甸I回线')
