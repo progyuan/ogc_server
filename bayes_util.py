@@ -1275,7 +1275,7 @@ def test_read_one(line_name):
 
 
 if __name__ == '__main__':
-    # pass
+    pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1283,7 +1283,7 @@ if __name__ == '__main__':
     # test_read_one(u'普茨线')
     # test_delete_data()
     # test_regenarate_unit()
-    test_insert_domains_range()
+    # test_insert_domains_range()
     # test_import_2015txt()
     # test_se()
     # reset_unit_by_line_name(u'厂口七甸I回线')
