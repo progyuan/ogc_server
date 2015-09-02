@@ -330,6 +330,8 @@ def handle_static(environ, aUrl):
                 isBin = True
             if '/octet-stream' in gConfig['mime_type'][ext]:
                 isBin = True
+            if '/pdf' in gConfig['mime_type'][ext]:
+                isBin = True
             contenttype = gConfig['mime_type'][ext]
             if ext == '.js':
                 if not os.path.exists(p):
