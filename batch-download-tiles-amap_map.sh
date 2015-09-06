@@ -1,1 +1,1 @@
-python ogc_server.py --batch_download_tile_enable --tiletype "webgis/tiles" --subtype amap_map --west 99.82 --east 105.54 --north 26.24 --south 22.81 --num_cocurrent 6 --wait_sec 1 --zoom_max 16 --save_to_db True
+screen python ogc_server.py -c ogc-config-webgis-linux.ini --batch_download_tile_enable --tiletype "webgis/tiles" --subtype amap_map --west 99.82 --east 105.54 --north 26.24 --south 22.81 --num_cocurrent 6 --wait_sec 1 --zoom_max 17 --save_to_db True
