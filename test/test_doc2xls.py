@@ -299,7 +299,140 @@ def exam():
     with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig' ) as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))
 
+def chongqing():
+    ret = []
+    FILEPATH = ur'D:\2014项目\平台\重庆安规201509\国家电网试题变电部分(修改）.xls'
+    book = xlrd.open_workbook(FILEPATH)
+    for sheet in  book.sheets():
+        if  u'单选' in sheet.name:
+            for row in range(1, sheet.nrows):
+                o = {}
+                o['type'] = 'single'
+                o['question'] = sheet.cell_value(row, 0)
+                ans = sheet.cell_value(row, 5).strip().upper()
+                o['answer'] = []
+                for col in range(1, 5):
+                    o1 = {}
+                    v = sheet.cell_value(row, col).strip()
+                    o1['text'] = v
+                    o1['correct'] = False
+                    if ans == 'A' and col == 1:
+                        o1['correct'] = True
+                    elif ans == 'B' and col == 2:
+                        o1['correct'] = True
+                    elif ans == 'C' and col == 3:
+                        o1['correct'] = True
+                    elif ans == 'D' and col == 4:
+                        o1['correct'] = True
+                    o['answer'].append(o1)
+                ret.append(o)
+        if  u'多选' in sheet.name:
+            for row in range(1, sheet.nrows):
+                o = {}
+                o['type'] = 'multi'
+                o['question'] = sheet.cell_value(row, 0)
+                ans = sheet.cell_value(row, 6).strip().upper()
+                o['answer'] = []
+                for col in range(1, 6):
+                    o1 = {}
+                    v = sheet.cell_value(row, col).strip()
+                    if len(v) == 0:
+                        continue
+                    o1['text'] = v
+                    o1['correct'] = False
+                    if  'A' in ans and col == 1:
+                        o1['correct'] = True
+                    elif 'B' in ans and col == 2:
+                        o1['correct'] = True
+                    elif 'C' in ans and col == 3:
+                        o1['correct'] = True
+                    elif 'D' in ans and col == 4:
+                        o1['correct'] = True
+                    elif 'E' in ans and col == 5:
+                        o1['correct'] = True
+                    o['answer'].append(o1)
+                ret.append(o)
+        if u'判断' in sheet.name:
+            for row in range(1, sheet.nrows):
+                o = {}
+                o['type'] = 'bool'
+                o['question'] = sheet.cell_value(row, 0)
+                ans = sheet.cell_value(row, 1).strip().upper()
+                o['answer'] = [{'text':u'对', 'correct':False},{'text':u'错', 'correct':False} ]
+                if ans == u'正确':
+                    o['answer'][0]['correct'] = True
+                if ans == u'错误':
+                    o['answer'][1]['correct'] = True
+                ret.append(o)
+        if u'填空' in sheet.name :
+            for row in range(1, sheet.nrows):
+                o = {}
+                o['type'] = 'single'
+                o['question'] = sheet.cell_value(row, 0)
+                ans = sheet.cell_value(row, 1).strip()
+                o['answer'] = [{'text':ans, 'correct':True}]
+                ret.append(o)
+        if u'案例分析' in sheet.name :
+            for row in range(1, sheet.nrows):
+                o = {}
+                o['type'] = 'single'
+                o['question'] = sheet.cell_value(row, 0)
+                ans = sheet.cell_value(row, 1).strip()
+                o['answer'] = [{'text':ans, 'correct':True}]
+                ret.append(o)
+
+
+
+
+    # with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig' ) as f:
+    #     f.write(json.dumps(ret, ensure_ascii=False, indent=4))
+    s = ''
+    for i in ret:
+        s += json.dumps(i, ensure_ascii=False, indent=4) + '\n'
+    s += ''
+    with codecs.open(ur'd:\aaa1.json', 'w', 'utf-8-sig' ) as f:
+        f.write(s)
+
+def chongqing2():
+    ret = []
+    FILEPATH = ur'D:\2014项目\平台\重庆安规201509\重庆安规201509工作票.xls'
+    book = xlrd.open_workbook(FILEPATH)
+    for sheet in  book.sheets():
+        if  u'工作表1' in sheet.name:
+            for row in range(0, sheet.nrows):
+                o = {}
+                o['type'] = 'multi'
+                o['question'] = sheet.cell_value(row, 0)
+                # ans = sheet.cell_value(row, 6).strip().upper()
+                o['answer'] = []
+                for col in range(1, 5):
+                    v = sheet.cell_value(row, col)
+                    if isinstance(v, float):
+                        v = str(v)
+                    v = v.strip()
+                    if len(v) == 0:
+                        continue
+                    o1 = {}
+                    o1['text'] = v
+                    o1['correct'] = False
+                    if col == 1:
+                        o1['correct'] = True
+                    elif col == 2:
+                        o1['correct'] = True
+                    elif col == 3:
+                        o1['correct'] = True
+                    elif col == 4:
+                        o1['correct'] = True
+                    o['answer'].append(o1)
+                ret.append(o)
+    s = ''
+    for i in ret:
+        s += json.dumps(i, ensure_ascii=False, indent=4) + '\n'
+    s += ''
+    with codecs.open(ur'd:\aaa2.json', 'w', 'utf-8-sig' ) as f:
+        f.write(s)
+
 
 if __name__ == "__main__":
-    exam()
+    chongqing2()
     
