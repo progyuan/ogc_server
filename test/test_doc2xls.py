@@ -296,7 +296,7 @@ def exam():
         ret.extend(parse_one_book(path))
         # break
     print(len(ret))
-    with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig' ) as f:
+    with codecs.open(ur'd:\TIKU.json', 'w', 'utf-8-sig' ) as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))
 
 def chongqing():
@@ -434,5 +434,5 @@ def chongqing2():
 
 
 if __name__ == "__main__":
-    chongqing2()
+    exam()
     

@@ -986,10 +986,12 @@ def test_insert_domains_range():
     data =  [
         {'value':'true', 'name': u'真'},
         {'value':'false', 'name': u'假'},
-        {'value':'I', 'name': u'I级'},
-        {'value':'II', 'name': u'II级'},
-        {'value':'III', 'name': u'III级'},
-        {'value':'IV', 'name': u'IV级'},
+        {'value':'I', 'name': u'正常'},
+        {'value':'II', 'name': u'注意'},
+        {'value':'III', 'name': u'异常'},
+        {'value':'IV', 'name': u'严重'},
+        # {'value':'III', 'name': u'III级'},
+        # {'value':'IV', 'name': u'IV级'},
         {'value':'high', 'name': u'高'},
         {'value':'medium', 'name': u'中'},
         {'value':'low', 'name': u'低'},
@@ -1171,6 +1173,7 @@ def test_calc_past_year(past_years_list=[]):
     linenames = map(lambda x:x['_id'], lines)
     i = 0
     ret = []
+    linecount = 0
     for line_name in linenames:
         l = []
         result = {}
@@ -1178,8 +1181,12 @@ def test_calc_past_year(past_years_list=[]):
         check_year = []
         for i in data:
             check_year.append(i['check_year'])
+        check_year.sort()
         print('%s:%d:%s' % (enc1(line_name), len(data), str(check_year) ) )
-        if len(check_year)>1:
+        if True:
+            linecount += 1
+            # continue
+        if len(check_year) > 2:
             o = calc_probability_unit(data)
             result['line_name'] = line_name
             result['check_year'] = check_year
@@ -1206,10 +1213,116 @@ def test_calc_past_year(past_years_list=[]):
             ret.append(result)
             # break
         else:
-            print('need 2 years or more')
+            print('need 3 years or more')
+    print('line count:%d' % linecount)
+    if False:
+        with codecs.open(ur'd:\3_or_more_year.json', 'w', 'utf-8-sig') as f:
+            f.write(json.dumps(ret, ensure_ascii=False, indent=4))
 
-    with codecs.open(ur'd:\2010_2014.json', 'w', 'utf-8-sig') as f:
+def test_calc_past_year1():
+    collection = get_collection('state_examination')
+    pipeline = [
+        # {'$unwind':'$line_name'},
+        {"$group": {"_id": "$line_name", "count": {"$sum": 1}}},
+    ]
+    lines = list(collection.aggregate(pipeline))
+    linenames = map(lambda x:x['_id'], lines)
+    i = 0
+    ret = []
+    linecount = 0
+    for line_name in linenames:
+        summary = {}
+        l = []
+        result = {}
+        data = get_state_examination_data_by_line_name(line_name)
+        check_year = []
+        for i in data:
+            check_year.append(i['check_year'])
+        check_year.sort()
+        print('%s:%d:%s' % (enc1(line_name), len(data), str(check_year) ) )
+        if len(check_year) > 2:
+            summary['line_name'] = line_name
+            summary['past_years'] = len(check_year) - 1
+            summary['line_ok'] = False
+            summary['unit_ok'] = False
+            summary['line_ok'], summary['unit_ok'] = test_compare_precision_one_line(collection, line_name, check_year[:-1], check_year[-1])
+            linecount += 1
+            if len(summary.keys()) > 0:
+                ret.append(summary)
+            # if linecount > 4:
+            #     break
+    print('line count:%d' % linecount)
+    with codecs.open(ur'd:\3_or_more_year.json', 'w', 'utf-8-sig') as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))
+
+def test_compare_precision_one_line(collection, line_name, pastlist, latest):
+    def get_domains(alist):
+        d = OrderedDict(alist[0][1])
+        return d.keys()
+    def convert_tuple(adict):
+        ret = {}
+        for k in adict.keys():
+            key = ':'.join([k[0], k[1]])
+            ret[key] = adict[k]
+        return ret
+
+    result = {}
+    l = []
+    data = get_state_examination_data_by_line_name(line_name, pastlist)
+    o = calc_probability_unit(data)
+    result['line_name'] = line_name
+    result['check_year'] = pastlist
+    for k in o.keys():
+        o1 = {}
+        o1['name'] = k
+        o1['conditions'] = o[k]
+        o1['domains'] = get_domains(o[k])
+        l.append(o1)
+    cond = {}
+    cond['line_state'] = []
+    o = calc_probability_line()
+    cond['line_state'].extend(o['line_state'])
+    for node in l:
+        # name = node['name']
+        # domains = node['domains']
+        cond[node['name']] = node['conditions']
+    g = build_bbn_from_conditionals(cond)
+    result['I'] =  convert_tuple(g.query(line_state = 'I'))
+    result['II'] =  convert_tuple(g.query(line_state = 'II'))
+    result['III'] =  convert_tuple(g.query(line_state = 'III'))
+    result['IV'] =  convert_tuple(g.query(line_state = 'IV'))
+
+    line_ok, unit_ok = False, False
+    unitkey = ''
+    actual = get_state_examination_data_by_line_name(line_name, [latest,])
+    if len(actual)>0:
+        line_state = actual[0]['line_state']
+        print('%s' % line_name)
+        print('    actual:%d' % latest)
+        print('        line is state : %s' % line_state)
+        ll = actual[0].keys()
+        ll.sort()
+        for k in ll:
+            if not  k in ['_id', 'line_id', 'voltage', 'line_state', 'line_name', 'check_year','description', 'suggestion' ]:
+                 if actual[0][k] == line_state:
+                    print('            %s: %s' % (k, actual[0][k]))
+                    unitkey = '%s:%s' % (k, actual[0][k])
+        print('    predict:%s' % str(result['check_year']))
+        for j in [u'I', u'II', u'III', u'IV']:
+            if j == line_state:
+                print('        line in state : %s' % j)
+                line_ok = True
+                ll = result[j].keys()
+                ll.sort()
+                for k in ll:
+                    if not 'line_state' in k:
+                        if result[j][k]>0 and k == unitkey:
+                            print('            %s: %.2f' % (k, result[j][k]))
+                            unit_ok = True
+    return line_ok, unit_ok
+
+
+
 
 def test_change_data():
     collection = get_collection('state_examination')
@@ -1248,6 +1361,14 @@ def test_delete_data():
                 i['conditions'] = conditions
                 collection.save(i)
 
+def test_delete_line_by_name():
+    line_name = u'厂狮回线'
+    collection = get_collection('state_examination')
+    l =  list(collection.find({'line_name':line_name}))
+    ids = [i['_id'] for i in l]
+    collection.remove({'_id': {'$in': ids}})
+
+
 def test_read_all_records():
     collection = get_collection('state_examination')
     l = list(collection.find({}))
@@ -1273,9 +1394,35 @@ def test_read_one(line_name):
         print '     %d      %05s     %05s     %05s     %05s     %05s     %05s     %05s     %05s       %05s' % \
         (i['check_year'], i['unit_1'], i['unit_2'], i['unit_3'], i['unit_4'], i['unit_5'], i['unit_6'], i['unit_7'], i['unit_8'], i['line_state'])
 
+def test_calc_percentage():
+    path = ur'd:\3_or_more_year.json'
+    l = []
+    with codecs.open(path, 'r', 'utf-8-sig') as f:
+        l = json.loads(f.read())
+    list2 = filter(lambda x:x['past_years'] == 2, l)
+    list3 = filter(lambda x:x['past_years'] == 3, l)
+    list4 = filter(lambda x:x['past_years'] == 4, l)
+    list5 = filter(lambda x:x['past_years'] == 5, l)
+    print('list2:%d' % len(list2))
+    print('list3:%d' % len(list3))
+    print('list4:%d' % len(list4))
+    print('list5:%d' % len(list5))
+    list2_unit_ok = filter(lambda x:x['unit_ok'], list2)
+    list3_unit_ok = filter(lambda x:x['unit_ok'], list3)
+    list4_unit_ok = filter(lambda x:x['unit_ok'], list4)
+    list5_unit_ok = filter(lambda x:x['unit_ok'], list5)
+    # print('list2_unit_ok:%d' % len(list2_unit_ok))
+    # print('list3_unit_ok:%d' % len(list3_unit_ok))
+    # print('list4_unit_ok:%d' % len(list4_unit_ok))
+    # print('list5_unit_ok:%d' % len(list5_unit_ok))
+    print(float(len(list2_unit_ok))/float(len(list2)))
+    print(float(len(list3_unit_ok))/len(list3))
+    print(float(len(list4_unit_ok))/len(list4))
+    print(float(len(list5_unit_ok))/len(list5))
+
 
 if __name__ == '__main__':
-    pass
+    # pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1283,7 +1430,7 @@ if __name__ == '__main__':
     # test_read_one(u'普茨线')
     # test_delete_data()
     # test_regenarate_unit()
-    # test_insert_domains_range()
+    test_insert_domains_range()
     # test_import_2015txt()
     # test_se()
     # reset_unit_by_line_name(u'厂口七甸I回线')
@@ -1298,7 +1445,9 @@ if __name__ == '__main__':
     # test_import_unit_probability_map_reduce()
     # test_import_unit_probability()
     # test_bayes()
-    # test_calc_past_year(range(2010, 2015))
+    #test_calc_past_year1()
+    # test_calc_percentage()
+    # test_delete_line_by_name()
     # test_compare_precision()
 
 

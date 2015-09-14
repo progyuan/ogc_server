@@ -1,0 +1,1115 @@
+[
+    {
+        "unit_index":1,
+        "parent":"基础",
+        "name":"基础异常",
+        "levels":
+        [
+            {
+                "level": "I",
+                "base_score": 2,
+                "weight": 2,
+                "according": "基础周围 10m 的区域内堆积有大量酸、碱、盐或其他有腐蚀性化学物品，或易燃、易爆物品"
+            },
+            {
+                "level": "I",
+                "base_score": 2,
+                "weight": 2,
+                "according": "保护帽风化、开裂"
+            },
+            {
+                "level":"II",
+                "base_score":4,
+                "weight":4,
+                "according":"混凝土表面有较大面积水泥脱落、蜂窝、露石、麻面或露筋"
+            },
+            {
+                "level":"II",
+                "base_score":4,
+                "weight":2,
+                "according":"基础风化腐蚀"
+            },
+            {
+                "level":"II",
+                "base_score":4,
+                "weight":3,
+                "according":"基础轻微上拔或下沉"
+            },
+            {
+                "level":"III",
+                "base_score":8,
+                "weight":3,
+                "according":"基础开裂、变形"
+            },
+            {
+                "level":"III",
+                "base_score":8,
+                "weight":3,
+                "according":"基础本体轻微位移或扭转"
+            },
+            {
+                "level":"III",
+                "base_score":8,
+                "weight":3,
+                "according":"基础明显上拔或下沉"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "地脚螺栓螺母以大代小、缺失或地脚螺栓锈蚀严重"
+            },
+            {
+                "level":"IV",
+                "base_score":10,
+                "weight":4,
+                "according":"基础本体位移或扭转"
+            },
+            {
+                "level":"IV",
+                "base_score":10,
+                "weight":4,
+                "according":"基础严重上拔或沉陷，且有发展趋势"
+            }
+        ]
+    },
+    {
+        "unit_index":1,
+        "parent":"基础",
+        "name":"防护设施损坏",
+        "levels":
+        [
+            {
+                "level":"I",
+                "base_score":2,
+                "weight":2,
+                "according":"基础地表区域形成洼地，有积水且排水不畅"
+            },
+            {
+                "level":"II",
+                "base_score":4,
+                "weight":3,
+                "according":"基础护土部分流失"
+            },
+            {
+                "level":"III",
+                "base_score":8,
+                "weight":3,
+                "according":"基础上边坡有危及基础或铁塔的危石"
+            },
+            {
+                "level":"III",
+                "base_score":8,
+                "weight":3,
+                "according":"基础边坡失稳或护土大量流失，影响基础稳定"
+            },
+            {
+                "level":"IV",
+                "base_score":10,
+                "weight":4,
+                "according":"基础护土严重流失，危及线路运行"
+            }
+        ]
+    },
+    {
+        "unit_index": 1,
+        "parent": "基础",
+        "name": "拉线棒锈蚀、损伤",
+        "levels":
+        [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "拉线棒锈蚀后直径减少值超过2mm"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "拉线棒锈蚀后直径减少大于20%"
+            }
+        ]
+    },
+    {
+        "unit_index": 1,
+        "parent": "基础",
+        "name": "拉线棒缺失",
+        "levels":
+        [
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "拉线棒缺失"
+            }
+        ]
+    },
+    {
+        "unit_index": 1,
+        "parent": "基础",
+        "name": "拉线盘异常",
+        "levels":
+        [
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "拉线盘因外力破坏致严重变形或移位"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张塔、直线塔杆塔倾斜",
+        "levels":
+        [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "钢管塔、角钢塔或 50m 及以上高度铁塔倾斜度超过 0.5%，且均未发现存在明显恶化趋势"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢管塔、角钢塔或 50m 及以上高度铁塔倾斜度超过 0.5%，且发现存在明显恶化趋势"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张塔、直线塔机械损坏",
+        "levels":
+        [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "铁塔主材相邻结点间弯曲度超过 0.2%，且未发现存在明显恶化趋势"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "角钢塔横担歪斜度超过 1.0%，钢管塔横担歪斜度超过 0.5%，且均未发现存在明显恶化趋势"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢管塔、角钢塔或 50m 及以上高度铁塔倾斜度超过 0.5%，且发现存在明显恶化趋势"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "铁塔主材相邻结点间弯曲度超过 0.2%，且发现存在明显恶化趋势"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "主材有严重变形、断裂现象"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张塔、直线塔锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "铁塔、钢管塔塔材表面镀锌层脱落并出现锈渍"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "铁塔、钢管塔主塔材表面锈蚀并出现麻坑"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张塔塔材缺损",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "脚钉缺损"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "自立式铁塔缺辅材 10 根及以下或缺损相应数量的螺栓、螺帽"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "自立式铁塔在同一段内缺辅材 10 根以上"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "主材包钢及主要受力构件任一段连接处缺损螺栓 1/3 及以上，但不超过 2/3"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "主材包钢及主要受力构件任一段连接处缺损螺栓超过 2/3"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "直线塔塔材缺损",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "脚钉缺损"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "自立式铁塔缺辅材 10 根及以下或缺损相应数量的螺栓、螺帽，拉猫塔在同一高度缺辅材 4 根及以下或整基分散式缺辅材 8 根及以下，拉“V”塔左右塔身在同一段内缺辅材4根及以下或整基分散式缺辅材 8 根及以下"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "自立式铁塔在同一段内缺辅材 10 根以上，拉猫塔在同一段内缺辅材 4 根以上但不超过 8 根或整基分散式缺辅材 8 根以上但不超过 12 根，拉“V”塔左右塔身同一段内缺辅材 4 根以上但不超过 8根或整基分散式缺辅材 8 根以上但不超过 12 根"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "主材包钢及主要受力构件任一段连接处缺损螺栓 1/3 及以上，但不超过 2/3"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "拉猫塔在同一段内缺斜材8根以上或整基分散式缺辅材 12 根以上，拉“V”塔左右塔身同一段内缺辅材 8 根以上或整基分散式缺辅材 12 根以上"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "主材包钢及主要受力构件任一段连接处缺损螺栓超过 2/3"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "鸟害",
+        "levels": [
+            {
+                "level": "I",
+                "base_score": 2,
+                "weight": 2,
+                "according": "塔身或横担有蜂窝或鸟巢"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "绝缘子串挂点处有危及线路安全的鸟巢散落"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "其他",
+        "levels": [
+            {
+                "level": "I",
+                "base_score": 2,
+                "weight": 2,
+                "according": "塔身附生藤蔓类植物或挂有异物，但与带电体满足安全距离"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "塔脚被埋"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "塔身挂有影响线路安全运行的通讯线、电力线、广告牌或其他设施"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "横担或塔身挂有可能造成短路的铁丝、飘带、薄膜等异物或藤蔓类植物"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张杆、直线杆杆塔倾斜",
+        "levels":
+        [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "钢筋混凝土电杆倾斜度超过 1.5%，钢管杆倾斜度超过 0.5%，且均未发现存在明显恶化趋势"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢筋混凝土电杆倾斜度超过 1.5%，钢管杆倾斜度超过 0.5%，且发现存在明显恶化趋势"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张杆、直线杆机械损坏",
+        "levels":
+        [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "钢筋混凝土电杆横担歪斜度超过 1.0%，但未发现存在明显恶化趋势"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "普通砼杆横向裂纹宽度达 0.2～0.3mm"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢筋混凝土电杆横担歪斜度超过 1.0%，且发现存在明显恶化趋势"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "普通砼杆横向裂纹宽度达 0.3～0.4mm，长度为周长的 1/3～2/3"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "预应力砼杆有横向裂纹"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "普通砼杆横向裂缝宽度超过 0.4mm，长度超过周长的 2/3"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张杆、直线杆锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 4,
+                "according": "砼杆保护层腐蚀脱落，砼杆叉梁接头锈蚀或混凝土出现局部裂纹、掉块"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "砼杆保护层腐蚀脱落并出现钢筋外露，砼杆叉梁接头严重锈蚀或混凝土出现大量裂纹、掉块、露筋"
+            }
+        ]
+    },
+    {
+        "unit_index": 2,
+        "parent": "杆塔",
+        "name": "耐张杆、直线杆塔材缺损",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "脚钉缺损"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "爬梯缺损"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "导线锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "钢芯铝绞线、钢芯铝合金绞线、铝绞线、铝合金绞线断股损伤截面接近或达到铝股或合金股总截面积的 7%"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "导线表面腐蚀，机械强度试验值为初始值的80%～85%"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢芯铝绞线、钢芯铝合金绞线断股损伤截面为铝股或合金股总截面积的 7%～25%，铝绞线、铝合金绞线断股损伤截面为铝股或合金股总截面积的 7%～17%"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "导线表面严重腐蚀，机械强度试验值小于初始值的 80%"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "钢芯铝绞线、钢芯铝合金绞线钢芯断股或断股损伤截面超过铝股或合金股总截面积的 25%，铝绞线、铝合金绞线断股损伤截面超过铝股或合金股总截面积的 17%"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "导线弧垂异常",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "导线弧垂超过设计允许偏差：110kV 及以下线路为＋6.0％、－2.5％，220kV 及以上线路为＋3.0％、－2.5％"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "导线相间相对弧垂值超过：110kV 及以下线路200mm，220kV 及以上线路 300mm"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "相分裂导线同相子导线相对弧垂值超过以下值：垂直排列双分裂导线 100mm，其他排列形式分裂导线 220kV 线路 80mm，500kV 及以上线路 50mm"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "导线弧垂超过设计允许偏差：110kV 及以下线路为＋6.0％、－2.5％，220kV 及以上线路为＋3.0％、－2.5％，且可能导致导地线之间或相间电气距离不满足要求"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "导线相间相对弧垂值超过：110kV 及以下线路200mm，220kV 及以上线路 300mm，且可能导致相间电气距离不满足要求"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "导线其他",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "导线挂有异物，但不影响线路安全运行"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "导线发生异常的振动、舞动或跳跃现象"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "导线滑移"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "分裂导线发生绞线、鞭击或粘连现象"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "最大风偏时导线对塔身构件不满足安全距离"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "导线对地或跨越物、构筑物的距离不满足运行规程中安全距离的规定"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "导线挂有异物且危及线路安全运行"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "地线锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "良导体架空地线断股损伤截面接近或达到总截面积的 7%"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "地线表面腐蚀，镀锌层有脱落，机械强度试验值为初始值的 80%～85%"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "19 股镀锌钢绞线断 1 股"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "OPGW断股损伤截面接近或达到总截面积的7%（光纤单元未损伤）"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "良导体架空地线断股损伤截面为总截面积的7%～25%"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "地线表面严重腐蚀，镀锌层严重脱落，机械强度试验值小于初始值的 80%"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "7 股镀锌钢绞线断 1 股或 19 股镀锌钢绞线断 2股"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "OPGW 断股损伤截面为总截面积的 7%～17%（光纤单元未损伤"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "良导体架空地线断股损伤截面超过总截面积的25%"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "7股镀锌钢绞线断2股及以上或19股镀锌钢绞线断 3 股及以上"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "OPGW 断股损伤截面超过总截面积的 17%（光纤单元未损伤）"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "地线弧垂异常",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "地线弧垂超过设计允许偏差：110kV 及以下线路为＋6.0％、－2.5％，220kV 及以上线路为＋3.0％、－2.5％"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "地线弧垂超过设计允许偏差：110kV 及以下线路为＋6.0％、－2.5％，220kV 及以上线路为＋3.0％、－2.5％，且可能导致导地线之间电气距离不满足要求"
+            }
+        ]
+    },
+    {
+        "unit_index": 3,
+        "parent": "导地线",
+        "name": "地线其他",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "地线挂有异物，但不影响线路安全运行"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "地线发生异常的振动、舞动或跳跃现象"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "地线滑移"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "OPGW 外层扭曲、折弯、挤压、松股、鸟笼或单丝损伤"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "OPGW 弯曲半径不满足规程要求"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "OPGW 接线盒密封失效，防潮防水功能减弱"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "OPGW 接地引线、接地片安装不满足规范要求或锈断"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "地线挂有异物且危及线路安全运行"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "杆塔上 OPGW 余缆与带电导线不满足安全距离要求"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷质绝缘子、玻璃绝缘子、复合绝缘子、瓷棒式绝缘子、支柱绝缘子污秽爬电",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "绝缘子积污，按等值附盐密度测试结果，其爬电比距不符合对应污秽等级下爬电比距限值的要求"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "绝缘子脏污，观察到有局部、间歇性火花放电现象"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "绝缘子严重脏污，观察到有持续、明显的火花放电现象"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷质绝缘子、玻璃绝缘子破损、老化",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "绝缘子自爆，但未超过如下片数：3片的35kV线路绝缘子串 1 片，7 片的 110kV 线路绝缘子串2 片，13 片的 220kV 线路绝缘子串 4 片，28 片的交流 500kV 绝缘子串 5 片"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "绝缘子机械破损或低、零值：3 片的 35kV 线路绝缘子串 2 片，7 片的 110kV 线路绝缘子串 3 片，13 片的 220kV 线路绝缘子串 5 片，28 片的交流500kV 线路绝缘子串 6 片"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "绝缘子机械破损或低、零值超过如下片数：3片的 35kV 线路绝缘子串 2 片，7 片的 110kV 线路绝缘子串 3 片，13 片的 220kV 线路绝缘子串 5片，28 片的交流 500kV 线路绝缘子串 6 片"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷质绝缘子、玻璃绝缘子、复合绝缘子、瓷棒式绝缘子锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "钢脚、钢帽有歪斜、变形或金属部件表面锈蚀，钢脚弯曲"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "避雷线绝缘子烧伤、损坏或击穿"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "钢脚、钢帽锈蚀严重且出现麻点、凹坑，浇装水泥开裂、脱落"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "钢脚颈部直径明显减少，已严重影响到其机械强度"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷质绝缘子、玻璃绝缘子、复合绝缘子、瓷棒式绝缘子发热异常",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "相对同类点局部温升在 0.5~1K 之间"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "相对同类点局部温升超过 1K"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷质绝缘子、玻璃绝缘子、复合绝缘子、瓷棒式绝缘子其他",
+        "levels": [
+            {
+                "level": "I",
+                "base_score": 2,
+                "weight": 2,
+                "according": "防污涂料龟裂、粉化、起皮"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "除设计要求的预偏外，直线杆塔绝缘子串顺线路方向的偏斜角超过 7.5°且其最大偏移值超过300mm"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "绝缘子有闪络痕迹"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "球窝头锁紧销断裂、缺失、失效"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "绝缘子串整串闪络"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "绝缘子串上挂有可能造成接地短路的异物"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "复合绝缘子破损、老化",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "合成绝缘子局部破损、龟裂、老化，伞裙个别破损"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "合成绝缘子均压环损毁"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "合成绝缘子端部密封破损、失效，伞裙有粉化、龟裂现象，但绝缘子各部件仍保持完整"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "合成绝缘子端部密封严重破损、失效，联结部位出现裂缝和滑移，芯棒外露或伞裙缺失超过 30%"
+            }
+        ]
+    },
+
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "瓷棒式绝缘子、支柱绝缘子破损、老化",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "合成绝缘子局部破损、龟裂、老化，伞裙个别破损"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "表面损伤小于 4cm2，瓷横担损伤小于 3 个裙边"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "表面损伤超过 4cm2，瓷横担损伤超过 3 个裙边或出现纵向裂纹"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "合成绝缘子端部密封破损、失效，伞裙有粉化、龟裂现象，但绝缘子各部件仍保持完整"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "瓷横担出现横向裂纹"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "针式绝缘子、瓷横担绑线松动、断脱、烧伤"
+            }
+        ]
+    },
+    {
+        "unit_index": 4,
+        "parent": "绝缘子",
+        "name": "盐密测试模拟绝缘子破损",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "绝缘子伞裙破损"
+            }
+        ]
+    },
+    {
+        "unit_index": 5,
+        "parent": "金具",
+        "name": "悬垂线夹、耐张线夹、联接金具、接续金具锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "金具有轻微锈蚀、烧伤、变形但尚不影响其电气性能或机械强度"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "锁紧销（开口销、弹簧销等）断裂、缺失、失效"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "金具有锈蚀、烧伤、变形并影响其电气性能或机械强度"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "螺帽脱落"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "金具有裂纹"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "金具有严重锈蚀、烧伤、变形并危及线路安全运行"
+            },
+        ]
+    },
+    {
+        "unit_index": 5,
+        "parent": "金具",
+        "name": "防护金具、间隔棒、防振锤锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 2,
+                "according": "金具有锈蚀、烧伤、变形"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "锁紧销（开口销、弹簧销等）断裂、缺失、失效"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "螺帽、螺栓脱落"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "松动、离位、烧伤、缺失、断裂、掉爪、失效"
+            },
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "防振设施移位、偏斜、锈蚀、缺失、掉边、脱落"
+            }
+        ]
+    },
+    {
+        "unit_index": 5,
+        "parent": "金具",
+        "name": "UT 线夹锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "UT 线夹缺少 1 颗双帽或其锈蚀、损伤截面为总截面积的 20%～25％"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "UT 线夹缺少 2 颗双帽或其锈蚀、损伤截面达总截面积的 25%～30％"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 3,
+                "according": "UT 线夹任一螺杆上无螺帽或其锈蚀、损伤截面超过总截面积的 30％"
+            }
+        ]
+    },
+    {
+        "unit_index": 6,
+        "parent": "拉线",
+        "name": "镀锌钢绞线拉线锈蚀、损伤",
+        "levels": [
+            {
+                "level": "II",
+                "base_score": 4,
+                "weight": 3,
+                "according": "一般杆塔的 7 股镀锌钢绞线拉线断 1 股或 19 股镀锌钢绞线断 2 股"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "一般杆塔的 7 股镀锌钢绞线拉线断 2 股及以上或19 股镀锌钢绞线断 3 股及以上"
+            },
+            {
+                "level": "III",
+                "base_score": 8,
+                "weight": 3,
+                "according": "拉线塔的 7 股镀锌钢绞线拉线断 1 股或 19 股镀锌钢绞线断 2 股"
+            },
+            {
+                "level": "IV",
+                "base_score": 10,
+                "weight": 4,
+                "according": "拉线塔的7股镀锌钢绞线拉线断2股及以上或19股镀锌钢绞线断 3 股及以上"
+            }
+        ]
+    },
+
+]
