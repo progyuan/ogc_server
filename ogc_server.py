@@ -5934,7 +5934,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
     except Exception,e:
         idx = 0
         e1 = e
-        while (e1.errno == 10053 or e1.errno == 10054) and idx < 4:
+        while (e1.errno == 10053 or e1.errno == 10054 ) and idx < 4:
             idx += 1
             print('encounter 10053 error, trying %d reconnecting...' % idx)
             try:
@@ -5949,6 +5949,7 @@ def handle_http_proxy(environ, proxy_placeholder='proxy', real_protocol='http', 
                 break
             except Exception,e2:
                 e1 = e2
+            gevent.sleep(1.0)
         if idx >= 4:
             raise e1
     if response:
