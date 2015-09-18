@@ -6573,9 +6573,13 @@ def application_webgis(environ, start_response):
 
         def bayesian_query_predict(querydict):
             ret = []
+            year_num = 0
             if querydict.has_key('line_name') and len(querydict['line_name']):
                 g = create_bbn_by_line_name(querydict['line_name'])
                 del querydict['line_name']
+                if querydict.has_key('year_num') and len(querydict['year_num']):
+                    year_num = int(querydict['year_num'])
+                del querydict['year_num']
                 qd = {}
                 querymulti = False
                 for k in querydict.keys():

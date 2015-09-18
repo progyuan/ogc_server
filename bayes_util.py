@@ -479,6 +479,7 @@ def build_additional_condition_fake(cond):
         ]
     return ret
 
+
 def query_bbn_condition(g, **querydict):
     print('[%s]%s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), 'start'))
     d = g.query(**querydict)
