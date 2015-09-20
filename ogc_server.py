@@ -6579,7 +6579,7 @@ def application_webgis(environ, start_response):
                 del querydict['line_name']
                 if querydict.has_key('year_num') and len(querydict['year_num']):
                     year_num = int(querydict['year_num'])
-                del querydict['year_num']
+                    del querydict['year_num']
                 qd = {}
                 querymulti = False
                 for k in querydict.keys():
