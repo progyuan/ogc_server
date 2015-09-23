@@ -332,6 +332,8 @@ def handle_static(environ, aUrl):
                 isBin = True
             if '/pdf' in gConfig['mime_type'][ext]:
                 isBin = True
+            if 'application/msword' in gConfig['mime_type'][ext] or 'application/vnd.' in gConfig['mime_type'][ext]:
+                isBin = True
             contenttype = gConfig['mime_type'][ext]
             if ext == '.js':
                 if not os.path.exists(p):
