@@ -5169,12 +5169,20 @@ def CORS_header(h={}):
             try:
                 if gConfig[app]['cors'].has_key('Access-Control-Allow-Origin'):
                     headers['Access-Control-Allow-Origin'] = str(gConfig[app]['cors']['Access-Control-Allow-Origin'])
+                else:
+                    headers['Access-Control-Allow-Origin'] = '*'
                 if gConfig[app]['cors'].has_key('Access-Control-Allow-Credentials'):    
                     headers['Access-Control-Allow-Credentials'] = str(gConfig[app]['cors']['Access-Control-Allow-Credentials'])
+                else:
+                    headers['Access-Control-Allow-Credentials'] = 'true'
                 if gConfig[app]['cors'].has_key('Access-Control-Expose-Headers'):  
                     headers['Access-Control-Expose-Headers'] = str(gConfig[app]['cors']['Access-Control-Expose-Headers'])
+                else:
+                    headers['Access-Control-Expose-Headers'] = 'true'
                 if gConfig[app]['cors'].has_key('Access-Control-Max-Age'):
                     headers['Access-Control-Max-Age'] = str(gConfig[app]['cors']['Access-Control-Max-Age'])
+                # else:
+                #     headers['Access-Control-Max-Age'] = '3600'
                 if gConfig[app]['cors'].has_key('Access-Control-Allow-Methods'):
                     s = gConfig[app]['cors']['Access-Control-Allow-Methods']
                     if isinstance(s, list):
@@ -5186,10 +5194,16 @@ def CORS_header(h={}):
             try:
                 if gConfig['web']['cors'].has_key('Access-Control-Allow-Origin'):
                     headers['Access-Control-Allow-Origin'] = str(gConfig['web']['cors']['Access-Control-Allow-Origin'])
-                if gConfig['web']['cors'].has_key('Access-Control-Allow-Credentials'):    
+                else:
+                    headers['Access-Control-Allow-Origin'] = '*'
+                if gConfig['web']['cors'].has_key('Access-Control-Allow-Credentials'):
                     headers['Access-Control-Allow-Credentials'] = str(gConfig['web']['cors']['Access-Control-Allow-Credentials'])
-                if gConfig['web']['cors'].has_key('Access-Control-Expose-Headers'):  
+                else:
+                    headers['Access-Control-Allow-Credentials'] = 'true'
+                if gConfig['web']['cors'].has_key('Access-Control-Expose-Headers'):
                     headers['Access-Control-Expose-Headers'] = str(gConfig['web']['cors']['Access-Control-Expose-Headers'])
+                else:
+                    headers['Access-Control-Expose-Headers'] = 'true'
                 if gConfig['web']['cors'].has_key('Access-Control-Max-Age'):
                     headers['Access-Control-Max-Age'] = str(gConfig['web']['cors']['Access-Control-Max-Age'])
                 if gConfig['web']['cors'].has_key('Access-Control-Allow-Methods'):
