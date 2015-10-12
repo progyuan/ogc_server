@@ -6174,7 +6174,8 @@ def application_webgis(environ, start_response):
             def modifier(adict = {}):
                 for k in adict.keys():
                     if not k in ['_id', 'check_year']:
-                        adict[k] = adict[k].strip()
+                        if isinstance(adict[k], str) or  isinstance(adict[k], unicode):
+                            adict[k] = adict[k].strip()
                     if k == 'line_name':
                         adict[k] = adict[k].replace('-', '')\
                             .replace('500kV', '').replace('220kV', '').replace('110kV', '').replace('35kV', '').replace('10kV', '')\

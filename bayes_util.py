@@ -1246,14 +1246,16 @@ def test_calc_past_year1():
             summary['past_years'] = len(check_year) - 1
             summary['line_ok'] = False
             summary['unit_ok'] = False
-            summary['line_ok'], summary['unit_ok'] = test_compare_precision_one_line(collection, line_name, check_year[:-1], check_year[-1])
+            summary['unit_predict_result'] = {}
+            summary['line_ok'], summary['unit_ok'], summary['unit_predict_result'] = test_compare_precision_one_line(collection, line_name,
+                                                                                      check_year[:-1], check_year[-1])
             linecount += 1
             if len(summary.keys()) > 0:
                 ret.append(summary)
             # if linecount > 4:
             #     break
     print('line count:%d' % linecount)
-    with codecs.open(ur'd:\3_or_more_year.json', 'w', 'utf-8-sig') as f:
+    with codecs.open(ur'd:\3_1_or_more_year.json', 'w', 'utf-8-sig') as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))
 
 def test_compare_precision_one_line(collection, line_name, pastlist, latest):
@@ -1320,7 +1322,7 @@ def test_compare_precision_one_line(collection, line_name, pastlist, latest):
                         if result[j][k]>0 and k == unitkey:
                             print('            %s: %.2f' % (k, result[j][k]))
                             unit_ok = True
-    return line_ok, unit_ok
+    return line_ok, unit_ok, result
 
 
 
@@ -1423,7 +1425,7 @@ def test_calc_percentage():
 
 
 if __name__ == '__main__':
-    pass
+    # pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1446,7 +1448,7 @@ if __name__ == '__main__':
     # test_import_unit_probability_map_reduce()
     # test_import_unit_probability()
     # test_bayes()
-    #test_calc_past_year1()
+    test_calc_past_year1()
     # test_calc_percentage()
     # test_delete_line_by_name()
     # test_compare_precision()
