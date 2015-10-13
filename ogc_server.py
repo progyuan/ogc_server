@@ -6206,11 +6206,11 @@ def application_webgis(environ, start_response):
                                         cnt += 1
                     ret = float(cnt)/float(totalcnt)
                 return ret
-            def get_unitsub_p(alist, unit, id):
-                ret = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0,}
+            def get_template_v(alist, unit, id, key):
+                ret = None
                 children = _.result(_.find(alist, {'unit':unit}), 'children')
                 if children:
-                    p0 = _.result(_.find(children, {'id':id}), 'p0')
+                    p0 = _.result(_.find(children, {'id':id}), key)
                     if p0:
                         ret = p0
                 return ret
@@ -6236,21 +6236,25 @@ def application_webgis(environ, start_response):
                         o = {}
                         o['name'] = 'unitsub_' + i['id']
                         o['display_name'] = i['name']
-                        o['description'] = i['according']
+                        o['description'] = get_template_v(standard_template, i['unit'], i['id'], 'according')
+                        if o['description'] is None:
+                            o['description'] = ''
                         o['line_name'] = adict['line_name']
-                        o['domains'] = [i['level'],]
-                        o['conditions'] = [[[], {i['level']:get_occur_p(adict['line_name'], 'unitsub_' + i['id'], )}]]
+                        o['domains'] = ['true',]
+                        o['conditions'] = [[[], {'true':get_occur_p(adict['line_name'], 'unitsub_' + i['id'], )}]]
                         collection.insert(o)
                     unitset = set()
                     for i in  adict['unitsub']:
                         node = collection.find_one({'line_name': adict['line_name'], 'name': i['unit']})
-                        un_p = get_unitsub_p(standard_template, i['unit'], i['id'])
+                        un_p = get_template_v(standard_template, i['unit'], i['id'], 'p0')
+                        if un_p is None:
+                            un_p = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0}
                         if node:
                             if not i['unit'] in unitset:
                                 unitset.add(i['unit'])
-                                node['conditions'] = [[[['unitsub_' + i['id'], i['level']]], un_p]]
+                                node['conditions'] = [[[['unitsub_' + i['id'], 'true']], un_p]]
                             else:
-                                node['conditions'].append([[['unitsub_' + i['id'], i['level']]], un_p])
+                                node['conditions'].append([[['unitsub_' + i['id'], 'true']], un_p])
                             collection.save(node)
 
 
@@ -6266,6 +6270,7 @@ def application_webgis(environ, start_response):
                 ret = collection.find_one({'_id':_id})
                 if ret:
                     ret = db_util.remove_mongo_id(ret)
+                save_bayesian_nodes(querydict)
             if isinstance(querydict, list):
                 for i in querydict:
                     i = modifier(i)

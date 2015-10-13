@@ -985,8 +985,8 @@ def export_xls(alist):
 
 def test_insert_domains_range():
     data =  [
-        {'value':'true', 'name': u'真'},
-        {'value':'false', 'name': u'假'},
+        {'value':'true', 'name': u'发生'},
+        {'value':'false', 'name': u'不发生'},
         {'value':'I', 'name': u'正常'},
         {'value':'II', 'name': u'注意'},
         {'value':'III', 'name': u'异常'},

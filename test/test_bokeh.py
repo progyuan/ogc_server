@@ -10,7 +10,7 @@ def test():
     y = [6, 7, 2, 4, 5]
 
     # output to static HTML file
-    output_file("lines.html", title="line plot example")
+    # output_file("lines.html", title="line plot example")
 
     # create a new plot with a title and axis labels
     p = figure(title=u"测试simple line example", x_axis_label='x', y_axis_label='y')
