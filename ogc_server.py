@@ -83,7 +83,7 @@ import configobj
 import db_util
 import bayes_util
 from module_locator import module_path, dec, dec1, enc, enc1
-
+from pydash import py_ as _
 
 
 
@@ -6176,17 +6176,84 @@ def application_webgis(environ, start_response):
                     if not k in ['_id', 'check_year']:
                         if isinstance(adict[k], str) or  isinstance(adict[k], unicode):
                             adict[k] = adict[k].strip()
-                    if k == 'line_name':
-                        adict[k] = adict[k].replace('-', '')\
-                            .replace('500kV', '').replace('220kV', '').replace('110kV', '').replace('35kV', '').replace('10kV', '')\
-                            .replace(u'Ⅱ', 'II').replace(u'Ⅰ', 'I')
-                        if adict[k][-1] == u'回':
-                            adict[k] = adict[k].replace( u'回', u'回线')
-                        if not adict[k][-1] == u'线':
-                            adict[k] = adict[k] + u'线'
+                    # if k == 'line_name':
+                        # adict[k] = adict[k].replace('-', '')\
+                        #     .replace('500kV', '').replace('220kV', '').replace('110kV', '').replace('35kV', '').replace('10kV', '')\
+                        #     .replace(u'Ⅱ', 'II').replace(u'Ⅰ', 'I')
+                        # if adict[k][-1] == u'回':
+                        #     adict[k] = adict[k].replace( u'回', u'回线')
+                        # if not adict[k][-1] == u'线':
+                        #     adict[k] = adict[k] + u'线'
                     if k == 'line_state' or 'unit_' in k:
                         adict[k] = adict[k].replace(u'正常', 'I').replace(u'注意', 'II').replace(u'异常', 'III').replace(u'严重', 'IV')
                 return adict
+            def get_occur_p(line_name, name, value=None):
+                ret = 0.0
+                collection = get_collection('state_examination')
+                l = list(collection.find({'line_name':line_name}))
+                totalcnt = len(l)
+                cnt = 0
+                if totalcnt>0:
+                    for i in l:
+                        if len(name)>4 and name[:5] == 'unit_':
+                            if i.has_key(name) and i[name] == value:
+                                cnt += 1
+                        if len(name)>8 and name[:8] == 'unitsub_':
+                            id = name[8:]
+                            if i.has_key('unitsub'):
+                                for j in i['unitsub']:
+                                    if j['id'] == id:
+                                        cnt += 1
+                    ret = float(cnt)/float(totalcnt)
+                return ret
+            def get_unitsub_p(alist, unit, id):
+                ret = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0,}
+                children = _.result(_.find(alist, {'unit':unit}), 'children')
+                if children:
+                    p0 = _.result(_.find(children, {'id':id}), 'p0')
+                    if p0:
+                        ret = p0
+                return ret
+            def save_bayesian_nodes(adict):
+                standard_template = []
+                with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
+                    standard_template = json.loads(f.read())
+                unitnames = ['unit_1','unit_2','unit_3','unit_4','unit_5','unit_6','unit_7','unit_8',]
+                collection = get_collection('bayesian_nodes')
+                # nodes = collection.find({'line_name':adict['line_name']})
+                collection.remove({'line_name':adict['line_name'], 'name':{'$nin':unitnames}})
+                nodes = collection.find({'line_name':adict['line_name']})
+                for node in nodes:
+                    node['conditions'] = [[[], {
+                        'I':get_occur_p(adict['line_name'], node['name'], 'I'),
+                        'II':get_occur_p(adict['line_name'], node['name'], 'II'),
+                        'III':get_occur_p(adict['line_name'], node['name'], 'III'),
+                        'IV':get_occur_p(adict['line_name'], node['name'], 'IV'),
+                                                }]]
+                    collection.save(node)
+                if adict.has_key('unitsub'):
+                    for i in adict['unitsub']:
+                        o = {}
+                        o['name'] = 'unitsub_' + i['id']
+                        o['display_name'] = i['name']
+                        o['description'] = i['according']
+                        o['line_name'] = adict['line_name']
+                        o['domains'] = [i['level'],]
+                        o['conditions'] = [[[], {i['level']:get_occur_p(adict['line_name'], 'unitsub_' + i['id'], )}]]
+                        collection.insert(o)
+                    unitset = set()
+                    for i in  adict['unitsub']:
+                        node = collection.find_one({'line_name': adict['line_name'], 'name': i['unit']})
+                        un_p = get_unitsub_p(standard_template, i['unit'], i['id'])
+                        if node:
+                            if not i['unit'] in unitset:
+                                unitset.add(i['unit'])
+                                node['conditions'] = [[[['unitsub_' + i['id'], i['level']]], un_p]]
+                            else:
+                                node['conditions'].append([[['unitsub_' + i['id'], i['level']]], un_p])
+                            collection.save(node)
+
+
             ret = []
             collection = get_collection('state_examination')
             if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):

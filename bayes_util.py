@@ -1365,11 +1365,12 @@ def test_delete_data():
                 collection.save(i)
 
 def test_delete_line_by_name():
-    line_name = u'厂狮回线'
-    collection = get_collection('state_examination')
-    l =  list(collection.find({'line_name':line_name}))
-    ids = [i['_id'] for i in l]
-    collection.remove({'_id': {'$in': ids}})
+    line_name = u'厂口七甸I回线'
+    collection = get_collection('bayesian_nodes')
+    # l =  list(collection.find({'line_name':line_name}))
+    # ids = [i['_id'] for i in l]
+    # collection.remove({'_id': {'$in': ids}})
+    collection.remove({'name': {'$in': ['aaa', 'bbb']}})
 
 
 def test_read_all_records():
@@ -1425,7 +1426,7 @@ def test_calc_percentage():
 
 
 if __name__ == '__main__':
-    # pass
+    pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1448,7 +1449,7 @@ if __name__ == '__main__':
     # test_import_unit_probability_map_reduce()
     # test_import_unit_probability()
     # test_bayes()
-    test_calc_past_year1()
+    # test_calc_past_year1()
     # test_calc_percentage()
     # test_delete_line_by_name()
     # test_compare_precision()
