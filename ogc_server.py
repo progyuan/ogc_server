@@ -6214,6 +6214,16 @@ def application_webgis(environ, start_response):
                     if p0:
                         ret = p0
                 return ret
+            def check_has_subunit(alist, line_name, unit):
+                ret = []
+                children = _.result(_.find(alist, {'unit':unit}), 'children')
+                ids = _.pluck(children, 'id')
+                for id in ids:
+                    p = get_occur_p(line_name, 'unitsub_' + id)
+                    if p>0:
+                        ret.append(id)
+                return ret
+
             def save_bayesian_nodes(adict):
                 standard_template = []
                 with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
@@ -6222,45 +6232,78 @@ def application_webgis(environ, start_response):
                 collection = get_collection('bayesian_nodes')
                 # nodes = collection.find({'line_name':adict['line_name']})
                 collection.remove({'line_name':adict['line_name'], 'name':{'$nin':unitnames}})
-                nodes = collection.find({'line_name':adict['line_name']})
+                nodes = collection.find({'line_name':adict['line_name'], 'name':{'$in':unitnames}})
                 for node in nodes:
-                    node['conditions'] = [[[], {
-                        'I':get_occur_p(adict['line_name'], node['name'], 'I'),
-                        'II':get_occur_p(adict['line_name'], node['name'], 'II'),
-                        'III':get_occur_p(adict['line_name'], node['name'], 'III'),
-                        'IV':get_occur_p(adict['line_name'], node['name'], 'IV'),
-                                                }]]
+                    subunits = check_has_subunit(standard_template, adict['line_name'], node['name'])
+                    if len(subunits) > 0:
+                        node['conditions'] = []
+                        # node['conditions'].append([[], {
+                        #     'I':get_occur_p(adict['line_name'], node['name'], 'I'),
+                        #     'II':get_occur_p(adict['line_name'], node['name'], 'II'),
+                        #     'III':get_occur_p(adict['line_name'], node['name'], 'III'),
+                        #     'IV':get_occur_p(adict['line_name'], node['name'], 'IV'),
+                        #     }])
+                        for id in subunits:
+                            un_p = get_template_v(standard_template, node['name'], id, 'p0')
+                            if un_p is None:
+                                un_p = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0}
+                            for i in ['I', 'II', 'III', 'IV']:
+                                un_p[i] += get_occur_p(adict['line_name'], node['name'], i)
+                                if un_p[i] > 1.0:
+                                    un_p[i] = 1.0
+                            node['conditions'].append([[['unitsub_' +  id, 'true']], un_p])
+
+                    else:
+                        node['conditions'] = [[[], {
+                            'I':get_occur_p(adict['line_name'], node['name'], 'I'),
+                            'II':get_occur_p(adict['line_name'], node['name'], 'II'),
+                            'III':get_occur_p(adict['line_name'], node['name'], 'III'),
+                            'IV':get_occur_p(adict['line_name'], node['name'], 'IV'),
+                                                    }]]
                     collection.save(node)
-                if adict.has_key('unitsub'):
-                    for i in adict['unitsub']:
+                nodes = collection.find({'line_name':adict['line_name'], 'name':{'$in':unitnames}})
+                for node in nodes:
+                    subunits = check_has_subunit(standard_template, adict['line_name'], node['name'])
+                    for id in subunits:
                         o = {}
-                        o['name'] = 'unitsub_' + i['id']
-                        o['display_name'] = i['name']
-                        o['description'] = get_template_v(standard_template, i['unit'], i['id'], 'according')
+                        o['name'] = 'unitsub_' + id
+                        o['display_name'] = get_template_v(standard_template, node['name'], id, 'name')
+                        o['description'] = get_template_v(standard_template, node['name'], id, 'according')
                         if o['description'] is None:
                             o['description'] = ''
                         o['line_name'] = adict['line_name']
                         o['domains'] = ['true',]
-                        o['conditions'] = [[[], {'true':get_occur_p(adict['line_name'], 'unitsub_' + i['id'], )}]]
+                        o['conditions'] = [[[], {'true':get_occur_p(adict['line_name'], 'unitsub_' + id, )}]]
                         collection.insert(o)
-                    unitset = set()
-                    for i in  adict['unitsub']:
-                        node = collection.find_one({'line_name': adict['line_name'], 'name': i['unit']})
-                        un_p = get_template_v(standard_template, i['unit'], i['id'], 'p0')
-                        if un_p is None:
-                            un_p = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0}
-                        if node:
-                            if not i['unit'] in unitset:
-                                unitset.add(i['unit'])
-                                node['conditions'] = [[[['unitsub_' + i['id'], 'true']], un_p]]
-                            else:
-                                node['conditions'].append([[['unitsub_' + i['id'], 'true']], un_p])
-                            collection.save(node)
+                # if adict.has_key('unitsub') and isinstance(adict['unitsub'], list):
+                #     for i in adict['unitsub']:
+                #         o = {}
+                #         o['name'] = 'unitsub_' + i['id']
+                #         o['display_name'] = i['name']
+                #         o['description'] = get_template_v(standard_template, i['unit'], i['id'], 'according')
+                #         if o['description'] is None:
+                #             o['description'] = ''
+                #         o['line_name'] = adict['line_name']
+                #         o['domains'] = ['true',]
+                #         o['conditions'] = [[[], {'true':get_occur_p(adict['line_name'], 'unitsub_' + i['id'], )}]]
+                #         collection.insert(o)
+                    # unitset = set()
+                    # for i in  adict['unitsub']:
+                    #     node = collection.find_one({'line_name': adict['line_name'], 'name': i['unit']})
+                    #     un_p = get_template_v(standard_template, i['unit'], i['id'], 'p0')
+                    #     if un_p is None:
+                    #         un_p = {'I':0.0, 'II':0.0, 'III':0.0, 'IV':0.0}
+                    #     if node:
+                    #         if not i['unit'] in unitset:
+                    #             unitset.add(i['unit'])
+                    #             node['conditions'] = [[[['unitsub_' + i['id'], 'true']], un_p]]
+                    #         else:
+                    #             node['conditions'].append([[['unitsub_' + i['id'], 'true']], un_p])
+                    #         collection.save(node)
 
-
-            ret = []
-            collection = get_collection('state_examination')
-            if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
+            def save_dict(querydict):
+                ret = None
+                collection = get_collection('state_examination')
                 querydict['line_name'] = querydict['line_name'].strip()
                 existone = collection.find_one({'line_name':querydict['line_name'].strip(), 'check_year':querydict['check_year']})
                 if existone:
@@ -6271,13 +6314,23 @@ def application_webgis(environ, start_response):
                 if ret:
                     ret = db_util.remove_mongo_id(ret)
                 save_bayesian_nodes(querydict)
+                return ret
+
+
+            ret = []
+            if isinstance(querydict, dict) and querydict.has_key('line_name') and querydict.has_key('check_year'):
+                ret = save_dict(querydict)
             if isinstance(querydict, list):
+                collection = get_collection('state_examination')
                 for i in querydict:
                     i = modifier(i)
                     existone = collection.find_one({'line_name':i['line_name'], 'check_year':i['check_year']})
                     if existone:
                         i['_id'] = str(existone['_id'])
-                    collection.save(db_util.add_mongo_id(i))
+                    o = save_dict(i)
+                    if o:
+                        ret.append(o)
+
             return json.dumps(ret, ensure_ascii=True, indent=4)
 
         def state_examination_query_line_names(querydict):
@@ -6307,6 +6360,7 @@ def application_webgis(environ, start_response):
                         existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                         if existone:
                             collection.remove({'_id':existone['_id']})
+                            save_bayesian_nodes(existone)
                             ret = json.dumps(db_util.remove_mongo_id(existone), ensure_ascii=True, indent=4)
                         else:
                             ret = json.dumps({'result':u'record_not_exist' }, ensure_ascii=True, indent=4)
@@ -6659,11 +6713,63 @@ def application_webgis(environ, start_response):
                 ret = bayesian_query_node(querydict)
             return ret
 
+        def get_occur_p(line_name, name, value=None):
+            ret = 0.0
+            collection = get_collection('state_examination')
+            l = list(collection.find({'line_name':line_name}))
+            totalcnt = len(l)
+            cnt = 0
+            if totalcnt>0:
+                for i in l:
+                    if len(name)>4 and name[:5] == 'unit_':
+                        if i.has_key(name) and i[name] == value:
+                            cnt += 1
+                    if len(name)>8 and name[:8] == 'unitsub_':
+                        id = name[8:]
+                        if i.has_key('unitsub'):
+                            for j in i['unitsub']:
+                                if j['id'] == id:
+                                    cnt += 1
+                ret = float(cnt)/float(totalcnt)
+            return ret
+        def get_template_v(alist, unit, id, key):
+            ret = None
+            children = _.result(_.find(alist, {'unit':unit}), 'children')
+            if children:
+                p0 = _.result(_.find(children, {'id':id}), key)
+                if p0:
+                    ret = p0
+            return ret
+        def modifier(line_name, alist):
+            standard_template = []
+            with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
+                standard_template = json.loads(f.read())
+            ret = alist
+            for linestate in ret:
+                idx0 = ret.index(linestate)
+                line_state = linestate['line_state']
+                for res in linestate['result']:
+                    idx = linestate['result'].index(res)
+                    if res['name'][:8] == 'unitsub_':
+                        id = res['name'][8:]
+                        unit = res['name'][8:14]
+                        p0 = get_template_v(standard_template, unit, id, 'p0')
+                        total_score = int(get_template_v(standard_template, unit, id, 'total_score'))
+                        if p0:
+                            # res['p'] = p0[getlvl(unit, total_score)] * get_occur_p(line_name, res['name']) * 10.0
+                            res['p'] = p0[line_state] * get_occur_p(line_name, res['name']) * 10.0
+                            if res['p'] > 1.0:
+                                res['p'] = 1.0
+                        linestate['result'][idx] = res
+                ret[idx0] = linestate
+            return ret
 
         def bayesian_query_predict(querydict):
             ret = []
             year_num = 0
+            line_name = None
             if querydict.has_key('line_name') and len(querydict['line_name']):
+                line_name = querydict['line_name']
                 g = create_bbn_by_line_name(querydict['line_name'])
                 del querydict['line_name']
                 if querydict.has_key('year_num') and len(querydict['year_num']):
@@ -6684,6 +6790,7 @@ def application_webgis(environ, start_response):
                         ret.append({'line_state':i, 'result':bayes_util.query_bbn_condition(g,  **qd)})
                 else:
                     ret = bayes_util.query_bbn_condition(g,  **qd)
+            ret = modifier(line_name, ret)
             ret = json.dumps(ret, ensure_ascii=True, indent=4)
             return ret
         def reset_unit_by_line_name(line_name):

@@ -1424,6 +1424,25 @@ def test_calc_percentage():
     print(float(len(list4_unit_ok))/len(list4))
     print(float(len(list5_unit_ok))/len(list5))
 
+def test_modify_line():
+    client = pymongo.MongoClient('192.168.1.8', 27017)
+    # client = pymongo.MongoClient('localhost', 27017)
+    db = client['kmgd']
+    # if 'bayesian_domains_range' in db.collection_names(False):
+    #     db.drop_collection('bayesian_domains_range')
+    collection = db['state_examination']
+    o = collection.find_one({'_id':ObjectId('55c6caded8b95a094024699e')})
+    o['description'] = u'1、#25、#28、#39、#56、#59、#60、#63-#67拉线有轻微锈蚀。#47杆有纵向裂纹，裂纹长度为50cm宽约0.3mm，#56保护层脱落、钢筋外露。杆塔单元评为严重状态。\
+2、#52-#58、 #63-#67 、#70-#76绝缘子有轻微积污。绝缘子单元评为注意状态。\
+3、由于线路是1959架设，运行时间长，#1-#46、#52-#76普遍存在接地锈蚀情况。接地装置单元评为注意状态。 \
+4、#41右导线大号侧二联板（导线侧）缺开口销1颗，金具单元为注意状态。\
+5、#2.2-#2.9通道内有圣诞树#1500株垂直距离4-5m；#4-#16、#20-#23、#28-#40、#42-#46、#52-#57、#61-#68、#71-#73通道内有圣诞树、松树、桉树15000株待处理。垂直距离3.5-4.5m，通道环境单元为注意状态。  \
+6、#57-#59省诚投公司在通道内进行商品房建设（违章取土，大型机械施工作业）；#69-#70通道内违章建该家具厂厂房，垂直距离为4.5m；#75-#76茨坝完全中学开发项目位于线路保护区内，基础施工违章取土、大型机械施工作业。通道环境单元为注意状态。\
+7、#70人为将原杆塔基面抬高两米，已建挡土墙内存在积水隐患，基础单元为注意状态\
+8、电缆本体积灰明显，但不影响运行。'
+    collection.save(o)
+
+
 
 if __name__ == '__main__':
     pass
@@ -1453,6 +1472,7 @@ if __name__ == '__main__':
     # test_calc_percentage()
     # test_delete_line_by_name()
     # test_compare_precision()
+    # test_modify_line()
 
 
 
