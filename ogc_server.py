@@ -225,6 +225,7 @@ gUrlMap = Map([
     Rule('/state_examination/save', endpoint='state_examination_save'),
     Rule('/state_examination/query', endpoint='state_examination_query'),
     Rule('/state_examination/query/line_names', endpoint='state_examination_query_line_names'),
+    Rule('/state_examination/save_strategy', endpoint='state_examination_save_strategy'),
     Rule('/state_examination/delete', endpoint='state_examination_delete'),
     Rule('/state_examination/delete/<_id>', endpoint='state_examination_delete'),
     Rule('/bayesian/query/graphiz', endpoint='bayesian_query_graphiz'),
@@ -6370,6 +6371,15 @@ def application_webgis(environ, start_response):
                         collection.remove(cond)
                         ret = json.dumps(db_util.remove_mongo_id(querydict['_id']), ensure_ascii=True, indent=4)
             return json.dumps(ret, ensure_ascii=True, indent=4)
+        def state_examination_save_strategy(querydict):
+            ret = []
+            if isinstance(querydict, list):
+                with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'w', 'utf-8-sig') as f:
+                    f.write(json.dumps(querydict, ensure_ascii=False, indent=4))
+                with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
+                    ret = json.loads(f.read())
+            return json.dumps(ret, ensure_ascii=True, indent=4)
+
         statuscode, headers, body =  '200 OK', {}, ''
         urls = gUrlMap.bind_to_environ(environ)
         querydict, buf = get_querydict_by_GET_POST(environ)
@@ -6384,6 +6394,8 @@ def application_webgis(environ, start_response):
             body = state_examination_delete(querydict)
         elif endpoint == 'state_examination_query_line_names':
             body = state_examination_query_line_names(querydict)
+        elif endpoint == 'state_examination_save_strategy':
+            body = state_examination_save_strategy(querydict)
         return statuscode, headers, body
 
     def handle_antibird(environ):

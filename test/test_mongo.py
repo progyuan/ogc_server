@@ -1,14 +1,79 @@
 # -*- coding: utf-8 -*-
-# from gevent import monkey; monkey.patch_all()
 import os
 import sys
+import codecs
 import datetime
-import pymongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
-from bson.regex import Regex
-import re
+from bson.timestamp import Timestamp
+from pydash import py_ as _
 
+ENCODING = 'utf-8'
+ENCODING1 = 'gb18030'
+def dec(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    text, length = gb18030_decode(aStr, 'replace')
+    return text
+def enc(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
+    text, length = gb18030_encode(aStr, 'replace')
+    return text
+def dec1(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    text, length = gb18030_decode(aStr, 'replace')
+    return text
+def enc1(aStr):
+    gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
+    text, length = gb18030_encode(aStr, 'replace')
+    return text
+
+def add_mongo_id(obj, objidkeys = ['_id', u'_id',]):
+    if isinstance(obj, str) or isinstance(obj, unicode):
+        try:
+            if len(obj) == 24:
+                obj = ObjectId(obj)
+        except:
+            pass
+
+        d = None
+        try:
+            d = datetime.datetime.strptime(obj, "%Y-%m-%d %H:%M:%S.%F")
+        except:
+            try:
+                d = datetime.datetime.strptime(obj, "%Y-%m-%d %H:%M:%S")
+            except:
+                try:
+                    d = datetime.datetime.strptime(obj, "%Y-%m-%d")
+                except:
+                    d = None
+        if d:
+            obj = d
+        return obj
+    elif isinstance(obj, dict):
+        for k in obj.keys():
+            if k in objidkeys and obj[k] is None:
+                obj[k] = ObjectId()
+            obj[k] = add_mongo_id(obj[k])
+
+    elif isinstance(obj, list):
+        for i in obj:
+            obj[obj.index(i)] = add_mongo_id(i)
+    return obj
+
+def remove_mongo_id(obj):
+    if isinstance(obj, ObjectId):
+        obj = str(obj)
+    elif isinstance(obj, Timestamp):
+        obj = obj.as_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(obj, datetime.datetime):
+        obj = obj.strftime("%Y-%m-%d %H:%M:%S")
+    elif isinstance(obj, dict):
+        for k in obj.keys():
+            obj[k] = remove_mongo_id(obj[k])
+    elif isinstance(obj, list):
+        for i in obj:
+            obj[obj.index(i)] = remove_mongo_id(i)
+    return obj
 
 def query1():
     client = MongoClient('192.168.1.8', 27017)
@@ -40,16 +105,20 @@ def query2():
         ret.append(i)
     return ret
 def query3():
-    client = MongoClient('192.168.1.8', 27017)
+    client = MongoClient('localhost', 27017)
     kmgd = client['kmgd']
-    collection = kmgd['features']
-    ret = []
-    #cur = collection.find({"properties.metals.type":u"超声波驱鸟装置"})
-    cur = collection.find({
-        "_id":ObjectId('533e88cbca49c8156025a895'),
-    })
-    for i in cur:
-        ret.append(i)
+    collection = kmgd['network']
+    ret = list(collection.find({}))
+    ret = remove_mongo_id(ret)
+    properties = _.pluck(ret, 'properties')
+    # print(names)
+    for i in properties:
+        if i.has_key('edges') and len(i['edges']):
+            print (enc(i['name']))
+    # collection = kmgd['network']
+    # ret = list(collection.find({'properties.edges':{'$elemMatch':ObjectId('53f306efca49c822ece76641')}}))
+    # ret = remove_mongo_id(ret)
+    # print(ret)
     return ret
     
 def query4():
@@ -88,13 +157,5 @@ def query5():
 
 
 if __name__ == '__main__':
-    ret = query5()
-    print(len(ret))
-    # for i in ret:
-    #     if i['properties'].has_key('metals'):
-    #         for j in i['properties']['metals']:
-    #             # if j['type'] == u'超声波驱鸟装置':
-    #             if u'驱鸟' in j['type'] :
-    #                 print(j)
-    # print(re.compile(u'^.*' + u'描述' + u'.*$').findall(u'描述aaaa'))
+    query3()
 
