@@ -1369,9 +1369,12 @@ def test_compare_precision1():
             p_unit[k]['unit_%d_total' % i] = total_cnt[k]['unit_%d' % i]
             p_unit[k]['unit_%d_occur' % i] = occur_cnt[k]['unit_%d' % i]
             p_unit[k]['unit_%d_p' % i] = float(occur_cnt[k]['unit_%d' % i])/float(total_cnt[k]['unit_%d' % i])
-    ret = json.dumps(p_unit, ensure_ascii=False, indent=4)
-    print(ret)
-
+    # ret = json.dumps(p_unit, ensure_ascii=False, indent=4)
+    # print(ret)
+    for k in ['3','4','5']:
+        print(k)
+        for i in range(1, 9):
+            print('unit_%d\t%s\t%s\t%f' % (i, p_unit[k]['unit_%d_total' % i], p_unit[k]['unit_%d_occur' % i], p_unit[k]['unit_%d_p' % i]))
 
 
 def test_change_data():
@@ -1492,7 +1495,7 @@ def test_modify_line():
 
 
 if __name__ == '__main__':
-    pass
+    # pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1518,7 +1521,7 @@ if __name__ == '__main__':
     # test_calc_past_year1()
     # test_calc_percentage()
     # test_delete_line_by_name()
-    # test_compare_precision()
+    test_compare_precision1()
     # test_modify_line()
 # {
 #     "3": {
