@@ -14,6 +14,7 @@ from bson.code import Code
 from bson.objectid import ObjectId
 import xlrd, xlwt
 from module_locator import enc, enc1, dec, dec1
+from pydash import py_ as _
 
 USE_C_MODULE = False
 try:
@@ -1324,6 +1325,52 @@ def test_compare_precision_one_line(collection, line_name, pastlist, latest):
                             unit_ok = True
     return line_ok, unit_ok, result
 
+def test_compare_precision1():
+    from db_util import remove_mongo_id
+    def check_ok(obj, unit, unitlvl):
+        ret = False
+        for k in ['I', 'II', 'III', 'IV']:
+            if k == unitlvl and  obj[k]['%s:%s' % (unit, unitlvl)] > 0:
+                ret = True
+                break
+        return ret
+    state_examination = remove_mongo_id(list(get_collection('state_examination').find({})))
+    predictdata = []
+    with codecs.open(ur'd:\3_1_or_more_year.json', 'r', 'utf-8-sig') as f:
+        predictdata = json.loads(f.read())
+    total_cnt = {'3':{}, '4':{}, '5':{}}
+    occur_cnt = {'3':{}, '4':{}, '5':{}}
+    p_unit = {'3':{}, '4':{}, '5':{}}
+    for k in total_cnt.keys():
+        for i in range(1, 9):
+            total_cnt[k]['unit_%d' % i] = 0
+            occur_cnt[k]['unit_%d' % i] = 0
+            # p_unit[k]['unit_%d' % i] = 0
+    for pre in predictdata:
+        past_years = pre['past_years']
+        line_name = pre['line_name']
+        check_year = pre['unit_predict_result']['check_year']
+        this_year = max(check_year) + 1
+        if past_years in [3, 4, 5]:
+            for i in range(1, 9):
+                unit = 'unit_%d' % i
+                actual_unit_lvl = _.result(_.find(state_examination, {'line_name':line_name, 'check_year': this_year}), unit)
+                if actual_unit_lvl is not None:
+                    if check_ok(pre['unit_predict_result'], unit, actual_unit_lvl):
+                        occur_cnt[str(past_years)][unit] += 1
+                if past_years == 3:
+                    total_cnt['3'][unit] += 1
+                if past_years == 4:
+                    total_cnt['4'][unit] += 1
+                if pre['past_years'] == 5:
+                    total_cnt['5'][unit] += 1
+    for k in ['3','4','5']:
+        for i in range(1, 9):
+            p_unit[k]['unit_%d_total' % i] = total_cnt[k]['unit_%d' % i]
+            p_unit[k]['unit_%d_occur' % i] = occur_cnt[k]['unit_%d' % i]
+            p_unit[k]['unit_%d_p' % i] = float(occur_cnt[k]['unit_%d' % i])/float(total_cnt[k]['unit_%d' % i])
+    ret = json.dumps(p_unit, ensure_ascii=False, indent=4)
+    print(ret)
 
 
 
@@ -1473,7 +1520,87 @@ if __name__ == '__main__':
     # test_delete_line_by_name()
     # test_compare_precision()
     # test_modify_line()
-
+# {
+#     "3": {
+#         "unit_7_p": 0.6376811594202898,
+#         "unit_6_total": 69,
+#         "unit_6_occur": 48,
+#         "unit_6_p": 0.6956521739130435,
+#         "unit_3_total": 69,
+#         "unit_8_p": 0.7681159420289855,
+#         "unit_8_total": 69,
+#         "unit_1_total": 69,
+#         "unit_2_total": 69,
+#         "unit_5_p": 0.6376811594202898,
+#         "unit_7_occur": 44,
+#         "unit_4_p": 0.6956521739130435,
+#         "unit_5_occur": 44,
+#         "unit_4_occur": 48,
+#         "unit_8_occur": 53,
+#         "unit_7_total": 69,
+#         "unit_2_occur": 52,
+#         "unit_1_occur": 46,
+#         "unit_3_p": 0.6231884057971014,
+#         "unit_5_total": 69,
+#         "unit_2_p": 0.7536231884057971,
+#         "unit_1_p": 0.6666666666666666,
+#         "unit_4_total": 69,
+#         "unit_3_occur": 43
+#     },
+#     "5": {
+#         "unit_7_p": 0.8,
+#         "unit_6_total": 20,
+#         "unit_6_occur": 16,
+#         "unit_6_p": 0.8,
+#         "unit_3_total": 20,
+#         "unit_8_p": 0.8,
+#         "unit_8_total": 20,
+#         "unit_1_total": 20,
+#         "unit_2_total": 20,
+#         "unit_5_p": 0.75,
+#         "unit_7_occur": 16,
+#         "unit_4_p": 0.75,
+#         "unit_5_occur": 15,
+#         "unit_4_occur": 15,
+#         "unit_8_occur": 16,
+#         "unit_7_total": 20,
+#         "unit_2_occur": 14,
+#         "unit_1_occur": 16,
+#         "unit_3_p": 0.8,
+#         "unit_5_total": 20,
+#         "unit_2_p": 0.7,
+#         "unit_1_p": 0.8,
+#         "unit_4_total": 20,
+#         "unit_3_occur": 16
+#     },
+#     "4": {
+#         "unit_7_p": 0.7631578947368421,
+#         "unit_6_total": 76,
+#         "unit_6_occur": 62,
+#         "unit_6_p": 0.8157894736842105,
+#         "unit_3_total": 76,
+#         "unit_8_p": 0.9342105263157895,
+#         "unit_8_total": 76,
+#         "unit_1_total": 76,
+#         "unit_2_total": 76,
+#         "unit_5_p": 0.7763157894736842,
+#         "unit_7_occur": 58,
+#         "unit_4_p": 0.8289473684210527,
+#         "unit_5_occur": 59,
+#         "unit_4_occur": 63,
+#         "unit_8_occur": 71,
+#         "unit_7_total": 76,
+#         "unit_2_occur": 63,
+#         "unit_1_occur": 61,
+#         "unit_3_p": 0.7631578947368421,
+#         "unit_5_total": 76,
+#         "unit_2_p": 0.8289473684210527,
+#         "unit_1_p": 0.8026315789473685,
+#         "unit_4_total": 76,
+#         "unit_3_occur": 58
+#     }
+# }
+#
 
 
 
