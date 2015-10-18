@@ -6294,6 +6294,14 @@ def application_webgis(environ, start_response):
                         if isinstance(adict[k], str) or  isinstance(adict[k], unicode):
                             adict[k] = adict[k].strip()
                     if k == 'line_name':
+                        if '500kV' in adict[k]:
+                            adict['voltage'] = '500kV'
+                        if '220kV' in adict[k]:
+                            adict['voltage'] = '220kV'
+                        if '110kV' in adict[k]:
+                            adict['voltage'] = '110kV'
+                        if '35kV' in adict[k]:
+                            adict['voltage'] = '35kV'
                         adict[k] = adict[k]\
                             .replace('-', '')\
                             .replace('500kV', '')\
@@ -6303,10 +6311,10 @@ def application_webgis(environ, start_response):
                             .replace('10kV', '')\
                             .replace(u'Ⅱ', 'II')\
                             .replace(u'Ⅰ', 'I')
-                        # if adict[k][-1] == u'回':
-                        #     adict[k] = adict[k].replace( u'回', u'回线')
-                        # if not adict[k][-1] == u'线':
-                        #     adict[k] = adict[k] + u'线'
+                        if adict[k][-1] == u'回':
+                            adict[k] = adict[k].replace( u'回', u'回线')
+                        if not adict[k][-1] == u'线':
+                            adict[k] = adict[k] + u'线'
                     if k == 'line_state' or 'unit_' in k:
                         adict[k] = adict[k].replace(u'正常', 'I').replace(u'注意', 'II').replace(u'异常', 'III').replace(u'严重', 'IV')
                 return adict

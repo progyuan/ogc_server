@@ -1495,7 +1495,7 @@ def test_modify_line():
 
 
 if __name__ == '__main__':
-    # pass
+    pass
     # calc_probability_line2()
     # test_read_all_records()
     # test_read_one(u'东大茨线')
@@ -1521,7 +1521,7 @@ if __name__ == '__main__':
     # test_calc_past_year1()
     # test_calc_percentage()
     # test_delete_line_by_name()
-    test_compare_precision1()
+    # test_compare_precision1()
     # test_modify_line()
 # {
 #     "3": {
