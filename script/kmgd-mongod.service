@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 User=root
-ExecStart=/home/antibird/work/mongodb-linux-x86_64-debian71-3.0.4/bin/mongod --storageEngine wiredTiger --port 27017 --dbpath /home/antibird/work/mongodata --logpath /home/antibird/work/mongolog/mongo.log
+ExecStart=mongod --storageEngine wiredTiger --port 27017 --dbpath /home/xiejun/mongodbdata --logpath /home/xiejun/mongodblog/mongo.log
 
 [Install]
 WantedBy=multi-user.target
