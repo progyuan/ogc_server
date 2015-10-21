@@ -4,7 +4,8 @@ After=network.target
 
 [Service]
 User=root
-ExecStart=mongod --storageEngine wiredTiger --port 27017 --dbpath /home/xiejun/mongodbdata --logpath /home/xiejun/mongodblog/mongo.log
+ExecStart=/usr/bin/mongod --storageEngine wiredTiger --port 27017 --dbpath /home/xiejun/mongodbdata --logpath
+/home/xiejun/mongodblog/mongo.log
 
 [Install]
 WantedBy=multi-user.target
