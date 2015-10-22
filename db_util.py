@@ -7365,6 +7365,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             line_names = None
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'polyline_line':
                                 data['properties']['py'] = piny.hanzi2pinyin_first_letter(data['properties']['name'].replace('#','').replace('II',u'额').replace('I',u'一'))
+                            if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'polyline_dn':
+                                data['properties']['py'] = piny.hanzi2pinyin_first_letter(data['properties']['name'].replace('#','').replace('II',u'额').replace('I',u'一'))
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'point_tower':
                                 if data['properties'].has_key('line_names'):
                                     line_names = data['properties']['line_names']
@@ -7382,7 +7384,21 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                         modeldata['model_code_height'] = data['properties']['model']['model_code_height']
                                         modeldata['contact_points'] = []
                                         mongo_action(dbname, 'models','save', modeldata, )
+                            network = None
+                            if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'point_dn':
+                                if data.has_key('properties') and data['properties'].has_key('network'):
+                                    network = data['properties']['network']
+                                    del data['properties']['network']
                             _id = db[collection_name].save(data)
+                            if network:
+                                networkobj = mongo_find_one(dbname, 'network', {'_id':network}, )
+                                if networkobj:
+                                    if not networkobj['properties'].has_key('nodes'):
+                                        networkobj['properties']['nodes'] = []
+                                    if not (_id in networkobj['properties']['nodes'] or  str(_id) in networkobj['properties']['nodes']):
+                                        networkobj['properties']['nodes'].append(_id)
+                                        networkobj = add_mongo_id(networkobj)
+                                        db['network'].save(networkobj)
 
                             if _id is not None and line_names is not None:
                                 if isinstance(line_names, ObjectId):
@@ -7437,6 +7453,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     pass
                 if conditions.has_key('py') and conditions['py'] in [u'qnq', u'驱鸟器']:
                     ret.append({'action':'anti_bird_towers'})
+                if conditions.has_key('py') and conditions['py'] in [u'pdw', u'配电网']:
+                    ret.append({'action':'distribute_nodes'})
                 #print(ret)
             elif action.lower() == 'anti_bird_towers':
                 ret = mongo_find(
@@ -7450,6 +7468,16 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                 "type":u"多功能驱鸟装置",
                             }
                         }
+                    },
+                    0,
+                    'webgis'
+                )
+            elif action.lower() == 'distribute_nodes':
+                ret = mongo_find(
+                    gConfig['webgis']['mongodb']['database'],
+                    'features',
+                    {
+                        "properties.webgis_type":"point_dn",
                     },
                     0,
                     'webgis'
