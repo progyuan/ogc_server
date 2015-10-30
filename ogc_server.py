@@ -6173,7 +6173,7 @@ def application_webgis(environ, start_response):
                 ret = db[collection]
             return ret
 
-        def save_bayesian_nodes(adict):
+        def save_bayesian_nodes(adict, check_is_2014):
             def get_occur_p(line_name, name, value=None):
                 ret = 0.0
                 collection = get_collection('state_examination')
@@ -6205,13 +6205,17 @@ def application_webgis(environ, start_response):
                 ret = []
                 children = _.result(_.find(alist, {'unit':unit}), 'children')
                 ids = _.pluck(children, 'id')
+                # print(ids)
                 for id in ids:
                     p = get_occur_p(line_name, 'unitsub_' + id)
                     if p>0:
                         ret.append(id)
                 return ret
             standard_template = []
-            with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
+            pp = 'standard_template2009.json'
+            if check_is_2014:
+                pp = 'standard_template2014.json'
+            with codecs.open(os.path.join(STATICRESOURCE_DIR, pp), 'r', 'utf-8-sig') as f:
                 standard_template = json.loads(f.read())
             unitnames = ['unit_1','unit_2','unit_3','unit_4','unit_5','unit_6','unit_7','unit_8',]
             collection = get_collection('bayesian_nodes')
@@ -6328,12 +6332,16 @@ def application_webgis(environ, start_response):
                 existone = collection.find_one({'line_name':querydict['line_name'].strip(), 'check_year':querydict['check_year']})
                 if existone:
                     querydict['_id'] = str(existone['_id'])
+                check_is_2014 = False
+                if querydict.has_key('check_is_2014'):
+                    check_is_2014 = querydict['check_is_2014']
+                    del querydict['check_is_2014']
                 querydict = modifier(querydict)
                 _id = collection.save(db_util.add_mongo_id(querydict))
                 ret = collection.find_one({'_id':_id})
                 if ret:
                     ret = db_util.remove_mongo_id(ret)
-                save_bayesian_nodes(querydict)
+                save_bayesian_nodes(querydict, check_is_2014)
                 return ret
 
 
@@ -6780,9 +6788,12 @@ def application_webgis(environ, start_response):
                     ret = p0
             return ret
         def modifier(line_name, alist):
-            standard_template = []
+            standard_template_2009 = []
+            standard_template_2014 = []
             with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2009.json'), 'r', 'utf-8-sig') as f:
-                standard_template = json.loads(f.read())
+                standard_template_2009 = json.loads(f.read())
+            with codecs.open(os.path.join(STATICRESOURCE_DIR, 'standard_template2014.json'), 'r', 'utf-8-sig') as f:
+                standard_template_2014 = json.loads(f.read())
             ret = alist
             for linestate in ret:
                 idx0 = ret.index(linestate)
@@ -6792,8 +6803,13 @@ def application_webgis(environ, start_response):
                     if res['name'][:8] == 'unitsub_':
                         id = res['name'][8:]
                         unit = res['name'][8:14]
-                        p0 = get_template_v(standard_template, unit, id, 'p0')
-                        total_score = int(get_template_v(standard_template, unit, id, 'total_score'))
+                        p0 = get_template_v(standard_template_2009, unit, id, 'p0')
+                        if p0 is None:
+                            p0 = get_template_v(standard_template_2014, unit, id, 'p0')
+                        # total_score = get_template_v(standard_template_2009, unit, id, 'total_score')
+                        # if total_score is None:
+                        #     total_score = get_template_v(standard_template_2014, unit, id, 'total_score')
+                        # total_score = int(total_score)
                         if p0:
                             # res['p'] = p0[getlvl(unit, total_score)] * get_occur_p(line_name, res['name']) * 10.0
                             res['p'] = p0[line_state] * get_occur_p(line_name, res['name']) * 10.0
