@@ -91,11 +91,8 @@ try:
     import xlwt
 except:
     print('xlrd xlwt import error')
-try:
-    import psycopg2 as psycopg
-    from psycopg2 import errorcodes
-except:
-    print('psycopg2 import error')
+
+from pydash import py_ as _
 
 CONFIGFILE = None
 gConfig = None
@@ -10217,9 +10214,17 @@ def test_print_line_names():
     for i in l:
         print(i['properties']['name'])
     
-    
-    
-    
+def test_insert_dn_nodes():
+    l = mongo_find('kmgd', 'features', {'properties.webgis_type':'point_dn'})
+    l = _.filter(l, lambda x:x.has_key('geometry'))
+    l = _.pluck(l, '_id')
+    o = mongo_find_one('kmgd', 'network', {'properties.webgis_type':'polyline_dn'})
+    # print(l)
+    o['properties']['nodes'] = l
+    mongo_action('kmgd', 'network', 'save', o)
+    o = mongo_find_one('kmgd', 'network', {'properties.webgis_type':'polyline_dn'})
+    print(o)
+
 if __name__=="__main__":
     opts = init_global()
     #test_insert_thunder_counter_attach()
@@ -10312,5 +10317,5 @@ if __name__=="__main__":
     # test_qinshiluxian()
     # test_birdfamily()
     # test_linename_add_huixian()
-    
+    # test_insert_dn_nodes()
     

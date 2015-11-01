@@ -14,6 +14,7 @@ def test():
     book = xlrd.open_workbook(XLSPATH)
     sheet = book.sheet_by_index(0)
     startrowidx = 1
+    idx = 1
     units = set()
     for i in range(startrowidx, sheet.nrows):
         id = sheet.cell_value(i, 1).strip().lower()
@@ -43,8 +44,11 @@ def test():
             o['weight'] = weight
             o['total_score'] = total_score
             o['according'] = according
+            o['strategy'] = u'策略%d' % idx
+            o['desc'] = ''
             o['p0'] = {'I':p0_I, 'II':p0_II, 'III':p0_III, 'IV':p0_IV,}
             uuu['children'].append(o)
+            idx += 1
 
     with codecs.open(ur'd:\aaa.json', 'w', 'utf-8-sig' ) as f:
         f.write(json.dumps(ret, ensure_ascii=False, indent=4))

@@ -240,6 +240,9 @@ gUrlMap = Map([
     Rule('/bayesian/delete/domains_range', endpoint='bayesian_delete_domains_range'),
     Rule('/bayesian/delete/domains_range/<_id>', endpoint='bayesian_delete_domains_range'),
     Rule('/bayesian/reset/unit', endpoint='bayesian_reset_unit'),
+    Rule('/distribute_network/query/network', endpoint='distribute_network_query_network'),
+    Rule('/distribute_network/query/edges', endpoint='distribute_network_query_edges'),
+
 ], converters={'bool': BooleanConverter})
 
 
@@ -6914,6 +6917,53 @@ def application_webgis(environ, start_response):
             body = bayesian_query_domains_range(querydict)
         return statuscode, headers, body
 
+    def handle_distribute_network(environ):
+        def get_collection(collection):
+            ret = None
+            db_util.mongo_init_client('webgis')
+            db = db_util.gClientMongo['webgis'][gConfig['webgis']['mongodb']['database']]
+            if not collection in db.collection_names(False):
+                ret = db.create_collection(collection)
+            else:
+                ret = db[collection]
+            return ret
+        def query_network(querydict):
+            ret = []
+            collection = get_collection('network')
+            network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            if network and network.has_key('properties') and network['properties'].has_key('nodes'):
+                nodes = network['properties']['nodes']
+                if len(nodes)>0:
+                    collection = get_collection('features')
+                    ret = list(collection.find({'_id':{'$in':nodes}}))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def query_edges(querydict):
+            ret = []
+            collection = get_collection('network')
+            network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            if network and network.has_key('properties') and network['properties'].has_key('nodes'):
+                nodes = network['properties']['nodes']
+                if len(nodes)>0:
+                    collection = get_collection('edges')
+                    ret = list(collection.find({'properties.webgis_type':'edge_dn',
+                                                '$or':[
+                                                    {'properties.start':{'$in':nodes}},
+                                                    {'properties.end':{'$in':nodes}}
+                                                ]
+                                                }))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+
+        statuscode, headers, body =  '200 OK', {}, ''
+        urls = gUrlMap.bind_to_environ(environ)
+        querydict, buf = get_querydict_by_GET_POST(environ)
+        endpoint, args = urls.match()
+        if args.has_key('_id') and isinstance(querydict, dict):
+            querydict['_id'] = args['_id']
+        if endpoint == 'distribute_network_query_network':
+            body = query_network(querydict)
+        if endpoint == 'distribute_network_query_edges':
+            body = query_edges(querydict)
+        return statuscode, headers, body
 
     headers = {}
     headerslist = []
@@ -7033,6 +7083,8 @@ def application_webgis(environ, start_response):
                         statuscode, headers, body = handle_bayesian(environ)
                     elif 'antibird/' in path_info:
                         statuscode, headers, body = handle_antibird(environ)
+                    elif 'distribute_network/' in path_info:
+                        statuscode, headers, body = handle_distribute_network(environ)
                     else:
                         statuscode, headers, body = handle_static(environ, path_info)
 
