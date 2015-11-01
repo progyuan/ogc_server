@@ -242,6 +242,7 @@ gUrlMap = Map([
     Rule('/bayesian/reset/unit', endpoint='bayesian_reset_unit'),
     Rule('/distribute_network/query/network', endpoint='distribute_network_query_network'),
     Rule('/distribute_network/query/edges', endpoint='distribute_network_query_edges'),
+    Rule('/distribute_network/query/network_names', endpoint='distribute_network_query_network_names'),
 
 ], converters={'bool': BooleanConverter})
 
@@ -6937,6 +6938,11 @@ def application_webgis(environ, start_response):
                     collection = get_collection('features')
                     ret = list(collection.find({'_id':{'$in':nodes}}))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def query_network_names(querydict):
+            ret = []
+            collection = get_collection('network')
+            ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
         def query_edges(querydict):
             ret = []
             collection = get_collection('network')
@@ -6963,6 +6969,8 @@ def application_webgis(environ, start_response):
             body = query_network(querydict)
         if endpoint == 'distribute_network_query_edges':
             body = query_edges(querydict)
+        if endpoint == 'distribute_network_query_network_names':
+            body = query_network_names(querydict)
         return statuscode, headers, body
 
     headers = {}
