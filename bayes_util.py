@@ -37,24 +37,6 @@ P_LINE_UNIT_PATH = ur'PROBABILITY_LINE_UNIT.json'
 P_LINE_UNIT_PATH1 = ur'PROBABILITY_LINE_UNIT1.json'
 P_LINE_UNIT_PATH2 = ur'PROBABILITY_LINE_UNIT2.json'
 g_LINE_PROB = None
-# ENCODING = 'utf-8'
-# ENCODING1 = 'gb18030'
-# def dec(aStr):
-#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-#     text, length = gb18030_decode(aStr, 'replace')
-#     return text
-# def enc(aStr):
-#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING)
-#     text, length = gb18030_encode(aStr, 'replace')
-#     return text
-# def dec1(aStr):
-#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-#     text, length = gb18030_decode(aStr, 'replace')
-#     return text
-# def enc1(aStr):
-#     gb18030_encode, gb18030_decode, gb18030_reader, gb18030_writer =  codecs.lookup(ENCODING1)
-#     text, length = gb18030_encode(aStr, 'replace')
-#     return text
 
 class BBNPlus(BBN):
     def __init__(self, nodes_dict, name=None, domains={}):
