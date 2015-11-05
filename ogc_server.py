@@ -243,6 +243,8 @@ gUrlMap = Map([
     Rule('/distribute_network/query/network', endpoint='distribute_network_query_network'),
     Rule('/distribute_network/query/edges', endpoint='distribute_network_query_edges'),
     Rule('/distribute_network/query/network_names', endpoint='distribute_network_query_network_names'),
+    Rule('/distribute_network/remove/network', endpoint='distribute_network_remove_network'),
+    Rule('/distribute_network/save/network', endpoint='distribute_network_save_network'),
 
 ], converters={'bool': BooleanConverter})
 
@@ -6956,6 +6958,29 @@ def application_webgis(environ, start_response):
                                                 ]
                                                 }))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def remove_network(querydict):
+            ret = []
+            collection = get_collection('network')
+            # if querydict.has_key('remove_node') and querydict['remove_node']:
+            #     network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+            #     if network and network.has_key('properties') and network['properties'].has_key('nodes'):
+            #         nodes = network['properties']['nodes']
+            #         if len(nodes)>0:
+            #             c1 = get_collection('features')
+
+            collection.remove({'_id':db_util.add_mongo_id(querydict['_id'])})
+            ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+        def save_network(querydict):
+            collection = get_collection('network')
+            if querydict.has_key('_id') and querydict['_id']:
+                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                if existone:
+                    if querydict.has_key('name') and querydict['name'] and len(querydict['name']):
+                        collection.update({'_id':existone['_id']}, {'$set':{'properties.name':querydict['name']}},
+                                          multi=False,  upsert=False)
+            ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
         statuscode, headers, body =  '200 OK', {}, ''
         urls = gUrlMap.bind_to_environ(environ)
@@ -6969,6 +6994,10 @@ def application_webgis(environ, start_response):
             body = query_edges(querydict)
         if endpoint == 'distribute_network_query_network_names':
             body = query_network_names(querydict)
+        if endpoint == 'distribute_network_remove_network':
+            body = remove_network(querydict)
+        if endpoint == 'distribute_network_save_network':
+            body = save_network(querydict)
         return statuscode, headers, body
 
     headers = {}
