@@ -6241,9 +6241,9 @@ def application_webgis(environ, start_response):
                             un_p[i] += get_occur_p(adict['line_name'], node['name'], i)
                             if un_p[i] > 1.0:
                                 un_p[i] = 1.0
-                        #20051105bug
+                        #20151105bug
                         # node['conditions'].append([[['unitsub_' +  id, 'true']], un_p])
-                    #20051105update
+                    #20151105update
                         list1.append(['unitsub_' +  id, 'true'])
                     node['conditions'].append([list1, un_p])
                 else:
