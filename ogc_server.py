@@ -6230,12 +6230,7 @@ def application_webgis(environ, start_response):
                 subunits = check_has_subunit(standard_template, adict['line_name'], node['name'])
                 if len(subunits) > 0:
                     node['conditions'] = []
-                    # node['conditions'].append([[], {
-                    #     'I':get_occur_p(adict['line_name'], node['name'], 'I'),
-                    #     'II':get_occur_p(adict['line_name'], node['name'], 'II'),
-                    #     'III':get_occur_p(adict['line_name'], node['name'], 'III'),
-                    #     'IV':get_occur_p(adict['line_name'], node['name'], 'IV'),
-                    #     }])
+                    list1 = []
                     for id in subunits:
                         un_p = get_template_v(standard_template, node['name'], id, 'p0')
                         if un_p is None:
@@ -6244,8 +6239,11 @@ def application_webgis(environ, start_response):
                             un_p[i] += get_occur_p(adict['line_name'], node['name'], i)
                             if un_p[i] > 1.0:
                                 un_p[i] = 1.0
-                        node['conditions'].append([[['unitsub_' +  id, 'true']], un_p])
-
+                        #20051105bug
+                        # node['conditions'].append([[['unitsub_' +  id, 'true']], un_p])
+                    #20051105update
+                        list1.append(['unitsub_' +  id, 'true'])
+                    node['conditions'].append([list1, un_p])
                 else:
                     node['conditions'] = [[[], {
                         'I':get_occur_p(adict['line_name'], node['name'], 'I'),
