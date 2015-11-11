@@ -6975,12 +6975,19 @@ def application_webgis(environ, start_response):
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
         def save_network(querydict):
             collection = get_collection('network')
-            if querydict.has_key('_id') and querydict['_id']:
-                existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
-                if existone:
-                    if querydict.has_key('name') and querydict['name'] and len(querydict['name']):
-                        collection.update({'_id':existone['_id']}, {'$set':{'properties.name':querydict['name']}},
-                                          multi=False,  upsert=False)
+            if querydict.has_key('_id') :
+                if querydict['_id'] is not None:
+                    existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                    if existone:
+                        if querydict.has_key('properties'):
+                                # and querydict['properties'].has_key('name') \
+                                # and querydict['properties']['name'] \
+                                # and len(querydict['properties']['name']):
+                            collection.update({'_id':existone['_id']}, {'$set':{'properties':querydict['properties']}}, multi=False,  upsert=False)
+                else:
+                    del querydict['_id']
+                    collection.insert(querydict)
+
             ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
@@ -7001,7 +7008,7 @@ def application_webgis(environ, start_response):
         def fault_position(querydict):
             ret = []
             querydict = sort_dict(querydict)
-            print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
+            # print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
         statuscode, headers, body =  '200 OK', {}, ''
