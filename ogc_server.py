@@ -84,6 +84,7 @@ import db_util
 import bayes_util
 from module_locator import module_path, dec, dec1, enc, enc1
 from pydash import py_ as _
+from collections import OrderedDict
 
 
 
@@ -245,6 +246,7 @@ gUrlMap = Map([
     Rule('/distribute_network/query/network_names', endpoint='distribute_network_query_network_names'),
     Rule('/distribute_network/remove/network', endpoint='distribute_network_remove_network'),
     Rule('/distribute_network/save/network', endpoint='distribute_network_save_network'),
+    Rule('/distribute_network/fault_position/position', endpoint='distribute_network_fault_position'),
 
 ], converters={'bool': BooleanConverter})
 
@@ -6982,6 +6984,26 @@ def application_webgis(environ, start_response):
             ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
+        def sort_dict(adict):
+            if isinstance(adict, list):
+                for idx in range(len(adict)):
+                    adict[idx] = sort_dict(adict[idx])
+            elif isinstance(adict, dict):
+                keys = sorted(adict.keys())
+                d = OrderedDict()
+                for k in keys:
+                    if isinstance(adict[k], list):
+                        d[k] = sort_dict(adict[k])
+                    else:
+                        d[k] = adict[k]
+                adict = d
+            return adict
+        def fault_position(querydict):
+            ret = []
+            querydict = sort_dict(querydict)
+            print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
+            return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
+
         statuscode, headers, body =  '200 OK', {}, ''
         urls = gUrlMap.bind_to_environ(environ)
         querydict, buf = get_querydict_by_GET_POST(environ)
@@ -6998,6 +7020,8 @@ def application_webgis(environ, start_response):
             body = remove_network(querydict)
         if endpoint == 'distribute_network_save_network':
             body = save_network(querydict)
+        if endpoint == 'distribute_network_fault_position':
+            body = fault_position(querydict)
         return statuscode, headers, body
 
     headers = {}
