@@ -7343,13 +7343,27 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     ret = []
                     if isinstance(data, list):
                         for i in data:
+                            existone = None
                             if i.has_key('properties') and  i['properties'].has_key('webgis_type'):
                                 if i['properties']['webgis_type'] == 'polygon_buffer':
                                     z_aware = False
                                 i = update_geometry2d(i, z_aware)
-                            _id = db[collection_name].save(i)
+                            if i.has_key('_id'):
+                                existone = db[collection_name].find_one({'_id':add_mongo_id(i['_id'])})
+                                if existone:
+                                    if i.has_key('properties') and existone.has_key('properties'):
+                                        for k in i['properties'].keys():
+                                            existone['properties'][k] = i['properties'][k]
+                                    for k in i.keys():
+                                        if k not in ['_id', 'properties']:
+                                            existone[k] = i[k]
+                            if existone:
+                                _id = db[collection_name].save(existone)
+                            else:
+                                _id = db[collection_name].save(i)
                             ids.append(str(_id))
                     if isinstance(data, dict):
+                        existone = None
                         if data.has_key('properties') and data['properties'].has_key('webgis_type'):
                             if data['properties']['webgis_type'] == 'polygon_buffer':
                                 z_aware = False
@@ -7386,7 +7400,20 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                 if data.has_key('properties') and data['properties'].has_key('network'):
                                     network = data['properties']['network']
                                     del data['properties']['network']
-                            _id = db[collection_name].save(data)
+
+                            if data.has_key('_id'):
+                                existone = db[collection_name].find_one({'_id':add_mongo_id(data['_id'])})
+                                if existone:
+                                    if data.has_key('properties') and existone.has_key('properties'):
+                                        for k in data['properties'].keys():
+                                            existone['properties'][k] = data['properties'][k]
+                                    for k in data.keys():
+                                        if k not in ['_id', 'properties']:
+                                            existone[k] = data[k]
+                            if existone:
+                                _id = db[collection_name].save(existone)
+                            else:
+                                _id = db[collection_name].save(data)
                             if network:
                                 networkobj = mongo_find_one(dbname, 'network', {'_id':network}, )
                                 if networkobj:

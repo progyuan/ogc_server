@@ -241,7 +241,7 @@ gUrlMap = Map([
     Rule('/bayesian/delete/domains_range', endpoint='bayesian_delete_domains_range'),
     Rule('/bayesian/delete/domains_range/<_id>', endpoint='bayesian_delete_domains_range'),
     Rule('/bayesian/reset/unit', endpoint='bayesian_reset_unit'),
-    Rule('/distribute_network/query/network', endpoint='distribute_network_query_network'),
+    Rule('/distribute_network/query/network_nodes', endpoint='distribute_network_query_network_nodes'),
     Rule('/distribute_network/query/edges', endpoint='distribute_network_query_edges'),
     Rule('/distribute_network/query/network_names', endpoint='distribute_network_query_network_names'),
     Rule('/distribute_network/remove/network', endpoint='distribute_network_remove_network'),
@@ -6930,7 +6930,7 @@ def application_webgis(environ, start_response):
             else:
                 ret = db[collection]
             return ret
-        def query_network(querydict):
+        def query_network_nodes(querydict):
             ret = []
             collection = get_collection('network')
             network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
@@ -6975,15 +6975,23 @@ def application_webgis(environ, start_response):
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
         def save_network(querydict):
             collection = get_collection('network')
+            if querydict.has_key('properties') \
+            and querydict['properties'].has_key('name') \
+            and querydict['properties']['name'] \
+            and len(querydict['properties']['name']):
+                piny = db_util.get_pinyin_data()
+                querydict['properties']['py'] = piny.hanzi2pinyin_first_letter(querydict['properties']['name'].replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一'))
+
+
             if querydict.has_key('_id') :
                 if querydict['_id'] is not None:
                     existone = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
                     if existone:
                         if querydict.has_key('properties'):
-                                # and querydict['properties'].has_key('name') \
-                                # and querydict['properties']['name'] \
-                                # and len(querydict['properties']['name']):
-                            collection.update({'_id':existone['_id']}, {'$set':{'properties':querydict['properties']}}, multi=False,  upsert=False)
+                            del querydict['_id']
+                            for k in querydict['properties'].keys():
+                                existone['properties'][k] = querydict['properties']['k']
+                            collection.save(existone)
                 else:
                     del querydict['_id']
                     collection.insert(querydict)
@@ -7017,8 +7025,8 @@ def application_webgis(environ, start_response):
         endpoint, args = urls.match()
         if args.has_key('_id') and isinstance(querydict, dict):
             querydict['_id'] = args['_id']
-        if endpoint == 'distribute_network_query_network':
-            body = query_network(querydict)
+        if endpoint == 'distribute_network_query_network_nodes':
+            body = query_network_nodes(querydict)
         if endpoint == 'distribute_network_query_edges':
             body = query_edges(querydict)
         if endpoint == 'distribute_network_query_network_names':
