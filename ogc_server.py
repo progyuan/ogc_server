@@ -7016,7 +7016,22 @@ def application_webgis(environ, start_response):
         def fault_position(querydict):
             ret = []
             querydict = sort_dict(querydict)
-            # print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
+            print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
+            app = gConfig['wsgi']['application']
+            rset_exe = gConfig[app]['distribute_network']['rset_exe']
+            ants_exe = gConfig[app]['distribute_network']['ants_exe']
+            bayes_exe = gConfig[app]['distribute_network']['bayes_exe']
+            power_resume_exe = gConfig[app]['distribute_network']['power_resume_exe']
+            if querydict.has_key('algorithm'):
+                if querydict['algorithm'] == 'rset':
+                    pass
+                elif querydict['algorithm'] == 'ants':
+                    pass
+                elif querydict['algorithm'] == 'bayes':
+                    pass
+                elif querydict['algorithm'] == 'power_resume':
+                    pass
+
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
         statuscode, headers, body =  '200 OK', {}, ''
