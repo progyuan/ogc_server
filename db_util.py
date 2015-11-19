@@ -7226,7 +7226,7 @@ def update_geometry2d(adict = {}, z_aware = False):
             adict['geometry2d']['type'] = adict['geometry']['type']
         adict['geometry2d']['coordinates'] = remove_alt(coord)
             
-        adict = add_pinyin(adict)
+    adict = add_pinyin(adict)
     return adict
     
     
