@@ -5,6 +5,7 @@ import xlrd
 import codecs
 from collections import  OrderedDict
 from db_util import init_global, get_pinyin_data, update_geometry2d
+from module_locator import dec, dec1, enc, enc1
 
 
 XLS_FILE = ur'G:\work\matlab\dn\bayes_rset\data_bus.xls'
@@ -65,6 +66,7 @@ def test1():
 def test2():
     book = xlrd.open_workbook(XLS_FILE)
     startrowidx = 1
+    ret = []
     for sheet in book.sheets():
         if sheet.name == u'负荷开关':
             for row in range(startrowidx, sheet.nrows):
@@ -74,25 +76,28 @@ def test2():
                 if isinstance(lng, str) or isinstance(lng, unicode) or isinstance(lat, str) or isinstance(lat, unicode):
                     pass
                 elif isinstance(lng, float) and  isinstance(lat, float):
-                    o['type'] = 'Feature'
-                    o['properties'] = {}
-                    # o['properties']['device_id'] = sheet.cell_value(row, 0)
-                    o['properties']['webgis_type'] = 'point_dn'
-                    o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
-                    o['properties']['function_pos_name'] = sheet.cell_value(row, 2)
-                    o['properties']['function_pos_type'] = 'PAD'
-                    o['properties']['owner'] = sheet.cell_value(row, 4)
-                    # o['properties']['line_no'] = str(int(sheet.cell_value(row, 5)))
-                    o['properties']['device_no'] = sheet.cell_value(row, 10)
-                    # o['properties']['tower'] = None
-                    if isinstance(sheet.cell_value(row, 12), float):
-                        o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
-                    if isinstance(sheet.cell_value(row, 13), float):
-                        o['properties']['current_rated'] = sheet.cell_value(row, 13)
-                    o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
-                    o = update_geometry2d(o, True)
-                    print(o['properties']['device_no'])
-
+                    if len(sheet.cell_value(row, 6)):
+                        o['type'] = 'Feature'
+                        o['properties'] = {}
+                        o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
+                        o['properties']['webgis_type'] = 'point_dn'
+                        o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
+                        o['properties']['name'] = sheet.cell_value(row, 2)
+                        o['properties']['function_pos_type'] = 'PAD'
+                        o['properties']['owner'] = sheet.cell_value(row, 4)
+                        o['properties']['line_func_code'] = sheet.cell_value(row, 6)
+                        o['properties']['device_no'] = sheet.cell_value(row, 10)
+                        # o['properties']['tower'] = None
+                        if isinstance(sheet.cell_value(row, 12), float):
+                            o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
+                        if isinstance(sheet.cell_value(row, 13), float):
+                            o['properties']['current_rated'] = sheet.cell_value(row, 13)
+                        o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
+                        if u'10kV' in o['properties']['name']:
+                            o['properties']['voltage'] = '08'
+                            # o['properties']['name'] = o['properties']['name'].replace(u'10kV', '')
+                        o = update_geometry2d(o, True)
+                        ret.append(o)
 
         if sheet.name == u'断路器':
             for row in range(startrowidx, sheet.nrows):
@@ -102,24 +107,28 @@ def test2():
                 if isinstance(lng, str) or isinstance(lng, unicode) or isinstance(lat, str) or isinstance(lat, unicode):
                     pass
                 elif isinstance(lng, float) and  isinstance(lat, float):
-                    o['type'] = 'Feature'
-                    o['properties'] = {}
-                    # o['properties']['device_id'] = sheet.cell_value(row, 0)
-                    o['properties']['webgis_type'] = 'point_dn'
-                    o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
-                    o['properties']['function_pos_name'] = sheet.cell_value(row, 2)
-                    o['properties']['function_pos_type'] = 'PAC'
-                    o['properties']['owner'] = sheet.cell_value(row, 4)
-                    # o['properties']['line_no'] = str(int(sheet.cell_value(row, 5)))
-                    o['properties']['device_no'] = sheet.cell_value(row, 10)
-                    # o['properties']['tower'] = None
-                    if isinstance(sheet.cell_value(row, 12), float):
-                        o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
-                    if isinstance(sheet.cell_value(row, 13), float):
-                        o['properties']['current_rated'] = sheet.cell_value(row, 13)
-                    o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
-                    o = update_geometry2d(o, True)
-                    print(o['properties']['device_no'])
+                    if len(sheet.cell_value(row, 6)):
+                        o['type'] = 'Feature'
+                        o['properties'] = {}
+                        o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
+                        o['properties']['webgis_type'] = 'point_dn'
+                        o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
+                        o['properties']['name'] = sheet.cell_value(row, 2)
+                        o['properties']['function_pos_type'] = 'PAC'
+                        o['properties']['owner'] = sheet.cell_value(row, 4)
+                        o['properties']['line_func_code'] = sheet.cell_value(row, 6)
+                        o['properties']['device_no'] = sheet.cell_value(row, 10)
+                        # o['properties']['tower'] = None
+                        if isinstance(sheet.cell_value(row, 12), float):
+                            o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
+                        if isinstance(sheet.cell_value(row, 13), float):
+                            o['properties']['current_rated'] = sheet.cell_value(row, 13)
+                        o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
+                        if u'10kV' in o['properties']['name']:
+                            o['properties']['voltage'] = '08'
+                            # o['properties']['name'] = o['properties']['name'].replace(u'10kV', '')
+                        o = update_geometry2d(o, True)
+                        ret.append(o)
 
         if sheet.name == u'隔离开关':
             for row in range(startrowidx, sheet.nrows):
@@ -129,30 +138,35 @@ def test2():
                 if isinstance(lng, str) or isinstance(lng, unicode) or isinstance(lat, str) or isinstance(lat, unicode):
                     pass
                 elif isinstance(lng, float) and  isinstance(lat, float):
-                    o['type'] = 'Feature'
-                    o['properties'] = {}
-                    # o['properties']['device_id'] = sheet.cell_value(row, 0)
-                    o['properties']['webgis_type'] = 'point_dn'
-                    o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
-                    o['properties']['function_pos_name'] = sheet.cell_value(row, 2)
-                    o['properties']['function_pos_type'] = 'PAE'
-                    o['properties']['owner'] = sheet.cell_value(row, 4)
-                    # o['properties']['line_no'] = str(int(sheet.cell_value(row, 5)))
-                    o['properties']['device_no'] = sheet.cell_value(row, 10)
-                    # o['properties']['tower'] = None
-                    if isinstance(sheet.cell_value(row, 12), float):
-                        o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
-                    if isinstance(sheet.cell_value(row, 13), float):
-                        o['properties']['current_rated'] = sheet.cell_value(row, 13)
-                    o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
-                    o = update_geometry2d(o, True)
-                    print(o['properties']['device_no'])
+                    if len(sheet.cell_value(row, 6)):
+                        o['type'] = 'Feature'
+                        o['properties'] = {}
+                        o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
+                        o['properties']['webgis_type'] = 'point_dn'
+                        o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
+                        o['properties']['name'] = sheet.cell_value(row, 2)
+                        o['properties']['function_pos_type'] = 'PAE'
+                        o['properties']['owner'] = sheet.cell_value(row, 4)
+                        o['properties']['line_func_code'] = sheet.cell_value(row, 6)
+                        o['properties']['device_no'] = sheet.cell_value(row, 10)
+                        # o['properties']['tower'] = None
+                        if isinstance(sheet.cell_value(row, 12), float):
+                            o['properties']['voltage_rated'] = sheet.cell_value(row, 12)
+                        if isinstance(sheet.cell_value(row, 13), float):
+                            o['properties']['current_rated'] = sheet.cell_value(row, 13)
+                        o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
+                        if u'10kV' in o['properties']['name']:
+                            o['properties']['voltage'] = '08'
+                            # o['properties']['name'] = o['properties']['name'].replace(u'10kV', '')
+                        o = update_geometry2d(o, True)
+                        ret.append(o)
+    print(len(ret))
 
 def test3():
     XLS_FILE = ur'D:\2014项目\配电网故障定位\玉溪局台账数据导出1\玉溪杆塔.xls'
 
 def test4():
-    XLS_FILE = ur'D:\2014项目\配电网故障定位\玉溪局台账数据导出1\线路台账.xls'
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
     book = xlrd.open_workbook(XLS_FILE)
     startrowidx = 1
     toplines = set()
@@ -173,15 +187,65 @@ def test4():
                 o['properties']['func_pos_code'] = funcpos
                 o['properties']['name'] = sheet.cell_value(row, 2)
                 o['properties']['owner'] = sheet.cell_value(row, 3)
+                o['properties']['nodes'] = []
+                o['properties']['subnet'] = []
+                if u'10kV' in o['properties']['name']:
+                    o['properties']['voltage'] = '08'
+
                 o = update_geometry2d(o, False)
+                print(o['properties']['name'])
                 print(o)
 
 
+def test5():
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    toplines = set()
+    for sheet in book.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            if len(sheet.cell_value(row, 6)):
+                toplines.add(sheet.cell_value(row, 6))
+            # toplines.add(sheet.cell_value(row, 6))
 
-
+    XLS_FILE1 = ur'D:\2014项目\配电网故障定位\玉溪局台账数据导出1\变压器参数.xls'
+    book1 = xlrd.open_workbook(XLS_FILE1)
+    startrowidx = 1
+    ret = []
+    for sheet in book1.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            line_no = sheet.cell_value(row, 55)
+            if line_no in toplines:
+                device_no = sheet.cell_value(row, 26)
+                lng = sheet.cell_value(row, 73)
+                lat = sheet.cell_value(row, 74)
+                if isinstance(lng, str) or isinstance(lng, unicode) or isinstance(lat, str) or isinstance(lat, unicode):
+                    pass
+                elif isinstance(lng, float) and isinstance(lat, float):
+                    o = {}
+                    o['type'] = 'Feature'
+                    o['properties'] = {}
+                    o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
+                    o['properties']['webgis_type'] = 'point_dn'
+                    o['properties']['function_pos_code'] = sheet.cell_value(row, 1)
+                    o['properties']['name'] = sheet.cell_value(row, 67)
+                    if (isinstance(o['properties']['name'], str) or isinstance(o['properties']['name'], unicode)) and len(o['properties']['name']) == 0:
+                        o['properties']['name'] = device_no
+                    if isinstance(o['properties']['name'], int) or isinstance(o['properties']['name'], float):
+                        o['properties']['name'] = str(o['properties']['name'])
+                    o['properties']['function_pos_type'] = 'PAB'
+                    o['properties']['line_func_code'] = line_no
+                    o['properties']['device_no'] = device_no
+                    o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
+                    # if u'10kV' in o['properties']['name']:
+                    o['properties']['voltage'] = '08'
+                    o = update_geometry2d(o, True)
+                    ret.append(o)
+        break
+    print(json.dumps(ret, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":
     init_global()
-    test4()
+    test5()
     
     
