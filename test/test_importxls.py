@@ -4,8 +4,10 @@ import json
 import xlrd
 import codecs
 from collections import  OrderedDict
-from db_util import init_global, get_pinyin_data, update_geometry2d
+from db_util import init_global, get_pinyin_data, update_geometry2d, mongo_action, mongo_find, mongo_find_one, \
+    add_mongo_id, remove_mongo_id
 from module_locator import dec, dec1, enc, enc1
+from pydash import py_ as _
 
 
 XLS_FILE = ur'G:\work\matlab\dn\bayes_rset\data_bus.xls'
@@ -161,11 +163,9 @@ def test2():
                         o = update_geometry2d(o, True)
                         ret.append(o)
     print(len(ret))
+    mongo_action('kmgd', 'features', 'save', ret)
 
 def test3():
-    XLS_FILE = ur'D:\2014项目\配电网故障定位\玉溪局台账数据导出1\玉溪杆塔.xls'
-
-def test4():
     XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
     book = xlrd.open_workbook(XLS_FILE)
     startrowidx = 1
@@ -180,10 +180,81 @@ def test4():
             if len(sheet.cell_value(row, 6)):
                 toplines.add(sheet.cell_value(row, 6))
         # print(toplines)
+
+    XLS_FILE1 = ur'D:\2014项目\配电网故障定位\玉溪局台账数据导出1\玉溪杆塔.xls'
+    book1 = xlrd.open_workbook(XLS_FILE1)
+    startrowidx = 1
+    ret = []
+    linesmap = {}
+    for sheet in book1.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            line_no = sheet.cell_value(row, 3)
+            if line_no in toplines:
+                # device_no = sheet.cell_value(row, 1)
+                lng = sheet.cell_value(row, 5)
+                lat = sheet.cell_value(row, 6)
+                if isinstance(lng, str) or isinstance(lng, unicode) or isinstance(lat, str) or isinstance(lat, unicode):
+                    pass
+                elif isinstance(lng, float) and isinstance(lat, float):
+                    if not line_no in linesmap.keys():
+                        linesmap[line_no] = []
+                    o = {}
+                    o['type'] = 'Feature'
+                    o['properties'] = {}
+                    # o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
+                    o['properties']['webgis_type'] = 'point_tower'
+                    o['properties']['function_pos_code'] = sheet.cell_value(row, 0)
+                    if not o['properties']['function_pos_code'] in linesmap[line_no]:
+                        linesmap[line_no].append(o['properties']['function_pos_code'])
+                    o['properties']['name'] = sheet.cell_value(row, 1)
+                    if len(o['properties']['name']) == 0 or  o['properties']['name'] == u'杆塔':
+                        o['properties']['name'] = o['properties']['function_pos_code'] + u'杆塔'
+                    # if (isinstance(o['properties']['name'], str) or isinstance(o['properties']['name'], unicode)) and len(o['properties']['name']) == 0:
+                    #     o['properties']['name'] = device_no
+                    # if isinstance(o['properties']['name'], int) or isinstance(o['properties']['name'], float):
+                    #     o['properties']['name'] = str(o['properties']['name'])
+                    o['properties']['function_pos_type'] = 'LAD'
+                    o['properties']['line_func_code'] = line_no
+                    o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
+                    # if u'10kV' in o['properties']['name']:
+                    o['properties']['voltage'] = '08'
+                    o = update_geometry2d(o, True)
+                    if len(ret) % 100 == 0:
+                        print(len(ret))
+                    ret.append(o)
+        # for k in linesmap.keys():
+        #     s = sorted(linesmap[k])
+        #     l = []
+        #     for i in range(len(s)-1):
+        #         l.append([s[i], s[i+1]])
+        #     linesmap[k] = l
+        # print(len(ret))
+        # print(len(linesmap.keys()))
+        # with codecs.open(ur'd:\linesmap.json', 'w', 'utf-8-sig') as f:
+        #     f.write(json.dumps(linesmap, ensure_ascii=False, indent=4))
+    mongo_action('kmgd', 'features', 'save', ret)
+
+def test4():
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    toplines = set()
+    ret = []
+    for sheet in book.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            # o = {'properties':{'webgis_type':'polyline_dn'}}
+            # o['properties']['func_pos_code'] = sheet.cell_value(row, 1)
+            # o['properties']['name'] = sheet.cell_value(row, 2)
+            # o['properties']['owner'] = sheet.cell_value(row, 3)
+            # update_geometry2d(o, False)
+            if len(sheet.cell_value(row, 6)):
+                toplines.add(sheet.cell_value(row, 6))
+        # print(toplines)
         for row in range(startrowidx, sheet.nrows):
             funcpos = sheet.cell_value(row, 1)
             if funcpos in toplines:
                 o = {'properties':{'webgis_type':'polyline_dn'}}
+                o['properties']['device_id_nx'] = str(int(sheet.cell_value(row, 0)))
                 o['properties']['func_pos_code'] = funcpos
                 o['properties']['name'] = sheet.cell_value(row, 2)
                 o['properties']['owner'] = sheet.cell_value(row, 3)
@@ -194,8 +265,10 @@ def test4():
 
                 o = update_geometry2d(o, False)
                 print(o['properties']['name'])
-                print(o)
-
+                ret.append(o)
+                # print(o)
+    mongo_action('kmgd', 'network', 'save', ret)
+    # print(json.dumps(ret, ensure_ascii=False, indent=4))
 
 def test5():
     XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
@@ -239,13 +312,113 @@ def test5():
                     o['geometry'] = {'type':'Point','coordinates':[lng, lat]}
                     # if u'10kV' in o['properties']['name']:
                     o['properties']['voltage'] = '08'
-                    o = update_geometry2d(o, True)
+                    # o = update_geometry2d(o, True)
                     ret.append(o)
         break
     print(json.dumps(ret, ensure_ascii=False, indent=4))
+    # mongo_action('kmgd', 'features', 'save', ret)
+
+def test6():
+    def get_line_id(alist, code):
+        return _.find(alist, lambda x: x['properties'].has_key('func_pos_code') and x['properties']['func_pos_code'] == code)
+        # return _.matches_property('properties.func_pos_code', code)(alist)
+    def get_point_id(alist, code):
+        return _.find(alist, lambda x: x['properties'].has_key('function_pos_code') and x['properties'][
+                                                                                            'func_pos_code'] == code)
+    ret = []
+    linesmap = {}
+    with codecs.open(ur'd:\linesmap.json', 'r', 'utf-8-sig') as f:
+        linesmap = json.loads(f.read())
+    polyline_dn = mongo_find('kmgd', 'network', {'properties.webgis_type':'polyline_dn'})
+    # towers = mongo_find('kmgd', 'features', {'properties.webgis_type':'point_tower'})
+    idx = 0
+    for k in linesmap.keys():
+        codes = _.uniq(_.flatten(linesmap[k]))
+        o = get_line_id(polyline_dn, k)
+        if o:
+            # l = mongo_find('kmgd', 'features', {'properties.line_func_code':k})
+            # ids = _.pluck(l, '_id')
+            ll = mongo_find('kmgd', 'features', {'properties.function_pos_code':{'$in':codes}})
+            if len(ll):
+                lll = _.pluck(ll, '_id')
+                o['properties']['nodes'] = lll
+                # o = add_mongo_id(o)
+                ret.append(o)
+                idx += 1
+                # if idx > 10:
+                #     break
+    mongo_action('kmgd', 'network', 'save', ret)
+
+def test7():
+    def get_line_id(alist, code):
+        return _.find(alist, lambda x: x['properties'].has_key('func_pos_code') and x['properties']['func_pos_code'] == code)
+        # return _.matches_property('properties.func_pos_code', code)(alist)
+    def get_point_id(alist, code):
+        return _.find(alist, lambda x: x['properties'].has_key('function_pos_code') and x['properties']['func_pos_code'] == code)
+
+
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    toplines = set()
+    for sheet in book.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            if len(sheet.cell_value(row, 6)):
+                toplines.add(sheet.cell_value(row, 6))
+    # if True:
+    #     print (toplines)
+    #     return
+
+    ret = []
+    linesmap = {}
+    # with codecs.open(ur'd:\linesmap.json', 'r', 'utf-8-sig') as f:
+    #     linesmap = json.loads(f.read())
+
+    # polyline_dn =
+    features = mongo_find('kmgd', 'features', {'properties.webgis_type':'point_dn'})
+    for topline in toplines:
+        polyline_dn = mongo_find_one('kmgd', 'network', {'properties.webgis_type':'polyline_dn',
+                                                     'properties.func_pos_code':topline})
+        if polyline_dn:
+            print (polyline_dn['_id'])
+            # for feature in features:
+            #     if feature.has_key('properties') \
+            #         and  feature['properties'].has_key('device_id_nx') and len(feature['properties']['device_id_nx']) \
+            #         and  feature['properties'].has_key('line_func_code') and feature['properties']['line_func_code'] == topline:
+            #         if not linesmap.has_key(feature['properties']['line_func_code']):
+            #             linesmap[feature['properties']['line_func_code']] = []
+            #         if not feature['properties']['device_id_nx'] in linesmap[feature['properties']['line_func_code']]:
+            #             linesmap[feature['properties']['line_func_code']].append(feature['properties']['device_id_nx'])
+
+
+
+
+
+
+    # idx = 0
+    # for k in linesmap.keys():
+    #     codes = _.uniq(_.flatten(linesmap[k]))
+    #     o = get_line_id(polyline_dn, k)
+    #     if o:
+    #         # l = mongo_find('kmgd', 'features', {'properties.line_func_code':k})
+    #         # ids = _.pluck(l, '_id')
+    #         ll = mongo_find('kmgd', 'features', {'properties.function_pos_code':{'$in':codes}})
+    #         if len(ll):
+    #             lll = _.pluck(ll, '_id')
+    #             if not
+    #             o['properties']['nodes'] = lll
+    #             # o = add_mongo_id(o)
+    #             ret.append(o)
+    #             idx += 1
+    #             # if idx > 10:
+    #             #     break
+    # mongo_action('kmgd', 'network', 'save', ret)
+
+
+
 
 if __name__ == "__main__":
     init_global()
-    test5()
+    test7()
     
     
