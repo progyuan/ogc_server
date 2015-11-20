@@ -370,25 +370,27 @@ def test7():
     #     return
 
     ret = []
-    linesmap = {}
-    # with codecs.open(ur'd:\linesmap.json', 'r', 'utf-8-sig') as f:
-    #     linesmap = json.loads(f.read())
 
-    # polyline_dn =
+    idx = 0
     features = mongo_find('kmgd', 'features', {'properties.webgis_type':'point_dn'})
     for topline in toplines:
         polyline_dn = mongo_find_one('kmgd', 'network', {'properties.webgis_type':'polyline_dn',
                                                      'properties.func_pos_code':topline})
         if polyline_dn:
-            print (polyline_dn['_id'])
-            # for feature in features:
-            #     if feature.has_key('properties') \
-            #         and  feature['properties'].has_key('device_id_nx') and len(feature['properties']['device_id_nx']) \
-            #         and  feature['properties'].has_key('line_func_code') and feature['properties']['line_func_code'] == topline:
-            #         if not linesmap.has_key(feature['properties']['line_func_code']):
-            #             linesmap[feature['properties']['line_func_code']] = []
-            #         if not feature['properties']['device_id_nx'] in linesmap[feature['properties']['line_func_code']]:
-            #             linesmap[feature['properties']['line_func_code']].append(feature['properties']['device_id_nx'])
+            idx1 = 0
+            for feature in features:
+                if feature.has_key('properties') and feature['properties'].has_key('line_func_code') and feature['properties']['line_func_code'] == topline:
+                    if not polyline_dn['properties'].has_key('nodes'):
+                        polyline_dn['properties']['nodes'] = []
+                    if not feature['_id'] in polyline_dn['properties']['nodes']:
+                        polyline_dn['properties']['nodes'].append(feature['_id'])
+                        idx1 += 1
+            print('%d-%s nodes:%d' % (idx, polyline_dn['_id'], len(polyline_dn['properties']['nodes'])))
+            idx += 1
+            ret.append(polyline_dn)
+            # if idx > 10:
+            #     break
+    mongo_action('kmgd', 'network', 'save', ret)
 
 
 
@@ -414,11 +416,31 @@ def test7():
     #             #     break
     # mongo_action('kmgd', 'network', 'save', ret)
 
+def test8():
+    ret = []
+    linesmap = {}
+    with codecs.open(ur'd:\linesmap.json', 'r', 'utf-8-sig') as f:
+        linesmap = json.loads(f.read())
+    for k in linesmap.keys():
+        for pair in linesmap[k]:
+            start_func, end_func = pair[0], pair[1]
+            start = mongo_find_one('kmgd', 'features', {'properties.function_pos_code':start_func})
+            end = mongo_find_one('kmgd', 'features', {'properties.function_pos_code':end_func})
+            if start and end:
+                o = {'properties':{
+                    'start':start['_id'],
+                    'end':end['_id'],
+                    'webgis_type':'edge_dn',
+                }}
+                ret.append(o)
+    mongo_action('kmgd', 'edges', 'save', ret)
+    # print(json.dumps(ret, ensure_ascii=False, indent=4))
+    # print(len(ret))
 
 
 
 if __name__ == "__main__":
     init_global()
-    test7()
+    # test8()
     
     
