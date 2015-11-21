@@ -393,29 +393,6 @@ def test7():
     mongo_action('kmgd', 'network', 'save', ret)
 
 
-
-
-
-
-    # idx = 0
-    # for k in linesmap.keys():
-    #     codes = _.uniq(_.flatten(linesmap[k]))
-    #     o = get_line_id(polyline_dn, k)
-    #     if o:
-    #         # l = mongo_find('kmgd', 'features', {'properties.line_func_code':k})
-    #         # ids = _.pluck(l, '_id')
-    #         ll = mongo_find('kmgd', 'features', {'properties.function_pos_code':{'$in':codes}})
-    #         if len(ll):
-    #             lll = _.pluck(ll, '_id')
-    #             if not
-    #             o['properties']['nodes'] = lll
-    #             # o = add_mongo_id(o)
-    #             ret.append(o)
-    #             idx += 1
-    #             # if idx > 10:
-    #             #     break
-    # mongo_action('kmgd', 'network', 'save', ret)
-
 def test8():
     ret = []
     linesmap = {}
@@ -437,10 +414,80 @@ def test8():
     # print(json.dumps(ret, ensure_ascii=False, indent=4))
     # print(len(ret))
 
+def test9():
+    def get_parent(sheet, code):
+        startrowidx = 1
+        for row in range(startrowidx, sheet.nrows):
+            if len(sheet.cell_value(row, 6)) == 0 and sheet.cell_value(row, 1) == code:
+                return code
+            elif len(sheet.cell_value(row, 6)) > 0 and sheet.cell_value(row, 1) == code:
+                p = sheet.cell_value(row, 6)
+                return get_parent(sheet, p)
+
+
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\yx_line.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    toplines = set()
+    ret = []
+    lines_hirachy = {}
+    for sheet in book.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            if len(sheet.cell_value(row, 6)) == 0:
+                toplines.add(sheet.cell_value(row, 1))
+        for topline in toplines:
+            lines_hirachy[topline] = []
+
+        startrowidx = 1
+        for row in range(startrowidx, sheet.nrows):
+            if sheet.cell_value(row, 6) in lines_hirachy.keys():
+                continue
+            p = get_parent(sheet, sheet.cell_value(row, 1))
+            if lines_hirachy.has_key(p):
+                lines_hirachy[p].append(sheet.cell_value(row, 1))
+        for k in lines_hirachy:
+            print('%s children:%d' % (k, len(lines_hirachy[k])))
+
+        break
+    with codecs.open(ur'd:\lines_hirachy.json', 'w', 'utf-8-sig') as f:
+        f.write(json.dumps(lines_hirachy, ensure_ascii=False, indent=4))
+
+def test10():
+    lines_hirachy = {}
+    ret = []
+    with codecs.open(ur'd:\lines_hirachy.json', 'r', 'utf-8-sig') as f:
+        lines_hirachy = json.loads(f.read())
+    for k in lines_hirachy:
+        if len(lines_hirachy[k])>1:
+            polyline_dn = mongo_find_one('kmgd', 'network', {'properties.webgis_type':'polyline_dn',
+                                                             'properties.func_pos_code':k})
+            if polyline_dn:
+                pointlist = mongo_find('kmgd', 'features', {'properties.line_func_code':{'$in':lines_hirachy[k]}})
+                pointidlist = _.pluck(pointlist, '_id')
+                if polyline_dn.has_key('properties') and polyline_dn['properties'].has_key('nodes'):
+                    print(polyline_dn['_id'])
+                    print('before:%d' % len(polyline_dn['properties']['nodes']))
+                    for i in pointidlist:
+                        if not i in polyline_dn['properties']['nodes']:
+                            polyline_dn['properties']['nodes'].append(i)
+                    print('after:%d' % len(polyline_dn['properties']['nodes']))
+                    ret.append(polyline_dn)
+    mongo_action('kmgd', 'network', 'save', ret)
+
+def test11():
+    ret = []
+    pointlist = mongo_find('kmgd', 'features', {})
+    for p in pointlist:
+        if p['properties'].has_key('function_pos_type'):
+            p['properties']['function_type'] = p['properties']['function_pos_type']
+            del p['properties']['function_pos_type']
+            ret.append(p)
+    mongo_action('kmgd', 'features', 'save', ret)
+
 
 
 if __name__ == "__main__":
     init_global()
-    # test8()
+    test11()
     
     
