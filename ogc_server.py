@@ -6948,17 +6948,23 @@ def application_webgis(environ, start_response):
         def query_edges(querydict):
             ret = []
             collection = get_collection('network')
-            network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
-            if network and network.has_key('properties') and network['properties'].has_key('nodes'):
-                nodes = network['properties']['nodes']
-                if len(nodes)>0:
-                    collection = get_collection('edges')
-                    ret = list(collection.find({'properties.webgis_type':'edge_dn',
-                                                '$or':[
-                                                    {'properties.start':{'$in':nodes}},
-                                                    {'properties.end':{'$in':nodes}}
-                                                ]
-                                                }))
+            if querydict.has_key('_id'):
+                network = collection.find_one({'_id':db_util.add_mongo_id(querydict['_id'])})
+                if network and network.has_key('properties') and network['properties'].has_key('nodes'):
+                    nodes = network['properties']['nodes']
+                    if len(nodes)>0:
+                        collection = get_collection('edges')
+                        ret = list(collection.find({'properties.webgis_type':'edge_dn',
+                                                    '$or':[
+                                                        {'properties.start':{'$in':nodes}},
+                                                        {'properties.end':{'$in':nodes}}
+                                                    ]
+                                                    }))
+            else:
+                collection = get_collection('edges')
+                ret = list(collection.find({'properties.webgis_type':'edge_dn',
+                                            }))
+
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
         def remove_network(querydict):
             ret = []
