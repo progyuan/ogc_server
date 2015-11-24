@@ -6954,7 +6954,10 @@ def application_webgis(environ, start_response):
                     nodes = network['properties']['nodes']
                     if len(nodes)>0:
                         collection = get_collection('edges')
-                        ret = list(collection.find({'properties.webgis_type':'edge_dn',
+                        ret = list(collection.find({'$or':[
+                                                        {'properties.webgis_type':'edge_dn'},
+                                                        {'properties.webgis_type':'edge_tower'},
+                                                    ],
                                                     '$or':[
                                                         {'properties.start':{'$in':nodes}},
                                                         {'properties.end':{'$in':nodes}}
