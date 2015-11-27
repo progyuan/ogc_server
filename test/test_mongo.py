@@ -155,7 +155,30 @@ def query5():
     )
     return ret
 
+def test_combine():
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection = db['network']
+    others = []
+    nodes = []
+    others.append(collection.find_one({'properties.name':u'10kV龙马路线'}))
+    others.append(collection.find_one({'properties.name':u'10kV州城Ⅴ回线39号杆T康井路北段'}))
+    others.append(collection.find_one({'properties.name':u'10kV州城Ⅴ回线39号杆T康井路南段线'}))
+    others.append(collection.find_one({'properties.name':u'10kV金家边线T10kV太极路线'}))
+    others.append(collection.find_one({'properties.name':u'10kV州城Ⅴ回线52号杆塔T太极路'}))
+    others.append(collection.find_one({'properties.name':u'10kV州城Ⅴ回线57号塔T徐百户屯'}))
+    zc = collection.find_one({'properties.name':u'10kV州城Ⅴ回线'})
+    for other in others:
+        for node in other['properties']['nodes']:
+            if not nodes in nodes:
+                nodes.append(node)
+    for i in nodes:
+        if not i in zc['properties']['nodes']:
+            zc['properties']['nodes'].append(i)
+    collection.save(zc)
+    print (len(nodes))
 
 if __name__ == '__main__':
-    query3()
+    # test_combine()
+    pass
 

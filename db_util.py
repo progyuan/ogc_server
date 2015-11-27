@@ -7288,7 +7288,9 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                                     def delete_node_from_network(node_id, collectionname):
                                         networklist = mongo_find(dbname, collectionname, {}, )
                                         for network in networklist:
-                                            if node_id in network['properties']['nodes']:
+                                            if network['properties'].has_key('nodes') and node_id in network[\
+                                                    'properties'][\
+                                                    'nodes']:
                                                 network['properties']['nodes'].remove(node_id)
                                                 mongo_action(dbname, collectionname, 'update', {'properties.nodes': network['properties']['nodes']}, {'_id':network['_id']}, )
                                     def delete_segment_by_tower(node_id):

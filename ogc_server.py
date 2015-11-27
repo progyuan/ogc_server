@@ -136,6 +136,8 @@ gRequest = None
 gProxyRequest = None
 gJoinableQueue = None
 
+
+
 class BooleanConverter(BaseConverter):
     def __init__(self, url_map, randomify=False):
         super(BooleanConverter, self).__init__(url_map)
@@ -7023,21 +7025,112 @@ def application_webgis(environ, start_response):
                 adict = d
             return adict
         def fault_position(querydict):
+            def getlastline(s):
+                ret = ''
+                arr = s.split('\n')
+                ret = arr[-1].strip()
+                if len(ret) == 0:
+                    ret = arr[-2].strip()
+                return ret
+
             ret = []
             querydict = sort_dict(querydict)
             print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
             app = gConfig['wsgi']['application']
             rset_exe = gConfig[app]['distribute_network']['rset_exe']
+            gis_exe = gConfig[app]['distribute_network']['gis_exe']
             ants_exe = gConfig[app]['distribute_network']['ants_exe']
             bayes_exe = gConfig[app]['distribute_network']['bayes_exe']
             power_resume_exe = gConfig[app]['distribute_network']['power_resume_exe']
+            data_bus_path = gConfig[app]['distribute_network']['data_bus_path']
+            data_gen_path = gConfig[app]['distribute_network']['data_gen_path']
+            data_lnbr_path = gConfig[app]['distribute_network']['data_lnbr_path']
+            data_conlnbr_path = gConfig[app]['distribute_network']['data_conlnbr_path']
+            rset_bus_load_vector_path = gConfig[app]['distribute_network']['rset_bus_load_vector_path']
+            g_state_path = gConfig[app]['distribute_network']['g_state_path']
+            fault_vec_path = gConfig[app]['distribute_network']['fault_vec_path']
+            ftu1_path = gConfig[app]['distribute_network']['ftu1_path']
+            ftu2_path = gConfig[app]['distribute_network']['ftu2_path']
+            ftu3_path = gConfig[app]['distribute_network']['ftu3_path']
             if querydict.has_key('algorithm'):
                 if querydict['algorithm'] == 'rset':
-                    pass
+                    # cmd = '%s "%s" "%s" "%s" "%s" "%s" "%s"' % (rset_exe, data_bus_path, data_gen_path,
+                    #                                             data_lnbr_path, data_conlnbr_path, rset_bus_load_vector_path, g_state_path)
+
+                    cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (gis_exe, data_bus_path, data_gen_path, data_lnbr_path,
+                                                            data_conlnbr_path, fault_vec_path)
+                    print('cmd:[%s]' % cmd)
+                    output = gevent.subprocess.check_output(cmd)
+                    try:
+                        s = getlastline(dec1(output))
+                        print(s)
+                        ret = json.loads(s)
+                    except:
+                        ret = []
                 elif querydict['algorithm'] == 'ants':
-                    pass
+                    ants_NC_max = 100
+                    ants_m = 20
+                    ants_Alpha = 1
+                    ants_Beta = 1
+                    ants_Rho = 0.95
+                    ants_Q = 1
+                    if querydict.has_key('ants_NC_max'):
+                        ants_NC_max = querydict['ants_NC_max']
+                    if querydict.has_key('ants_m'):
+                        ants_m = querydict['ants_m']
+                    if querydict.has_key('ants_Alpha'):
+                        ants_Alpha = querydict['ants_Alpha']
+                    if querydict.has_key('ants_Beta'):
+                        ants_Beta = querydict['ants_Beta']
+                    if querydict.has_key('ants_Rho'):
+                        ants_Rho = querydict['ants_Rho']
+                    if querydict.has_key('ants_Q'):
+                        ants_Q = querydict['ants_Q']
+                    cmd = '%s "%s" "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                        ants_exe,
+                        data_bus_path,
+                        data_gen_path,
+                        data_lnbr_path,
+                        data_conlnbr_path,
+                        ftu1_path,
+                        ftu2_path,
+                        ftu3_path,
+                        ants_NC_max,
+                        ants_m,
+                        ants_Alpha,
+                        ants_Beta,
+                        ants_Rho,
+                        ants_Q
+                         )
+                    print('cmd:[%s]' % cmd)
+                    output = gevent.subprocess.check_output(cmd)
+                    try:
+                        s = getlastline(dec1(output))
+                        print(s)
+                        ret = json.loads(s)
+                    except:
+                        ret = []
                 elif querydict['algorithm'] == 'bayes':
-                    pass
+                    bayes_q = 0.3
+                    if querydict.has_key('bayes_q'):
+                        bayes_q = querydict['bayes_q']
+                    cmd = '%s "%s" "%s" "%s" "%s" "%s"  %f ' % (
+                        bayes_exe,
+                        data_bus_path,
+                        data_gen_path,
+                        data_lnbr_path,
+                        data_conlnbr_path,
+                        fault_vec_path,
+                        bayes_q
+                         )
+                    print('cmd:[%s]' % cmd)
+                    output = gevent.subprocess.check_output(cmd)
+                    try:
+                        s = getlastline(dec1(output))
+                        print(s)
+                        ret = json.loads(s)
+                    except:
+                        ret = []
                 elif querydict['algorithm'] == 'power_resume':
                     pass
 
