@@ -7045,6 +7045,7 @@ def application_webgis(environ, start_response):
             data_bus_path = gConfig[app]['distribute_network']['data_bus_path']
             data_gen_path = gConfig[app]['distribute_network']['data_gen_path']
             data_lnbr_path = gConfig[app]['distribute_network']['data_lnbr_path']
+            data_lnbr_0_path = gConfig[app]['distribute_network']['data_lnbr_0_path']
             data_conlnbr_path = gConfig[app]['distribute_network']['data_conlnbr_path']
             rset_bus_load_vector_path = gConfig[app]['distribute_network']['rset_bus_load_vector_path']
             g_state_path = gConfig[app]['distribute_network']['g_state_path']
@@ -7132,8 +7133,21 @@ def application_webgis(environ, start_response):
                     except:
                         ret = []
                 elif querydict['algorithm'] == 'power_resume':
-                    pass
-
+                    cmd = '%s "%s" "%s" "%s" "%s"  ' % (
+                        power_resume_exe,
+                        data_bus_path,
+                        data_gen_path,
+                        data_lnbr_0_path,
+                        data_conlnbr_path
+                         )
+                    print('cmd:[%s]' % cmd)
+                    output = gevent.subprocess.check_output(cmd)
+                    try:
+                        s = getlastline(dec1(output))
+                        print(s)
+                        ret = json.loads(s)
+                    except:
+                        ret = []
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
         statuscode, headers, body =  '200 OK', {}, ''

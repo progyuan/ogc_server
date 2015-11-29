@@ -6,6 +6,9 @@ import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from bson.timestamp import Timestamp
+import xlrd, xlwt
+import json
+import math
 from pydash import py_ as _
 
 ENCODING = 'utf-8'
@@ -178,7 +181,144 @@ def test_combine():
     collection.save(zc)
     print (len(nodes))
 
+def test_add_field():
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\20151128\节点数据.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    namelist = []
+    for sheet in book.sheets():
+        for row in range(startrowidx, sheet.nrows):
+            name = sheet.cell_value(row, 0)
+            code = sheet.cell_value(row, 1)
+            namelist.append({'name':name, 'code':code})
+        break
+
+    names = _.pluck(namelist, 'name')
+    print(len(names))
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection = db['features']
+    l = list(collection.find({'properties.name':{'$in':names}}))
+    # print(len(l))
+    # # name_code_mapping = []
+    # for i in l:
+    #     code = _.result(_.find(namelist,  {'name':i['properties']['name']}), 'code')
+    #     # cl.append(code)
+    #     i['properties']['code_name'] = code
+    #     # o = {}
+    #     # o['name'] = code
+    #     # o['_id'] = str(i['_id'])
+    #     # name_code_mapping.append(o)
+    #     collection.save(i)
+    # # print(json.dumps(name_code_mapping, ensure_ascii=True, indent=4))
+
+    # ids = []
+    # for i in l:
+    #     ids.append(i['_id'])
+    # collection = db['edges']
+    # tids = set()
+    # for id in ids:
+    #     ll = list(collection.find({'$or':[{'properties.start':id},{'properties.end':id}]}))
+    #     for ii in ll:
+    #         if ii['properties']['start'] == id:
+    #             tids.add(ii['properties']['end'])
+    #         if ii['properties']['end'] == id:
+    #             tids.add(ii['properties']['start'])
+    # tids = list(tids)
+    # ids.extend(tids)
+    # ids = list(set(ids))
+    linename = u'10kV州城Ⅴ回线'
+    collection = db['network']
+    zc = collection.find_one({'properties.name':linename})
+    if not ObjectId('5657b187d8b95a18a48c4a62') in zc['properties']['nodes']:
+        zc['properties']['nodes'].append(ObjectId('5657b187d8b95a18a48c4a62'))
+    if not ObjectId('5656aa13d8b95a0a485fbaa7') in zc['properties']['nodes']:
+        zc['properties']['nodes'].append(ObjectId('5656aa13d8b95a0a485fbaa7'))
+    collection.save(zc)
+
+def test_add_edge():
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\20151128\节点数据.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    codelist = []
+    sheet = book.sheet_by_index(1)
+    startrowidx = 1
+    for row in range(startrowidx, sheet.nrows):
+        codelist.append({'start':sheet.cell_value(row, 0).strip(), 'end':sheet.cell_value(row, 2).strip()})
+    print(codelist)
+
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection_edges = db['edges']
+    collection_features = db['features']
+    for pair in codelist:
+        starts = list(collection_features.find({'properties.code_name':pair['start']}))
+        ends = list(collection_features.find({'properties.code_name':pair['end']}))
+        if len(starts) and len(ends):
+            for start in starts:
+                for end in ends:
+                    edge = collection_edges.find_one({'properties.start':start['_id'], 'properties.end':end['_id']})
+                    if edge is None:
+                        edge = {'properties':{'webgis_type':'edge_dn','start':start['_id'], 'end':end['_id']}}
+                        print('add %s->%s' % (pair['start'], pair['end']))
+                        collection_edges.save(edge)
+
+def test_filter_tower():
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection = db['network']
+    collection_features = db['features']
+    linename = u'10kV州城Ⅴ回线'
+    zc = collection.find_one({'properties.name':linename})
+    ids = []
+    for id in zc['properties']['nodes']:
+        t = collection_features.find_one({'_id':id})
+        if t:
+            if not t['properties']['webgis_type'] == 'point_tower':
+                ids.append(id)
+    zc['properties']['nodes'] = ids
+    collection.save(zc)
+    # print(len(ids))
+
+def geodistance(origin, destination):
+    lon1, lat1 = origin
+    lon2, lat2 = destination
+    radius = 6371.0 # km
+
+    dlat = math.radians(lat2-lat1)
+    dlon = math.radians(lon2-lon1)
+    a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) \
+        * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = radius * c
+    return d
+
+def test_calc_distance():
+    XLS_FILE = ur'D:\2014项目\配电网故障定位\20151128\节点数据.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    codelist = []
+    sheet = book.sheet_by_index(1)
+    startrowidx = 1
+    for row in range(startrowidx, sheet.nrows):
+        codelist.append({'start':sheet.cell_value(row, 0).strip(), 'end':sheet.cell_value(row, 2).strip()})
+    print(codelist)
+
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection_edges = db['edges']
+    collection_features = db['features']
+    for pair in codelist:
+        start = collection_features.find_one({'properties.code_name':pair['start'],
+                                              'properties.webgis_type':'point_dn'})
+        end = collection_features.find_one({'properties.code_name':pair['end'],  'properties.webgis_type':'point_dn'})
+        if start and end:
+            lng1, lat1 = start['geometry']['coordinates'][0], start['geometry']['coordinates'][1]
+            lng2, lat2 = end['geometry']['coordinates'][0], start['geometry']['coordinates'][1]
+            d = geodistance((lng1, lat1),(lng2, lat2))
+            print('%s,%s,%d' % (start['properties']['code_name'], end['properties']['code_name'], int(d*1000)))
+
 if __name__ == '__main__':
-    # test_combine()
-    pass
+    test_calc_distance()
+    # pass
 
