@@ -318,7 +318,39 @@ def test_calc_distance():
             d = geodistance((lng1, lat1),(lng2, lat2))
             print('%s,%s,%d' % (start['properties']['code_name'], end['properties']['code_name'], int(d*1000)))
 
+def test_add_ht7():
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection = db['network']
+    linename = u'10kV州城Ⅴ回线'
+    zc = collection.find_one({'properties.name':linename})
+    if not ObjectId('564e953cd8b95a144c6c2172') in zc['properties']['nodes']:
+        print('not in ')
+        zc['properties']['nodes'].append(ObjectId('564e953cd8b95a144c6c2172'))
+    collection.save(zc)
+
+def test_build_map():
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd']
+    collection = db['network']
+    collection_fea = db['features']
+    linename = u'10kV州城Ⅴ回线'
+    zc = collection.find_one({'properties.name':linename})
+    l = list(collection_fea.find({'_id':{'$in':zc['properties']['nodes']}}))
+    # print(len(l))
+    name_code_mapping = []
+    for i in l:
+        if i['properties'].has_key('code_name'):
+            o = {}
+            o['idx'] = i['properties']['code_name']
+            o['name'] = i['properties']['code_name']
+            o['_id'] = str(i['_id'])
+            name_code_mapping.append(o)
+    #     collection.save(i)
+    print(json.dumps(name_code_mapping, ensure_ascii=True, indent=4))
+
+
 if __name__ == '__main__':
-    test_calc_distance()
+    test_build_map()
     # pass
 
