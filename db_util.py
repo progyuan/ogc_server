@@ -7372,8 +7372,8 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                             data = update_geometry2d(data, z_aware)
                         if check_edge_exist(dbname, collection_name, data) :
                             ret.append({'result':u'保存失败:该节点间关联已存在'});
-                        elif check_edge_ring(dbname, collection_name, data):
-                            ret.append({'result':u'保存失败:存在回路'});
+                        # elif check_edge_ring(dbname, collection_name, data):
+                        #     ret.append({'result':u'保存失败:存在回路'});
                         else:
                             line_names = None
                             if data.has_key('properties') and data['properties'].has_key('webgis_type') and data['properties']['webgis_type'] == 'polyline_line':
