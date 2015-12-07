@@ -7132,6 +7132,7 @@ def application_webgis(environ, start_response):
                             cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
+                        print(output)
                         try:
                             s = getlastline(output)
                             print(s)
