@@ -7145,7 +7145,7 @@ def application_webgis(environ, start_response):
                                 f.write(output)
                         try:
                             s = getlastline(output)
-                            print('s=%s' % s)
+                            # print('s=%s' % s)
                             ret = json.loads(s)
                         except Exception,e:
                             ret = []
@@ -7242,6 +7242,8 @@ def application_webgis(environ, start_response):
                             output = gevent.subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
+                                f.write(output)
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7303,6 +7305,8 @@ def application_webgis(environ, start_response):
                             output = gevent.subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
+                                f.write(output)
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7337,6 +7341,8 @@ def application_webgis(environ, start_response):
                             output = gevent.subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
+                                f.write(output)
                         try:
                             s = getlastline(output)
                             print(s)
