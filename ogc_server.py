@@ -7136,15 +7136,16 @@ def application_webgis(environ, start_response):
                             output = gevent.subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                        print('output=%s' % output)
+                        print('output1=%s' % output)
 
                         try:
+                            print('output2=%s' % output)
                             s = getlastline(output)
                             print('s=%s' % s)
                             ret = json.loads(s)
                         except Exception,e:
                             print('output=%s' % output)
-                            print(e)
+                            # print(e)
                             ret = []
                     else:
                         ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
