@@ -7084,24 +7084,27 @@ def application_webgis(environ, start_response):
                     cmd = ''
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
-                            #     exe['common']['gis_exe'],
-                            #     exe['common']['line_5']['data_bus_path'],
-                            #     exe['common']['line_5']['data_gen_path'],
-                            #     exe['common']['line_5']['data_lnbr_path'],
-                            #     exe['common']['line_5']['data_conlnbr_path'],
-                            #     exe['common']['line_5']['fault_vec_path']
-                            # )
-                            # if os.sys.platform == 'win32':
-                            cmd = [
+                            cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
                                 exe['common']['gis_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
                                 exe['common']['line_5']['data_lnbr_path'],
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path']
-                            ]
-                            # if os.sys.platform == 'linux2':
+                            )
+                            # if os.sys.platform == 'win32':
+                            # cmd = [
+                            #     exe['common']['gis_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['fault_vec_path']
+                            # ]
+                            if os.sys.platform == 'linux2':
+                                cmd = 'export LD_LIBRARY_PATH=/usr/local/MATLAB/MATLAB_Runtime/v90/runtime/glnxa64:' + \
+                                      '/usr/local/MATLAB/MATLAB_Runtime/v90/bin/glnxa64:' + \
+                                      '/usr/local/MATLAB/MATLAB_Runtime/v90/sys/os/glnxa64;' + cmd
                             #     cmd = [
                             #         'matlab',
                             #         '-nodisplay',
