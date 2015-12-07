@@ -7093,6 +7093,7 @@ def application_webgis(environ, start_response):
                             #     exe['common']['line_5']['fault_vec_path']
                             # )
                             cmd = [
+                                'source /home/xiejun/.bashrc;',
                                 exe['common']['gis_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
