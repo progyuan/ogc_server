@@ -7103,8 +7103,15 @@ def application_webgis(environ, start_response):
                                     exe['yx'][line_type]['data_lnbr_path'],
                                     exe['yx'][line_type]['ftu1_path'],
                                 )
+                                cmd = [
+                                    exe['yx']['gis_exe'],
+                                    exe['yx'][line_type]['data_bus_path'],
+                                    exe['yx'][line_type]['data_gen_path'],
+                                    exe['yx'][line_type]['data_lnbr_path'],
+                                    exe['yx'][line_type]['ftu1_path'],
+                                ]
                     if len(cmd) > 0:
-                        print('cmd:[%s]' % cmd)
+                        print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
                             s = getlastline(dec1(output))
