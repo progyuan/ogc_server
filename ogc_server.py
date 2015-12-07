@@ -7137,7 +7137,7 @@ def application_webgis(environ, start_response):
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                             with open('/home/xiejun/aaa.txt', 'w') as f:
-                                f.write(dec(output))
+                                f.write(dec1(output))
 
                         try:
                             s = getlastline(output)
