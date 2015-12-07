@@ -7142,11 +7142,14 @@ def application_webgis(environ, start_response):
                             print('output2=%s' % output)
                             s = getlastline(output)
                             print('s=%s' % s)
-                            ret = json.loads(s)
+                            # ret = json.loads(s)
                         except Exception,e:
-                            print('output=%s' % output)
-                            # print(e)
+                            print('111')
+                            print(output)
+                            print(e)
+                            print('222')
                             ret = []
+                            print('333')
                     else:
                         ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
 
