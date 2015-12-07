@@ -7028,8 +7028,8 @@ def application_webgis(environ, start_response):
             def getlastline(s):
                 if os.sys.platform == 'win32':
                     s = dec1(s)
-                elif os.sys.platform == 'linux2':
-                    s = dec(s)
+                # elif os.sys.platform == 'linux2':
+                #     s = dec(s)
                 ret = ''
                 arr = s.split('\n')
                 ret = arr[-1].strip()
@@ -7133,7 +7133,6 @@ def application_webgis(environ, start_response):
                         print(cmd)
                         if os.sys.platform == 'win32':
                             output = gevent.subprocess.check_output(cmd)
-                        # output = subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                         print(output)
@@ -7141,7 +7140,8 @@ def application_webgis(environ, start_response):
                             s = getlastline(output)
                             print(s)
                             ret = json.loads(s)
-                        except:
+                        except Exception,e:
+                            print(e)
                             ret = []
                     else:
                         ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
@@ -7231,11 +7231,11 @@ def application_webgis(environ, start_response):
                                     str(ants_Q)
                                 ]
                     if len(cmd) > 0:
-                        if os.sys.platform == 'linux2':
-                            cmd.insert(0, '/usr/bin/env')
-                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
-                        output = gevent.subprocess.check_output(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7292,11 +7292,11 @@ def application_webgis(environ, start_response):
                                     str(bayes_q)
                                 ]
                     if len(cmd) > 0:
-                        if os.sys.platform == 'linux2':
-                            cmd.insert(0, '/usr/bin/env')
-                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
-                        output = gevent.subprocess.check_output(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7326,11 +7326,11 @@ def application_webgis(environ, start_response):
                                 exe['common']['line_5']['data_conlnbr_path']
                             ]
                     if len(cmd) > 0:
-                        if os.sys.platform == 'linux2':
-                            cmd.insert(0, '/usr/bin/env')
-                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
-                        output = gevent.subprocess.check_output(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                         try:
                             s = getlastline(output)
                             print(s)
