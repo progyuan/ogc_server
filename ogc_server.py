@@ -7026,6 +7026,10 @@ def application_webgis(environ, start_response):
             return adict
         def fault_position(querydict):
             def getlastline(s):
+                if os.sys.platform == 'win32':
+                    s = dec1(s)
+                elif os.sys.platform == 'linux2':
+                    s = dec(s)
                 ret = ''
                 arr = s.split('\n')
                 ret = arr[-1].strip()
@@ -7129,7 +7133,7 @@ def application_webgis(environ, start_response):
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
-                            s = getlastline(dec1(output))
+                            s = getlastline(output)
                             print(s)
                             ret = json.loads(s)
                         except:
@@ -7228,7 +7232,7 @@ def application_webgis(environ, start_response):
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
-                            s = getlastline(dec1(output))
+                            s = getlastline(output)
                             print(s)
                             ret = json.loads(s)
                         except:
@@ -7289,7 +7293,7 @@ def application_webgis(environ, start_response):
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
-                            s = getlastline(dec1(output))
+                            s = getlastline(output)
                             print(s)
                             ret = json.loads(s)
                         except:
@@ -7323,7 +7327,7 @@ def application_webgis(environ, start_response):
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
-                            s = getlastline(dec1(output))
+                            s = getlastline(output)
                             print(s)
                             ret = json.loads(s)
                         except:
