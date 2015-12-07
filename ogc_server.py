@@ -7127,13 +7127,12 @@ def application_webgis(environ, start_response):
                                 ]
 
                     if len(cmd) > 0:
-                        if os.sys.platform == 'linux2':
-                            cmd.insert(0, '/usr/bin/env')
-                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
+                        # if os.sys.platform == 'linux2':
+                        #     cmd.insert(0, '/usr/bin/env')
+                        #     cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
-                        output = ''
                         # if os.sys.platform == 'win32':
-                        output = gevent.subprocess.check_output(cmd, stderr=gevent.subprocess.STDOUT)
+                        output = gevent.subprocess.check_output(cmd)
                         # output = subprocess.check_output(cmd)
                         # elif os.sys.platform == 'linux2':
                         #     output = gevent.subprocess.check_output(cmd, shell=True)
