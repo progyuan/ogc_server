@@ -7026,15 +7026,20 @@ def application_webgis(environ, start_response):
             return adict
         def fault_position(querydict):
             def getlastline(s):
+                ret = ''
                 if os.sys.platform == 'win32':
                     s = dec1(s)
-                # elif os.sys.platform == 'linux2':
-                #     s = dec(s)
-                ret = ''
-                arr = s.split('\n')
-                ret = arr[-1].strip()
-                if len(ret) == 0:
-                    ret = arr[-2].strip()
+                    arr = s.split('\n')
+                    ret = arr[-1].strip()
+                    if len(ret) == 0:
+                        ret = arr[-2].strip()
+                elif os.sys.platform == 'linux2':
+                    s = ''
+                    with codecs.open('/home/xiejun/aaa.txt', 'r', 'utf-8-sig') as f:
+                        s = f.read()
+                    arr = s.split('\n')
+                    ret = arr[-1].strip()
+                    ret = ret[ret.index('{'):]
                 return ret
 
             ret = []
@@ -7136,11 +7141,11 @@ def application_webgis(environ, start_response):
                             output = gevent.subprocess.check_output(cmd)
                         elif os.sys.platform == 'linux2':
                             output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                            with open('/home/xiejun/aaa.txt', 'w') as f:
-                                f.write(dec1(output))
-
+                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
+                                f.write(output)
                         try:
                             s = getlastline(output)
+                            print(s)
                             ret = json.loads(s)
                         except Exception,e:
                             ret = []
