@@ -7092,27 +7092,27 @@ def application_webgis(environ, start_response):
                             #     exe['common']['line_5']['data_conlnbr_path'],
                             #     exe['common']['line_5']['fault_vec_path']
                             # )
-                            if os.sys.platform == 'win32':
-                                cmd = [
-                                    exe['common']['gis_exe'],
-                                    exe['common']['line_5']['data_bus_path'],
-                                    exe['common']['line_5']['data_gen_path'],
-                                    exe['common']['line_5']['data_lnbr_path'],
-                                    exe['common']['line_5']['data_conlnbr_path'],
-                                    exe['common']['line_5']['fault_vec_path']
-                                ]
-                            if os.sys.platform == 'linux2':
-                                cmd = [
-                                    'matlab',
-                                    '-nodisplay',
-                                    '-nodesktop',
-                                    '-r',
-                                    'run "/home/xiejun/work/matlab/dn/bayes_rset/MAIN_GIS.m" '
-                                    '"/home/xiejun/work/matlab/dn/data_bus.json" '
-                                    '"/home/xiejun/work/matlab/dn/data_gen.json" '
-                                    '"/home/xiejun/work/matlab/dn/data_lnbr.json" '
-                                    '"/home/xiejun/work/matlab/dn/data_conlnbr.json" "/home/xiejun/work/matlab/dn/data_fault_vector.json"'
-                                ]
+                            # if os.sys.platform == 'win32':
+                            cmd = [
+                                exe['common']['gis_exe'],
+                                exe['common']['line_5']['data_bus_path'],
+                                exe['common']['line_5']['data_gen_path'],
+                                exe['common']['line_5']['data_lnbr_path'],
+                                exe['common']['line_5']['data_conlnbr_path'],
+                                exe['common']['line_5']['fault_vec_path']
+                            ]
+                            # if os.sys.platform == 'linux2':
+                            #     cmd = [
+                            #         'matlab',
+                            #         '-nodisplay',
+                            #         '-nodesktop',
+                            #         '-r',
+                            #         'run "/home/xiejun/work/matlab/dn/bayes_rset/MAIN_GIS.m" '
+                            #         '"/home/xiejun/work/matlab/dn/data_bus.json" '
+                            #         '"/home/xiejun/work/matlab/dn/data_gen.json" '
+                            #         '"/home/xiejun/work/matlab/dn/data_lnbr.json" '
+                            #         '"/home/xiejun/work/matlab/dn/data_conlnbr.json" "/home/xiejun/work/matlab/dn/data_fault_vector.json"'
+                            #     ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
@@ -7124,16 +7124,13 @@ def application_webgis(environ, start_response):
                                 #     exe['yx'][line_type]['data_lnbr_path'],
                                 #     exe['yx'][line_type]['ftu1_path'],
                                 # )
-                                if os.sys.platform == 'win32':
-                                    cmd = [
-                                        exe['yx']['gis_exe'],
-                                        exe['yx'][line_type]['data_bus_path'],
-                                        exe['yx'][line_type]['data_gen_path'],
-                                        exe['yx'][line_type]['data_lnbr_path'],
-                                        exe['yx'][line_type]['ftu1_path'],
-                                    ]
-                                if os.sys.platform == 'linux2':
-                                    pass
+                                cmd = [
+                                    exe['yx']['gis_exe'],
+                                    exe['yx'][line_type]['data_bus_path'],
+                                    exe['yx'][line_type]['data_gen_path'],
+                                    exe['yx'][line_type]['data_lnbr_path'],
+                                    exe['yx'][line_type]['ftu1_path'],
+                                ]
 
                     if len(cmd) > 0:
                         print(cmd)
