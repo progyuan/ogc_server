@@ -7107,11 +7107,11 @@ def application_webgis(environ, start_response):
                                     '-nodisplay',
                                     '-nodesktop',
                                     '-r',
-                                    'run /home/xiejun/work/matlab/dn/bayes_rset/MAIN_BAYES.m '
-                                    '/home/xiejun/work/matlab/dn/data_bus.json '
-                                    '/home/xiejun/work/matlab/dn/data_gen.json '
-                                    '/home/xiejun/work/matlab/dn/data_lnbr.json '
-                                    '/home/xiejun/work/matlab/dn/data_conlnbr.json /home/xiejun/work/matlab/dn/data_fault_vector.json'
+                                    'run "/home/xiejun/work/matlab/dn/bayes_rset/MAIN_GIS.m" '
+                                    '"/home/xiejun/work/matlab/dn/data_bus.json" '
+                                    '"/home/xiejun/work/matlab/dn/data_gen.json" '
+                                    '"/home/xiejun/work/matlab/dn/data_lnbr.json" '
+                                    '"/home/xiejun/work/matlab/dn/data_conlnbr.json" "/home/xiejun/work/matlab/dn/data_fault_vector.json"'
                                 ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
