@@ -7039,6 +7039,8 @@ def application_webgis(environ, start_response):
             app = gConfig['wsgi']['application']
             exe = {}
             exe['common'] = {}
+            if os.sys.platform == 'linux2':
+                exe['LD_LIBRARY_PATH'] = gConfig[app]['distribute_network']['mcr_path']['LD_LIBRARY_PATH']
             exe['common']['rset_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['rset_exe']
             exe['common']['gis_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['gis_exe']
             exe['common']['ants_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['ants_exe']
@@ -7101,9 +7103,6 @@ def application_webgis(environ, start_response):
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path']
                             ]
-                            if os.sys.platform == 'linux2':
-                                cmd.insert(0, '/usr/bin/env')
-                                cmd.insert(1,'LD_LIBRARY_PATH=/usr/local/MATLAB/MATLAB_Runtime/v90/runtime/glnxa64:/usr/local/MATLAB/MATLAB_Runtime/v90/bin/glnxa64:/usr/local/MATLAB/MATLAB_Runtime/v90/sys/os/glnxa64')
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
@@ -7124,6 +7123,9 @@ def application_webgis(environ, start_response):
                                 ]
 
                     if len(cmd) > 0:
+                        if os.sys.platform == 'linux2':
+                            cmd.insert(0, '/usr/bin/env')
+                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
@@ -7157,7 +7159,23 @@ def application_webgis(environ, start_response):
                         ants_Q = querydict['ants_Q']
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            cmd = '%s "%s" "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                            #     exe['common']['ants_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['ftu1_path'],
+                            #     exe['common']['line_5']['ftu2_path'],
+                            #     exe['common']['line_5']['ftu3_path'],
+                            #     ants_NC_max,
+                            #     ants_m,
+                            #     ants_Alpha,
+                            #     ants_Beta,
+                            #     ants_Rho,
+                            #     ants_Q
+                            #      )
+                            cmd = [
                                 exe['common']['ants_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
@@ -7166,32 +7184,48 @@ def application_webgis(environ, start_response):
                                 exe['common']['line_5']['ftu1_path'],
                                 exe['common']['line_5']['ftu2_path'],
                                 exe['common']['line_5']['ftu3_path'],
-                                ants_NC_max,
-                                ants_m,
-                                ants_Alpha,
-                                ants_Beta,
-                                ants_Rho,
-                                ants_Q
-                                 )
+                                str(ants_NC_max),
+                                str(ants_m),
+                                str(ants_Alpha),
+                                str(ants_Beta),
+                                str(ants_Rho),
+                                str(ants_Q)
+                            ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
                                 line_type = querydict['line_type']
-                                cmd = '%s "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                                # cmd = '%s "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                                #     exe['yx']['ants_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                #     ants_NC_max,
+                                #     ants_m,
+                                #     ants_Alpha,
+                                #     ants_Beta,
+                                #     ants_Rho,
+                                #     ants_Q
+                                #      )
+                                cmd = [
                                     exe['yx']['ants_exe'],
                                     exe['yx'][line_type]['data_bus_path'],
                                     exe['yx'][line_type]['data_gen_path'],
                                     exe['yx'][line_type]['data_lnbr_path'],
                                     exe['yx'][line_type]['ftu1_path'],
-                                    ants_NC_max,
-                                    ants_m,
-                                    ants_Alpha,
-                                    ants_Beta,
-                                    ants_Rho,
-                                    ants_Q
-                                     )
-                    print('cmd:[%s]' % cmd)
+                                    str(ants_NC_max),
+                                    str(ants_m),
+                                    str(ants_Alpha),
+                                    str(ants_Beta),
+                                    str(ants_Rho),
+                                    str(ants_Q)
+                                ]
                     if len(cmd) > 0:
+                        if os.sys.platform == 'linux2':
+                            cmd.insert(0, '/usr/bin/env')
+                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
+                        print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
                             s = getlastline(dec1(output))
@@ -7210,29 +7244,49 @@ def application_webgis(environ, start_response):
                         bayes_q = querydict['bayes_q']
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            cmd = '%s "%s" "%s" "%s" "%s" "%s"  %f ' % (
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"  %f ' % (
+                            #     exe['common']['bayes_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['fault_vec_path'],
+                            #     bayes_q
+                            #      )
+                            cmd = [
                                 exe['common']['bayes_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
                                 exe['common']['line_5']['data_lnbr_path'],
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path'],
-                                bayes_q
-                                 )
+                                str(bayes_q)
+                            ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
                                 line_type = querydict['line_type']
-                                cmd = '%s "%s" "%s" "%s" "%s"  %f' % (
+                                # cmd = '%s "%s" "%s" "%s" "%s"  %f' % (
+                                #     exe['yx']['bayes_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                #     bayes_q
+                                #      )
+                                cmd = [
                                     exe['yx']['bayes_exe'],
                                     exe['yx'][line_type]['data_bus_path'],
                                     exe['yx'][line_type]['data_gen_path'],
                                     exe['yx'][line_type]['data_lnbr_path'],
                                     exe['yx'][line_type]['ftu1_path'],
-                                    bayes_q
-                                     )
+                                    str(bayes_q)
+                                ]
                     if len(cmd) > 0:
-                        print('cmd:[%s]' % cmd)
+                        if os.sys.platform == 'linux2':
+                            cmd.insert(0, '/usr/bin/env')
+                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
+                        print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
                             s = getlastline(dec1(output))
@@ -7248,15 +7302,25 @@ def application_webgis(environ, start_response):
                     cmd = ''
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'565e87f9d8b95a1cec89cd01']:#测试配网3
-                            cmd = '%s "%s" "%s" "%s" "%s"  ' % (
+                            # cmd = '%s "%s" "%s" "%s" "%s"  ' % (
+                            #     exe['common']['power_resume_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_0_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path']
+                            #      )
+                            cmd = [
                                 exe['common']['power_resume_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
                                 exe['common']['line_5']['data_lnbr_0_path'],
                                 exe['common']['line_5']['data_conlnbr_path']
-                                 )
+                            ]
                     if len(cmd) > 0:
-                        print('cmd:[%s]' % cmd)
+                        if os.sys.platform == 'linux2':
+                            cmd.insert(0, '/usr/bin/env')
+                            cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
+                        print(cmd)
                         output = gevent.subprocess.check_output(cmd)
                         try:
                             s = getlastline(dec1(output))
