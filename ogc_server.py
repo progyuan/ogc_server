@@ -7048,7 +7048,7 @@ def application_webgis(environ, start_response):
                 elif os.sys.platform == 'linux2':
                     output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                     with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'w', 'utf-8-sig') as f:
-                        f.write(enc(dec1(output)))
+                        f.write(output)
                 return output
 
             ret = []
