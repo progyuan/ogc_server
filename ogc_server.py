@@ -7084,25 +7084,33 @@ def application_webgis(environ, start_response):
                     cmd = ''
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
+                            #     exe['common']['gis_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['fault_vec_path']
+                            # )
+                            cmd = [
                                 exe['common']['gis_exe'],
                                 exe['common']['line_5']['data_bus_path'],
                                 exe['common']['line_5']['data_gen_path'],
                                 exe['common']['line_5']['data_lnbr_path'],
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path']
-                            )
+                            ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
                                 line_type = querydict['line_type']
-                                cmd = '%s "%s" "%s" "%s" "%s"' % (
-                                    exe['yx']['gis_exe'],
-                                    exe['yx'][line_type]['data_bus_path'],
-                                    exe['yx'][line_type]['data_gen_path'],
-                                    exe['yx'][line_type]['data_lnbr_path'],
-                                    exe['yx'][line_type]['ftu1_path'],
-                                )
+                                # cmd = '%s "%s" "%s" "%s" "%s"' % (
+                                #     exe['yx']['gis_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                # )
                                 cmd = [
                                     exe['yx']['gis_exe'],
                                     exe['yx'][line_type]['data_bus_path'],
