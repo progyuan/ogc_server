@@ -7035,7 +7035,7 @@ def application_webgis(environ, start_response):
                         ret = arr[-2].strip()
                 elif os.sys.platform == 'linux2':
                     s = ''
-                    with codecs.open(gConfig['distribute_network']['mcr_path']['temp_file'], 'r', 'utf-8-sig') as f:
+                    with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'r', 'utf-8-sig') as f:
                         s = f.read()
                     arr = s.split('\n')
                     ret = arr[-1].strip()
@@ -7047,7 +7047,7 @@ def application_webgis(environ, start_response):
                     output = gevent.subprocess.check_output(cmd)
                 elif os.sys.platform == 'linux2':
                     output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                    with codecs.open(gConfig['distribute_network']['mcr_path']['temp_file'], 'w', 'utf-8-sig') as f:
+                    with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'w', 'utf-8-sig') as f:
                         f.write(enc(output))
                 return output
 
