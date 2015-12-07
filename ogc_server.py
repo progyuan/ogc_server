@@ -7120,7 +7120,7 @@ def application_webgis(environ, start_response):
                                 ]
                     if len(cmd) > 0:
                         print(cmd)
-                        output = gevent.subprocess.check_output(cmd)
+                        output = gevent.subprocess.check_output(cmd, shell=True)
                         try:
                             s = getlastline(dec1(output))
                             print(s)
