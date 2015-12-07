@@ -7103,6 +7103,7 @@ def application_webgis(environ, start_response):
                             ]
                             if os.sys.platform == 'linux2':
                                 cmd.insert(0, '/usr/bin/env')
+                                cmd.insert(1,'LD_LIBRARY_PATH=/usr/local/MATLAB/MATLAB_Runtime/v90/runtime/glnxa64:/usr/local/MATLAB/MATLAB_Runtime/v90/bin/glnxa64:/usr/local/MATLAB/MATLAB_Runtime/v90/sys/os/glnxa64')
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
