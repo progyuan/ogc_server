@@ -136,6 +136,8 @@ gRequest = None
 gProxyRequest = None
 gJoinableQueue = None
 
+
+
 class BooleanConverter(BaseConverter):
     def __init__(self, url_map, randomify=False):
         super(BooleanConverter, self).__init__(url_map)
@@ -7023,23 +7025,326 @@ def application_webgis(environ, start_response):
                 adict = d
             return adict
         def fault_position(querydict):
+            def getlastline(s):
+                ret = ''
+                if os.sys.platform == 'win32':
+                    s = dec1(s)
+                    arr = s.split('\n')
+                    ret = arr[-1].strip()
+                    if len(ret) == 0:
+                        ret = arr[-2].strip()
+                elif os.sys.platform == 'linux2':
+                    s = ''
+                    with codecs.open('/home/xiejun/aaa.txt', 'r', 'utf-8-sig') as f:
+                        s = f.read()
+                    arr = s.split('\n')
+                    ret = arr[-1].strip()
+                    ret = ret[ret.index('{'):]
+                return ret
+
             ret = []
             querydict = sort_dict(querydict)
             print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
             app = gConfig['wsgi']['application']
-            rset_exe = gConfig[app]['distribute_network']['rset_exe']
-            ants_exe = gConfig[app]['distribute_network']['ants_exe']
-            bayes_exe = gConfig[app]['distribute_network']['bayes_exe']
-            power_resume_exe = gConfig[app]['distribute_network']['power_resume_exe']
+            exe = {}
+            exe['common'] = {}
+            if os.sys.platform == 'linux2':
+                exe['LD_LIBRARY_PATH'] = gConfig[app]['distribute_network']['mcr_path']['LD_LIBRARY_PATH']
+            exe['common']['rset_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['rset_exe']
+            exe['common']['gis_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['gis_exe']
+            exe['common']['ants_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['ants_exe']
+            exe['common']['bayes_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['bayes_exe']
+            exe['common']['power_resume_exe'] = gConfig[app]['distribute_network']['mcr_path']['common']['power_resume_exe']
+            exe['common']['line_5'] = {}
+            exe['common']['line_5']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['data_bus_path']
+            exe['common']['line_5']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['data_gen_path']
+            exe['common']['line_5']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['data_lnbr_path']
+            exe['common']['line_5']['data_lnbr_0_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['data_lnbr_0_path']
+            exe['common']['line_5']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['data_conlnbr_path']
+            exe['common']['line_5']['rset_bus_load_vector_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['rset_bus_load_vector_path']
+            exe['common']['line_5']['g_state_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['g_state_path']
+            exe['common']['line_5']['fault_vec_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['fault_vec_path']
+            exe['common']['line_5']['ftu1_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['ftu1_path']
+            exe['common']['line_5']['ftu2_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['ftu2_path']
+            exe['common']['line_5']['ftu3_path'] = gConfig[app]['distribute_network']['mcr_path']['common']['line_5']['ftu3_path']
+            exe['yx'] = {}
+            exe['yx']['rset_exe'] = gConfig[app]['distribute_network']['mcr_path']['yx']['rset_exe']
+            exe['yx']['gis_exe'] = gConfig[app]['distribute_network']['mcr_path']['yx']['gis_exe']
+            exe['yx']['ants_exe'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ants_exe']
+            exe['yx']['bayes_exe'] = gConfig[app]['distribute_network']['mcr_path']['yx']['bayes_exe']
+            exe['yx']['power_resume_exe'] = gConfig[app]['distribute_network']['mcr_path']['yx']['power_resume_exe']
+            exe['yx']['ftu10_2'] = {}
+            exe['yx']['ftu10_2']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_2']['data_bus_path']
+            exe['yx']['ftu10_2']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_2']['data_gen_path']
+            exe['yx']['ftu10_2']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_2']['data_lnbr_path']
+            exe['yx']['ftu10_2']['ftu1_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_2']['ftu1_path']
+            exe['yx']['ftu10_1'] = {}
+            exe['yx']['ftu10_1']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_1']['data_bus_path']
+            exe['yx']['ftu10_1']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_1']['data_gen_path']
+            exe['yx']['ftu10_1']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_1']['data_lnbr_path']
+            exe['yx']['ftu10_1']['ftu1_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu10_1']['ftu1_path']
+            exe['yx']['ftu5'] = {}
+            exe['yx']['ftu5']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['data_bus_path']
+            exe['yx']['ftu5']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['data_gen_path']
+            exe['yx']['ftu5']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['data_lnbr_path']
+            exe['yx']['ftu5']['ftu1_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['ftu1_path']
+
+
             if querydict.has_key('algorithm'):
-                if querydict['algorithm'] == 'rset':
-                    pass
+                if querydict['algorithm'] == 'gis':
+                    cmd = ''
+                    if querydict.has_key('dn_id') :
+                        if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
+                            #     exe['common']['gis_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['fault_vec_path']
+                            # )
+                            # if os.sys.platform == 'win32':
+                            cmd = [
+                                exe['common']['gis_exe'],
+                                exe['common']['line_5']['data_bus_path'],
+                                exe['common']['line_5']['data_gen_path'],
+                                exe['common']['line_5']['data_lnbr_path'],
+                                exe['common']['line_5']['data_conlnbr_path'],
+                                exe['common']['line_5']['fault_vec_path']
+                            ]
+                        elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
+                            line_type = ''
+                            if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                                line_type = querydict['line_type']
+                                # cmd = '%s "%s" "%s" "%s" "%s"' % (
+                                #     exe['yx']['gis_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                # )
+                                cmd = [
+                                    exe['yx']['gis_exe'],
+                                    exe['yx'][line_type]['data_bus_path'],
+                                    exe['yx'][line_type]['data_gen_path'],
+                                    exe['yx'][line_type]['data_lnbr_path'],
+                                    exe['yx'][line_type]['ftu1_path'],
+                                ]
+
+                    if len(cmd) > 0:
+                        # if os.sys.platform == 'linux2':
+                        #     cmd.insert(0, '/usr/bin/env')
+                        #     cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
+                        print(cmd)
+                        output = ''
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
+                                f.write(output)
+                        try:
+                            s = getlastline(output)
+                            print('s=%s' % s)
+                            ret = json.loads(s)
+                        except Exception,e:
+                            ret = []
+                    else:
+                        ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
+
                 elif querydict['algorithm'] == 'ants':
-                    pass
+                    cmd = ''
+                    ants_NC_max = 100
+                    ants_m = 20
+                    ants_Alpha = 1
+                    ants_Beta = 1
+                    ants_Rho = 0.95
+                    ants_Q = 1
+                    if querydict.has_key('ants_NC_max'):
+                        ants_NC_max = querydict['ants_NC_max']
+                    if querydict.has_key('ants_m'):
+                        ants_m = querydict['ants_m']
+                    if querydict.has_key('ants_Alpha'):
+                        ants_Alpha = querydict['ants_Alpha']
+                    if querydict.has_key('ants_Beta'):
+                        ants_Beta = querydict['ants_Beta']
+                    if querydict.has_key('ants_Rho'):
+                        ants_Rho = querydict['ants_Rho']
+                    if querydict.has_key('ants_Q'):
+                        ants_Q = querydict['ants_Q']
+                    if querydict.has_key('dn_id') :
+                        if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                            #     exe['common']['ants_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['ftu1_path'],
+                            #     exe['common']['line_5']['ftu2_path'],
+                            #     exe['common']['line_5']['ftu3_path'],
+                            #     ants_NC_max,
+                            #     ants_m,
+                            #     ants_Alpha,
+                            #     ants_Beta,
+                            #     ants_Rho,
+                            #     ants_Q
+                            #      )
+                            cmd = [
+                                exe['common']['ants_exe'],
+                                exe['common']['line_5']['data_bus_path'],
+                                exe['common']['line_5']['data_gen_path'],
+                                exe['common']['line_5']['data_lnbr_path'],
+                                exe['common']['line_5']['data_conlnbr_path'],
+                                exe['common']['line_5']['ftu1_path'],
+                                exe['common']['line_5']['ftu2_path'],
+                                exe['common']['line_5']['ftu3_path'],
+                                str(ants_NC_max),
+                                str(ants_m),
+                                str(ants_Alpha),
+                                str(ants_Beta),
+                                str(ants_Rho),
+                                str(ants_Q)
+                            ]
+                        elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
+                            line_type = ''
+                            if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                                line_type = querydict['line_type']
+                                # cmd = '%s "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
+                                #     exe['yx']['ants_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                #     ants_NC_max,
+                                #     ants_m,
+                                #     ants_Alpha,
+                                #     ants_Beta,
+                                #     ants_Rho,
+                                #     ants_Q
+                                #      )
+                                cmd = [
+                                    exe['yx']['ants_exe'],
+                                    exe['yx'][line_type]['data_bus_path'],
+                                    exe['yx'][line_type]['data_gen_path'],
+                                    exe['yx'][line_type]['data_lnbr_path'],
+                                    exe['yx'][line_type]['ftu1_path'],
+                                    str(ants_NC_max),
+                                    str(ants_m),
+                                    str(ants_Alpha),
+                                    str(ants_Beta),
+                                    str(ants_Rho),
+                                    str(ants_Q)
+                                ]
+                    if len(cmd) > 0:
+                        print(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                        try:
+                            s = getlastline(output)
+                            print(s)
+                            ret = json.loads(s)
+                        except:
+                            ret = []
+                    else:
+                        ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
+
+
                 elif querydict['algorithm'] == 'bayes':
-                    pass
+                    cmd = ''
+                    bayes_q = 0.3
+                    if querydict.has_key('bayes_q'):
+                        bayes_q = querydict['bayes_q']
+                    if querydict.has_key('dn_id') :
+                        if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
+                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"  %f ' % (
+                            #     exe['common']['bayes_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path'],
+                            #     exe['common']['line_5']['fault_vec_path'],
+                            #     bayes_q
+                            #      )
+                            cmd = [
+                                exe['common']['bayes_exe'],
+                                exe['common']['line_5']['data_bus_path'],
+                                exe['common']['line_5']['data_gen_path'],
+                                exe['common']['line_5']['data_lnbr_path'],
+                                exe['common']['line_5']['data_conlnbr_path'],
+                                exe['common']['line_5']['fault_vec_path'],
+                                str(bayes_q)
+                            ]
+                        elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
+                            line_type = ''
+                            if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                                line_type = querydict['line_type']
+                                # cmd = '%s "%s" "%s" "%s" "%s"  %f' % (
+                                #     exe['yx']['bayes_exe'],
+                                #     exe['yx'][line_type]['data_bus_path'],
+                                #     exe['yx'][line_type]['data_gen_path'],
+                                #     exe['yx'][line_type]['data_lnbr_path'],
+                                #     exe['yx'][line_type]['ftu1_path'],
+                                #     bayes_q
+                                #      )
+                                cmd = [
+                                    exe['yx']['bayes_exe'],
+                                    exe['yx'][line_type]['data_bus_path'],
+                                    exe['yx'][line_type]['data_gen_path'],
+                                    exe['yx'][line_type]['data_lnbr_path'],
+                                    exe['yx'][line_type]['ftu1_path'],
+                                    str(bayes_q)
+                                ]
+                    if len(cmd) > 0:
+                        print(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                        try:
+                            s = getlastline(output)
+                            print(s)
+                            ret = json.loads(s)
+                        except:
+                            ret = []
+                    else:
+                        ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
+
+
                 elif querydict['algorithm'] == 'power_resume':
-                    pass
+                    cmd = ''
+                    if querydict.has_key('dn_id') :
+                        if querydict['dn_id'] in [u'565e87f9d8b95a1cec89cd01']:#测试配网3
+                            # cmd = '%s "%s" "%s" "%s" "%s"  ' % (
+                            #     exe['common']['power_resume_exe'],
+                            #     exe['common']['line_5']['data_bus_path'],
+                            #     exe['common']['line_5']['data_gen_path'],
+                            #     exe['common']['line_5']['data_lnbr_0_path'],
+                            #     exe['common']['line_5']['data_conlnbr_path']
+                            #      )
+                            cmd = [
+                                exe['common']['power_resume_exe'],
+                                exe['common']['line_5']['data_bus_path'],
+                                exe['common']['line_5']['data_gen_path'],
+                                exe['common']['line_5']['data_lnbr_0_path'],
+                                exe['common']['line_5']['data_conlnbr_path']
+                            ]
+                    if len(cmd) > 0:
+                        print(cmd)
+                        if os.sys.platform == 'win32':
+                            output = gevent.subprocess.check_output(cmd)
+                        elif os.sys.platform == 'linux2':
+                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                        try:
+                            s = getlastline(output)
+                            print(s)
+                            ret = json.loads(s)
+                        except:
+                            ret = []
+                    else:
+                        ret = {'result':u'不存在该条线路的运行数据，无法进行计算.'}
 
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
 
