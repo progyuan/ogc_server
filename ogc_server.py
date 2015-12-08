@@ -7148,7 +7148,7 @@ def application_webgis(environ, start_response):
                         output = write_output(cmd)
                         try:
                             s = getlastline(output)
-                            print('s=%s' % s)
+                            # print('s=%s' % s)
                             ret = json.loads(s)
                         except Exception,e:
                             ret = []
