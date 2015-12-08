@@ -7035,12 +7035,21 @@ def application_webgis(environ, start_response):
                         ret = arr[-2].strip()
                 elif os.sys.platform == 'linux2':
                     s = ''
-                    with codecs.open('/home/xiejun/aaa.txt', 'r', 'utf-8-sig') as f:
+                    with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'r', 'utf-8-sig') as f:
                         s = f.read()
                     arr = s.split('\n')
                     ret = arr[-1].strip()
                     ret = ret[ret.index('{'):]
                 return ret
+            def write_output(cmd):
+                output = ''
+                if os.sys.platform == 'win32':
+                    output = gevent.subprocess.check_output(cmd)
+                elif os.sys.platform == 'linux2':
+                    output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
+                    with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'w', 'utf-8-sig') as f:
+                        f.write(enc(output.decode("cp850")))
+                return output
 
             ret = []
             querydict = sort_dict(querydict)
@@ -7136,16 +7145,10 @@ def application_webgis(environ, start_response):
                         #     cmd.insert(0, '/usr/bin/env')
                         #     cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
-                        output = ''
-                        if os.sys.platform == 'win32':
-                            output = gevent.subprocess.check_output(cmd)
-                        elif os.sys.platform == 'linux2':
-                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
-                                f.write(output)
+                        output = write_output(cmd)
                         try:
                             s = getlastline(output)
-                            # print('s=%s' % s)
+                            print('s=%s' % s)
                             ret = json.loads(s)
                         except Exception,e:
                             ret = []
@@ -7238,12 +7241,7 @@ def application_webgis(environ, start_response):
                                 ]
                     if len(cmd) > 0:
                         print(cmd)
-                        if os.sys.platform == 'win32':
-                            output = gevent.subprocess.check_output(cmd)
-                        elif os.sys.platform == 'linux2':
-                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
-                                f.write(output)
+                        output = write_output(cmd)
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7301,12 +7299,7 @@ def application_webgis(environ, start_response):
                                 ]
                     if len(cmd) > 0:
                         print(cmd)
-                        if os.sys.platform == 'win32':
-                            output = gevent.subprocess.check_output(cmd)
-                        elif os.sys.platform == 'linux2':
-                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
-                                f.write(output)
+                        output = write_output(cmd)
                         try:
                             s = getlastline(output)
                             print(s)
@@ -7337,12 +7330,7 @@ def application_webgis(environ, start_response):
                             ]
                     if len(cmd) > 0:
                         print(cmd)
-                        if os.sys.platform == 'win32':
-                            output = gevent.subprocess.check_output(cmd)
-                        elif os.sys.platform == 'linux2':
-                            output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
-                            with codecs.open('/home/xiejun/aaa.txt', 'w', 'utf-8-sig') as f:
-                                f.write(output)
+                        output = write_output(cmd)
                         try:
                             s = getlastline(output)
                             print(s)
