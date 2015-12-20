@@ -7129,26 +7129,25 @@ def application_webgis(environ, start_response):
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path']
                             ]
-                        # elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
-                        #     line_type = ''
-                        #     if querydict.has_key('line_type') and len(querydict['line_type'])>0:
-                        #         line_type = querydict['line_type']
-                        #         # cmd = '%s "%s" "%s" "%s" "%s"' % (
-                        #         #     exe['yx']['gis_exe'],
-                        #         #     exe['yx'][line_type]['data_bus_path'],
-                        #         #     exe['yx'][line_type]['data_gen_path'],
-                        #         #     exe['yx'][line_type]['data_lnbr_path'],
-                        #         #     exe['yx'][line_type]['ftu1_path'],
-                        #         # )
-                        #         cmd = [
-                        #             exe['yx']['gis_exe'],
-                        #             exe['yx'][line_type]['data_bus_path'],
-                        #             exe['yx'][line_type]['data_gen_path'],
-                        #             exe['yx'][line_type]['data_lnbr_path'],
-                        #             exe['yx'][line_type]['ftu1_path'],
-                        #         ]
-                        # 20151222 add for yanshou
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
+                            #     line_type = ''
+                            #     if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                            #         line_type = querydict['line_type']
+                            #         # cmd = '%s "%s" "%s" "%s" "%s"' % (
+                            #         #     exe['yx']['gis_exe'],
+                            #         #     exe['yx'][line_type]['data_bus_path'],
+                            #         #     exe['yx'][line_type]['data_gen_path'],
+                            #         #     exe['yx'][line_type]['data_lnbr_path'],
+                            #         #     exe['yx'][line_type]['ftu1_path'],
+                            #         # )
+                            #         cmd = [
+                            #             exe['yx']['gis_exe'],
+                            #             exe['yx'][line_type]['data_bus_path'],
+                            #             exe['yx'][line_type]['data_gen_path'],
+                            #             exe['yx'][line_type]['data_lnbr_path'],
+                            #             exe['yx'][line_type]['ftu1_path'],
+                            #         ]
+                            # 20151222 add for yanshou
                             intervals = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
                                 interval = querydict['line_type']
@@ -7229,35 +7228,42 @@ def application_webgis(environ, start_response):
                                 str(ants_Q)
                             ]
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
-                            line_type = ''
+                            # line_type = ''
+                            # if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                            #     line_type = querydict['line_type']
+                            #     cmd = [
+                            #         exe['yx']['ants_exe'],
+                            #         exe['yx'][line_type]['data_bus_path'],
+                            #         exe['yx'][line_type]['data_gen_path'],
+                            #         exe['yx'][line_type]['data_lnbr_path'],
+                            #         exe['yx'][line_type]['ftu1_path'],
+                            #         str(ants_NC_max),
+                            #         str(ants_m),
+                            #         str(ants_Alpha),
+                            #         str(ants_Beta),
+                            #         str(ants_Rho),
+                            #         str(ants_Q)
+                            #     ]
+                            #20151222 for yanshou
+                            interval = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
-                                line_type = querydict['line_type']
-                                # cmd = '%s "%s" "%s" "%s" "%s" %d %d %d %d %f %d' % (
-                                #     exe['yx']['ants_exe'],
-                                #     exe['yx'][line_type]['data_bus_path'],
-                                #     exe['yx'][line_type]['data_gen_path'],
-                                #     exe['yx'][line_type]['data_lnbr_path'],
-                                #     exe['yx'][line_type]['ftu1_path'],
-                                #     ants_NC_max,
-                                #     ants_m,
-                                #     ants_Alpha,
-                                #     ants_Beta,
-                                #     ants_Rho,
-                                #     ants_Q
-                                #      )
-                                cmd = [
-                                    exe['yx']['ants_exe'],
-                                    exe['yx'][line_type]['data_bus_path'],
-                                    exe['yx'][line_type]['data_gen_path'],
-                                    exe['yx'][line_type]['data_lnbr_path'],
-                                    exe['yx'][line_type]['ftu1_path'],
-                                    str(ants_NC_max),
-                                    str(ants_m),
-                                    str(ants_Alpha),
-                                    str(ants_Beta),
-                                    str(ants_Rho),
-                                    str(ants_Q)
-                                ]
+                                interval = querydict['line_type']
+                                if exe['yx']['ftu5'].has_key('multi_intervals'):
+                                    if exe['yx']['ftu5']['multi_intervals'].has_key(interval):
+                                        cmd = [
+                                            exe['yx']['ants_exe'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_bus_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_gen_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_lnbr_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['ftu1_path'],
+                                            str(ants_NC_max),
+                                            str(ants_m),
+                                            str(ants_Alpha),
+                                            str(ants_Beta),
+                                            str(ants_Rho),
+                                            str(ants_Q)
+                                        ]
+
                     if len(cmd) > 0:
                         print(cmd)
                         output = write_output(cmd)
@@ -7278,15 +7284,6 @@ def application_webgis(environ, start_response):
                         bayes_q = querydict['bayes_q']
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"  %f ' % (
-                            #     exe['common']['bayes_exe'],
-                            #     exe['common']['line_5']['data_bus_path'],
-                            #     exe['common']['line_5']['data_gen_path'],
-                            #     exe['common']['line_5']['data_lnbr_path'],
-                            #     exe['common']['line_5']['data_conlnbr_path'],
-                            #     exe['common']['line_5']['fault_vec_path'],
-                            #     bayes_q
-                            #      )
                             cmd = [
                                 exe['common']['bayes_exe'],
                                 exe['common']['line_5']['data_bus_path'],
@@ -7299,23 +7296,30 @@ def application_webgis(environ, start_response):
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
                             line_type = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
-                                line_type = querydict['line_type']
-                                # cmd = '%s "%s" "%s" "%s" "%s"  %f' % (
+                                # line_type = querydict['line_type']
+                                # cmd = [
                                 #     exe['yx']['bayes_exe'],
                                 #     exe['yx'][line_type]['data_bus_path'],
                                 #     exe['yx'][line_type]['data_gen_path'],
                                 #     exe['yx'][line_type]['data_lnbr_path'],
                                 #     exe['yx'][line_type]['ftu1_path'],
-                                #     bayes_q
-                                #      )
-                                cmd = [
-                                    exe['yx']['bayes_exe'],
-                                    exe['yx'][line_type]['data_bus_path'],
-                                    exe['yx'][line_type]['data_gen_path'],
-                                    exe['yx'][line_type]['data_lnbr_path'],
-                                    exe['yx'][line_type]['ftu1_path'],
-                                    str(bayes_q)
-                                ]
+                                #     str(bayes_q)
+                                # ]
+                                #20151222 for yanshou
+                                interval = ''
+                                if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                                    interval = querydict['line_type']
+                                    if exe['yx']['ftu5'].has_key('multi_intervals'):
+                                        if exe['yx']['ftu5']['multi_intervals'].has_key(interval):
+                                            cmd = [
+                                                exe['yx']['bayes_exe'],
+                                                exe['yx']['ftu5']['multi_intervals'][interval]['data_bus_path'],
+                                                exe['yx']['ftu5']['multi_intervals'][interval]['data_gen_path'],
+                                                exe['yx']['ftu5']['multi_intervals'][interval]['data_lnbr_path'],
+                                                exe['yx']['ftu5']['multi_intervals'][interval]['ftu1_path'],
+                                                str(bayes_q)
+                                            ]
+
                     if len(cmd) > 0:
                         print(cmd)
                         output = write_output(cmd)
