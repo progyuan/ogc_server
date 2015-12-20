@@ -7097,6 +7097,14 @@ def application_webgis(environ, start_response):
             exe['yx']['ftu5']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['data_gen_path']
             exe['yx']['ftu5']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['data_lnbr_path']
             exe['yx']['ftu5']['ftu1_path'] = gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['ftu1_path']
+            if gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5'].has_key('multi_intervals'):
+                exe['yx']['ftu5']['multi_intervals'] = {}
+                for key in gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['multi_intervals'].keys():
+                    exe['yx']['ftu5']['multi_intervals'][key] = {}
+                    for key1 in gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['multi_intervals'][key].keys():
+                        exe['yx']['ftu5']['multi_intervals'][key][key1] = \
+                        gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['multi_intervals'][key][key1]
+
 
 
             if querydict.has_key('algorithm'):
@@ -7121,29 +7129,40 @@ def application_webgis(environ, start_response):
                                 exe['common']['line_5']['data_conlnbr_path'],
                                 exe['common']['line_5']['fault_vec_path']
                             ]
+                        # elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
+                        #     line_type = ''
+                        #     if querydict.has_key('line_type') and len(querydict['line_type'])>0:
+                        #         line_type = querydict['line_type']
+                        #         # cmd = '%s "%s" "%s" "%s" "%s"' % (
+                        #         #     exe['yx']['gis_exe'],
+                        #         #     exe['yx'][line_type]['data_bus_path'],
+                        #         #     exe['yx'][line_type]['data_gen_path'],
+                        #         #     exe['yx'][line_type]['data_lnbr_path'],
+                        #         #     exe['yx'][line_type]['ftu1_path'],
+                        #         # )
+                        #         cmd = [
+                        #             exe['yx']['gis_exe'],
+                        #             exe['yx'][line_type]['data_bus_path'],
+                        #             exe['yx'][line_type]['data_gen_path'],
+                        #             exe['yx'][line_type]['data_lnbr_path'],
+                        #             exe['yx'][line_type]['ftu1_path'],
+                        #         ]
+                        # 20151222 add for yanshou
                         elif querydict['dn_id'] in [u'564ea4cad8b95a08ece92582']:#10kV州城Ⅴ回线
-                            line_type = ''
+                            intervals = ''
                             if querydict.has_key('line_type') and len(querydict['line_type'])>0:
-                                line_type = querydict['line_type']
-                                # cmd = '%s "%s" "%s" "%s" "%s"' % (
-                                #     exe['yx']['gis_exe'],
-                                #     exe['yx'][line_type]['data_bus_path'],
-                                #     exe['yx'][line_type]['data_gen_path'],
-                                #     exe['yx'][line_type]['data_lnbr_path'],
-                                #     exe['yx'][line_type]['ftu1_path'],
-                                # )
-                                cmd = [
-                                    exe['yx']['gis_exe'],
-                                    exe['yx'][line_type]['data_bus_path'],
-                                    exe['yx'][line_type]['data_gen_path'],
-                                    exe['yx'][line_type]['data_lnbr_path'],
-                                    exe['yx'][line_type]['ftu1_path'],
-                                ]
+                                interval = querydict['line_type']
+                                if exe['yx']['ftu5'].has_key('multi_intervals'):
+                                    if exe['yx']['ftu5']['multi_intervals'].has_key(interval):
+                                        cmd = [
+                                            exe['yx']['gis_exe'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_bus_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_gen_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['data_lnbr_path'],
+                                            exe['yx']['ftu5']['multi_intervals'][interval]['ftu1_path'],
+                                        ]
 
                     if len(cmd) > 0:
-                        # if os.sys.platform == 'linux2':
-                        #     cmd.insert(0, '/usr/bin/env')
-                        #     cmd.insert(1, 'LD_LIBRARY_PATH=%s' % exe['LD_LIBRARY_PATH'])
                         print(cmd)
                         output = write_output(cmd)
                         try:
