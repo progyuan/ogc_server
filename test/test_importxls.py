@@ -4,9 +4,8 @@ import json
 import xlrd
 import codecs
 from collections import  OrderedDict
-from db_util import init_global, get_pinyin_data, update_geometry2d, mongo_action, mongo_find, mongo_find_one, \
-    add_mongo_id, remove_mongo_id
-from module_locator import dec, dec1, enc, enc1
+from db_util import init_global, get_pinyin_data, update_geometry2d, mongo_action, mongo_find, mongo_find_one,  add_mongo_id, remove_mongo_id
+from pymongo import MongoClient
 from pydash import py_ as _
 
 
@@ -485,9 +484,101 @@ def test11():
     mongo_action('kmgd', 'features', 'save', ret)
 
 
+def test12():
+    import re
+    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\geodata.xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    recs = []
+    ids_map = {}
+    for sheet in book.sheets():
+        if sheet.name.lower() == u'sheet1':
+            ids_map['pzz'] = []
+            for row in range(startrowidx, sheet.nrows):
+                if sheet.cell_value(row, 0) == '':
+                    continue
+                rec = {}
+                lat = float(sheet.cell_value(row, 6))
+                lng = float(sheet.cell_value(row, 7))
+                rec['geometry'] = {
+                    'type':'Point',
+                    'coordinates':[lng, lat]
+                }
+                rec['properties'] = {
+                    'name': u'%s%s号杆' % (sheet.cell_value(row, 1), sheet.cell_value(row, 2)),
+                    'voltage': '12',
+                    'horizontal_span': float(sheet.cell_value(row, 5))*1000,
+                    'webgis_type': 'point_tower'
+                }
+                rec = update_geometry2d(rec, True)
+                recs.append(rec)
+        if sheet.name.lower() == u'sheet2':
+            ids_map['jfyk'] = []
+            for row in range(startrowidx, sheet.nrows):
+                if sheet.cell_value(row, 0) == '':
+                    continue
+                rec = {}
+                lat = float(sheet.cell_value(row, 1))
+                lng = float(sheet.cell_value(row, 2))
+                rec['geometry'] = {
+                    'type': 'Point',
+                    'coordinates': [lng, lat]
+                }
+                rec['properties'] = {
+                    'name': sheet.cell_value(row, 0),
+                    'voltage': '12',
+                    'webgis_type': 'point_tower'
+                }
+                rec = update_geometry2d(rec, True)
+                recs.append(rec)
+        if sheet.name.lower() == u'sheet3':
+            for row in range(startrowidx, sheet.nrows):
+                if sheet.cell_value(row, 0) == '':
+                    continue
+                line_name = sheet.cell_value(row, 0).replace('10kV055', '')
+                s = sheet.cell_value(row, 1)
+                m = re.search(ur'配电编号:(\d+)', s, re.UNICODE)
+                m1 = re.search(ur'\(配电编号:(\d+)\)', s, re.UNICODE)
+                no = ''
+                device_no = ''
+                name = sheet.cell_value(row, 1).replace('10kV', '')
+                if m:
+                    no = m1.group(0)
+                    name = name.replace(no, '')
+                # print('name:%s' % name)
+
+                if m1:
+                    device_no = m.group(0)
+                    device_no = device_no.replace(u'配电编号:', '')
+                # print('device_no:%s' % device_no)
+                rec = {}
+                lat = float(sheet.cell_value(row, 2))
+                lng = float(sheet.cell_value(row, 3))
+                rec['geometry'] = {
+                    'type': 'Point',
+                    'coordinates': [lng, lat]
+                }
+                rec['properties'] = {
+                    'name': '%s%s' % (line_name, name),
+                    'voltage': '12',
+                    'function_pos_type': 'PAB',
+                    'device_no':device_no,
+                    'webgis_type': 'point_dn',
+                }
+                rec = update_geometry2d(rec, True)
+                recs.append(rec)
+
+    # client = MongoClient('localhost', 27017)
+    # db = client['kmgd']
+    # collection = db['features']
+    # collection.insert_many(add_mongo_id(recs))
+
+    print(json.dumps(recs, ensure_ascii=False, indent=4))
+    print(len(recs))
+
 
 if __name__ == "__main__":
     init_global()
-    test11()
+    test12()
     
     

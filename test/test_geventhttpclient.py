@@ -275,11 +275,23 @@ PLAINTEXT = '''
 '''
 
 
+def test_https():
+    href = u'https://192.168.1.136:8080/stream/webrtc'
+    url = URL(href)
+
+    cli = HTTPClient(url.host, port=url.port, ssl=True, ssl_options={'ca_certs': 'ssl_certificate.crt'},
+                     connection_timeout=5.0, network_timeout=10.0)
+    response = cli.get(url.request_uri)
+    s = response.read()
+    cli.close()
+    print(s)
+
 if __name__ == '__main__':
     #print(make_random_name())
-    run()
+    # run()
     #s = binascii.a2b_qp(urllib.unquote(ENCRYPTTEXT))
     #print(s)
+    test_https()
     
     
     
