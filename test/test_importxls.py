@@ -577,8 +577,69 @@ def test12():
     print(len(recs))
 
 
+def test13():
+    import re, datetime
+    from pydash import py_ as _
+    from pymongo import MongoClient
+    from bson.objectid import ObjectId
+    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\10kV线路柱上馈线终端FTU安装台账 (2).xls'
+    book = xlrd.open_workbook(XLS_FILE)
+    startrowidx = 1
+    startcolidx = 1
+    recs = []
+    ids_map = {}
+    for sheet in book.sheets():
+        if sheet.name.lower() == u'sheet3':
+            ids_map['pzz'] = []
+            for row in range(startrowidx, sheet.nrows):
+                if sheet.cell_value(row, 0) == '':
+                    continue
+                rec = {}
+                rec['_id'] = ObjectId(str(sheet.cell_value(row, 13)))
+                rec[u'device_no'] = sheet.cell_value(row, 4)
+                rec[u'rf_addr'] = sheet.cell_value(row, 5)
+                rec[u'phase'] = {}
+                rec[u'phase'][u'a'] = sheet.cell_value(row, 6)
+                rec[u'phase'][u'b'] = sheet.cell_value(row, 7)
+                rec[u'phase'][u'c'] = sheet.cell_value(row, 8)
+                rec[u'sim'] = sheet.cell_value(row, 9)
+                rec[u'status'] = sheet.cell_value(row, 10)
+                rec[u'engineer'] = sheet.cell_value(row, 11)
+                tmp = sheet.cell_value(row, 12)
+                rec[u'installation_date'] = datetime.datetime.strptime(tmp, '%Y/%m/%d')
+                # print(type(rec['installation_date']))
+                rec[u'switch_alias'] = int(sheet.cell_value(row, 14))
+                # rec['line_py'] = sheet.cell_value(row, 14)
+                recs.append(rec)
+
+    # print(json.dumps(recs, ensure_ascii=False, indent=4))
+    # print(len(recs))
+
+    ids = _.pluck(recs, '_id')
+    # print(ids)
+
+    client = MongoClient('localhost', 27017)
+    kmgd = client['kmgd_pe']
+    collection = kmgd['features']
+
+
+    res = list(collection.find({"_id":{'$in':ids}}))
+    # print(len(res))
+    for item in res:
+        _id = item['_id']
+        one = _.find(recs, {'_id':_id})
+        if one:
+            del one['_id']
+            one[u'type'] = u'ftu'
+            item[u'properties'][u'devices'] = [one, ]
+            # print(item)
+            collection.save(item)
+
+
+
+
 if __name__ == "__main__":
     init_global()
-    test12()
+    test13()
     
     

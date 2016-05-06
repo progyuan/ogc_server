@@ -6945,7 +6945,13 @@ def application_webgis(environ, start_response):
         def query_network_names(querydict):
             ret = []
             collection = get_collection('network')
-            ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
+            if querydict.has_key('_id'):
+                if isinstance(querydict['_id'], str) or isinstance(querydict['_id'], unicode):
+                    ret = list(collection.find({'properties.webgis_type': 'polyline_dn','_id':db_util.add_mongo_id(querydict['_id'])}))
+                elif isinstance(querydict['_id'], list):
+                    ret = list(collection.find({'properties.webgis_type': 'polyline_dn', '_id': {'$in': db_util.add_mongo_id(querydict['_id'])}}))
+            else:
+                ret = list(collection.find({'properties.webgis_type':'polyline_dn'}))
             return json.dumps(db_util.remove_mongo_id(ret), ensure_ascii=True, indent=4)
         def query_edges(querydict):
             ret = []
@@ -7105,7 +7111,22 @@ def application_webgis(environ, start_response):
                         exe['yx']['ftu5']['multi_intervals'][key][key1] = \
                         gConfig[app]['distribute_network']['mcr_path']['yx']['ftu5']['multi_intervals'][key][key1]
 
+            exe['puer'] = {}
+            exe['puer']['ants_exe'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants_exe']
+            exe['puer']['ants'] = {}
+            exe['puer']['ants']['jfyk'] = {}
+            exe['puer']['ants']['jfyk']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_bus_path']
+            exe['puer']['ants']['jfyk']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_gen_path']
+            exe['puer']['ants']['jfyk']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_lnbr_path']
+            exe['puer']['ants']['jfyk']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_conlnbr_path']
+            exe['puer']['ants']['jfyk']['ftu_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['ftu_path']
 
+            exe['puer']['ants']['pzz'] = {}
+            exe['puer']['ants']['pzz']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_bus_path']
+            exe['puer']['ants']['pzz']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_gen_path']
+            exe['puer']['ants']['pzz']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_lnbr_path']
+            exe['puer']['ants']['pzz']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_conlnbr_path']
+            exe['puer']['ants']['pzz']['ftu_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['ftu_path']
 
             if querydict.has_key('algorithm'):
                 if querydict['algorithm'] == 'gis':
@@ -7240,6 +7261,28 @@ def application_webgis(environ, start_response):
                                             str(ants_Rho),
                                             str(ants_Q)
                                         ]
+                        elif querydict['dn_id'] in [u'570ce0c1ca49c80858320619', u'570ce0c1ca49c8085832061a']:  # 普洱10kV 酒房丫口线 坪掌寨线
+                            algorithm = querydict['algorithm']
+                            linepy = ''
+                            if querydict['dn_id'] == u'570ce0c1ca49c80858320619':
+                                linepy = 'jfyk'
+                            elif querydict['dn_id'] == u'570ce0c1ca49c80858320619':
+                                linepy = 'pzz'
+                            cmd = [
+                                exe['puer']['ants_exe'],
+                                exe['puer'][algorithm][linepy]['data_bus_path'],
+                                exe['puer'][algorithm][linepy]['data_gen_path'],
+                                exe['puer'][algorithm][linepy]['data_lnbr_path'],
+                                exe['puer'][algorithm][linepy]['data_conlnbr_path'],
+                                exe['puer'][algorithm][linepy]['ftu_path'],
+                                str(ants_NC_max),
+                                str(ants_m),
+                                str(ants_Alpha),
+                                str(ants_Beta),
+                                str(ants_Rho),
+                                str(ants_Q)
+                            ]
+
 
                     if len(cmd) > 0:
                         print(cmd)
