@@ -7266,7 +7266,7 @@ def application_webgis(environ, start_response):
                             linepy = ''
                             if querydict['dn_id'] == u'570ce0c1ca49c80858320619':
                                 linepy = 'jfyk'
-                            elif querydict['dn_id'] == u'570ce0c1ca49c80858320619':
+                            elif querydict['dn_id'] == u'570ce0c1ca49c8085832061a':
                                 linepy = 'pzz'
                             cmd = [
                                 exe['puer']['ants_exe'],
