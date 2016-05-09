@@ -7113,6 +7113,8 @@ def application_webgis(environ, start_response):
 
             exe['puer'] = {}
             exe['puer']['ants_exe'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants_exe']
+            exe['puer']['gis_exe'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis_exe']
+            exe['puer']['bayes_exe'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes_exe']
             exe['puer']['ants'] = {}
             exe['puer']['ants']['jfyk'] = {}
             exe['puer']['ants']['jfyk']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_bus_path']
@@ -7120,7 +7122,6 @@ def application_webgis(environ, start_response):
             exe['puer']['ants']['jfyk']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_lnbr_path']
             exe['puer']['ants']['jfyk']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['data_conlnbr_path']
             exe['puer']['ants']['jfyk']['ftu_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['jfyk']['ftu_path']
-
             exe['puer']['ants']['pzz'] = {}
             exe['puer']['ants']['pzz']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_bus_path']
             exe['puer']['ants']['pzz']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_gen_path']
@@ -7128,20 +7129,43 @@ def application_webgis(environ, start_response):
             exe['puer']['ants']['pzz']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['data_conlnbr_path']
             exe['puer']['ants']['pzz']['ftu_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['ants']['pzz']['ftu_path']
 
+            exe['puer']['gis'] = {}
+            exe['puer']['gis']['jfyk'] = {}
+            exe['puer']['gis']['jfyk']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['jfyk']['data_bus_path']
+            exe['puer']['gis']['jfyk']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['jfyk']['data_gen_path']
+            exe['puer']['gis']['jfyk']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['jfyk']['data_lnbr_path']
+            exe['puer']['gis']['jfyk']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['jfyk']['data_conlnbr_path']
+            exe['puer']['gis']['jfyk']['ftu_path'] =         gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['jfyk']['ftu_path']
+            exe['puer']['gis']['pzz'] = {}
+            exe['puer']['gis']['pzz']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['pzz']['data_bus_path']
+            exe['puer']['gis']['pzz']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['pzz']['data_gen_path']
+            exe['puer']['gis']['pzz']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['pzz']['data_lnbr_path']
+            exe['puer']['gis']['pzz']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['pzz']['data_conlnbr_path']
+            exe['puer']['gis']['pzz']['ftu_path'] =          gConfig[app]['distribute_network']['mcr_path']['puer']['gis']['pzz']['ftu_path']
+
+            exe['puer']['bayes'] = {}
+            exe['puer']['bayes']['jfyk'] = {}
+            exe['puer']['bayes']['jfyk']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['jfyk']['data_bus_path']
+            exe['puer']['bayes']['jfyk']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['jfyk']['data_gen_path']
+            exe['puer']['bayes']['jfyk']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['jfyk']['data_lnbr_path']
+            exe['puer']['bayes']['jfyk']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['jfyk']['data_conlnbr_path']
+            exe['puer']['bayes']['jfyk']['ftu_path'] =         gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['jfyk']['ftu_path']
+            exe['puer']['bayes']['pzz'] = {}
+            exe['puer']['bayes']['pzz']['data_bus_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['data_bus_path']
+            exe['puer']['bayes']['pzz']['data_gen_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['data_gen_path']
+            exe['puer']['bayes']['pzz']['data_lnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['data_lnbr_path']
+            exe['puer']['bayes']['pzz']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['data_conlnbr_path']
+            exe['puer']['bayes']['pzz']['ftu_path'] =         gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['ftu_path']
+
+
+
+
             if querydict.has_key('algorithm'):
                 if querydict['algorithm'] == 'gis':
                     cmd = ''
                     if querydict.has_key('dn_id') :
                         if querydict['dn_id'] in [u'5643ea96d8b95a164008f49d']:#测试配网1
-                            # cmd = '%s "%s" "%s" "%s" "%s" "%s"' % (
-                            #     exe['common']['gis_exe'],
-                            #     exe['common']['line_5']['data_bus_path'],
-                            #     exe['common']['line_5']['data_gen_path'],
-                            #     exe['common']['line_5']['data_lnbr_path'],
-                            #     exe['common']['line_5']['data_conlnbr_path'],
-                            #     exe['common']['line_5']['fault_vec_path']
-                            # )
-                            # if os.sys.platform == 'win32':
+
                             cmd = [
                                 exe['common']['gis_exe'],
                                 exe['common']['line_5']['data_bus_path'],
@@ -7174,6 +7198,22 @@ def application_webgis(environ, start_response):
                                             exe['yx']['ftu5']['multi_intervals'][interval]['data_lnbr_path'],
                                             exe['yx']['ftu5']['multi_intervals'][interval]['ftu1_path'],
                                         ]
+                        elif querydict['dn_id'] in [u'570ce0c1ca49c80858320619',
+                                                    u'570ce0c1ca49c8085832061a']:  # 普洱10kV 酒房丫口线 坪掌寨线
+                            algorithm = querydict['algorithm']
+                            linepy = ''
+                            if querydict['dn_id'] == u'570ce0c1ca49c80858320619':
+                                linepy = 'jfyk'
+                            elif querydict['dn_id'] == u'570ce0c1ca49c8085832061a':
+                                linepy = 'pzz'
+                            cmd = [
+                                exe['puer']['gis_exe'],
+                                exe['puer'][algorithm][linepy]['data_bus_path'],
+                                exe['puer'][algorithm][linepy]['data_gen_path'],
+                                exe['puer'][algorithm][linepy]['data_lnbr_path'],
+                                exe['puer'][algorithm][linepy]['data_conlnbr_path'],
+                                exe['puer'][algorithm][linepy]['ftu_path'],
+                            ]
 
                     if len(cmd) > 0:
                         print(cmd)
@@ -7282,8 +7322,6 @@ def application_webgis(environ, start_response):
                                 str(ants_Rho),
                                 str(ants_Q)
                             ]
-
-
                     if len(cmd) > 0:
                         print(cmd)
                         output = write_output(cmd)
@@ -7339,6 +7377,23 @@ def application_webgis(environ, start_response):
                                             exe['yx']['ftu5']['multi_intervals'][interval]['ftu1_path'],
                                             str(bayes_q)
                                         ]
+                        elif querydict['dn_id'] in [u'570ce0c1ca49c80858320619',
+                                                    u'570ce0c1ca49c8085832061a']:  # 普洱10kV 酒房丫口线 坪掌寨线
+                            algorithm = querydict['algorithm']
+                            linepy = ''
+                            if querydict['dn_id'] == u'570ce0c1ca49c80858320619':
+                                linepy = 'jfyk'
+                            elif querydict['dn_id'] == u'570ce0c1ca49c8085832061a':
+                                linepy = 'pzz'
+                            cmd = [
+                                exe['puer']['bayes_exe'],
+                                exe['puer'][algorithm][linepy]['data_bus_path'],
+                                exe['puer'][algorithm][linepy]['data_gen_path'],
+                                exe['puer'][algorithm][linepy]['data_lnbr_path'],
+                                exe['puer'][algorithm][linepy]['data_conlnbr_path'],
+                                exe['puer'][algorithm][linepy]['ftu_path'],
+                                str(bayes_q)
+                            ]
 
                     if len(cmd) > 0:
                         print(cmd)
