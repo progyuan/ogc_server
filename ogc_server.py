@@ -33,10 +33,16 @@ import gevent
 import gevent.fileobject
 from gevent.local import local
 from gevent.subprocess import check_output
+import grequests
 
-import pymongo
-import gridfs
-from bson.objectid import ObjectId
+try:
+    import pymongo
+    from pymongo import MongoClient, ReadPreference
+    from bson.objectid import ObjectId
+    from bson.timestamp import Timestamp
+    import gridfs
+except:
+    print('pymongo import error')
 try:
     from geventhttpclient import HTTPClient, URL
 except:
@@ -104,6 +110,7 @@ UPLOAD_VOICE_DIR = None
 gConfig = None
 gStaticCache = {}
 gTileCache = {}
+gClientMongo = {}
 
 #deprecated
 gSatTileCache = {}
@@ -6064,6 +6071,214 @@ def application_webgis(environ, start_response):
             request_headers['Content-Type'] = 'application/json'
         return handle_http_proxy(environ, 'proxy', 'http', gConfig['webgis']['anti_bird']['tcp_host'], gConfig['webgis']['anti_bird']['http_port'], token, connection_timeout, network_timeout, request_headers)
 
+    def handle_geo_cache(environ, proxy_key, cache, aStatuscode=None, aMimetype=None, aBody=None):
+        global gTileCache, gConfig, gClientMongo
+
+        def mongo_init_client():
+            global gClientMongo, gConfig
+            for k in gConfig['webgis']['tiles']['proxy'].keys():
+                host, port, replicaset = None, 0, ''
+                mong = gConfig['webgis']['tiles']['proxy'][k]['cache']['mongodb']
+                if mong.has_key('host'):
+                    host = mong['host']
+                if mong.has_key('port'):
+                    port = int(mong['port'])
+                if mong.has_key('replicaset'):
+                    replicaset = mong['replicaset']
+
+                if host and port:
+                    if len(replicaset) == 0:
+                        gClientMongo[k] = MongoClient(host, port)
+                    else:
+                        gClientMongo[k] = MongoClient(host, port, replicaSet=str(replicaset), read_preference=ReadPreference.PRIMARY)
+
+        def get_collection(mongo_client_id, collection_key):
+            global gClientMongo
+            ret = None
+            collection = None
+            client, db = None, None
+            if len(gClientMongo.keys()) == 0:
+                mongo_init_client()
+            if gClientMongo.has_key(mongo_client_id):
+                client = gClientMongo[mongo_client_id]
+            if client:
+                monconf = gConfig['webgis']['tiles']['proxy'][mongo_client_id]['cache']['mongodb']
+                if monconf['database'] in client.database_names():
+                    db = client[monconf['database']]
+                if db:
+                    if monconf.has_key(collection_key):
+                        collection = monconf[collection_key]
+                    else:
+                        collection = collection_key
+                    if collection:
+                        if not collection in db.collection_names(False):
+                            ret = db.create_collection(collection)
+                        else:
+                            ret = db[collection]
+            return db, ret
+
+
+        def gridfs_tile_save(tilepath, clientid, mimetype, buf):
+            try:
+                db, collection = get_collection(clientid, 'collection_gridfs')
+                fs = gridfs.GridFS(db, collection=collection.name)
+                fs.put(buf, mimetype=mimetype, filename=tilepath)
+            except:
+                print('gridfs_tile_save fail')
+
+        def gridfs_tile_find(tilepath, clientid):
+            mimetype, ret = None, None
+            try:
+                db, collection = get_collection(clientid, 'collection_gridfs')
+                fs = gridfs.GridFS(db, collection=collection.name)
+                for i in fs.find({'filename': tilepath}):
+                    mimetype, ret = str(i.mimetype), i.read()
+                    break
+            except Exception, e:
+                print(e)
+                print('gridfs_tile_save fail')
+            return mimetype, ret
+
+        statuscode, mimetype, body = aStatuscode, aMimetype, aBody
+
+        path_info = environ['PATH_INFO']
+        query_string = ''
+        if environ.has_key('QUERY_STRING'):
+            query_string = environ['QUERY_STRING']
+        proxy_placeholder = 'tileproxy_%s' % proxy_key
+        tilepath = ''
+        if cache:
+            if not gTileCache.has_key(proxy_key):
+                gTileCache[proxy_key] = {}
+
+            if proxy_key in ['terrain_quantized_mesh',  'tile_esri_sat']:
+                tilepath = path_info.replace('/%s/' % proxy_placeholder, '').replace('/%s' % proxy_placeholder, '')
+            elif proxy_key in ['tile_google_sat', 'tile_amap_map']:
+                tilepath = query_string
+            if not gTileCache[proxy_key].has_key(tilepath):
+                if statuscode is None or mimetype is None or body is None:
+                    g = gevent.spawn(gridfs_tile_find, tilepath, proxy_key)
+
+                    g.join()
+                    if g.value:
+                        mimetype, body = g.value[0], g.value[1]
+                        if mimetype and body:
+                            gTileCache[proxy_key][tilepath] = (mimetype, body)
+                            statuscode = 200
+                            print('get cached tile[%s] in db' % tilepath)
+                    else:
+                        statuscode, mimetype, body = None, None, None
+                else:
+                    gTileCache[proxy_key][tilepath] = (mimetype, body)
+                    if statuscode == 200:
+                        if cache.has_key('save_to_db') and cache['save_to_db'].lower() == 'true':
+                            gevent.spawn(gridfs_tile_save, tilepath, proxy_key, mimetype, body)
+            else:
+                if statuscode is None or mimetype is None or body is None:
+                    statuscode, mimetype, body = 200, gTileCache[proxy_key][tilepath][0], \
+                                                 gTileCache[proxy_key][tilepath][1]
+                    print('get cached tile[%s] in memory' % tilepath)
+                else:
+                    gTileCache[proxy_key][tilepath] = (mimetype, body)
+                    if statuscode == 200:
+                        if cache.has_key('save_to_db') and cache['save_to_db'].lower() == 'true':
+                            gevent.spawn(gridfs_tile_save, tilepath, proxy_key, mimetype, body)
+
+        return statuscode, mimetype, body
+
+
+
+    def handle_tile_proxy(environ, proxy_placeholder='', real_url='', cert=None, connection_timeout=5.0, network_timeout=10.0, request_headers={}):
+        global gConfig
+        path_info = environ['PATH_INFO']
+        pkey = proxy_placeholder[10:]
+
+        cache = None
+        statuscode, mimetype, body = None, None, None
+
+        cache = gConfig['webgis']['tiles']['proxy'][pkey]['cache']
+
+        statuscode, mimetype, body = handle_geo_cache(environ, pkey, cache)
+
+        if statuscode is None or mimetype is None or body is None:
+            if len(proxy_placeholder) > 0:
+                if environ.has_key('QUERY_STRING') and len(environ['QUERY_STRING']) > 0:
+                    path_info += '?' + environ['QUERY_STRING']
+                path_info = path_info.replace('/%s/' % proxy_placeholder, '/').replace('/%s' % proxy_placeholder, '/')
+            else:
+                path_info = ''
+            if real_url[-1] == '/':
+                real_url = real_url[:len(real_url) - 1]
+            headers = {}
+            for k in request_headers.keys():
+                headers[k] = request_headers[k]
+            href = real_url + path_info
+            print('proxy to %s' % href)
+            url = urlparse.urlparse(href)
+            headers['Host'] = str(url.netloc)
+            sslverify = False
+            if url.scheme == 'https':
+                sslverify = True
+            if cert:
+                sslverify = cert
+            respmap = grequests.map((
+                grequests.get(
+                    href,
+                    verify=sslverify,
+                    timeout=(connection_timeout, network_timeout),
+                    headers=headers,
+                ),)
+            )
+            # header = {'Content-Type': 'text/json;charset=' + ENCODING, 'Cache-Control': 'no-cache'}
+
+            for response in respmap:
+                if response:
+                    statuscode = response.status_code
+                    mimetype = 'application/octet-stream'
+                    if response.headers._store.has_key('Content-Type'):
+                        mimetype = response.headers['Content-Type']
+                    if response.status_code == 200 or response.status_code == 304:
+                        body = response.content
+                        # print(response.headers['Content-Type'])
+                        # if response.headers['Content-Encoding'] == 'gzip' and response.headers['Content-Type'] == 'application/json':
+                        #     with gzip.GzipFile(fileobj=StringIO.StringIO(body)) as f1:
+                        #         body = f1.read()
+
+            statuscode, mimetype, body = handle_geo_cache(environ, pkey, cache, statuscode, mimetype, body)
+
+        return statuscode, mimetype, body
+
+    def tileproxy(environ):
+        statuscode, mimetype, body = None, None, None
+        path_info = environ['PATH_INFO']
+        pkey = path_info[11:]
+        if '/' in pkey:
+            idx = pkey.index('/')
+            pkey = pkey[:idx]
+        if gConfig['webgis']['tiles']['proxy'].has_key(pkey):
+            pro = gConfig['webgis']['tiles']['proxy'][pkey]
+            proxy_placeholder = 'tileproxy_%s' % pkey
+            real_url = pro['url']
+            connection_timeout = float(pro['connection_timeout'])
+            network_timeout = float(pro['network_timeout'])
+            request_headers = {}
+            # if pro.has_key('header'):
+            #     for k in pro['header'].keys():
+            #         if isinstance(pro['header'][k], str) or isinstance(pro['header'][k], unicode):
+            #             request_headers[str(k)] = str(pro['header'][k])
+            #         elif isinstance(pro['header'][k], list):
+            #             s = ','.join( pro['header'][k])
+            #             request_headers[str(k)] = str(s)
+            statuscode, mimetype, body = handle_tile_proxy(environ,
+                                                           proxy_placeholder=proxy_placeholder,
+                                                           real_url=real_url,
+                                                           # ca_cert=ca_cert,
+                                                           connection_timeout=connection_timeout,
+                                                           network_timeout=network_timeout,
+                                                           request_headers=request_headers)
+        headers = {}
+        headers['Content-Type'] = mimetype
+        return str(statuscode), headers, body
     # def get_anti_bird_list_from_cache():
     #     ret = '{"result":"get_anti_bird_list_from_cache_error:cannot connect to db"}'
     #     arr = []
@@ -7494,6 +7709,8 @@ def application_webgis(environ, start_response):
     elif len(path_info)>6 and path_info[:6] == '/proxy':
         statuscode, headers, body = proxy(environ)
         headers['Cache-Control'] = 'no-cache'
+    elif len(path_info)>10 and path_info[:10] == '/tileproxy':
+        statuscode, headers, body = tileproxy(environ)
     # elif path_info == '/anti_bird_equip_list':
     #     statuscode, headers, body = anti_bird_equip_list(environ)
     # elif path_info == '/anti_bird_equip_tower_mapping':
