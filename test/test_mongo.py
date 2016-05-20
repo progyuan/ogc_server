@@ -10,7 +10,9 @@ import xlrd, xlwt
 import json
 import math
 from pydash import py_ as _
+from pinyin import PinYin
 
+gPinYin = None
 ENCODING = 'utf-8'
 ENCODING1 = 'gb18030'
 def dec(aStr):
@@ -349,8 +351,219 @@ def test_build_map():
     #     collection.save(i)
     print(json.dumps(name_code_mapping, ensure_ascii=True, indent=4))
 
+def test_algorithm():
+    def find_next_by_node(features, collection_edges, alist=[], id=None):
+        if isinstance(id, str):
+            id = add_mongo_id(id)
+        l = _.deep_pluck(list(collection_edges.find({'properties.start':id})),'properties.end')
+        for i in l:
+            obj = _.find(features, {'_id': i})
+            if obj['properties'] and obj['properties'].has_key('devices'):
+                alist.append(obj['_id'])
+            else:
+                alist = find_next_by_node(features, collection_edges, alist, obj['_id'])
+        return alist
+    def find_chain(features, collection_edges, alist=[], id=None):
+        # if len(alist) == 0:
+            # alist.append({
+            #     'idx':1,
+            #     '_id':add_mongo_id(id)
+            # })
+        _ids = find_next_by_node(features, collection_edges, [], id)
+        for _id in _ids:
+            obj = _.find(features, {'_id':_id})
+            if obj:
+                if obj['properties'] and obj['properties'].has_key('devices'):
+                    alist.append({
+                        'lnbr_idx': len(alist) + 1,
+                        'from_id': add_mongo_id(id),
+                        'to_id': obj['_id'],
+                    })
+                alist = find_chain(features, collection_edges, alist, obj['_id'])
+        return alist
+
+
+
+
+
+
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd_pe']
+    collection_network = db['network']
+    collection_fea = db['features']
+    collection_edges = db['edges']
+    line_ids = ['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a']
+    features = []
+    for i in line_ids:
+        line = collection_network.find_one({'_id':add_mongo_id(i)})
+        if line and line['properties']['nodes']:
+            features.extend(list(collection_fea.find({'_id':{'$in':add_mongo_id(line['properties']['nodes'])}})))
+    #     print(len(features))
+    # print(len(features))
+    first = ['570ce0b7ca49c8085832018f', '570ce0c1ca49c8085832031b']
+    for i in first:
+        chain = find_chain(features, collection_edges, [], i)
+        print(len(chain))
+        print(chain)
+
+
+def test_pzzx():#坪掌寨线
+    piny = get_pinyin_data()
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd_pe']
+    collection_fea = db['features']
+    collection_network = db['network']
+    one = collection_network.find_one({'_id':add_mongo_id('570ce0c1ca49c8085832061a')})
+    print(len(one['properties']['nodes']))
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*sslzx.*$'}})) #松山林支线
+    print(u'松山林支线%d' % len(l))
+    name = u'坪掌寨线松山林支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*mdszx.*$'}}))  # 忙肚山支线
+    print(u'忙肚山支线%d' % len(l))
+    name = u'坪掌寨线忙肚山支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*mdszx.*$'}}))  # 大河边支线
+    print(u'大河边支线%d' % len(l))
+    name = u'坪掌寨线大河边支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*xdtzx.*$'}}))  #下大田支线
+    print(u'下大田支线%d' % len(l))
+    name = u'坪掌寨线下大田支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+
+def get_pinyin_data():
+    global gPinYin
+    if gPinYin is None:
+        pydatapath =  'pinyin_word.data'
+        gPinYin =  PinYin(pydatapath)
+        gPinYin.load_word()
+    return gPinYin
+
+def test_jfykx():#酒房丫口线
+    piny = get_pinyin_data()
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd_pe']
+    collection_fea = db['features']
+    collection_network = db['network']
+    one = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})
+    print(len(one['properties']['nodes']))
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*dhpzzx.*$'}}))  # 大河平掌支线
+    print(u'大河平掌支线%d' % len(l))
+    name = u'酒房丫口线大河平掌支线'
+    o = {'properties':{
+        'name':name,
+        'py':piny.hanzi2pinyin_first_letter(name.replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一')),
+        'voltage':'12',
+        'webgis_type':'polyline_dn',
+        'nodes':_.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*bszzx.*$'}}))  # 控制半山寨支线
+    # s = ','.join(_.deep_pluck(l, 'properties.name'))
+    # print(u'控制半山寨支线%d:%s' % (len(l), s))
+    print(u'控制半山寨支线%d' % len(l))
+    name = u'酒房丫口线控制半山寨支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*mchzx.*$'}}))  # 控制马草河支线支线
+    print(u'控制马草河支线%d' % len(l))
+    name = u'酒房丫口线控制马草河支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*dpzzx.*$'}}))  # 大平掌支线
+    print(u'大平掌支线%d' % len(l))
+    name = u'酒房丫口线大平掌支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^.*bjzx.*$'}}))  # 碧鸡支线
+    print(u'碧鸡支线%d' % len(l))
+    name = u'酒房丫口线碧鸡支线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.deep_pluck(l, '_id')
+    }}
+    print(o)
+
+def test_trim():
+    client = MongoClient('localhost', 27017)
+    db = client['kmgd_pe']
+    collection_fea = db['features']
+    collection_network = db['network']
+    collection_edges = db['edges']
+    nodes = []
+    collection_network.remove({'_id': {'$nin': add_mongo_id(['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a'])}})
+    l = list(collection_network.find({'_id':{'$nin':add_mongo_id(['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a'])}}))
+    for i in l:
+        if i['properties'].has_key('nodes'):
+            nodes.extend(i['properties']['nodes'])
+    print(len(nodes))
+    # collection_fea.remove({'_id':{'$in':nodes}})
+    # collection_edges.remove({'$or':[{'properties.start':{'$in':nodes}}, {'properties.end':{'$in':nodes}}]})
+    ll = list(collection_edges.find({'$or': [{'properties.start': {'$in': nodes}}, {'properties.end': {'$in': nodes}}]}))
+    print(len(ll))
 
 if __name__ == '__main__':
-    test_build_map()
+    # test_algorithm()
     # pass
+    test_pzzx()
+    test_jfykx()
+    # test_trim()
 
