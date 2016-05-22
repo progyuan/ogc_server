@@ -9,6 +9,7 @@ from bson.timestamp import Timestamp
 import xlrd, xlwt
 import json
 import math
+import re
 from pydash import py_ as _
 from pinyin import PinYin
 
@@ -358,22 +359,18 @@ def test_algorithm():
         l = _.deep_pluck(list(collection_edges.find({'properties.start':id})),'properties.end')
         for i in l:
             obj = _.find(features, {'_id': i})
-            if obj['properties'] and obj['properties'].has_key('devices'):
-                alist.append(obj['_id'])
-            else:
-                alist = find_next_by_node(features, collection_edges, alist, obj['_id'])
+            if obj and obj.has_key('properties'):
+                if obj['properties'].has_key('devices'):
+                    alist.append(obj['_id'])
+                else:
+                    alist = find_next_by_node(features, collection_edges, alist, obj['_id'])
         return alist
     def find_chain(features, collection_edges, alist=[], id=None):
-        # if len(alist) == 0:
-            # alist.append({
-            #     'idx':1,
-            #     '_id':add_mongo_id(id)
-            # })
         _ids = find_next_by_node(features, collection_edges, [], id)
         for _id in _ids:
             obj = _.find(features, {'_id':_id})
-            if obj:
-                if obj['properties'] and obj['properties'].has_key('devices'):
+            if obj :
+                if obj.has_key('properties') and obj['properties'].has_key('devices'):
                     alist.append({
                         'lnbr_idx': len(alist) + 1,
                         'from_id': add_mongo_id(id),
@@ -383,28 +380,125 @@ def test_algorithm():
         return alist
 
 
+    def find_prev(collection_edges, id):
+        ret = None
+        one = collection_edges.find_one({'properties.end': id})
+        if one:
+            ret = one['properties']['start']
+        return ret
 
 
+    def find_next(collection_edges, id):
+        ret = None
+        one = collection_edges.find_one({'properties.start': id})
+        if one:
+            ret = one['properties']['end']
+        return ret
 
+
+    def find_first(collection_edges, alist):
+        ids = _.pluck(alist, '_id')
+        id = alist[0]['_id']
+        prev_id = None
+        while id and id in ids:
+            prev_id = id
+            id = find_prev(collection_edges, prev_id)
+        return prev_id
+
+    def write_excel(features_all, chains, filename):
+        wb = xlwt.Workbook()
+        # print(dir(wb))
+        for chain in chains:
+            ws = wb.add_sheet(str(len(wb._Workbook__worksheets) + 1))
+            columns = [
+                '_001_LnBR',
+                '_002_Bus_from',
+                '_003_Bus_to',
+                '_004_R',
+                '_005_X',
+                '_006_B_1_2',
+                '_007_kVA',
+                '_008_State',
+            ]
+            for col in columns:
+                ws.write(0, columns.index(col), col)
+            for i in chain:
+                row = chain.index(i) + 1
+                ws.write(row, 0, str(i['lnbr_idx']))
+                from_obj = _.find(features_all, {'_id':i['from_id']})
+                to_obj = _.find(features_all, {'_id':i['to_id']})
+                from_name = from_obj['properties']['name']
+                to_name = to_obj['properties']['name']
+                ws.write(row, 1, from_name)
+                ws.write(row, 2, to_name)
+        wb.save(filename)
 
     client = MongoClient('localhost', 27017)
     db = client['kmgd_pe']
     collection_network = db['network']
     collection_fea = db['features']
     collection_edges = db['edges']
-    line_ids = ['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a']
-    features = []
+
+    # line_ids = ['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a']
+    # 坪掌寨线
+    ids0 = collection_network.find_one({'_id':add_mongo_id('570ce0c1ca49c8085832061a')})['properties']['nodes']
+    features_all = list(collection_fea.find({'_id':{'$in':ids0}}))
+    line_ids = _.pluck(list(collection_network.find({'$and':[{'properties.py': {'$regex': '^pzzx.*$'}}, {'properties.py': {'$not': re.compile('^pzzx$')}}]})), '_id')
+    # print(line_ids)
+    chains = []
     for i in line_ids:
-        line = collection_network.find_one({'_id':add_mongo_id(i)})
-        if line and line['properties']['nodes']:
-            features.extend(list(collection_fea.find({'_id':{'$in':add_mongo_id(line['properties']['nodes'])}})))
-    #     print(len(features))
-    # print(len(features))
-    first = ['570ce0b7ca49c8085832018f', '570ce0c1ca49c8085832031b']
-    for i in first:
-        chain = find_chain(features, collection_edges, [], i)
-        print(len(chain))
-        print(chain)
+        line = collection_network.find_one({'_id':i})
+        if line and line['properties'].has_key('nodes'):
+            features = list(collection_fea.find({'_id':{'$in':add_mongo_id(line['properties']['nodes'])}}))
+            first_id = find_first(collection_edges, features)
+            if first_id:
+                first =  _.find(features, {'_id': first_id})
+                if first:
+                    chain = find_chain(features, collection_edges, [], first_id)
+                    print(first['properties']['name'])
+                    print(len(chain))
+                    chains.append(chain)
+    write_excel(features_all, chains, 'data_pzz.xls')
+    chains = []
+    line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c8085832061a')})
+    if line and line['properties'].has_key('nodes'):
+        first_id = add_mongo_id('570ce0b7ca49c8085832018f')
+        chain = find_chain(features_all, collection_edges, [], first_id)
+        chains.append(chain)
+    write_excel(features_all, chains, 'data_pzz0.xls')
+
+
+
+
+
+
+    # first = ['570ce0b7ca49c8085832018f', '570ce0c1ca49c8085832031b']
+    #酒房丫口线
+    chains = []
+    ids0 = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})['properties']['nodes']
+    features_all = list(collection_fea.find({'_id': {'$in': ids0}}))
+    line_ids = _.pluck(list(collection_network.find( {'$and': [{'properties.py': {'$regex': '^jfykx.*$'}}, {'properties.py': {'$not': re.compile('^jfykx$')}}]})), '_id')
+    # print(line_ids)
+    for i in line_ids:
+        line = collection_network.find_one({'_id': i})
+        if line and line['properties'].has_key('nodes'):
+            features = list(collection_fea.find({'_id': {'$in': add_mongo_id(line['properties']['nodes'])}}))
+            first_id = find_first(collection_edges, features)
+            if first_id:
+                first = _.find(features, {'_id': first_id})
+                if first:
+                    chain = find_chain(features, collection_edges, [], first_id)
+                    print(first['properties']['name'])
+                    print(len(chain))
+                    chains.append(chain)
+    write_excel(features_all, chains, 'data_jfyk.xls')
+    chains = []
+    line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})
+    if line and line['properties'].has_key('nodes'):
+        first_id = add_mongo_id('570ce0c1ca49c8085832031b')
+        chain = find_chain(features_all, collection_edges, [], first_id)
+        chains.append(chain)
+    write_excel(features_all, chains, 'data_jfyk0.xls')
 
 def sortlist(collection_edges, alist):
     def find_prev(id):
@@ -681,8 +775,8 @@ def test_trim():
     # print(len(ll))
 
 if __name__ == '__main__':
-    pass
-    # test_algorithm()
+    # pass
+    test_algorithm()
     # pass
     # test_pzzx()
     # test_jfykx()
