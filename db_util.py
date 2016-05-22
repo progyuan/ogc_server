@@ -6038,7 +6038,7 @@ def convert_shp_to_geojson(area, bound, shp, piny):
 def get_pinyin_data():
     global gPinYin
     if gPinYin is None:
-        pydatapath = os.path.join(module_path(), 'pinyin_word.data');
+        pydatapath = os.path.join(module_path(), 'pinyin_word.data')
         gPinYin =  PinYin(pydatapath)
         gPinYin.load_word()
     return gPinYin
