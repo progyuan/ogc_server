@@ -406,6 +406,51 @@ def test_algorithm():
         print(len(chain))
         print(chain)
 
+def sortlist(collection_edges, alist):
+    def find_prev(id):
+        ret = None
+        one = collection_edges.find_one({'properties.end':id})
+        if one:
+            ret = one['properties']['start']
+        return ret
+    def find_next(id):
+        ret = None
+        one = collection_edges.find_one({'properties.start':id})
+        if one:
+            ret = one['properties']['end']
+        return ret
+    def find_first(alist):
+        ids = _.pluck(alist, '_id')
+        id = alist[0]['_id']
+        prev_id = None
+        while id and id in ids:
+            prev_id = id
+            id = find_prev(prev_id)
+        return prev_id
+    def find_chain(alist, obj):
+        ids = _.pluck(alist, '_id')
+        chainlist = []
+        while obj:
+            chainlist.append(obj)
+            nst_id = find_next(obj['_id'])
+            if nst_id:
+                obj = _.find(alist, {'_id': nst_id})
+            else:
+                obj = None
+        return chainlist
+    first_id =  find_first(alist)
+    # ids = _.map_(_.pluck(alist, '_id'), lambda x:remove_mongo_id(x))
+    # print(ids)
+    # print(_.index_of(ids, remove_mongo_id(first_id)))
+    first = _.find(alist, {'_id': first_id})
+    chainlist = []
+    if first:
+        chainlist = find_chain(alist, first)
+    return chainlist
+
+
+
+
 
 def test_pzzx():#坪掌寨线
     piny = get_pinyin_data()
@@ -413,10 +458,16 @@ def test_pzzx():#坪掌寨线
     db = client['kmgd_pe']
     collection_fea = db['features']
     collection_network = db['network']
+    collection_edges = db['edges']
     one = collection_network.find_one({'_id':add_mongo_id('570ce0c1ca49c8085832061a')})
+    branches = []
     print(len(one['properties']['nodes']))
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*sslzx.*$'}})) #松山林支线
-    print(u'松山林支线%d' % len(l))
+    # print(len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'松山林支线%d, [%s]' % (len(l), s))
     name = u'坪掌寨线松山林支线'
     o = {'properties': {
         'name': name,
@@ -424,11 +475,15 @@ def test_pzzx():#坪掌寨线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*mdszx.*$'}}))  # 忙肚山支线
-    print(u'忙肚山支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'忙肚山支线%d, [%s]' % (len(l), s))
     name = u'坪掌寨线忙肚山支线'
     o = {'properties': {
         'name': name,
@@ -436,11 +491,15 @@ def test_pzzx():#坪掌寨线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*mdszx.*$'}}))  # 大河边支线
-    print(u'大河边支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'大河边支线%d, [%s]' % (len(l), s))
     name = u'坪掌寨线大河边支线'
     o = {'properties': {
         'name': name,
@@ -448,11 +507,15 @@ def test_pzzx():#坪掌寨线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*xdtzx.*$'}}))  #下大田支线
-    print(u'下大田支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'下大田支线%d, [%s]' % (len(l), s))
     name = u'坪掌寨线下大田支线'
     o = {'properties': {
         'name': name,
@@ -460,9 +523,28 @@ def test_pzzx():#坪掌寨线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^pzzxN.*$'}}))
+    ids = _.pluck(l, '_id')
+    main_ids = _.difference(ids, branches)
+    print('len(main_ids)=%d' % len(main_ids))
+    l = list(collection_fea.find({'_id': {'$in': main_ids}}))  # 坪掌寨线
+    l = sortlist(collection_edges, l)
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'坪掌寨线%d, [%s]' % (len(l), s))
+    name = u'坪掌寨线主线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.pluck(l, '_id')
+    }}
+    collection_network.insert(o)
 
 def get_pinyin_data():
     global gPinYin
@@ -478,23 +560,30 @@ def test_jfykx():#酒房丫口线
     db = client['kmgd_pe']
     collection_fea = db['features']
     collection_network = db['network']
+    collection_edges = db['edges']
     one = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})
-    print(len(one['properties']['nodes']))
+    # print(len(one['properties']['nodes']))
+    branches = []
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*dhpzzx.*$'}}))  # 大河平掌支线
-    print(u'大河平掌支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'大河平掌支线%d, [%s]' % (len(l), s))
     name = u'酒房丫口线大河平掌支线'
     o = {'properties':{
         'name':name,
         'py':piny.hanzi2pinyin_first_letter(name.replace('#','').replace('II',u'二').replace('I',u'一').replace(u'Ⅱ',u'二').replace(u'Ⅰ',u'一')),
         'voltage':'12',
         'webgis_type':'polyline_dn',
-        'nodes':_.deep_pluck(l, '_id')
+        'nodes':_.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*bszzx.*$'}}))  # 控制半山寨支线
-    # s = ','.join(_.deep_pluck(l, 'properties.name'))
-    # print(u'控制半山寨支线%d:%s' % (len(l), s))
-    print(u'控制半山寨支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'控制半山寨支线%d, [%s]' % (len(l), s))
     name = u'酒房丫口线控制半山寨支线'
     o = {'properties': {
         'name': name,
@@ -502,11 +591,15 @@ def test_jfykx():#酒房丫口线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*mchzx.*$'}}))  # 控制马草河支线支线
-    print(u'控制马草河支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'控制马草河支线%d, [%s]' % (len(l), s))
     name = u'酒房丫口线控制马草河支线'
     o = {'properties': {
         'name': name,
@@ -514,11 +607,15 @@ def test_jfykx():#酒房丫口线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*dpzzx.*$'}}))  # 大平掌支线
-    print(u'大平掌支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'大平掌支线%d, [%s]' % (len(l), s))
     name = u'酒房丫口线大平掌支线'
     o = {'properties': {
         'name': name,
@@ -526,11 +623,15 @@ def test_jfykx():#酒房丫口线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
     l = list(collection_fea.find({'properties.py': {'$regex': '^.*bjzx.*$'}}))  # 碧鸡支线
-    print(u'碧鸡支线%d' % len(l))
+    l = sortlist(collection_edges, l)
+    branches.extend(_.pluck(l, '_id'))
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'碧鸡支线%d, [%s]' % (len(l), s))
     name = u'酒房丫口线碧鸡支线'
     o = {'properties': {
         'name': name,
@@ -538,9 +639,28 @@ def test_jfykx():#酒房丫口线
             name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
         'voltage': '12',
         'webgis_type': 'polyline_dn',
-        'nodes': _.deep_pluck(l, '_id')
+        'nodes': _.pluck(l, '_id')
     }}
-    print(o)
+    # print(o)
+    collection_network.insert(o)
+    l = list(collection_fea.find({'properties.py': {'$regex': '^jfykxN.*$'}}))
+    ids = _.pluck(l, '_id')
+    main_ids = _.difference(ids, branches)
+    print('len(main_ids)=%d' % len(main_ids))
+    l = list(collection_fea.find({'_id': {'$in': main_ids}}))  # 酒房丫口线
+    l = sortlist(collection_edges, l)
+    s = ','.join(_.deep_pluck(l, 'properties.name'))
+    print(u'酒房丫口线%d, [%s]' % (len(l), s))
+    name = u'酒房丫口线主线'
+    o = {'properties': {
+        'name': name,
+        'py': piny.hanzi2pinyin_first_letter(
+            name.replace('#', '').replace('II', u'二').replace('I', u'一').replace(u'Ⅱ', u'二').replace(u'Ⅰ', u'一')),
+        'voltage': '12',
+        'webgis_type': 'polyline_dn',
+        'nodes': _.pluck(l, '_id')
+    }}
+    collection_network.insert(o)
 
 def test_trim():
     client = MongoClient('localhost', 27017)
@@ -550,20 +670,21 @@ def test_trim():
     collection_edges = db['edges']
     nodes = []
     collection_network.remove({'_id': {'$nin': add_mongo_id(['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a'])}})
-    l = list(collection_network.find({'_id':{'$nin':add_mongo_id(['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a'])}}))
-    for i in l:
-        if i['properties'].has_key('nodes'):
-            nodes.extend(i['properties']['nodes'])
-    print(len(nodes))
-    # collection_fea.remove({'_id':{'$in':nodes}})
-    # collection_edges.remove({'$or':[{'properties.start':{'$in':nodes}}, {'properties.end':{'$in':nodes}}]})
-    ll = list(collection_edges.find({'$or': [{'properties.start': {'$in': nodes}}, {'properties.end': {'$in': nodes}}]}))
-    print(len(ll))
+    # l = list(collection_network.find({'_id':{'$nin':add_mongo_id(['570ce0c1ca49c80858320619', '570ce0c1ca49c8085832061a'])}}))
+    # for i in l:
+    #     if i['properties'].has_key('nodes'):
+    #         nodes.extend(i['properties']['nodes'])
+    # print(len(nodes))
+    collection_fea.remove({'_id':{'$in':nodes}})
+    collection_edges.remove({'$or':[{'properties.start':{'$in':nodes}}, {'properties.end':{'$in':nodes}}]})
+    # ll = list(collection_edges.find({'$or': [{'properties.start': {'$in': nodes}}, {'properties.end': {'$in': nodes}}]}))
+    # print(len(ll))
 
 if __name__ == '__main__':
+    pass
     # test_algorithm()
     # pass
-    test_pzzx()
-    test_jfykx()
+    # test_pzzx()
+    # test_jfykx()
     # test_trim()
 
