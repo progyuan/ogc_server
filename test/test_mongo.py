@@ -370,11 +370,15 @@ def test_algorithm():
         for _id in _ids:
             obj = _.find(features, {'_id':_id})
             if obj :
+                from_index = _.find_index(features, {'_id':id})
+                to_index = _.find_index(features, {'_id':_id})
                 if obj.has_key('properties') and obj['properties'].has_key('devices'):
                     alist.append({
                         'lnbr_idx': len(alist) + 1,
                         'from_id': add_mongo_id(id),
                         'to_id': obj['_id'],
+                        # 'from_idx': from_index,
+                        # 'to_idx': to_index,
                     })
                 alist = find_chain(features, collection_edges, alist, obj['_id'])
         return alist
@@ -405,7 +409,7 @@ def test_algorithm():
             id = find_prev(collection_edges, prev_id)
         return prev_id
 
-    def write_excel(features_all, chains, filename):
+    def write_excel_lnbr(features_all, chains, filename):
         wb = xlwt.Workbook()
         # print(dir(wb))
         for chain in chains:
@@ -428,9 +432,55 @@ def test_algorithm():
                 from_obj = _.find(features_all, {'_id':i['from_id']})
                 to_obj = _.find(features_all, {'_id':i['to_id']})
                 from_name = from_obj['properties']['name']
+                from_id = remove_mongo_id(from_obj['_id'])
+                # from_idx = i['from_idx']
                 to_name = to_obj['properties']['name']
-                ws.write(row, 1, from_name)
-                ws.write(row, 2, to_name)
+                to_id = remove_mongo_id(to_obj['_id'])
+                # to_idx = i['to_idx']
+                # ws.write(row, 1, from_name)
+                # ws.write(row, 2, to_name)
+                ws.write(row, 1, from_id)
+                ws.write(row, 2, to_id)
+        wb.save(filename)
+    def write_excel_bus(features_all, chains, filename):
+        wb = xlwt.Workbook()
+        # print(dir(wb))
+        for chain in chains:
+            ws = wb.add_sheet(str(len(wb._Workbook__worksheets) + 1))
+            columns = [
+                '_001_No',
+                '_002_Type',
+                '_003_MW',
+                '_004_Mvar',
+                '_005_GS',
+                '_006_Bs',
+                '_007_Mag',
+                '_008_Deg',
+            ]
+            for col in columns:
+                ws.write(0, columns.index(col), col)
+            for i in chain:
+                row = chain.index(i) + 1
+                obj = _.find(features_all, {'_id': i['from_id']})
+                # name = obj['properties']['name']
+                id = obj['_id']
+                # from_idx = i['from_idx']
+                # ws.write(row, 0, name)
+                ws.write(row, 0, remove_mongo_id(id))
+                # ws.write(row, 0, from_idx)
+                if row == 1:
+                    ws.write(row, 1, 3)
+                else:
+                    ws.write(row, 1, 1)
+                if row == len(chain):
+                    obj1 = _.find(features_all, {'_id': i['to_id']})
+                    # name1 = obj1['properties']['name']
+                    id1 = obj1['_id']
+                    # to_idx = i['to_idx']
+                    # ws.write(row+1, 0, name1)
+                    ws.write(row + 1, 0, remove_mongo_id(id1))
+                    # ws.write(row + 1, 0, to_idx)
+                    ws.write(row+1, 1, 1)
         wb.save(filename)
 
     client = MongoClient('localhost', 27017)
@@ -458,14 +508,15 @@ def test_algorithm():
                     print(first['properties']['name'])
                     print(len(chain))
                     chains.append(chain)
-    write_excel(features_all, chains, 'data_pzz.xls')
-    chains = []
-    line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c8085832061a')})
-    if line and line['properties'].has_key('nodes'):
-        first_id = add_mongo_id('570ce0b7ca49c8085832018f')
-        chain = find_chain(features_all, collection_edges, [], first_id)
-        chains.append(chain)
-    write_excel(features_all, chains, 'data_pzz0.xls')
+    write_excel_lnbr(features_all, chains, 'data_lnbr_pzz.xls')
+    write_excel_bus(features_all, chains, 'data_bus_pzz.xls')
+    # chains = []
+    # line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c8085832061a')})
+    # if line and line['properties'].has_key('nodes'):
+    #     first_id = add_mongo_id('570ce0b7ca49c8085832018f')
+    #     chain = find_chain(features_all, collection_edges, [], first_id)
+    #     chains.append(chain)
+    # write_excel_lnbr(features_all, chains, 'data_lnbr_pzz0.xls')
 
 
 
@@ -491,14 +542,15 @@ def test_algorithm():
                     print(first['properties']['name'])
                     print(len(chain))
                     chains.append(chain)
-    write_excel(features_all, chains, 'data_jfyk.xls')
-    chains = []
-    line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})
-    if line and line['properties'].has_key('nodes'):
-        first_id = add_mongo_id('570ce0c1ca49c8085832031b')
-        chain = find_chain(features_all, collection_edges, [], first_id)
-        chains.append(chain)
-    write_excel(features_all, chains, 'data_jfyk0.xls')
+    write_excel_lnbr(features_all, chains, 'data_lnbr_jfyk.xls')
+    write_excel_bus(features_all, chains, 'data_bus_jfyk.xls')
+    # chains = []
+    # line = collection_network.find_one({'_id': add_mongo_id('570ce0c1ca49c80858320619')})
+    # if line and line['properties'].has_key('nodes'):
+    #     first_id = add_mongo_id('570ce0c1ca49c8085832031b')
+    #     chain = find_chain(features_all, collection_edges, [], first_id)
+    #     chains.append(chain)
+    # write_excel_lnbr(features_all, chains, 'data_lnbr_jfyk0.xls')
 
 def sortlist(collection_edges, alist):
     def find_prev(id):
