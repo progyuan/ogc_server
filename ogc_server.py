@@ -7696,8 +7696,8 @@ def application_webgis(environ, start_response):
         statuscode, headers, body = handle_tiles(environ)
     elif '/arcgistile' in path_info:
         statuscode, headers, body = handle_arcgistile(environ)
-    elif path_info == '/terrain/layer.json' or path_info[-8:] == '.terrain':
-        statuscode, headers, body = handle_terrain(environ)
+    # elif path_info == '/terrain/layer.json' or path_info[-8:] == '.terrain':
+    #     statuscode, headers, body = handle_terrain(environ)
     #elif path_info[-8:] == '.terrain':
         #return handle_terrain1(environ)
     # elif path_info == '/wfs':
