@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import os, sys
 import json
-import xlrd
+import datetime
+import xlrd, xlwt
 import codecs
 from collections import  OrderedDict
 from db_util import init_global, get_pinyin_data, update_geometry2d, mongo_action, mongo_find, mongo_find_one,  add_mongo_id, remove_mongo_id
@@ -635,11 +636,101 @@ def test13():
             # print(item)
             collection.save(item)
 
+def get_ftu_fault_record(xls_path, sheet_name, start_date, end_date):
+    ret = []
+    if isinstance(start_date, str) or isinstance(start_date, unicode):
+        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+    if isinstance(end_date, str) or isinstance(end_date, unicode):
+        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
 
+    if isinstance(start_date, datetime.datetime) and isinstance(end_date, datetime.datetime):
+        book = xlrd.open_workbook(xls_path)
+        startrowidx = 1
+        colstartrowidx = 0
+        for sheet in book.sheets():
+            if sheet.name.lower() == sheet_name.lower():
+                timestamp_idx = -1
+                sim_idx = -1
+                for i in range(100):
+                    if sheet.cell_value(colstartrowidx, i).lower() == 'timestamp':
+                        timestamp_idx = i
+                    if sheet.cell_value(colstartrowidx, i).lower() == 'sim':
+                        sim_idx = i
+                    if timestamp_idx > -1 and sim_idx > -1:
+                        break
+                for row in range(startrowidx, sheet.nrows):
+                    timestamp = None
+                    if len(sheet.cell_value(row, timestamp_idx)):
+                        timestamp = datetime.datetime.strptime(sheet.cell_value(row, timestamp_idx), "%Y-%m-%d %H:%M:%S")
+                        if timestamp >= start_date and timestamp <= end_date:
+                            sim = ''
+                            try:
+                                sim = str(int(sheet.cell_value(row, sim_idx)))
+                            except:
+                                sim = ''
+                            ret.append({
+                                'sim':sim
+                            })
+                            # ret.append({
+                            #     'sim': sim
+                            # })
+    # print(len(ret))
+    # def uniq(value, index, array):
+    ret = _.uniq(ret, 'sim')
+    # print(len(ret))
+    return ret
+
+def get_switch_alias_tower_id(xls_path, sheet_name, ftu_fault):
+    book = xlrd.open_workbook(xls_path)
+    startrowidx = 1
+    alist = []
+    ret = []
+    for sheet in book.sheets():
+        if sheet.name.lower() == sheet_name.lower():
+            sim_col = -1
+            id_col = -1
+            switch_alias_col = -1
+            line_py_col = -1
+            for i in range(100):
+                if sheet.cell_value(0, i).lower() == 'sim':
+                    sim_col = i
+                if sheet.cell_value(0, i).lower() == '_id':
+                    id_col = i
+                if sheet.cell_value(0, i).lower() == 'switch_alias':
+                    switch_alias_col = i
+                if sheet.cell_value(0, i).lower() == 'line_py':
+                    line_py_col = i
+                if sim_col > -1 and id_col > -1 and switch_alias_col > -1 and line_py_col > -1:
+                    break
+            for row in range(startrowidx, sheet.nrows):
+                alist.append({
+                    'sim':str(int(sheet.cell_value(row, sim_col))),
+                    '_id':str(sheet.cell_value(row, id_col)),
+                    'switch_alias': int(sheet.cell_value(row, switch_alias_col)),
+                    'line_py': str(sheet.cell_value(row, line_py_col)),
+                })
+    def filt(x):
+        return _.find_index(ftu_fault, {'sim':x['sim']}) > -1
+    ret = _.filter_(alist, filt)
+    def filt_gtz(x):
+        return x['switch_alias'] > 0
+    ret = _.filter_(ret, filt_gtz)
+    return ret
+
+
+
+
+def test14():
+    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\云南普洱04-01--05-10告警记录报表.xlsx'
+    ret = get_ftu_fault_record(XLS_FILE, u'Sheet1', '2016-04-07 00:00:00', '2016-04-20 00:00:00')
+    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\10kV线路柱上馈线终端FTU安装台账 (2).xls'
+    ret = get_switch_alias_tower_id(XLS_FILE, u'Sheet3', ret)
+    print(ret)
+    print(len(ret))
 
 
 if __name__ == "__main__":
     init_global()
-    test13()
+    test14()
     
     
