@@ -26,6 +26,7 @@ import StringIO
 import cgi
 import uuid
 import copy
+import xlrd, xlwt
 from contextlib import contextmanager
 
 from gevent import pywsgi
@@ -7272,6 +7273,135 @@ def application_webgis(environ, start_response):
                         f.write(enc(output.decode("cp850")))
                 return output
 
+            def get_ftu_fault_record(xls_path, sheet_name, start_date, end_date):
+                ret = []
+                if isinstance(start_date, str) or isinstance(start_date, unicode):
+                    if len(start_date) > 10:
+                        start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+                    else:
+                        start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+                if isinstance(end_date, str) or isinstance(end_date, unicode):
+                    if len(end_date) > 10:
+                        end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+                    else:
+                        end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
+
+                if isinstance(start_date, datetime.datetime) and isinstance(end_date, datetime.datetime):
+                    book = xlrd.open_workbook(xls_path)
+                    startrowidx = 1
+                    colstartrowidx = 0
+                    for sheet in book.sheets():
+                        if sheet.name.lower() == sheet_name.lower():
+                            timestamp_idx = -1
+                            sim_idx = -1
+                            for i in range(100):
+                                if sheet.cell_value(colstartrowidx, i).lower() == 'timestamp':
+                                    timestamp_idx = i
+                                if sheet.cell_value(colstartrowidx, i).lower() == 'sim':
+                                    sim_idx = i
+                                if timestamp_idx > -1 and sim_idx > -1:
+                                    break
+                            for row in range(startrowidx, sheet.nrows):
+                                timestamp = None
+                                if len(sheet.cell_value(row, timestamp_idx)):
+                                    timestamp = datetime.datetime.strptime(sheet.cell_value(row, timestamp_idx),
+                                                                           "%Y-%m-%d %H:%M:%S")
+                                    if timestamp >= start_date and timestamp <= end_date:
+                                        sim = ''
+                                        try:
+                                            sim = str(int(sheet.cell_value(row, sim_idx)))
+                                        except:
+                                            sim = ''
+                                        ret.append({
+                                            'sim': sim
+                                        })
+                                        # ret.append({
+                                        #     'sim': sim
+                                        # })
+                # print(len(ret))
+                # def uniq(value, index, array):
+                ret = _.uniq(ret, 'sim')
+                # print(len(ret))
+                return ret
+
+            def get_switch_alias_tower_id(xls_path, sheet_name, ftu_fault):
+                book = xlrd.open_workbook(xls_path)
+                startrowidx = 1
+                alist = []
+                ret = []
+                for sheet in book.sheets():
+                    if sheet.name.lower() == sheet_name.lower():
+                        sim_col = -1
+                        id_col = -1
+                        switch_alias_col = -1
+                        line_py_col = -1
+                        for i in range(100):
+                            if sheet.cell_value(0, i).lower() == 'sim':
+                                sim_col = i
+                            if sheet.cell_value(0, i).lower() == '_id':
+                                id_col = i
+                            if sheet.cell_value(0, i).lower() == 'switch_alias':
+                                switch_alias_col = i
+                            if sheet.cell_value(0, i).lower() == 'line_py':
+                                line_py_col = i
+                            if sim_col > -1 and id_col > -1 and switch_alias_col > -1 and line_py_col > -1:
+                                break
+                        for row in range(startrowidx, sheet.nrows):
+                            alist.append({
+                                'sim': str(int(sheet.cell_value(row, sim_col))),
+                                '_id': str(sheet.cell_value(row, id_col)),
+                                'switch_alias': int(sheet.cell_value(row, switch_alias_col)),
+                                'line_py': str(sheet.cell_value(row, line_py_col)),
+                            })
+
+                def filt(x):
+                    return _.find_index(ftu_fault, {'sim': x['sim']}) > -1
+
+                ret = _.filter_(alist, filt)
+
+                def filt_gtz(x):
+                    return x['switch_alias'] > 0
+
+                ret = _.filter_(ret, filt_gtz)
+                return ret
+
+            def build_data_ftu(data):
+                global gConfig
+
+                def create_xls(filepath, line_py, data):
+                    if os.path.exists(filepath):
+                        print('File exist, removing...')
+                        os.remove(filepath)
+                    wb = xlwt.Workbook()
+                    ws = wb.add_sheet('Sheet1')
+                    alist = _.filter_(data, lambda x: x['line_py'] == line_py)
+                    ftu_count = 0
+                    if line_py == 'jfyk':
+                        ftu_count = 8
+                    if line_py == 'pzz':
+                        ftu_count = 10
+                    for i in range(1, ftu_count + 1):
+                        if _.find_index(alist, {'switch_alias': i}) > -1:
+                            ws.write(0, i - 1, 1)
+                        else:
+                            ws.write(0, i - 1, 0)
+                    wb.save(filepath)
+
+                for alg in ['ants', 'bayes']:
+                    for k in ['jfyk', 'pzz']:
+                        ftu_path = gConfig['webgis']['distribute_network']['mcr_path']['puer'][alg][k]['ftu_path']
+                        # ftu_path += '_test.xls'
+                        create_xls(ftu_path, k, data)
+
+            def build_data_ftu_xls(start_data, end_data):
+                XLS_FILE = ur'data_ftu_report.xlsx'
+                ret = get_ftu_fault_record(XLS_FILE, u'Sheet1', start_data, end_data)
+                XLS_FILE = ur'data_tower_ftu_info.xls'
+                ret = get_switch_alias_tower_id(XLS_FILE, u'Sheet3', ret)
+                print(ret)
+                print(len(ret))
+                build_data_ftu(ret)
+
             ret = []
             querydict = sort_dict(querydict)
             print(json.dumps(db_util.remove_mongo_id(querydict), ensure_ascii=True, indent=4))
@@ -7372,8 +7502,13 @@ def application_webgis(environ, start_response):
             exe['puer']['bayes']['pzz']['data_conlnbr_path'] = gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['data_conlnbr_path']
             exe['puer']['bayes']['pzz']['ftu_path'] =         gConfig[app]['distribute_network']['mcr_path']['puer']['bayes']['pzz']['ftu_path']
 
-
-
+            timestamp_start, timestamp_stop = None, None
+            if querydict.has_key('timestamp_start') and len(querydict['timestamp_start']):
+                timestamp_start = querydict['timestamp_start']
+            if querydict.has_key('timestamp_stop') and len(querydict['timestamp_stop']):
+                timestamp_stop = querydict['timestamp_stop']
+            if timestamp_start and timestamp_stop:
+                build_data_ftu_xls(timestamp_start, timestamp_stop)
 
             if querydict.has_key('algorithm'):
                 if querydict['algorithm'] == 'gis':

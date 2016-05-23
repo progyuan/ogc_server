@@ -5,6 +5,7 @@ import datetime
 import xlrd, xlwt
 import codecs
 from collections import  OrderedDict
+import db_util
 from db_util import init_global, get_pinyin_data, update_geometry2d, mongo_action, mongo_find, mongo_find_one,  add_mongo_id, remove_mongo_id
 from pymongo import MongoClient
 from pydash import py_ as _
@@ -639,9 +640,15 @@ def test13():
 def get_ftu_fault_record(xls_path, sheet_name, start_date, end_date):
     ret = []
     if isinstance(start_date, str) or isinstance(start_date, unicode):
-        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        if len(start_date) > 10:
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d %H:%M:%S')
+        else:
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
     if isinstance(end_date, str) or isinstance(end_date, unicode):
-        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        if len(end_date) > 10:
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d %H:%M:%S')
+        else:
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
 
     if isinstance(start_date, datetime.datetime) and isinstance(end_date, datetime.datetime):
         book = xlrd.open_workbook(xls_path)
@@ -718,19 +725,47 @@ def get_switch_alias_tower_id(xls_path, sheet_name, ftu_fault):
     return ret
 
 
+def build_data_ftu(data):
+    global gConfig
+    def create_xls(filepath, line_py, data):
+        if os.path.exists(filepath):
+            print('File exist, removing...')
+            os.remove(filepath)
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet('Sheet1')
+        alist = _.filter_(data, lambda x:x['line_py'] == line_py)
+        ftu_count = 0
+        if line_py == 'jfyk':
+            ftu_count = 8
+        if line_py == 'pzz':
+            ftu_count = 10
+        for i in range(1, ftu_count+1):
+            if _.find_index(alist, {'switch_alias':i}) > -1:
+                ws.write(0, i - 1, 1)
+            else:
+                ws.write(0, i - 1, 0)
+        wb.save(filepath)
+
+    for alg in ['ants', 'bayes']:
+        for k in ['jfyk', 'pzz']:
+            ftu_path = gConfig['webgis']['distribute_network']['mcr_path']['puer'][alg][k]['ftu_path']
+            # ftu_path += '_test.xls'
+            create_xls(ftu_path, k, data)
 
 
-def test14():
-    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\云南普洱04-01--05-10告警记录报表.xlsx'
-    ret = get_ftu_fault_record(XLS_FILE, u'Sheet1', '2016-04-07 00:00:00', '2016-04-20 00:00:00')
-    XLS_FILE = ur'G:\2014项目\配电网故障定位\普洱FTU导出数据\10kV线路柱上馈线终端FTU安装台账 (2).xls'
+
+def build_data_ftu_xls(start_data, end_data):
+    XLS_FILE = ur'data_ftu_report.xlsx'
+    ret = get_ftu_fault_record(XLS_FILE, u'Sheet1', start_data, end_data)
+    XLS_FILE = ur'data_tower_ftu_info.xls'
     ret = get_switch_alias_tower_id(XLS_FILE, u'Sheet3', ret)
     print(ret)
     print(len(ret))
+    build_data_ftu(ret)
 
 
 if __name__ == "__main__":
     init_global()
-    test14()
+    # test14()
     
     
