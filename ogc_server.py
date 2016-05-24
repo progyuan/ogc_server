@@ -7266,7 +7266,11 @@ def application_webgis(environ, start_response):
             def write_output(cmd):
                 output = ''
                 if os.sys.platform == 'win32':
-                    output = gevent.subprocess.check_output(cmd)
+                    try:
+                        output = gevent.subprocess.check_output(cmd)
+                    except Exception, e:
+                        print(e)
+                        output = ''
                 elif os.sys.platform == 'linux2':
                     output = gevent.subprocess.check_output(cmd, env={"LD_LIBRARY_PATH": exe['LD_LIBRARY_PATH']})
                     with codecs.open(gConfig['webgis']['distribute_network']['mcr_path']['temp_file'], 'w', 'utf-8-sig') as f:
@@ -7951,12 +7955,18 @@ def application_webgis(environ, start_response):
     headers = CORS_header(headers)
     if cookie_header:
         headerslist.append(cookie_header)
+    if headers.has_key('Content-Type') and headers['Content-Type'] is None:
+        headers['Content-Type'] = 'application/octet-stream'
     for k in headers:
         headerslist.append((k, headers[k]))
     #print(headerslist)
 
     # headerslist = add_to_headerlist(headerslist, 'Cache-Control', 'no-cache')
     # print(headerslist)
+    if statuscode == 'None':
+        statuscode = '200 OK'
+    if body is None:
+        body = ''
     start_response(statuscode, headerslist)
     return [body]
 
