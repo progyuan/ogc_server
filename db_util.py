@@ -7456,7 +7456,7 @@ def mongo_action(dbname, collection_name, action, data, conditions={}, clienttyp
                     limit = conditions['limit']
                 for i in arr:
                     if len(tyarr)>0:
-                        condd = {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':tyarr}
+                        condd = {'$or':[{'properties.py':{'$regex':'^.*' + conditions['py'] + '.*$'}}, {'properties.name':{'$regex':'^.*' + conditions['py'] + '.*$'}}], 'properties.webgis_type':{'$in':tyarr}}
                         if i == 'network':
                             if gConfig['webgis'].has_key('anti_bird')\
                                 and gConfig['webgis']['anti_bird'].has_key('line_filter') \

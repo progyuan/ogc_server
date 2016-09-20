@@ -129,11 +129,38 @@ def query3():
     
 def query4():
     client = MongoClient('localhost', 27017)
-    db = client['chat']
-    collection = db['users']
-    ret = list(collection.find({}))
+    db = client['kmgd']
+    collection = db['network']
+    ret = list(collection.find({
+        '$or': [
+            {'properties.py': {'$regex': u'^.*ql.*$'}},
+            {'properties.name': {'$regex': u'^.*ql.*$'}}
+        ],
+        'properties.name':
+            {
+                '$in': [
+                    u'\u8349\u6d77\u7ebf',
+                    u'\u4e03\u7f57II\u56de',
+                    u'\u4e03\u7f57I\u56de',
+                    u'\u5382\u4e0aI\u3001II\u56de',
+                    u'\u5382\u4e2d\u7ebf',
+                    u'\u6606\u8f66I\u56de',
+                    u'\u6606\u8f66II\u56de',
+                    u'\u4e03\u4e1cII\u56de',
+                    u'\u4e03\u4e1cI\u56de',
+                    u'\u4e03\u677eI\u3001II\u56de',
+                    u'\u6743\u9a6cII\u56de',
+                    u'\u4e1c\u5927\u7ebf',
+                    u'\u9752\u77f3\u8def\u7ebf',
+                    u'\u4e03\u82b1I\u56de',
+                    u'\u82b1\u9752II\u56de'
+                ]
+            },
+        'properties.webgis_type':u'polyline_line'
+
+    }))
     return ret
-def query4():
+def query5():
     client = MongoClient('yncaiyun.com', 27017)
     db = client['chat']
     # print(db.collection_names())
@@ -143,7 +170,7 @@ def query4():
     # ret = list(collection.find({'group_name': re.compile(u'^.*' + u'描述' + u'.*$')}))
     # ret = list(collection.find({'group_name': re.compile(u'^.*' + u'a' + u'.*$')}))
     return ret
-def query5():
+def query6():
     client = MongoClient('yncaiyun.com', 27017)
     db = client['kmgd']
     collection = db['features']
@@ -828,9 +855,11 @@ def test_trim():
 
 if __name__ == '__main__':
     # pass
-    test_algorithm()
+    # test_algorithm()
     # pass
     # test_pzzx()
     # test_jfykx()
     # test_trim()
+    for i in query4():
+        print(i['properties']['name'])
 
