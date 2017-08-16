@@ -8088,7 +8088,8 @@ def get_host_ip():
         ips = commands.getoutput("/sbin/ifconfig | grep -i \"inet\" | grep -iv \"inet6\" |  awk {'print $2'} | sed -ne 's/addr\:/ /p'")
         arr = ips.split('\n')
         for i in arr:
-            ret.append(i.strip())
+            if len(i.strip()):
+                ret.append(i.strip())
     return ret
            
         
@@ -8580,7 +8581,13 @@ def mainloop_single( port=None, enable_cluster=False, enable_ssl=False):
                         idx += 1
                 servers[-1].serve_forever()
         else:
-            print('wrong host or port in %s' % db_util.CONFIGFILE)
+            if 'linux' in sys.platform:
+                print('linux platform detected')
+                server = pywsgi.WSGIServer(('0.0.0.0', int(pport)), app, handler_class=WebSocketHandler)
+                server.start()
+                server.serve_forever()
+            else:
+                print('wrong host or port in %s' % db_util.CONFIGFILE)
     return server
 
 
